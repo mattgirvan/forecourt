@@ -32,6 +32,7 @@ export function getSb(): SupabaseClient {
         autoRefreshToken: true,
         detectSessionInUrl: true,
         flowType: "pkce",
+        storageKey: "forecourt-auth",
       },
     });
   }

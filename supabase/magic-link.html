@@ -2,9 +2,12 @@
   <div style="max-width:480px;margin:0 auto">
     <img src="https://www.forecourt.me/mark.png?v=3" width="36" height="36" alt="Forecourt" style="display:block;border:0;width:36px;height:36px;border-radius:8px" />
     <div style="font-family:ui-monospace,Menlo,monospace;font-size:11px;letter-spacing:0.2em;text-transform:uppercase;color:#8b8d86;margin-top:14px">Forecourt</div>
-    <h1 style="font-weight:400;font-size:28px;line-height:1.2;margin:16px 0 12px">Open your instance.</h1>
-    <p style="font-family:system-ui,sans-serif;font-size:15px;line-height:1.5;color:#8b8d86;margin:0 0 28px">One link. Once. It expires shortly.</p>
-    <a href="{{ .ConfirmationURL }}" style="display:inline-block;background:#eeeee8;color:#0a0b0a;text-decoration:none;font-family:system-ui,sans-serif;font-size:14px;padding:12px 18px;border-radius:4px">Sign in to Forecourt</a>
+    <h1 style="font-weight:400;font-size:28px;line-height:1.2;margin:16px 0 12px">Your sign-in code.</h1>
+    <p style="font-family:ui-monospace,Menlo,monospace;font-size:32px;letter-spacing:0.18em;margin:8px 0 20px;color:#eeeee8">{{ .Token }}</p>
+    <p style="font-family:system-ui,sans-serif;font-size:15px;line-height:1.5;color:#8b8d86;margin:0 0 28px">
+      Type it in the Forecourt window that asked for it. If you opened Forecourt from the home screen, do not tap the link — it opens a different Safari and you will have to sign in again.
+    </p>
+    <a href="{{ .ConfirmationURL }}" style="display:inline-block;background:#eeeee8;color:#0a0b0a;text-decoration:none;font-family:system-ui,sans-serif;font-size:14px;padding:12px 18px;border-radius:4px">Or sign in on the web</a>
     <p style="font-family:system-ui,sans-serif;font-size:12px;color:#6a6c66;margin:36px 0 0">If you did not ask for this, ignore it.<br>hello@forecourt.me</p>
   </div>
 </div>
