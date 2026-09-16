@@ -1,15 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight } from "lucide-react";
-import { Desk } from "@/components/demo/desk";
-import { PortalStage } from "@/components/portal-stage";
-
+import { OpenDeskButton, RooftopBar } from "@/components/demo/rooftop-bar";
 import { Reveal } from "@/components/reveal";
 import { SiteShell } from "@/components/site-shell";
 import { Button } from "@/components/ui/button";
 import { PLANS, gbpPence } from "@/lib/catalog";
 import { jobs, modules, reasons, dispatch } from "@/lib/demo-data";
-
-
 
 export const Route = createFileRoute("/")({ component: Home });
 
@@ -37,21 +33,22 @@ function Home() {
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Button asChild>
-                <Link to="/demo">
-                  Open the desk <ArrowRight className="size-4" />
-                </Link>
+                <a href="#glass">
+                  Build a desk <ArrowRight className="size-4" />
+                </a>
               </Button>
               <Button variant="secondary" asChild>
                 <Link to="/account">Pay a 60-day pilot</Link>
               </Button>
-
             </div>
           </div>
           <div className="rise hidden lg:block" style={{ animationDelay: "80ms" }}>
-            <Desk compact />
+            <img
+              src="/images/desk.jpg"
+              alt="Forecourt desk on a sales iPad"
+              className="h-full w-full rounded-xl border border-line object-cover shadow-soft"
+            />
           </div>
-
-
         </div>
       </section>
 
@@ -73,21 +70,20 @@ function Home() {
         </div>
       </section>
 
-      <section className="border-y border-line bg-bg-2">
+      <section id="glass" className="border-y border-line bg-bg-2">
         <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
           <Reveal>
             <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-subtle">The glass</p>
             <h2 className="mt-3 max-w-2xl font-display text-3xl tracking-tight sm:text-4xl">
-              The portal already exists. This is it, clickable, with their name on the door.
+              Name the rooftop. Open their desk.
             </h2>
             <p className="mt-4 max-w-xl text-sm leading-relaxed text-muted">
-              Built from the live franchised prototype. Type their group, pick the franchise — the
-              glass restyles. Fictional stock. Play the tour or take over: locator, GP, month-end,
-              customer view.
+              Not a widget on this page. Enter the group and franchise, then open a full portal —
+              Audi book for an Audi dealer, Škoda for Škoda. Clickable. Locator, GP, customer view.
             </p>
           </Reveal>
           <div className="mt-8">
-            <PortalStage />
+            <RooftopBar />
           </div>
         </div>
         <div className="mx-auto grid max-w-6xl gap-px border-t border-line bg-line sm:grid-cols-2 lg:grid-cols-3">
@@ -100,7 +96,6 @@ function Home() {
           ))}
         </div>
       </section>
-
 
       <section className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
         <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-subtle">
@@ -153,7 +148,6 @@ function Home() {
           >
             Why these numbers <ArrowRight className="size-4" />
           </Link>
-
         </div>
       </section>
 
@@ -194,7 +188,6 @@ function Home() {
             <Link to="/how">How an order ships</Link>
           </Button>
           <ol className="mt-10 grid gap-6 sm:grid-cols-5">
-
             {dispatch.map((d) => (
               <li key={d.n}>
                 <div className="font-mono text-[11px] text-subtle">{d.n}</div>
@@ -219,10 +212,7 @@ function Home() {
           <Button asChild>
             <Link to="/account">Pay the pilot</Link>
           </Button>
-
-          <Button variant="secondary" asChild>
-            <Link to="/demo">Walk the desk first</Link>
-          </Button>
+          <OpenDeskButton />
         </div>
         <p className="mt-8 font-mono text-[11px] uppercase tracking-[0.14em] text-subtle">
           Matthew Girvan · Forecourt · September 2026

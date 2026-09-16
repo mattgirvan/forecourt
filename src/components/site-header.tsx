@@ -1,15 +1,33 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { Mark } from "@/components/mark";
 import { Button } from "@/components/ui/button";
+import { rooftopSearch } from "@/lib/brands";
+import { useDemo } from "@/lib/demo-store";
 import { SignedIn, SignedOut, UserButton } from "@/lib/auth/gates";
 import { cn } from "@/lib/utils";
 
 const links = [
   { to: "/", label: "Product" },
-  { to: "/demo", label: "Desk" },
   { to: "/how", label: "How it ships" },
   { to: "/pricing", label: "Commercial" },
 ] as const;
+
+function DeskNavLink({ className }: { className?: string }) {
+  const company = useDemo((s) => s.company);
+  const brandId = useDemo((s) => s.brandId);
+  const site = useDemo((s) => s.site);
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+
+  return (
+    <Link
+      to="/demo"
+      search={rooftopSearch({ company, brandId, site })}
+      className={cn(className, pathname === "/demo" && "text-fg")}
+    >
+      Desk
+    </Link>
+  );
+}
 
 export function SiteHeader() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
@@ -36,6 +54,7 @@ export function SiteHeader() {
               {l.label}
             </Link>
           ))}
+          <DeskNavLink className="rounded-sm px-3 py-2 text-sm text-muted transition-colors hover:text-fg" />
         </nav>
         <div className="flex items-center gap-2">
           <SignedIn>
@@ -53,7 +72,6 @@ export function SiteHeader() {
             <Link to="/account">60-day pilot</Link>
           </Button>
         </div>
-
       </div>
       <nav className="flex gap-1 overflow-x-auto border-t border-line px-4 py-1 md:hidden">
         {links.map((l) => (
@@ -68,6 +86,7 @@ export function SiteHeader() {
             {l.label}
           </Link>
         ))}
+        <DeskNavLink className="shrink-0 rounded-sm px-3 py-2 text-sm text-muted" />
       </nav>
     </header>
   );

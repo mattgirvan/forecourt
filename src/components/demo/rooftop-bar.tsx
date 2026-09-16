@@ -1,10 +1,31 @@
-import { BRAND_LIST, ROOFTOP_PRESETS } from "@/lib/brands";
+import { useEffect } from "react";
+import { Link } from "@tanstack/react-router";
+import { ArrowRight } from "lucide-react";
+import { BRAND_LIST, BRANDS, ROOFTOP_PRESETS, groupMark, rooftopSearch } from "@/lib/brands";
 import { useDemo } from "@/lib/demo-store";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
-export function RooftopBar() {
+export function OpenDeskButton({ className }: { className?: string }) {
+  const company = useDemo((s) => s.company);
+  const brandId = useDemo((s) => s.brandId);
+  const site = useDemo((s) => s.site);
+  const brand = BRANDS[brandId];
+  const mark = groupMark(company.trim() || "Your group");
+
+  return (
+    <Button className={className} asChild>
+      <Link to="/demo" search={rooftopSearch({ company, brandId, site })}>
+        Open {mark} + {brand.word}
+        <ArrowRight className="size-4" />
+      </Link>
+    </Button>
+  );
+}
+
+export function RooftopBar({ showOpen = true }: { showOpen?: boolean }) {
   const company = useDemo((s) => s.company);
   const brandId = useDemo((s) => s.brandId);
   const site = useDemo((s) => s.site);
@@ -12,6 +33,13 @@ export function RooftopBar() {
   const setBrand = useDemo((s) => s.setBrand);
   const setSite = useDemo((s) => s.setSite);
   const setRooftop = useDemo((s) => s.setRooftop);
+  const hydrate = useDemo((s) => s.hydrate);
+  const brand = BRANDS[brandId];
+  const mark = groupMark(company.trim() || "Your group");
+
+  useEffect(() => {
+    hydrate();
+  }, [hydrate]);
 
   return (
     <div className="rounded-xl border border-line bg-surface p-4 sm:p-5">
@@ -21,8 +49,8 @@ export function RooftopBar() {
             Put their name on the glass
           </p>
           <p className="mt-1 max-w-xl text-sm text-muted">
-            Group and franchise. The desk restyles live — wordmark, colour, stock. Fictional cars,
-            their badge.
+            Group, rooftop, franchise. Then open a full desk — their book, their badge, not a widget
+            in this page.
           </p>
         </div>
         <div className="flex flex-wrap gap-1.5">
@@ -98,6 +126,23 @@ export function RooftopBar() {
           })}
         </div>
       </div>
+
+      {showOpen && (
+        <div className="mt-5 flex flex-col gap-3 border-t border-line pt-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <div className="text-sm font-medium">
+              {mark}
+              <span className="mx-1.5 text-muted">+</span>
+              <span style={{ color: brand.accent }}>{brand.word}</span>
+            </div>
+            <p className="mt-0.5 text-xs text-muted">
+              Opens a full {brand.label} desk. Fictional stock. Clickable — locator, GP, customer
+              glass.
+            </p>
+          </div>
+          <OpenDeskButton />
+        </div>
+      )}
     </div>
   );
 }

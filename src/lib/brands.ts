@@ -276,6 +276,30 @@ export const BRANDS: Record<BrandId, Brand> = {
 
 export const BRAND_LIST = Object.values(BRANDS);
 
+export function isBrandId(v: unknown): v is BrandId {
+  return typeof v === "string" && v in BRANDS;
+}
+
+export type DemoSearch = {
+  group?: string;
+  brand?: BrandId;
+  site?: string;
+};
+
+export function rooftopSearch(input: {
+  company: string;
+  brandId: BrandId;
+  site: string;
+}): DemoSearch {
+  const group = input.company.trim();
+  const site = input.site.trim();
+  return {
+    group: group || undefined,
+    brand: input.brandId,
+    site: site || undefined,
+  };
+}
+
 export const ROOFTOP_PRESETS = [
   { company: "Northbridge Motor Co.", brandId: "audi" as const, site: "York" },
   { company: "Harbour Park", brandId: "ford" as const, site: "Poole" },

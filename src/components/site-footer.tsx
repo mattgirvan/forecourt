@@ -1,5 +1,18 @@
 import { Link } from "@tanstack/react-router";
 import { Mark } from "@/components/mark";
+import { rooftopSearch } from "@/lib/brands";
+import { useDemo } from "@/lib/demo-store";
+
+function DeskFooterLink() {
+  const company = useDemo((s) => s.company);
+  const brandId = useDemo((s) => s.brandId);
+  const site = useDemo((s) => s.site);
+  return (
+    <Link to="/demo" search={rooftopSearch({ company, brandId, site })} className="hover:text-fg">
+      Desk
+    </Link>
+  );
+}
 
 export function SiteFooter() {
   return (
@@ -21,10 +34,7 @@ export function SiteFooter() {
           <Link to="/how" className="hover:text-fg">
             How it ships
           </Link>
-          <Link to="/demo" className="hover:text-fg">
-            Desk
-          </Link>
-
+          <DeskFooterLink />
           <Link to="/pricing" className="hover:text-fg">
             Commercial
           </Link>

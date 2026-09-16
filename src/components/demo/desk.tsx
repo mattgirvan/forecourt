@@ -33,7 +33,7 @@ function toneForMissing(n: number) {
   return "bad" as const;
 }
 
-export function Desk({ compact = false }: { compact?: boolean }) {
+export function Desk({ compact = false, fill = false }: { compact?: boolean; fill?: boolean }) {
   const company = useDemo((s) => s.company);
   const brandId = useDemo((s) => s.brandId);
   const site = useDemo((s) => s.site);
@@ -47,12 +47,17 @@ export function Desk({ compact = false }: { compact?: boolean }) {
   const domain = `portal.${companySlug(company.trim() || "group")}.co.uk`;
 
   useEffect(() => {
-    hydrate();
-  }, [hydrate]);
+    if (!fill) hydrate();
+  }, [hydrate, fill]);
 
   return (
     <div
-      className={cn("desk-shell relative overflow-hidden", compact ? "min-h-[420px]" : "min-h-[640px]")}
+      className={cn(
+        "desk-shell relative overflow-hidden",
+        compact && "min-h-[420px]",
+        fill && "desk-fill flex min-h-0 flex-1 flex-col",
+        !compact && !fill && "min-h-[640px]",
+      )}
       style={
         {
           "--desk-accent": brand.accent,
@@ -125,7 +130,11 @@ export function Desk({ compact = false }: { compact?: boolean }) {
       </div>
 
       <div
-        className={cn("relative z-10 p-3 sm:p-4", compact && "max-h-[360px] overflow-auto")}
+        className={cn(
+          "relative z-10 p-3 sm:p-4",
+          compact && "max-h-[360px] overflow-auto",
+          fill && "min-h-0 flex-1 overflow-auto",
+        )}
         key={`${brandId}-${view}-${tab}`}
       >
         <div className="desk-pane">

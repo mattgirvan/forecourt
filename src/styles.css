@@ -133,6 +133,12 @@
   transition: border-color 400ms ease;
 }
 
+.desk-shell.desk-fill {
+  border-radius: 12px;
+  min-height: 100%;
+  height: 100%;
+}
+
 .desk-orb {
   position: absolute;
   top: -140px;

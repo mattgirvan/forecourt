@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { PortalStage } from "@/components/portal-stage";
+import { RooftopBar } from "@/components/demo/rooftop-bar";
 import { Reveal } from "@/components/reveal";
 import { SiteShell } from "@/components/site-shell";
 import { Button } from "@/components/ui/button";
@@ -143,14 +143,14 @@ export function HowPage() {
           <Reveal>
             <h2 className="font-display text-3xl tracking-tight">The glass they would get.</h2>
             <p className="mt-3 max-w-xl text-sm text-muted">
-              Click through it. This is not a slide. Feature flags above change what a real order
-              would turn on — the desk you are about to open is the working template.
+              Name the group and franchise. Open a full desk on its own page — not a widget here.
+              Feature flags above are what a real order would turn on.
             </p>
           </Reveal>
           <div className="mt-8">
-            <PortalStage playing={false} />
+            <RooftopBar />
           </div>
-          <Button className="mt-8" asChild>
+          <Button className="mt-6" variant="secondary" asChild>
             <Link to="/account">Start a rooftop</Link>
           </Button>
         </div>
