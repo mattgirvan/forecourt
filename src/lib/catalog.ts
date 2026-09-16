@@ -100,7 +100,7 @@ export const PLANS: Record<PlanId, Plan> = {
     minSites: 1,
     sellNow: true,
     body: "A franchise dealer. Manufacturer feed, option codes, extra seats. Twelve-month contract.",
-    why: "No trial. Manufacturer ingest is a real build. We will not spend that on a maybe.",
+    why: "Manufacturer ingest is a real build. Twelve months, billed monthly.",
     includes: [
       "One manufacturer brand",
       "Every site seat: host, progressor, admin, accounts",
@@ -121,7 +121,7 @@ export const PLANS: Record<PlanId, Plan> = {
     minSites: 2,
     sellNow: true,
     body: "A motor group. Every site, every franchise, one picture of the pipeline.",
-    why: "No trial. A group is a project. The contract starts when we do.",
+    why: "A group is a project. The contract starts when we do.",
     includes: [
       "Every site on the contract",
       "Principal roll-up across the group",

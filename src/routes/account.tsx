@@ -384,7 +384,7 @@ function AccountInner() {
         <p className="text-[13px] font-medium text-muted">Get started</p>
         <h1 className="mt-2 text-4xl font-semibold tracking-tight">Your package.</h1>
         <p className="mt-3 max-w-md text-sm text-muted">
-          Site can start on 60 days. Franchise and group are a 12-month subscription — we don’t build those on a maybe.
+          Site can start on 60 days. Franchise and group are a 12-month subscription.
         </p>
         {current && (
           <button

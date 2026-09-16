@@ -17,8 +17,7 @@ export function PricingPage() {
             Site, franchise, or group.
           </h1>
           <p className="mx-auto mt-4 max-w-lg text-base text-muted">
-            A 60-day trial exists for one site. Franchise and group are a 12-month subscription —
-            we don’t spend weeks standing up a group for a maybe.
+            A 60-day trial exists for one site. Franchise and group are a 12-month subscription.
           </p>
         </Reveal>
 
