@@ -42,7 +42,7 @@ export function RooftopBar({ showOpen = true }: { showOpen?: boolean }) {
   }, [hydrate]);
 
   return (
-    <div className="rounded-xl border border-line bg-surface p-4 sm:p-5">
+    <div className="rounded-[1.75rem] border border-line bg-surface p-5 sm:p-7">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-subtle">Your dealer</p>
@@ -55,7 +55,7 @@ export function RooftopBar({ showOpen = true }: { showOpen?: boolean }) {
               type="button"
               onClick={() => setRooftop(p)}
               className={cn(
-                "h-8 rounded-sm px-2.5 font-mono text-[10px] uppercase tracking-[0.12em] transition-colors",
+                "h-8 rounded-full px-3 text-[11px] transition-colors",
                 company === p.company && brandId === p.brandId
                   ? "bg-fg text-accent-fg"
                   : "bg-elevated text-muted hover:text-fg",
@@ -92,9 +92,7 @@ export function RooftopBar({ showOpen = true }: { showOpen?: boolean }) {
       </div>
 
       <div className="mt-4">
-        <p className="mb-2 font-mono text-[10px] uppercase tracking-[0.14em] text-subtle">
-          Primary franchise
-        </p>
+        <p className="mb-2 text-[11px] text-subtle">Brand</p>
         <div className="flex flex-wrap gap-1.5 max-sm:flex-nowrap max-sm:overflow-x-auto max-sm:pb-1">
           {BRAND_LIST.map((b) => {
             const on = b.id === brandId;

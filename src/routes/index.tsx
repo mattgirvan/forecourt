@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight } from "lucide-react";
-import { OpenDeskButton, RooftopBar } from "@/components/demo/rooftop-bar";
+import { RooftopBar } from "@/components/demo/rooftop-bar";
 import { Reveal } from "@/components/reveal";
 import { SiteShell } from "@/components/site-shell";
 import { Button } from "@/components/ui/button";
@@ -9,134 +9,169 @@ import { PLANS, gbpPence } from "@/lib/catalog";
 export const Route = createFileRoute("/")({ component: Home });
 
 const pieces = [
-  { n: "01", title: "Stock", line: "New and used. One list. Keys and days on the yard." },
-  { n: "02", title: "Deals", line: "Every live order, the profit, and what’s still missing." },
-  { n: "03", title: "Locator", line: "Where the car actually is — factory, boat, compound, site." },
-  { n: "04", title: "Customers", line: "They can see their own car. Fewer “any update?” calls." },
+  {
+    n: "01",
+    title: "Stock",
+    line: "New and used in one list. Where the keys are. How long it’s been sitting.",
+  },
+  {
+    n: "02",
+    title: "Deals",
+    line: "Every live order. The profit. What’s still missing before handover.",
+  },
+  {
+    n: "03",
+    title: "Locator",
+    line: "Factory, boat, compound, or on the yard — so nobody has to guess.",
+  },
+  {
+    n: "04",
+    title: "Customers",
+    line: "They can see their own car. Fewer “any update?” calls.",
+  },
+] as const;
+
+const steps = [
+  {
+    n: "1",
+    title: "See it",
+    body: "Put your dealership name on a working desk. Sample cars. Click around.",
+    href: "#try",
+    cta: "Try it",
+  },
+  {
+    n: "2",
+    title: "Start 60 days",
+    body: `${gbpPence(PLANS.pilot.setupPence)}. One rooftop. Your colours. If you stay, it comes off the setup.`,
+    href: "/account",
+    cta: "Get started",
+  },
+  {
+    n: "3",
+    title: "Go live",
+    body: "We load your cars and staff. You get a website. The iPad on the desk is yours.",
+    href: "/how",
+    cta: "How it works",
+  },
 ] as const;
 
 function Home() {
   return (
     <SiteShell>
-      <section className="relative min-h-[88dvh] overflow-hidden border-b border-line">
-        <img
-          src="/images/forecourt.jpg"
-          alt=""
-          className="hero-still absolute inset-0 size-full object-cover opacity-40"
-        />
-        <div className="absolute inset-0 bg-gradient-to-b from-bg/30 via-bg/70 to-bg" />
-        <div className="relative mx-auto flex min-h-[88dvh] max-w-6xl flex-col justify-end px-4 pb-16 pt-28 sm:px-6 sm:pb-24">
-          <p className="rise font-mono text-[11px] uppercase tracking-[0.28em] text-muted">Forecourt</p>
-          <h1
-            className="rise mt-5 max-w-3xl font-display text-[3rem] leading-[0.95] tracking-tight sm:text-7xl"
-            style={{ animationDelay: "80ms" }}
-          >
-            Your dealership.
-            <br />
-            On one screen.
-          </h1>
-          <p
-            className="rise mt-6 max-w-md text-base leading-relaxed text-muted sm:text-lg"
-            style={{ animationDelay: "160ms" }}
-          >
-            The iPad on the desk. Stock, deals, and where every car is — in your colours.
-          </p>
-          <div className="rise mt-10 flex flex-wrap gap-3" style={{ animationDelay: "240ms" }}>
-            <Button asChild>
-              <a href="#try">
-                See yours <ArrowRight className="size-4" />
-              </a>
-            </Button>
-            <Button variant="secondary" asChild>
-              <Link to="/account">Start 60 days</Link>
-            </Button>
-          </div>
+      <section className="px-4 pb-8 pt-16 text-center sm:px-6 sm:pt-24">
+        <p className="rise text-[13px] font-medium tracking-wide text-muted">
+          Software for car dealerships
+        </p>
+        <h1
+          className="rise mx-auto mt-5 max-w-3xl text-[2.75rem] font-semibold leading-[1.02] tracking-tight sm:text-7xl"
+          style={{ animationDelay: "90ms" }}
+        >
+          The screen on the sales desk.
+        </h1>
+        <p
+          className="rise mx-auto mt-6 max-w-lg text-base leading-relaxed text-muted sm:text-lg"
+          style={{ animationDelay: "180ms" }}
+        >
+          Forecourt is where your stock, your deals, and where every car is — in your colours.
+        </p>
+        <div className="rise mt-9 flex flex-wrap justify-center gap-3" style={{ animationDelay: "260ms" }}>
+          <Button className="rounded-full" asChild>
+            <a href="#try">
+              Try it <ArrowRight className="size-4" />
+            </a>
+          </Button>
+          <Button variant="secondary" className="rounded-full" asChild>
+            <Link to="/how">How it works</Link>
+          </Button>
+        </div>
+        <div
+          className="rise mx-auto mt-14 max-w-5xl overflow-hidden rounded-[2rem] border border-line shadow-soft sm:rounded-[2.5rem]"
+          style={{ animationDelay: "340ms" }}
+        >
+          <img src="/images/desk.jpg" alt="Forecourt on a sales iPad" className="hero-still w-full object-cover" />
         </div>
       </section>
 
-      <section className="border-b border-line">
-        <div className="mx-auto grid max-w-6xl sm:grid-cols-2 lg:grid-cols-4">
+      <section id="what" className="mx-auto max-w-5xl px-4 py-20 sm:px-6 sm:py-28">
+        <Reveal className="text-center">
+          <p className="text-[13px] font-medium text-muted">What you’re looking at</p>
+          <h2 className="mx-auto mt-3 max-w-xl text-4xl font-semibold tracking-tight sm:text-5xl">
+            One place for the day’s work.
+          </h2>
+        </Reveal>
+        <div className="mt-12 grid gap-4 sm:grid-cols-2">
           {pieces.map((p, i) => (
             <Reveal
               key={p.title}
-              delay={i * 70}
-              className="border-b border-line p-6 last:border-b-0 sm:border-b-0 sm:border-r sm:last:border-r-0 lg:min-h-[240px]"
+              delay={i * 80}
+              className="rounded-[1.75rem] border border-line bg-surface p-7 sm:p-8"
             >
-              <div className="font-mono text-[11px] text-subtle">{p.n}</div>
-              <h2 className="mt-8 font-display text-3xl tracking-tight">{p.title}</h2>
-              <p className="mt-3 max-w-[16rem] text-sm leading-relaxed text-muted">{p.line}</p>
+              <div className="text-[13px] text-subtle">{p.n}</div>
+              <h3 className="mt-8 text-3xl font-semibold tracking-tight">{p.title}</h3>
+              <p className="mt-3 max-w-sm text-[15px] leading-relaxed text-muted">{p.line}</p>
             </Reveal>
           ))}
         </div>
       </section>
 
-      <section id="try" className="relative overflow-hidden border-b border-line">
-        <div className="mx-auto grid max-w-6xl lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
-          <div className="px-4 py-16 sm:px-6 sm:py-24">
-            <Reveal>
-              <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-subtle">Try it</p>
-              <h2 className="mt-3 font-display text-4xl tracking-tight sm:text-5xl">
-                Put your name on it.
-              </h2>
-              <p className="mt-4 max-w-sm text-sm leading-relaxed text-muted">
-                Type the group. Pick the brand. Open a working desk — not a slideshow.
-              </p>
-            </Reveal>
-            <div className="mt-8">
-              <RooftopBar />
-            </div>
-          </div>
-          <div className="relative min-h-[320px] border-t border-line lg:min-h-full lg:border-l lg:border-t-0">
-            <img
-              src="/images/desk.jpg"
-              alt="Forecourt on a sales iPad"
-              className="absolute inset-0 size-full object-cover"
-            />
-          </div>
+      <section className="px-4 py-8 sm:px-6">
+        <div className="relative mx-auto max-w-5xl overflow-hidden rounded-[2rem] border border-line">
+          <img src="/images/forecourt.jpg" alt="" className="h-72 w-full object-cover sm:h-[28rem]" />
+          <div className="absolute inset-0 bg-gradient-to-t from-bg via-bg/20 to-transparent" />
+          <p className="absolute bottom-8 left-8 right-8 max-w-md text-2xl font-semibold tracking-tight sm:text-3xl">
+            Built for the person standing next to the car.
+          </p>
         </div>
       </section>
 
-      <section className="mx-auto max-w-6xl px-4 py-20 sm:px-6 sm:py-28">
-        <Reveal>
-          <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-subtle">On the drive</p>
-          <h2 className="mt-3 max-w-xl font-display text-4xl tracking-tight">
-            Built for the person standing next to the car.
+      <section id="start" className="mx-auto max-w-5xl px-4 py-20 sm:px-6 sm:py-28">
+        <Reveal className="text-center">
+          <p className="text-[13px] font-medium text-muted">How to get started</p>
+          <h2 className="mx-auto mt-3 max-w-xl text-4xl font-semibold tracking-tight sm:text-5xl">
+            Three steps. That’s the whole path.
           </h2>
         </Reveal>
-        <div className="mt-14 grid gap-12 sm:grid-cols-3">
-          {[
-            { t: "Know where it is", b: "No more ringing the factory or guessing the compound." },
-            { t: "See the profit now", b: "GP on the deal, not in a board pack after month-end." },
-            { t: "Fewer chase-ups", b: "The customer can look at their own order." },
-          ].map((x, i) => (
-            <Reveal key={x.t} delay={i * 90}>
-              <div className="font-mono text-[11px] text-subtle">0{i + 1}</div>
-              <h3 className="mt-4 font-display text-2xl tracking-tight">{x.t}</h3>
-              <p className="mt-3 text-sm leading-relaxed text-muted">{x.b}</p>
+        <ol className="mt-14 grid gap-4 lg:grid-cols-3">
+          {steps.map((s, i) => (
+            <Reveal
+              key={s.n}
+              delay={i * 90}
+              className="flex flex-col rounded-[1.75rem] border border-line bg-surface p-7"
+            >
+              <div className="flex size-10 items-center justify-center rounded-full bg-fg text-sm font-semibold text-accent-fg">
+                {s.n}
+              </div>
+              <h3 className="mt-6 text-2xl font-semibold tracking-tight">{s.title}</h3>
+              <p className="mt-3 flex-1 text-[15px] leading-relaxed text-muted">{s.body}</p>
+              {s.href.startsWith("#") ? (
+                <a href={s.href} className="mt-6 inline-flex items-center gap-1 text-sm font-medium text-fg">
+                  {s.cta} <ArrowRight className="size-4" />
+                </a>
+              ) : (
+                <Link
+                  to={s.href as "/account" | "/how"}
+                  className="mt-6 inline-flex items-center gap-1 text-sm font-medium text-fg"
+                >
+                  {s.cta} <ArrowRight className="size-4" />
+                </Link>
+              )}
             </Reveal>
           ))}
-        </div>
+        </ol>
       </section>
 
-      <section className="relative overflow-hidden border-y border-line">
-        <img src="/images/yard.jpg" alt="" className="absolute inset-0 size-full object-cover opacity-25" />
-        <div className="absolute inset-0 bg-gradient-to-r from-bg via-bg/85 to-bg/40" />
-        <div className="relative mx-auto flex max-w-6xl flex-col gap-8 px-4 py-20 sm:flex-row sm:items-end sm:justify-between sm:px-6 sm:py-28">
-          <Reveal>
-            <p className="font-mono text-[11px] uppercase tracking-[0.22em] text-subtle">60 days</p>
-            <h2 className="mt-3 font-display text-5xl tracking-tight">{gbpPence(PLANS.pilot.setupPence)}</h2>
-            <p className="mt-4 max-w-sm text-sm leading-relaxed text-muted">
-              One rooftop. Your colours. If you stay, it comes off the setup.
-            </p>
-          </Reveal>
-          <Reveal delay={120}>
-            <div className="flex flex-wrap gap-3">
-              <Button asChild>
-                <Link to="/account">Start 60 days</Link>
-              </Button>
-              <OpenDeskButton />
-            </div>
-          </Reveal>
+      <section id="try" className="mx-auto max-w-5xl px-4 pb-24 sm:px-6">
+        <Reveal className="text-center">
+          <p className="text-[13px] font-medium text-muted">Step 1</p>
+          <h2 className="mt-3 text-4xl font-semibold tracking-tight sm:text-5xl">
+            Try it with your name.
+          </h2>
+          <p className="mx-auto mt-4 max-w-md text-[15px] leading-relaxed text-muted">
+            Type the group. Pick the brand. Open a real desk — not a slideshow.
+          </p>
+        </Reveal>
+        <div className="mt-10">
+          <RooftopBar />
         </div>
       </section>
     </SiteShell>
