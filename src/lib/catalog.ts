@@ -53,7 +53,7 @@ export const PLANS: Record<
     stripeMode: "payment",
     sellNow: true,
     tag: "Pay this now",
-    body: "One rooftop. Their brand. Locator + GP as the success number. 100% credited against setup if they convert.",
+    body: "One rooftop. Their brand. Locator + GP as the success number. 100% credited against setup if they convert. Seats: sales execs + manager — Aberdeen as it already runs.",
     why: "A free pilot gets ignored. Fifteen hundred pounds is a day of a principal’s attention, not a software licence.",
   },
   site: {
@@ -65,7 +65,7 @@ export const PLANS: Record<
     stripeMode: "invoice",
     sellNow: false,
     tag: "After go-live",
-    body: "One rooftop. Brand pack. Stock + deals + customer view. Excel / HTML ingest. Monthly starts when the desk is live — not at checkout.",
+    body: "One rooftop, one franchise. Brand pack. Stock + deals + customer view. Excel / HTML ingest. Host, progressor, admin, accounts seats if they need them — not extra SKUs.",
     why: "£399/mo is still cheap against a DMS. £349 looked like a side project. The setup is the real fee because standing it up is the work.",
   },
   group: {
@@ -77,7 +77,7 @@ export const PLANS: Record<
     stripeMode: "invoice",
     sellNow: false,
     tag: "The actual business",
-    body: "2–8 sites. Shared pipeline, per-site stock, group Overview. One contract. Franchise pack extra.",
+    body: "2–8 sites, one or many franchises. Shared pipeline, per-site stock, principal roll-up. Seats scoped to rooftop and badge. Franchise pack extra.",
     why: "Independents of 2–8 rooftops are the wedge. Price per site drops; you do not discount the first one to win the fifth.",
   },
 };

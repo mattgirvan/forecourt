@@ -15,6 +15,7 @@
     "glow": "rgba(217, 162, 75, 0.36)",
     "ink": "#20160A"
   },
+  "franchises": [],
   "ingest": "excel",
   "features": {
     "overview": true,
@@ -25,6 +26,8 @@
     "mind": true,
     "manufacturer": false
   },
-  "staff": ["you@example.invalid"],
+  "staff": [
+    { "name": "You", "email": "you@example.invalid", "role": "management", "site": "Main" }
+  ],
   "seedDemo": false
 }

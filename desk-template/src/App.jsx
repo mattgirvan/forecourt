@@ -5,6 +5,7 @@ import { locatorLane, pipelineStages } from "./config/locator";
 import { useDesk } from "./data/store";
 import { gbp } from "./lib/money";
 import { LoginGate } from "./LoginGate";
+import { normaliseStaff, roleOf } from "./roles";
 
 const ALL_TABS = [
   { id: "overview", label: "Overview" },
@@ -26,9 +27,13 @@ export default function App() {
 function Desk() {
   const boot = useDesk((s) => s.boot);
   const ready = useDesk((s) => s.ready);
-  const [tab, setTab] = useState("overview");
+  const seats = useMemo(() => normaliseStaff(tenant.staff), []);
+  const [seatEmail, setSeatEmail] = useState(seats[0]?.email || "");
+  const seat = seats.find((s) => s.email === seatEmail) ?? seats[0];
+  const pack = roleOf(seat?.role);
+  const [tab, setTab] = useState(pack.tabs[0] || "overview");
   const [view, setView] = useState("staff");
-  const tabs = ALL_TABS.filter((t) => featureOn(t.id));
+  const tabs = ALL_TABS.filter((t) => featureOn(t.id) && pack.tabs.includes(t.id));
   const mark = groupMark();
   const word = tenant.franchise?.word || "";
   const logo = "/brand/logo.svg";
@@ -69,7 +74,24 @@ function Desk() {
             </div>
           </div>
         </div>
-        <div className="eyebrow">{tenant.domain}</div>
+        <div className="eyebrow" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span>{tenant.domain}</span>
+          <select
+            value={seat?.email || ""}
+            onChange={(e) => {
+              setSeatEmail(e.target.value);
+              setView("staff");
+            }}
+            style={{ height: 32, fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase" }}
+          >
+            {seats.map((s) => (
+              <option key={s.email || s.role} value={s.email}>
+                {roleOf(s.role).label}
+                {s.site ? ` · ${s.site}` : ""}
+              </option>
+            ))}
+          </select>
+        </div>
       </header>
 
       <div className="tabs">
@@ -78,31 +100,33 @@ function Desk() {
             {t.label}
           </button>
         ))}
-        <button type="button" onClick={() => setView(view === "staff" ? "customer" : "staff")} style={{ marginLeft: "auto" }}>
-          {view === "staff" ? "As customer" : "As staff"}
-        </button>
+        {pack.tabs.includes("customer") && (
+          <button type="button" onClick={() => setView(view === "staff" ? "customer" : "staff")} style={{ marginLeft: "auto" }}>
+            {view === "staff" ? "As customer" : "As staff"}
+          </button>
+        )}
       </div>
 
       <div className="pane">
         {view === "customer" ? (
           <Customer />
         ) : tab === "stock" ? (
-          <Stock />
+          <Stock canEdit={pack.edit} />
         ) : tab === "locator" ? (
-          <Locator />
+          <Locator canEdit={pack.edit} showGp={pack.gp} />
         ) : tab === "pipeline" ? (
-          <Pipeline />
+          <Pipeline canEdit={pack.edit} />
         ) : tab === "mind" ? (
           <Mind />
         ) : (
-          <Overview />
+          <Overview showGp={pack.gp} />
         )}
       </div>
     </div>
   );
 }
 
-function Overview() {
+function Overview({ showGp = true }) {
   const deals = useDesk((s) => s.deals);
   const selectDeal = useDesk((s) => s.selectDeal);
   const toggleMonthEnd = useDesk((s) => s.toggleMonthEnd);
@@ -122,7 +146,7 @@ function Overview() {
     <div>
       <div className="stats">
         <div className="glass stat"><span className="eyebrow">Live deals</span><b>{live.length}</b></div>
-        <div className="glass stat"><span className="eyebrow">GP on book</span><b>{gbp(gpSum)}</b></div>
+        {showGp && <div className="glass stat"><span className="eyebrow">GP on book</span><b>{gbp(gpSum)}</b></div>}
         <div className="glass stat"><span className="eyebrow">Month-end</span><b>{live.filter((d) => d.monthEnd).length}</b></div>
         <div className="glass stat"><span className="eyebrow">Leaking</span><b className={leaking.length ? "warn" : ""}>{leaking.length}</b></div>
       </div>
@@ -145,7 +169,7 @@ function Overview() {
                   <div className="faint">{d.colour}</div>
                 </td>
                 <td className="muted">{pipelineStages[d.stageIndex]}</td>
-                <td className={d.gp == null || d.gp < 0 ? "bad" : ""}>{d.gp == null ? "—" : gbp(d.gp)}</td>
+                <td className={d.gp == null || d.gp < 0 ? "bad" : ""}>{showGp ? (d.gp == null ? "—" : gbp(d.gp)) : "—"}</td>
                 <td>
                   <button className="ghost" type="button" onClick={() => toggleMonthEnd(d.id)}>
                     {d.monthEnd ? "ME" : "—"}
@@ -165,7 +189,7 @@ function Overview() {
   );
 }
 
-function Stock() {
+function Stock({ canEdit = true }) {
   const stock = useDesk((s) => s.stock);
   const ingestFile = useDesk((s) => s.ingestFile);
   const [msg, setMsg] = useState("");
@@ -185,10 +209,12 @@ function Stock() {
           {stock.length} units. Ingest is Excel / CSV, upsert by VIN
           {tenant.ingest === "manufacturer" ? " — manufacturer adapter is on." : "."}
         </p>
-        <label className="ghost" style={{ display: "inline-flex", alignItems: "center" }}>
-          Upload spreadsheet
-          <input type="file" accept=".xlsx,.xls,.csv" hidden onChange={onFile} />
-        </label>
+        {canEdit && (
+          <label className="ghost" style={{ display: "inline-flex", alignItems: "center" }}>
+            Upload spreadsheet
+            <input type="file" accept=".xlsx,.xls,.csv" hidden onChange={onFile} />
+          </label>
+        )}
       </div>
       {msg && <p className="ok">{msg}</p>}
       {!stock.length && (
@@ -216,7 +242,7 @@ function Stock() {
   );
 }
 
-function Locator() {
+function Locator({ canEdit = true, showGp = true }) {
   const deals = useDesk((s) => s.deals);
   const selectedDealId = useDesk((s) => s.selectedDealId);
   const selectDeal = useDesk((s) => s.selectDeal);
@@ -266,7 +292,7 @@ function Locator() {
             <button
               key={step.code}
               type="button"
-              onClick={() => setLocator(deal.id, i)}
+              onClick={() => canEdit && setLocator(deal.id, i)}
               style={{ background: "none", border: 0, color: "inherit", paddingTop: 0 }}
             >
               <div className={i <= deal.locatorIndex ? "dot on" : "dot"} />
@@ -275,20 +301,23 @@ function Locator() {
             </button>
           ))}
         </div>
-        <div style={{ marginTop: 20, display: "flex", gap: 8, alignItems: "end" }}>
-          <label className="faint">
-            GP
-            <input
-              defaultValue={deal.gp ?? ""}
-              key={`${deal.id}-${deal.gp}`}
-              style={{ display: "block", marginTop: 6, width: 120 }}
-              onBlur={(e) => {
-                const n = e.target.value.trim();
-                setGp(deal.id, n === "" ? null : Number(n));
-              }}
-            />
-          </label>
-        </div>
+        {showGp && (
+          <div style={{ marginTop: 20, display: "flex", gap: 8, alignItems: "end" }}>
+            <label className="faint">
+              GP
+              <input
+                defaultValue={deal.gp ?? ""}
+                key={`${deal.id}-${deal.gp}`}
+                disabled={!canEdit}
+                style={{ display: "block", marginTop: 6, width: 120 }}
+                onBlur={(e) => {
+                  const n = e.target.value.trim();
+                  setGp(deal.id, n === "" ? null : Number(n));
+                }}
+              />
+            </label>
+          </div>
+        )}
         {deal.missing.length > 0 && (
           <p className="warn" style={{ marginTop: 16 }}>
             <TriangleAlert size={14} /> Still open: {deal.missing.join(", ")}
@@ -299,7 +328,7 @@ function Locator() {
   );
 }
 
-function Pipeline() {
+function Pipeline({ canEdit = true }) {
   const deals = useDesk((s) => s.deals);
   const setStage = useDesk((s) => s.setStage);
   if (!deals.length) return <div className="glass empty">No pipeline yet.</div>;
@@ -316,7 +345,7 @@ function Pipeline() {
               <button
                 key={stage}
                 type="button"
-                onClick={() => setStage(d.id, i)}
+                onClick={() => canEdit && setStage(d.id, i)}
                 style={{
                   border: 0,
                   borderRadius: 6,

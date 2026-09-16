@@ -172,6 +172,9 @@ function AccountInner() {
     sites: sites.split(",").map((s) => s.trim()).filter(Boolean),
     ingest,
     features,
+    staff: email
+      ? [{ name: "", email, role: "management", site: sites.split(",")[0]?.trim() || "Main" }]
+      : [],
   };
 
   return (

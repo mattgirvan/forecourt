@@ -15,6 +15,7 @@
     "glow": "rgba(42, 107, 172, 0.4)",
     "ink": "#0B0F14"
   },
+  "franchises": [],
   "ingest": "excel",
   "features": {
     "overview": true,
@@ -25,6 +26,10 @@
     "mind": true,
     "manufacturer": false
   },
-  "staff": ["gm@harbourpark.example"],
+  "staff": [
+    { "name": "Alex Reed", "email": "alex@harbourpark.example", "role": "management", "site": "Poole" },
+    { "name": "Sam Cole", "email": "sam@harbourpark.example", "role": "sales", "site": "Poole" },
+    { "name": "Jo Hart", "email": "jo@harbourpark.example", "role": "host", "site": "Poole" }
+  ],
   "seedDemo": false
 }

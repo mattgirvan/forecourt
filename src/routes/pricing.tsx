@@ -3,6 +3,7 @@ import { Reveal } from "@/components/reveal";
 import { SiteShell } from "@/components/site-shell";
 import { Button } from "@/components/ui/button";
 import { FRANCHISE_PACK, PLANS, gbpPence } from "@/lib/catalog";
+import { rolesForPlan } from "@/lib/roles";
 
 export const Route = createFileRoute("/pricing")({ component: PricingPage });
 
@@ -12,7 +13,7 @@ const kit = [
   "Trading name and legal name",
   "Showroom phone and sales inbox",
   "Preferred subdomain (portal.theirdomain.co.uk)",
-  "Staff list: name, email, role, site",
+  "Staff list: name, email, role, site, franchise if more than one",
   "Whether customers get a login on day one",
   "Stock source: Excel, HTML drop, or manufacturer API",
 ];
@@ -53,7 +54,12 @@ export function PricingPage() {
                   : "credited to setup on convert"}
               </div>
               <p className="mt-5 text-sm leading-relaxed text-muted">{t.body}</p>
-              <p className="mt-3 flex-1 text-xs leading-relaxed text-subtle">{t.why}</p>
+              <p className="mt-3 text-xs leading-relaxed text-subtle">{t.why}</p>
+              <ul className="mt-4 space-y-1 font-mono text-[11px] uppercase tracking-[0.12em] text-muted">
+                {rolesForPlan(t.id).map((r) => (
+                  <li key={r.id}>{r.label}</li>
+                ))}
+              </ul>
               <Button className="mt-6" variant={t.sellNow ? "default" : "secondary"} asChild>
                 <Link to={t.sellNow ? "/account" : "/how"}>
                   {t.sellNow ? "Pay the pilot" : "See how it ships"}
@@ -69,7 +75,8 @@ export function PricingPage() {
           </div>
           <p className="mt-3 text-sm text-muted">
             {gbpPence(FRANCHISE_PACK.setupPence)} setup · {gbpPence(FRANCHISE_PACK.monthPence)} / mo.{" "}
-            {FRANCHISE_PACK.body}
+            {FRANCHISE_PACK.body} A second badge on a Group contract is this pack — not a new role
+            named after the brand.
           </p>
         </Reveal>
 
@@ -78,16 +85,12 @@ export function PricingPage() {
             <h2 className="font-display text-2xl tracking-tight">What we will not take money for yet</h2>
             <p className="mt-3 text-sm leading-relaxed text-muted">
               A monthly subscription before the second client can be stood up from config. That would
-              be selling a fork of Aberdeen. The pilot buys 60 days against one success number. Setup
-              is invoiced when provision actually happens.
+              be charging for a prototype. Site and Group invoices start at go-live.
             </p>
           </div>
           <div>
-            <h2 className="font-display text-2xl tracking-tight">What you need from them</h2>
-            <p className="mt-3 text-sm text-muted">
-              A one-page brand kit. If it is not on this list, it does not delay go-live.
-            </p>
-            <ul className="mt-4 space-y-2 text-sm text-muted">
+            <h2 className="font-display text-2xl tracking-tight">What they send before we start</h2>
+            <ul className="mt-3 space-y-2 text-sm text-muted">
               {kit.map((item) => (
                 <li key={item} className="border-b border-line py-2">
                   {item}

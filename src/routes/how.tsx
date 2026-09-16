@@ -4,7 +4,8 @@ import { RooftopBar } from "@/components/demo/rooftop-bar";
 import { Reveal } from "@/components/reveal";
 import { SiteShell } from "@/components/site-shell";
 import { Button } from "@/components/ui/button";
-import { FEATURES, INGEST, PROVISION, type FeatureId } from "@/lib/catalog";
+import { FEATURES, INGEST, PLANS, PROVISION, type FeatureId, type PlanId } from "@/lib/catalog";
+import { ROLE_RULES, ROLES, rolesForPlan } from "@/lib/roles";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/how")({ component: HowPage });
@@ -14,6 +15,7 @@ export function HowPage() {
     Object.fromEntries(FEATURES.map((f) => [f.id, f.defaultOn])),
   );
   const [ingest, setIngest] = useState("excel");
+  const [seatPlan, setSeatPlan] = useState<PlanId>("site");
 
   const sample = {
     slug: "harbour-park",
@@ -26,9 +28,14 @@ export function HowPage() {
     franchise: { id: "ford", word: "FORD", accent: "#2A6BAC" },
     ingest,
     features: on,
-    staff: ["gm@harbourpark.example"],
+    staff: [
+      { name: "Alex Reed", email: "alex@harbourpark.example", role: "management", site: "Poole" },
+      { name: "Sam Cole", email: "sam@harbourpark.example", role: "sales", site: "Poole" },
+    ],
     seedDemo: false,
   };
+
+  const seats = rolesForPlan(seatPlan);
 
   return (
     <SiteShell>
@@ -40,8 +47,8 @@ export function HowPage() {
           </h1>
           <p className="mt-4 max-w-xl text-base text-muted">
             The Aberdeen portal is the live prototype. The sales demo is a separate tab with fictional
-            cars. An order is a clone of the <em>desk template</em> — one JSON file, a new database,
-            their domain. Never a copy of App.jsx.
+            cars. An order is a clone of the desk template — one JSON file, a new database, their
+            domain. Never a copy of App.jsx.
           </p>
         </Reveal>
 
@@ -67,7 +74,7 @@ export function HowPage() {
                           "Trading name and legal name",
                           "Showroom phone and sales inbox",
                           "portal.theirdomain.co.uk",
-                          "Staff list: name, email, role, site",
+                          "Staff list: name, email, role, site, franchise if they have more than one",
                         ].map((item) => (
                           <li key={item} className="border-b border-line py-2">
                             {item}
@@ -143,6 +150,63 @@ export function HowPage() {
             </li>
           ))}
         </ol>
+      </section>
+
+      <section className="border-t border-line">
+        <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
+          <Reveal>
+            <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-subtle">Who sits where</p>
+            <h2 className="mt-3 max-w-2xl font-display text-3xl tracking-tight sm:text-4xl">
+              Job titles vary. Seats do not.
+            </h2>
+            <p className="mt-4 max-w-xl text-sm leading-relaxed text-muted">
+              Aberdeen already has execs (own book) and management (the floor). A host, a progressor,
+              an accountant are extra seats on the same desk — not extra products. A group with three
+              franchises is still Group: seats scoped to rooftop and badge.
+            </p>
+          </Reveal>
+
+          <div className="mt-8 flex flex-wrap gap-1.5">
+            {(Object.values(PLANS) as (typeof PLANS)[keyof typeof PLANS][]).map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => setSeatPlan(p.id)}
+                className={cn(
+                  "h-9 rounded-sm px-3 text-xs",
+                  seatPlan === p.id ? "bg-fg text-accent-fg" : "bg-elevated text-muted",
+                )}
+              >
+                {p.name}
+              </button>
+            ))}
+          </div>
+
+          <div className="mt-8 grid gap-4 sm:grid-cols-2">
+            {seats.map((r) => (
+              <article key={r.id} className="rounded-lg border border-line bg-surface p-5">
+                <div className="font-mono text-[11px] uppercase tracking-[0.16em] text-subtle">
+                  {r.id}
+                </div>
+                <h3 className="mt-2 font-medium">{r.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-muted">{r.sees}</p>
+                <p className="mt-2 text-xs leading-relaxed text-subtle">Not: {r.cannot}</p>
+              </article>
+            ))}
+          </div>
+
+          <ul className="mt-10 space-y-3">
+            {ROLE_RULES.map((rule) => (
+              <li key={rule} className="border-b border-line pb-3 text-sm leading-relaxed text-muted">
+                {rule}
+              </li>
+            ))}
+          </ul>
+          <p className="mt-6 text-xs text-subtle">
+            {ROLES.length} seats in the product. A John Clark–scale group does not get a custom role
+            named “Škoda Aberdeen sales host”. They get host, on Aberdeen, franchise Škoda.
+          </p>
+        </div>
       </section>
 
       <section className="border-t border-line bg-bg-2">

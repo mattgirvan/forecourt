@@ -24,6 +24,17 @@
         "ink": { "type": "string" }
       }
     },
+    "franchises": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "word": { "type": "string" },
+          "sites": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
     "ingest": { "enum": ["excel", "html", "api", "manufacturer"] },
     "features": {
       "type": "object",
@@ -37,7 +48,27 @@
         "manufacturer": { "type": "boolean" }
       }
     },
-    "staff": { "type": "array", "items": { "type": "string", "format": "email" } },
+    "staff": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          { "type": "string", "format": "email" },
+          {
+            "type": "object",
+            "required": ["email", "role"],
+            "properties": {
+              "name": { "type": "string" },
+              "email": { "type": "string", "format": "email" },
+              "role": {
+                "enum": ["sales", "management", "progressor", "host", "admin", "accounts", "principal"]
+              },
+              "site": { "type": "string" },
+              "franchise": { "type": "string" }
+            }
+          }
+        ]
+      }
+    },
     "seedDemo": { "type": "boolean" }
   }
 }

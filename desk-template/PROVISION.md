@@ -11,9 +11,10 @@ You need, from `/account` or the briefing call:
 - Group name, legal entity, phone, email
 - Rooftop / sites
 - Primary franchise (hex + word — e.g. Audi `#BB0A30`)
+- Extra franchises if it is a group
 - Features on/off
 - Ingest: Excel unless they have manufacturer credentials
-- Staff emails
+- Staff: name, email, **role**, site, franchise
 - Domain they want (`portal.theirname.co.uk`)
 
 ## 1. New repo from this template
@@ -32,26 +33,47 @@ Copy the order JSON into `tenant.json`. Set:
 
 - `name`, `legal`, `groupMark` (e.g. `JC`), `phone`, `email`, `domain`, `sites`
 - `franchise.word`, `franchise.accent`, `franchise.glow`
+- `franchises` if Group and they wear more than one badge
 - `features.*` from what they toggled
 - `ingest`: `excel` | `html` | `api` | `manufacturer`
-- `staff`: every advisor email
+- `staff` as seats (see below)
 - `seedDemo`: **false**
 
 Drop their logo at `public/brand/logo.svg`. If it is not ready, the group mark letters show until it is.
 
 Do not paste manufacturer logos unless they have given you the file they are allowed to use.
 
-## 3. Data plane — new Supabase
+## 3. Seats — do not invent roles
+
+Aberdeen already runs two: **sales** (own book) and **management** (the floor). That is the **pilot**.
+
+| Package | Seats in the box |
+|---|---|
+| Pilot | sales, management |
+| Site | + host, progressor, admin, accounts |
+| Group | + principal. Every seat scoped to `site` and optional `franchise` |
+
+A showroom host is `host`. A vehicle progressor is `progressor`. Accounts get GP read, not the customer thread. Job title is `name`. Role is one of seven.
+
+```json
+"staff": [
+  { "name": "Alex Reed", "email": "alex@group.co.uk", "role": "management", "site": "Aberdeen", "franchise": "skoda" }
+]
+```
+
+Do not create `skoda-host`. That is host, on Aberdeen, franchise Škoda.
+
+## 4. Data plane — new Supabase
 
 1. Create a **new** Supabase project. Name it `forecourt-<slug>`.
-2. SQL editor: paste `supabase/migrations/0001_core.sql`.
+2. SQL editor: paste `supabase/migrations/0001_core.sql`, then `0002_roles.sql`.
 3. Authentication → enable magic link. Add the site URL (`https://portal…`).
 4. Insert staff:
 
 ```sql
-insert into staff_users (email) values
-  ('gm@theirgroup.co.uk')
-on conflict do nothing;
+insert into staff_users (email, role, display_name, site, franchise) values
+  ('gm@theirgroup.co.uk', 'management', 'Alex Reed', 'Aberdeen', 'skoda')
+on conflict (email) do nothing;
 ```
 
 5. Copy URL + anon key into `.env` (and Vercel env):
@@ -63,7 +85,7 @@ VITE_SUPABASE_PUBLISHABLE_KEY=eyJ...
 
 Aberdeen’s project is out of bounds. One client, one database, RLS on.
 
-## 4. Ingest
+## 5. Ingest
 
 **Excel / CSV (default).** Staff upload on the Stock tab. Upsert by VIN (`src/data/ingest.js`). That is week one for every rooftop.
 
@@ -71,7 +93,7 @@ Aberdeen’s project is out of bounds. One client, one database, RLS on.
 
 **Manufacturer feed** — only with *their* credentials on *their* project. Implement `src/data/ingest.manufacturer.js`. Škoda UK ingest from Aberdeen is an adapter you can port; it is not the core.
 
-## 5. Ship
+## 6. Ship
 
 ```
 npm i
@@ -84,11 +106,12 @@ Then in Vercel: custom domain `portal.theirname.co.uk`. In Supabase: add that UR
 
 Send the GM: magic-link login. Success metric stays: every live deal has a locator stage and a GP figure before month-end.
 
-## 6. What you still do by hand (on purpose)
+## 7. What you still do by hand (on purpose)
 
 | Request | How |
 |---|---|
 | Extra site | Add to `tenant.json` `sites` |
+| Second franchise | `franchises[]` + franchise pack. Not a new role |
 | Turn off customer glass | `features.customer: false` |
 | Different locator labels | `src/config/locator.js` — franchise pack, not a fork |
 | Expenses / overtime / buy-in | Aberdeen-only extras. Port behind a feature flag if they ask. Not default. |
@@ -98,4 +121,4 @@ If you are editing `App.jsx` to change the dealer name, you have left the produc
 
 ## After go-live
 
-Monthly billing starts here, not at checkout. Keep this repo. The next rooftop in the same group gets another tenant file on the **same** codebase if they share a group instance — or another clone if they need isolation. Isolation is the default.
+Monthly billing starts here, not at checkout. Isolation is the default: another rooftop in the same group still gets its own database unless they are explicitly on Group and share a contract.
