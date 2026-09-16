@@ -21,47 +21,44 @@ export function HowPage() {
 
   return (
     <SiteShell>
-      <section className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-20">
-        <Reveal>
-          <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-subtle">How it works</p>
-          <h1 className="mt-3 max-w-3xl font-display text-4xl tracking-tight sm:text-5xl">
+      <section className="mx-auto max-w-5xl px-4 py-16 sm:px-6 sm:py-24">
+        <Reveal className="text-center">
+          <p className="text-[13px] font-medium text-muted">How it works</p>
+          <h1 className="mx-auto mt-3 max-w-2xl text-4xl font-semibold tracking-tight sm:text-5xl">
             You pay. We put your name on it. You go live.
           </h1>
-          <p className="mt-4 max-w-md text-base text-muted">
+          <p className="mx-auto mt-4 max-w-md text-base text-muted">
             Same product that’s already on a showroom floor. Your colours, your cars, your staff.
           </p>
         </Reveal>
 
-        <ol className="mt-14 space-y-16">
+        <ol className="mt-16 space-y-10">
           {PROVISION.map((p, i) => (
             <li key={p.id}>
               <Reveal delay={i * 40}>
-                <div className="grid gap-6 lg:grid-cols-[0.4fr_1fr] lg:items-start">
+                <div className="grid gap-6 rounded-[1.75rem] border border-line bg-surface p-6 sm:p-8 lg:grid-cols-[0.4fr_1fr] lg:items-start">
                   <div>
-                    <div className="font-mono text-[11px] text-subtle">{p.n}</div>
-                    <h2 className="mt-2 font-display text-2xl">{p.title}</h2>
+                    <div className="flex size-10 items-center justify-center rounded-full bg-fg text-sm font-semibold text-accent-fg">
+                      {i + 1}
+                    </div>
+                    <h2 className="mt-4 text-2xl font-semibold tracking-tight">{p.title}</h2>
                     <p className="mt-2 text-sm leading-relaxed text-muted">{p.body}</p>
                   </div>
                   {p.id === "brand" && (
-                    <div className="rounded-lg border border-line bg-surface p-5">
-                      <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-subtle">
-                        What we need
-                      </p>
-                      <ul className="mt-3 space-y-2 text-sm text-muted">
-                        {[
-                          "Logo",
-                          "Your colours",
-                          "Dealership name",
-                          "Showroom phone and sales email",
-                          "The web address you want",
-                          "Who should have a login",
-                        ].map((item) => (
-                          <li key={item} className="border-b border-line py-2">
-                            {item}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
+                    <ul className="space-y-2 text-sm text-muted">
+                      {[
+                        "Logo",
+                        "Your colours",
+                        "Dealership name",
+                        "Showroom phone and sales email",
+                        "The web address you want",
+                        "Who should have a login",
+                      ].map((item) => (
+                        <li key={item} className="border-b border-line py-2">
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
                   )}
                   {p.id === "config" && (
                     <div className="space-y-4">
@@ -72,7 +69,7 @@ export function HowPage() {
                             type="button"
                             onClick={() => setOn((s) => ({ ...s, [f.id]: !s[f.id] }))}
                             className={cn(
-                              "h-9 rounded-sm px-3 text-xs transition-colors",
+                              "h-9 rounded-full px-3 text-xs transition-colors",
                               on[f.id as FeatureId] ? "bg-fg text-accent-fg" : "bg-elevated text-muted",
                             )}
                           >
@@ -80,15 +77,11 @@ export function HowPage() {
                           </button>
                         ))}
                       </div>
-                      <p className="mt-2 max-w-sm text-sm text-muted">
-                        Tick what you need. We turn the rest off.
-                      </p>
+                      <p className="max-w-sm text-sm text-muted">Tick what you need. We turn the rest off.</p>
                     </div>
                   )}
                   {p.id === "data" && (
-                    <div className="rounded-lg border border-line p-5 text-sm leading-relaxed text-muted">
-                      Your cars stay yours. Nobody else can see them.
-                    </div>
+                    <p className="text-sm leading-relaxed text-muted">Your cars stay yours. Nobody else can see them.</p>
                   )}
                   {p.id === "ingest" && (
                     <div>
@@ -99,7 +92,7 @@ export function HowPage() {
                             type="button"
                             onClick={() => setIngest(x.id)}
                             className={cn(
-                              "h-9 rounded-sm px-3 text-xs",
+                              "h-9 rounded-full px-3 text-xs",
                               ingest === x.id ? "bg-fg text-accent-fg" : "bg-elevated text-muted",
                             )}
                           >
@@ -111,9 +104,9 @@ export function HowPage() {
                     </div>
                   )}
                   {p.id === "ship" && (
-                    <div className="rounded-lg border border-line p-5 text-sm leading-relaxed text-muted">
+                    <p className="text-sm leading-relaxed text-muted">
                       Your own web address. Staff get a code to sign in. Then you’re live.
-                    </div>
+                    </p>
                   )}
                 </div>
               </Reveal>
@@ -122,61 +115,53 @@ export function HowPage() {
         </ol>
       </section>
 
-      <section className="border-t border-line">
-        <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
-          <Reveal>
-            <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-subtle">Who uses it</p>
-            <h2 className="mt-3 max-w-2xl font-display text-3xl tracking-tight sm:text-4xl">
-              Sales, the manager, and whoever else you need.
-            </h2>
-            <p className="mt-4 max-w-md text-sm leading-relaxed text-muted">
-              One desk. Different logins. Host, accounts, progressor — only if you want them.
-            </p>
-          </Reveal>
+      <section className="mx-auto max-w-5xl px-4 pb-16 sm:px-6">
+        <Reveal>
+          <p className="text-[13px] font-medium text-muted">Who uses it</p>
+          <h2 className="mt-3 max-w-2xl text-3xl font-semibold tracking-tight sm:text-4xl">
+            Sales, the manager, and whoever else you need.
+          </h2>
+          <p className="mt-4 max-w-md text-sm leading-relaxed text-muted">
+            One desk. Different logins. Host, accounts, progressor — only if you want them.
+          </p>
+        </Reveal>
 
-          <div className="mt-8 flex flex-wrap gap-1.5">
-            {(Object.values(PLANS) as (typeof PLANS)[keyof typeof PLANS][]).map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => setSeatPlan(p.id)}
-                className={cn(
-                  "h-9 rounded-sm px-3 text-xs",
-                  seatPlan === p.id ? "bg-fg text-accent-fg" : "bg-elevated text-muted",
-                )}
-              >
-                {p.name}
-              </button>
-            ))}
-          </div>
+        <div className="mt-8 flex flex-wrap gap-1.5">
+          {(Object.values(PLANS) as (typeof PLANS)[keyof typeof PLANS][]).map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => setSeatPlan(p.id)}
+              className={cn(
+                "h-9 rounded-full px-3 text-xs",
+                seatPlan === p.id ? "bg-fg text-accent-fg" : "bg-elevated text-muted",
+              )}
+            >
+              {p.name}
+            </button>
+          ))}
+        </div>
 
-          <div className="mt-8 grid gap-4 sm:grid-cols-2">
-            {seats.map((r) => (
-              <article key={r.id} className="rounded-lg border border-line bg-surface p-5">
-                <div className="font-mono text-[11px] uppercase tracking-[0.16em] text-subtle">
-                  {r.id}
-                </div>
-                <h3 className="mt-2 font-medium">{r.title}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-muted">{r.sees}</p>
-                <p className="mt-2 text-xs leading-relaxed text-subtle">Not: {r.cannot}</p>
-              </article>
-            ))}
-          </div>
+        <div className="mt-8 grid gap-4 sm:grid-cols-2">
+          {seats.map((r) => (
+            <article key={r.id} className="rounded-[1.5rem] border border-line bg-surface p-6">
+              <h3 className="font-medium">{r.title}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-muted">{r.sees}</p>
+            </article>
+          ))}
         </div>
       </section>
 
-      <section className="border-t border-line bg-bg-2">
-        <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
-          <Reveal>
-            <h2 className="font-display text-3xl tracking-tight">See it with your name.</h2>
-          </Reveal>
-          <div className="mt-8">
-            <RooftopBar />
-          </div>
-          <Button className="mt-6" asChild>
-            <Link to="/account">Start 60 days</Link>
-          </Button>
+      <section className="mx-auto max-w-5xl px-4 pb-24 sm:px-6">
+        <Reveal>
+          <h2 className="text-3xl font-semibold tracking-tight">See it with your name.</h2>
+        </Reveal>
+        <div className="mt-8">
+          <RooftopBar />
         </div>
+        <Button className="mt-6" asChild>
+          <Link to="/account">Get started</Link>
+        </Button>
       </section>
     </SiteShell>
   );
