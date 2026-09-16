@@ -12,19 +12,36 @@ export const FEATURES = [
 export type FeatureId = (typeof FEATURES)[number]["id"];
 
 export const INGEST = [
-  { id: "excel", label: "Excel / CSV" },
-  { id: "html", label: "HTML drop" },
-  { id: "api", label: "Generic stock API" },
-  { id: "manufacturer", label: "Manufacturer feed" },
+  {
+    id: "excel",
+    label: "Excel / CSV",
+    blurb: "Start here. You drop a list. We load it. Fine for 60 days, and for sites that are happy on a spreadsheet.",
+  },
+  {
+    id: "html",
+    label: "HTML drop",
+    blurb: "If your current site already publishes stock as a page, we can read that. Same desk, less typing.",
+  },
+  {
+    id: "api",
+    label: "Generic stock API",
+    blurb: "A feed from the system you already run. Cars move there, they move here.",
+  },
+  {
+    id: "manufacturer",
+    label: "Live stock feed",
+    blurb:
+      "Wired to the manufacturer list. When a car moves — factory, compound, your yard — the customer’s profile updates on its own. They see it. They stop ringing.",
+  },
 ] as const;
 
 export type IngestId = (typeof INGEST)[number]["id"];
 
 export const PROVISION = [
   { id: "brand", n: "01", title: "Your colours", body: "Logo, name, phone, website." },
-  { id: "config", n: "02", title: "Your desk", body: "A copy of the portal, with your name on it." },
+  { id: "config", n: "02", title: "Your desk", body: "Same portal, your name. On the order you switch what you need." },
   { id: "data", n: "03", title: "Your stock", body: "A private list of cars. Not mixed with anyone else." },
-  { id: "ingest", n: "04", title: "How cars come in", body: "A spreadsheet to start. Factory feed if you have one." },
+  { id: "ingest", n: "04", title: "How cars come in", body: "Spreadsheet to start. Live feed if you have one — that feed also updates the customer." },
   { id: "ship", n: "05", title: "Go live", body: "Your link. Staff sign in with a code." },
 ] as const;
 

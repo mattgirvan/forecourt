@@ -4,31 +4,41 @@ import { DealerBar } from "@/components/demo/dealer-bar";
 import { Reveal } from "@/components/reveal";
 import { SiteShell } from "@/components/site-shell";
 import { Button } from "@/components/ui/button";
-import {
-  FEATURES,
-  INGEST,
-  PLAN_ORDER,
-  PLANS,
-  PROVISION,
-  type BillingKind,
-  type FeatureId,
-  type PlanId,
-} from "@/lib/catalog";
-import { rolesForPlan } from "@/lib/roles";
+import { FEATURES, INGEST, PROVISION, type IngestId } from "@/lib/catalog";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/how")({ component: HowPage });
 
-export function HowPage() {
-  const [on, setOn] = useState<Record<string, boolean>>(
-    Object.fromEntries(FEATURES.map((f) => [f.id, f.defaultOn])),
-  );
-  const [ingest, setIngest] = useState("excel");
-  const [seatPlan, setSeatPlan] = useState<PlanId>("site");
-  const [seatBilling, setSeatBilling] = useState<BillingKind>("trial");
+/** Stage 2 is a picture of the order, not a control. Mix of on and off. */
+const ORDER_PREVIEW: Record<string, boolean> = {
+  overview: true,
+  stock: true,
+  locator: true,
+  pipeline: true,
+  customer: true,
+  mind: false,
+  forms: true,
+  manufacturer: false,
+};
 
-  const billing: BillingKind = seatPlan === "site" ? seatBilling : "subscription";
-  const seats = rolesForPlan(seatPlan, billing);
+const FLOOR = [
+  {
+    title: "Admin",
+    line: "Knows what’s going out — without chasing the floor.",
+  },
+  {
+    title: "Progressor",
+    line: "Knows what needs to be ready, and when.",
+  },
+  {
+    title: "Month-end",
+    line: "The picture is already there. Not six spreadsheets on a Sunday.",
+  },
+] as const;
+
+export function HowPage() {
+  const [ingest, setIngest] = useState<IngestId>("manufacturer");
+  const chosen = INGEST.find((x) => x.id === ingest) ?? INGEST[0];
 
   return (
     <SiteShell>
@@ -39,6 +49,9 @@ export function HowPage() {
             You pick a package. We put your name on it. You go live.
           </h1>
           <p className="mx-auto mt-4 max-w-lg text-base text-muted">
+            Built on a showroom floor, by someone who still works one. The gaps this fills are the ones we actually hit — not a consultant’s list.
+          </p>
+          <p className="mx-auto mt-3 max-w-lg text-sm text-muted">
             It ties into the stock system you already run. We don’t replace DealerWeb or the DMS.
             Site can start on 60 days. Franchise and group start on a 12-month contract.
           </p>
@@ -75,21 +88,24 @@ export function HowPage() {
                   {p.id === "config" && (
                     <div className="space-y-4">
                       <div className="flex flex-wrap gap-1.5">
-                        {FEATURES.map((f) => (
-                          <button
-                            key={f.id}
-                            type="button"
-                            onClick={() => setOn((s) => ({ ...s, [f.id]: !s[f.id] }))}
-                            className={cn(
-                              "h-9 rounded-full px-3 text-xs transition-colors",
-                              on[f.id as FeatureId] ? "bg-fg text-accent-fg" : "bg-elevated text-muted",
-                            )}
-                          >
-                            {f.label}
-                          </button>
-                        ))}
+                        {FEATURES.map((f) => {
+                          const lit = ORDER_PREVIEW[f.id] ?? f.defaultOn;
+                          return (
+                            <span
+                              key={f.id}
+                              className={cn(
+                                "inline-flex h-9 items-center rounded-full px-3 text-xs",
+                                lit ? "bg-fg text-accent-fg" : "bg-elevated text-muted",
+                              )}
+                            >
+                              {f.label}
+                            </span>
+                          );
+                        })}
                       </div>
-                      <p className="max-w-sm text-sm text-muted">Tick what you need. We turn the rest off.</p>
+                      <p className="max-w-sm text-sm text-muted">
+                        On the order you switch these. Some on, some off — wired to how you actually work, not a default we copied from someone else.
+                      </p>
                     </div>
                   )}
                   {p.id === "data" && (
@@ -107,7 +123,7 @@ export function HowPage() {
                             type="button"
                             onClick={() => setIngest(x.id)}
                             className={cn(
-                              "h-9 rounded-full px-3 text-xs",
+                              "h-9 rounded-full px-3 text-xs transition-colors",
                               ingest === x.id ? "bg-fg text-accent-fg" : "bg-elevated text-muted",
                             )}
                           >
@@ -115,9 +131,7 @@ export function HowPage() {
                           </button>
                         ))}
                       </div>
-                      <p className="mt-4 text-sm text-muted">
-                        Start with a spreadsheet. Factory feed is in the franchise and group packages.
-                      </p>
+                      <p className="mt-4 max-w-md text-sm leading-relaxed text-muted">{chosen.blurb}</p>
                     </div>
                   )}
                   {p.id === "ship" && (
@@ -137,60 +151,19 @@ export function HowPage() {
         <Reveal>
           <p className="text-[13px] font-medium text-muted">Who uses it</p>
           <h2 className="mt-3 max-w-2xl text-3xl font-semibold tracking-tight sm:text-4xl">
-            Sales, the manager, and whoever else the package includes.
+            Wired to how your dealership already runs.
           </h2>
-          <p className="mt-4 max-w-md text-sm leading-relaxed text-muted">
-            One desk. Different logins. The 60-day trial is sales and the manager only. Extra seats
-            arrive when you subscribe.
+          <p className="mt-4 max-w-lg text-sm leading-relaxed text-muted">
+            Every site is different. We don’t hand you a list of job titles and tell you who sees what.
+            When we build yours, we match the people you actually have.
           </p>
         </Reveal>
 
-        <div className="mt-8 flex flex-wrap gap-1.5">
-          {PLAN_ORDER.map((id) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => setSeatPlan(id)}
-              className={cn(
-                "h-9 rounded-full px-3 text-xs",
-                seatPlan === id ? "bg-fg text-accent-fg" : "bg-elevated text-muted",
-              )}
-            >
-              {PLANS[id].name}
-            </button>
-          ))}
-          {seatPlan === "site" && (
-            <>
-              <span className="mx-1 self-center text-subtle">/</span>
-              <button
-                type="button"
-                onClick={() => setSeatBilling("trial")}
-                className={cn(
-                  "h-9 rounded-full px-3 text-xs",
-                  billing === "trial" ? "bg-fg text-accent-fg" : "bg-elevated text-muted",
-                )}
-              >
-                60-day trial
-              </button>
-              <button
-                type="button"
-                onClick={() => setSeatBilling("subscription")}
-                className={cn(
-                  "h-9 rounded-full px-3 text-xs",
-                  billing === "subscription" ? "bg-fg text-accent-fg" : "bg-elevated text-muted",
-                )}
-              >
-                Subscribed
-              </button>
-            </>
-          )}
-        </div>
-
-        <div className="mt-8 grid gap-4 sm:grid-cols-2">
-          {seats.map((r) => (
-            <article key={r.id} className="rounded-[1.5rem] border border-line bg-surface p-6">
-              <h3 className="font-medium">{r.title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-muted">{r.sees}</p>
+        <div className="mt-10 grid gap-4 sm:grid-cols-3">
+          {FLOOR.map((f) => (
+            <article key={f.title} className="rounded-[1.5rem] border border-line bg-surface p-6">
+              <h3 className="text-xl font-semibold tracking-tight">{f.title}</h3>
+              <p className="mt-2 text-sm leading-relaxed text-muted">{f.line}</p>
             </article>
           ))}
         </div>
