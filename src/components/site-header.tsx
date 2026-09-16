@@ -7,86 +7,78 @@ import { SignedIn, SignedOut, UserButton } from "@/lib/sb-session";
 import { cn } from "@/lib/utils";
 
 const links = [
-  { to: "/", label: "Home" },
+  { to: "/", label: "Product" },
+  { to: "/demo", label: "Try it", desk: true },
   { to: "/how", label: "How it works" },
   { to: "/pricing", label: "Pricing" },
 ] as const;
 
-function DeskNavLink({ className }: { className?: string }) {
+function NavLink({
+  to,
+  label,
+  desk,
+  className,
+}: {
+  to: string;
+  label: string;
+  desk?: boolean;
+  className?: string;
+}) {
   const company = useDemo((s) => s.company);
   const brandId = useDemo((s) => s.brandId);
   const site = useDemo((s) => s.site);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const on = pathname === to || (to === "/" && pathname === "/");
 
   return (
     <Link
-      to="/demo"
-      search={rooftopSearch({ company, brandId, site })}
-      className={cn(className, pathname === "/demo" && "text-fg")}
+      to={to}
+      search={desk ? rooftopSearch({ company, brandId, site }) : undefined}
+      className={cn(
+        "rounded-full px-3.5 py-1.5 text-[13px] text-muted transition-colors hover:text-fg",
+        on && "bg-elevated text-fg",
+        className,
+      )}
     >
-      Desk
+      {label}
     </Link>
   );
 }
 
 export function SiteHeader() {
-  const pathname = useRouterState({ select: (s) => s.location.pathname });
-
   return (
-    <header className="sticky top-0 z-40 border-b border-line bg-bg/80 backdrop-blur-md">
-      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-3 px-4 sm:h-16 sm:px-6">
-        <Link to="/" className="flex items-center gap-2.5 text-fg">
-          <Mark />
-          <span className="font-mono text-[11px] font-medium uppercase tracking-[0.22em]">
-            Forecourt
-          </span>
+    <header className="sticky top-3 z-40 px-3 sm:top-4">
+      <div className="mx-auto flex h-12 max-w-5xl items-center justify-between gap-2 rounded-full border border-line bg-bg/70 px-2 pl-3 shadow-soft backdrop-blur-xl sm:h-14 sm:px-3">
+        <Link to="/" className="flex items-center gap-2 text-fg">
+          <Mark className="size-6" />
+          <span className="text-sm font-medium tracking-tight">Forecourt</span>
         </Link>
-        <nav className="hidden items-center gap-1 md:flex">
+        <nav className="hidden items-center md:flex">
           {links.map((l) => (
-            <Link
-              key={l.to}
-              to={l.to}
-              className={cn(
-                "rounded-sm px-3 py-2 text-sm text-muted transition-colors hover:text-fg",
-                pathname === l.to && "text-fg",
-              )}
-            >
-              {l.label}
-            </Link>
+            <NavLink key={l.to} to={l.to} label={l.label} desk={"desk" in l && l.desk} />
           ))}
-          <DeskNavLink className="rounded-sm px-3 py-2 text-sm text-muted transition-colors hover:text-fg" />
         </nav>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
           <SignedIn>
-            <Link to="/account" className="hidden text-sm text-muted hover:text-fg sm:inline">
-              Account
-            </Link>
             <UserButton />
           </SignedIn>
           <SignedOut>
-            <Button variant="ghost" size="sm" className="hidden sm:inline-flex" asChild>
-              <Link to="/login">Sign in</Link>
-            </Button>
+            <Link
+              to="/login"
+              className="hidden rounded-full px-3 py-1.5 text-[13px] text-muted hover:text-fg sm:inline"
+            >
+              Sign in
+            </Link>
           </SignedOut>
-          <Button size="sm" asChild>
-            <Link to="/account">Start 60 days</Link>
+          <Button size="sm" className="rounded-full" asChild>
+            <Link to="/account">Get started</Link>
           </Button>
         </div>
       </div>
-      <nav className="flex gap-1 overflow-x-auto border-t border-line px-4 py-1 md:hidden">
+      <nav className="mx-auto mt-2 flex max-w-5xl gap-1 overflow-x-auto px-1 md:hidden">
         {links.map((l) => (
-          <Link
-            key={l.to}
-            to={l.to}
-            className={cn(
-              "shrink-0 rounded-sm px-3 py-2 text-sm text-muted",
-              pathname === l.to && "text-fg",
-            )}
-          >
-            {l.label}
-          </Link>
+          <NavLink key={l.to} to={l.to} label={l.label} desk={"desk" in l && l.desk} className="shrink-0" />
         ))}
-        <DeskNavLink className="shrink-0 rounded-sm px-3 py-2 text-sm text-muted" />
       </nav>
     </header>
   );
