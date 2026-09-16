@@ -1,4 +1,4 @@
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { createClient, type EmailOtpType, type SupabaseClient } from "@supabase/supabase-js";
 import { SITE } from "./site";
 
 export const SUPABASE_URL =
@@ -40,6 +40,39 @@ export function getSb(): SupabaseClient {
 }
 
 export function magicRedirect() {
-  if (typeof window !== "undefined") return `${window.location.origin}/account`;
-  return `${SITE.url}/account`;
+  if (typeof window !== "undefined") return `${window.location.origin}/login`;
+  return `${SITE.url}/login`;
+}
+
+const OTP_TYPES: EmailOtpType[] = ["email", "magiclink", "signup", "invite"];
+
+/** Finish a mail-app link (token_hash) so PKCE in another window is not required. */
+export async function consumeAuthFromUrl(): Promise<boolean> {
+  if (typeof window === "undefined" || !supabaseReady()) return false;
+  const url = new URL(window.location.href);
+  const tokenHash = url.searchParams.get("token_hash") ?? url.searchParams.get("token");
+  const rawType = url.searchParams.get("type");
+  if (!tokenHash) {
+    const { data } = await getSb().auth.getSession();
+    return Boolean(data.session);
+  }
+  const sb = getSb();
+  const order: EmailOtpType[] = [
+    ...(OTP_TYPES.includes(rawType as EmailOtpType) ? [rawType as EmailOtpType] : []),
+    ...OTP_TYPES,
+  ];
+  let last: string | null = null;
+  for (const type of order) {
+    const { error } = await sb.auth.verifyOtp({ token_hash: tokenHash, type });
+    if (!error) {
+      url.searchParams.delete("token_hash");
+      url.searchParams.delete("token");
+      url.searchParams.delete("type");
+      window.history.replaceState({}, "", url.pathname + url.search);
+      return true;
+    }
+    last = error.message;
+  }
+  console.warn("sign-in link", last);
+  return false;
 }

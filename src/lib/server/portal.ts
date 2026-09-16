@@ -371,7 +371,7 @@ async function sendSignIn(email: string, toOffice: boolean) {
   const admin = sbAdmin() ?? createClient(SUPABASE_URL, SUPABASE_ANON, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
-  const redirect = `${SITE.url}${toOffice ? "/office" : "/account"}`;
+  const redirect = `${SITE.url}/login`;
   const { error } = await admin.auth.signInWithOtp({
     email,
     options: { emailRedirectTo: redirect, shouldCreateUser: true },

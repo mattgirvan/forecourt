@@ -3,7 +3,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { Mark } from "@/components/mark";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { getSb, magicRedirect, supabaseReady } from "@/lib/sb";
+import { getSb, consumeAuthFromUrl, magicRedirect, supabaseReady } from "@/lib/sb";
 import { whoAmI } from "@/lib/server/portal";
 import { SITE } from "@/lib/site";
 
@@ -16,6 +16,7 @@ function Login() {
   const [sent, setSent] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [fromLink, setFromLink] = useState(false);
 
   async function afterAuth() {
     const { data } = await getSb().auth.getSession();
@@ -38,11 +39,25 @@ function Login() {
 
   useEffect(() => {
     if (!supabaseReady()) return;
-    void getSb()
-      .auth.getSession()
-      .then(({ data }) => {
-        if (data.session) void afterAuth();
-      });
+    let cancelled = false;
+    void (async () => {
+      setBusy(true);
+      const linked = Boolean(new URLSearchParams(window.location.search).get("token_hash"));
+      const ok = await consumeAuthFromUrl();
+      if (cancelled) return;
+      if (ok) {
+        if (linked) setFromLink(true);
+        await afterAuth();
+        return;
+      }
+      if (linked) setNotice("That link was used or has expired. Ask for a new code.");
+      const { data } = await getSb().auth.getSession();
+      if (data.session) await afterAuth();
+      setBusy(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigate]);
 
@@ -98,7 +113,11 @@ function Login() {
         <div>
           <h1 className="font-display text-4xl tracking-tight">Your account.</h1>
           <p className="mt-2 text-sm text-muted">
-            {sent ? `Code sent to ${email}` : "Dealers see their package. Staff sign in with hello@forecourt.me."}
+            {fromLink
+              ? "Signing you in…"
+              : sent
+                ? `Code sent to ${email}. Type it here.`
+                : "Dealers see their package. Staff sign in with hello@forecourt.me."}
           </p>
         </div>
         {!sent ? (
