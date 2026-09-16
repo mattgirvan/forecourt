@@ -1,24 +1,27 @@
 import { createRootRoute, HeadContent, Outlet, Scripts } from "@tanstack/react-router";
 import { AuthProvider } from "@/lib/auth/provider";
 import { PreviewHostBridge } from "@/components/preview-host-bridge";
+import { SITE } from "@/lib/site";
 import appCss from "../styles.css?url";
-
-const APP_NAME = "Forecourt";
 
 export const Route = createRootRoute({
   head: () => ({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: APP_NAME },
+      { title: SITE.name },
       {
         name: "description",
         content:
           "Forecourt is the dealer operating system you already run — stock, deals, GP, locator and the customer journey — packaged for other rooftops.",
       },
       { name: "theme-color", content: "#0A0B0A" },
+      { property: "og:title", content: SITE.name },
+      { property: "og:url", content: SITE.url },
+      { property: "og:description", content: "The dealer OS. Their brand on the glass." },
     ],
     links: [
+      { rel: "canonical", href: SITE.url },
       { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
       { rel: "stylesheet", href: appCss },
       { rel: "manifest", href: "/__grok/manifest.webmanifest" },

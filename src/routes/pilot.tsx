@@ -72,7 +72,11 @@ export function PilotPage() {
           </h1>
           <p className="mt-4 max-w-lg text-base leading-relaxed text-muted">
             One success number. Their brand on the glass. The briefing is still useful. The paid
-            path is the account: sign in, drop the brand pack, pay £1,500.
+            path is the account: sign in, drop the brand pack, pay £1,500. Or write{" "}
+            <a href="mailto:hello@forecourt.me" className="text-fg underline-offset-2 hover:underline">
+              hello@forecourt.me
+            </a>
+            .
           </p>
           <Button className="mt-6" asChild>
             <Link to="/account">Pay the pilot instead</Link>

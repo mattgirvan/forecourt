@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { Mark } from "@/components/mark";
 import { rooftopSearch } from "@/lib/brands";
 import { useDemo } from "@/lib/demo-store";
+import { SITE } from "@/lib/site";
 
 function DeskFooterLink() {
   const company = useDemo((s) => s.company);
@@ -22,13 +23,18 @@ export function SiteFooter() {
           <div className="flex items-center gap-2">
             <Mark className="size-5" />
             <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-muted">
-              Forecourt
+              {SITE.name}
             </span>
           </div>
           <p className="mt-3 max-w-sm text-sm text-muted">
             The dealer operating system you already run — packaged for others.
-            Working name. Swap the wordmark per buyer.
           </p>
+          <a
+            href={`mailto:${SITE.email}`}
+            className="mt-3 inline-block font-mono text-[11px] uppercase tracking-[0.14em] text-muted hover:text-fg"
+          >
+            {SITE.email}
+          </a>
         </div>
         <div className="flex flex-wrap gap-x-5 gap-y-2 font-mono text-[11px] uppercase tracking-[0.14em] text-muted">
           <Link to="/how" className="hover:text-fg">
@@ -41,7 +47,7 @@ export function SiteFooter() {
           <Link to="/pilot" className="hover:text-fg">
             Pilot
           </Link>
-          <span>Confidential · Sep 2026</span>
+          <span>{SITE.domain}</span>
         </div>
       </div>
     </footer>
