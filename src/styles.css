@@ -2,7 +2,7 @@
 
 @theme {
   --font-desk: "Inter", "IBM Plex Sans", system-ui, sans-serif;
-  --font-display: "Newsreader", "Times New Roman", serif;
+  --font-display: "Inter", "IBM Plex Sans", system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
 
   --color-bg: #0a0b0a;
@@ -20,11 +20,11 @@
   --color-warn: #c9b07a;
   --color-bad: #c9897a;
 
-  --radius-xs: 4px;
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 24px;
+  --radius-xs: 10px;
+  --radius-sm: 16px;
+  --radius-md: 24px;
+  --radius-lg: 32px;
+  --radius-xl: 44px;
 
   --shadow-soft: 0 20px 50px -28px rgb(0 0 0 / 0.65);
 }
@@ -35,13 +35,14 @@
     -moz-osx-font-smoothing: grayscale;
     background: var(--color-bg);
     color: var(--color-fg);
+    scroll-behavior: smooth;
   }
 
   body {
     min-height: 100dvh;
     background: var(--color-bg);
     color: var(--color-fg);
-    font-family: var(--font-sans);
+    font-family: var(--font-desk);
   }
 
   h1,
@@ -102,17 +103,17 @@
 
 .reveal {
   opacity: 0;
-  transform: translateY(28px);
-  filter: blur(8px);
+  transform: translateY(32px) scale(0.985);
+  filter: blur(10px);
   transition:
-    opacity 700ms cubic-bezier(0.22, 1, 0.36, 1),
-    transform 700ms cubic-bezier(0.22, 1, 0.36, 1),
-    filter 700ms cubic-bezier(0.22, 1, 0.36, 1);
+    opacity 800ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 800ms cubic-bezier(0.22, 1, 0.36, 1),
+    filter 800ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .reveal[data-in="1"] {
   opacity: 1;
-  transform: translateY(0);
+  transform: translateY(0) scale(1);
   filter: blur(0);
 }
 
@@ -243,5 +244,3 @@
 .desk-shell input {
   color-scheme: dark;
 }
-
-
