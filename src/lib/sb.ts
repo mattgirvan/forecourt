@@ -8,7 +8,7 @@ export const SUPABASE_URL =
 export const SUPABASE_ANON =
   (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined)?.trim() ||
   (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined)?.trim() ||
-  "";
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh4b2RtdG1ybnB4emtmd2hyc2pnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk1NTQzODMsImV4cCI6MjEwNTEzMDM4M30.eJumLs7-b58H7Ft5-RzpymhZjhHThQNWEMRZB9hgbpc";
 
 export function supabaseReady() {
   return Boolean(SUPABASE_URL && SUPABASE_ANON);
