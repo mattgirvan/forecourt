@@ -79,7 +79,7 @@ function Home() {
     <SiteShell>
       <section className="px-4 pb-8 pt-16 text-center sm:px-6 sm:pt-24">
         <p className="rise text-[13px] font-medium tracking-wide text-muted">
-          For dealerships that already have a system
+          Automation OS for Dealerships
         </p>
         <h1
           className="rise mx-auto mt-5 max-w-3xl text-[2.75rem] font-semibold leading-[1.02] tracking-tight sm:text-7xl"
