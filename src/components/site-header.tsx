@@ -51,51 +51,54 @@ export function SiteHeader() {
   const team = Boolean(me?.team);
 
   return (
-    <header className="sticky top-3 z-40 px-3 sm:top-4">
-      <div className="mx-auto flex h-12 max-w-5xl items-center justify-between gap-2 rounded-full border border-line bg-bg/70 px-2 pl-3 shadow-soft backdrop-blur-xl sm:h-14 sm:px-3">
-        <Link to="/" className="flex items-center gap-2 text-fg">
-          <Mark className="size-6" />
-          <span className="text-sm font-medium tracking-tight">Forecourt</span>
-        </Link>
-        <nav className="hidden items-center md:flex">
-          {links.map((l) => (
-            <NavLink key={l.to} to={l.to} label={l.label} desk={"desk" in l && l.desk} />
-          ))}
-        </nav>
-        <div className="flex items-center gap-1">
-          <SignedIn>
-            {team && (
+    <header className="sticky top-0 z-40">
+      <div className="nav-veil" aria-hidden />
+      <div className="relative px-3 pt-3 sm:px-4 sm:pt-4">
+        <div className="nav-glass mx-auto flex h-12 max-w-5xl items-center justify-between gap-2 rounded-full px-2 pl-3 sm:h-14 sm:px-3">
+          <Link to="/" className="flex items-center gap-2 text-fg">
+            <Mark className="size-6" />
+            <span className="text-sm font-medium tracking-tight">Forecourt</span>
+          </Link>
+          <nav className="hidden items-center md:flex">
+            {links.map((l) => (
+              <NavLink key={l.to} to={l.to} label={l.label} desk={"desk" in l && l.desk} />
+            ))}
+          </nav>
+          <div className="flex items-center gap-1">
+            <SignedIn>
+              {team && (
+                <Link
+                  to="/office"
+                  search={{}}
+                  className="hidden rounded-full px-3 py-1.5 text-[13px] text-muted hover:text-fg sm:inline"
+                >
+                  Office
+                </Link>
+              )}
+              <Button size="sm" variant="secondary" className="rounded-full" asChild>
+                <Link to="/account">Account</Link>
+              </Button>
+              <UserButton />
+            </SignedIn>
+            <SignedOut>
               <Link
-                to="/office"
-                search={{}}
+                to="/login"
                 className="hidden rounded-full px-3 py-1.5 text-[13px] text-muted hover:text-fg sm:inline"
               >
-                Office
+                Sign in
               </Link>
-            )}
-            <Button size="sm" variant="secondary" className="rounded-full" asChild>
-              <Link to="/account">Account</Link>
-            </Button>
-            <UserButton />
-          </SignedIn>
-          <SignedOut>
-            <Link
-              to="/login"
-              className="hidden rounded-full px-3 py-1.5 text-[13px] text-muted hover:text-fg sm:inline"
-            >
-              Sign in
-            </Link>
-            <Button size="sm" className="rounded-full" asChild>
-              <Link to="/account">Get started</Link>
-            </Button>
-          </SignedOut>
+              <Button size="sm" className="rounded-full" asChild>
+                <Link to="/account">Get started</Link>
+              </Button>
+            </SignedOut>
+          </div>
         </div>
+        <nav className="nav-glass mx-auto mt-2 flex max-w-5xl gap-1 overflow-x-auto rounded-full px-1 py-1 md:hidden">
+          {links.map((l) => (
+            <NavLink key={l.to} to={l.to} label={l.label} desk={"desk" in l && l.desk} className="shrink-0" />
+          ))}
+        </nav>
       </div>
-      <nav className="mx-auto mt-2 flex max-w-5xl gap-1 overflow-x-auto px-1 md:hidden">
-        {links.map((l) => (
-          <NavLink key={l.to} to={l.to} label={l.label} desk={"desk" in l && l.desk} className="shrink-0" />
-        ))}
-      </nav>
     </header>
   );
 }

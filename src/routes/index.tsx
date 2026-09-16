@@ -12,7 +12,7 @@ const pieces = [
   {
     n: "01",
     title: "Stock",
-    line: "New and used in one list. Where the keys are. How long it’s been sitting.",
+    line: "Pulled from the system you already run. Plus where the keys are, and how long it’s been sitting.",
   },
   {
     n: "02",
@@ -28,6 +28,25 @@ const pieces = [
     n: "04",
     title: "Customers",
     line: "They can see their own car. Fewer “any update?” calls.",
+  },
+] as const;
+
+const floorGaps = [
+  {
+    title: "Where the car actually is",
+    line: "Factory, boat, compound, yard. Not a status code only one person can read.",
+  },
+  {
+    title: "Where the keys are",
+    line: "Cabinet, with PDI, unknown. The host should not have to shout across the showroom.",
+  },
+  {
+    title: "Has it been photographed",
+    line: "On the ramp, in the studio, done. The listing does not wait on a WhatsApp.",
+  },
+  {
+    title: "The customer already knows",
+    line: "They open their order and see the car. The exec is not a switchboard.",
   },
 ] as const;
 
@@ -60,7 +79,7 @@ function Home() {
     <SiteShell>
       <section className="px-4 pb-8 pt-16 text-center sm:px-6 sm:pt-24">
         <p className="rise text-[13px] font-medium tracking-wide text-muted">
-          Software for car dealerships
+          For dealerships that already have a system
         </p>
         <h1
           className="rise mx-auto mt-5 max-w-3xl text-[2.75rem] font-semibold leading-[1.02] tracking-tight sm:text-7xl"
@@ -69,10 +88,10 @@ function Home() {
           The screen on the sales desk.
         </h1>
         <p
-          className="rise mx-auto mt-6 max-w-lg text-base leading-relaxed text-muted sm:text-lg"
+          className="rise mx-auto mt-6 max-w-xl text-base leading-relaxed text-muted sm:text-lg"
           style={{ animationDelay: "180ms" }}
         >
-          Forecourt is where your stock, your deals, and where every car is — in your colours.
+          Not another stock system. It ties into the one you already pay for — and does the floor work that system never did.
         </p>
         <div className="rise mt-9 flex flex-wrap justify-center gap-3" style={{ animationDelay: "260ms" }}>
           <Button className="rounded-full" asChild>
@@ -89,6 +108,30 @@ function Home() {
           style={{ animationDelay: "340ms" }}
         >
           <img src="/images/desk.jpg" alt="Forecourt on a sales iPad" className="hero-still w-full object-cover" />
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-5xl px-4 py-20 sm:px-6 sm:py-28">
+        <Reveal className="text-center">
+          <p className="text-[13px] font-medium text-muted">Why this isn’t DealerWeb</p>
+          <h2 className="mx-auto mt-3 max-w-2xl text-4xl font-semibold tracking-tight sm:text-5xl">
+            You already have a system. This sits next to it.
+          </h2>
+          <p className="mx-auto mt-4 max-w-lg text-[15px] leading-relaxed text-muted">
+            DealerWeb, the DMS, the manufacturer portal — they hold the book. They were never built for the person standing next to the car. Forecourt pulls from what you already run, and keeps the floor moving.
+          </p>
+        </Reveal>
+        <div className="mt-12 grid gap-3 sm:grid-cols-2">
+          {floorGaps.map((g, i) => (
+            <Reveal
+              key={g.title}
+              delay={i * 70}
+              className="rounded-[1.75rem] border border-line bg-surface/80 p-6 backdrop-blur-md sm:p-7"
+            >
+              <h3 className="text-xl font-semibold tracking-tight">{g.title}</h3>
+              <p className="mt-2 text-[15px] leading-relaxed text-muted">{g.line}</p>
+            </Reveal>
+          ))}
         </div>
       </section>
 

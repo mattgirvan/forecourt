@@ -39,8 +39,8 @@ export function HowPage() {
             You pick a package. We put your name on it. You go live.
           </h1>
           <p className="mx-auto mt-4 max-w-lg text-base text-muted">
-            Same product that’s already on a showroom floor. Site can start on 60 days.
-            Franchise and group start on a 12-month contract.
+            It ties into the stock system you already run. We don’t replace DealerWeb or the DMS.
+            Site can start on 60 days. Franchise and group start on a 12-month contract.
           </p>
         </Reveal>
 
