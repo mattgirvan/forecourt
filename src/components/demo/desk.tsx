@@ -64,11 +64,6 @@ export function Desk({ compact = false, fill = false }: { compact?: boolean; fil
           "--desk-glow": brand.glow,
         } as CSSProperties
       }
-      onPointerMove={(e) => {
-        const r = e.currentTarget.getBoundingClientRect();
-        e.currentTarget.style.setProperty("--mx", `${e.clientX - r.left}px`);
-        e.currentTarget.style.setProperty("--my", `${e.clientY - r.top}px`);
-      }}
     >
       <div className="desk-orb" aria-hidden />
       <div className="desk-orb desk-orb-2" aria-hidden />
