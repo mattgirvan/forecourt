@@ -15,7 +15,8 @@ This is the **office** — sign-in, tenants, orders. Not Aberdeen. Not a custome
 5. Settings → API → anon key is already in the app (public by design; RLS holds the line)
 7. SQL editor → paste `portal.sql` → run (dealer notes, support messages, team office)
 8. SQL editor → paste `staff.sql` → run (staff roles, invite, revoke)
-9. Redeploy Forecourt on Vercel (the next git push does this)
+9. SQL editor → paste `build.sql` → run (order timeline, pack, meetings)
+10. Redeploy Forecourt on Vercel (the next git push does this)
 
 Stripe webhook (optional, return-URL confirm still works): `https://www.forecourt.me/api/stripe/webhook`
 Needs `STRIPE_WEBHOOK_SECRET` and `SUPABASE_SERVICE_ROLE_KEY` on Vercel. Do not put the service-role key in `VITE_` vars.

@@ -1,4 +1,5 @@
 import { gbpPence, monthTotalPence, normalizeBilling, normalizePlan } from "@/lib/catalog";
+import { stageMeta } from "@/lib/build";
 import { packageLive, statusLabel, trialDaysLeft } from "@/lib/team";
 import { cn } from "@/lib/utils";
 
@@ -18,6 +19,7 @@ export type BoardRow = {
   created_at?: string | null;
   last_message_at?: string | null;
   waiting?: boolean;
+  stage?: string | null;
 };
 
 export function BoardStats({ rows }: { rows: BoardRow[] }) {
@@ -62,6 +64,7 @@ export function CustomerTable({
               <th className="px-4 py-3 font-medium">Dealership</th>
               <th className="px-4 py-3 font-medium">Package</th>
               <th className="px-4 py-3 font-medium">Status</th>
+              <th className="px-4 py-3 font-medium">Build</th>
               <th className="px-4 py-3 font-medium">Support</th>
               <th className="px-4 py-3 font-medium">Inbox</th>
             </tr>
@@ -92,6 +95,7 @@ export function CustomerTable({
                     {statusLabel(r.status)}
                     {billing === "trial" && days != null ? ` · ${days}d` : ""}
                   </td>
+                  <td className="px-4 py-3">{stageMeta(r.stage).label}</td>
                   <td className="px-4 py-3">
                     {r.waiting ? (
                       <span className="text-fg">They wrote</span>
@@ -121,7 +125,7 @@ export function CustomerTable({
             >
               <div className="font-medium">{r.name}</div>
               <div className="mt-1 text-xs text-muted">
-                {statusLabel(r.status)} · {normalizePlan(r.plan)}
+                {statusLabel(r.status)} · {normalizePlan(r.plan)} · {stageMeta(r.stage).label}
                 {r.waiting ? " · they wrote" : ""}
               </div>
             </button>

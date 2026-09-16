@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
 import { env } from "@/lib/env.server";
 import { SUPABASE_URL } from "@/lib/sb";
+import { seedPaidOrder } from "@/lib/server/build";
 import { isBillingKind, normalizePlan } from "@/lib/catalog";
 
 function service() {
@@ -54,6 +55,11 @@ async function applyCheckout(session: {
       trial_ends_at: billing === "trial" ? new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString() : null,
     })
     .eq("id", tenantId);
+  try {
+    await seedPaidOrder(sb, tenantId, "stripe");
+  } catch {
+    /* build tables may not be live yet */
+  }
 }
 
 export const Route = createFileRoute("/api/stripe/webhook")({

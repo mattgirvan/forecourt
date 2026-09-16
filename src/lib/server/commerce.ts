@@ -12,6 +12,7 @@ import {
   type BillingKind,
   type PlanId,
 } from "@/lib/catalog";
+import { seedPaidOrder } from "@/lib/server/build";
 import { env } from "@/lib/env.server";
 import { SUPABASE_ANON, SUPABASE_URL } from "@/lib/sb";
 
@@ -434,6 +435,11 @@ async function markPaid(
   const { error } = await sb.from("tenants").update(patch).eq("id", row.tenant_id);
   if (error) {
     await sb.from("tenants").update({ status: billing === "trial" ? "paid" : "paid", plan }).eq("id", row.tenant_id);
+  }
+  try {
+    await seedPaidOrder(sb, row.tenant_id as number, "checkout");
+  } catch {
+    /* build tables may not be live yet */
   }
 }
 

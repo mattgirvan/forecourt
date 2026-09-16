@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { Notes, Thread } from "@/components/account/portal";
+import { OrderBuild } from "@/components/build/order-desk";
 import { BoardStats, CustomerTable, type BoardRow } from "@/components/office/board";
 import { StaffPanel } from "@/components/office/staff-panel";
 import { SiteShell } from "@/components/site-shell";
@@ -183,7 +184,7 @@ function TenantFile({ token, tenantId, onSaved }: { token: string; tenantId: num
   const [group, setGroup] = useState("");
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
-  const [pane, setPane] = useState<"file" | "support" | "notes" | "billing">("file");
+  const [pane, setPane] = useState<"build" | "file" | "support" | "notes" | "billing">("build");
 
   useEffect(() => {
     setFile(null);
@@ -240,6 +241,7 @@ function TenantFile({ token, tenantId, onSaved }: { token: string; tenantId: num
       <div className="mt-6 flex flex-wrap gap-1.5">
         {(
           [
+            ["build", "Build"],
             ["file", "File"],
             ["billing", "Billing"],
             ["support", "Support"],
@@ -259,6 +261,12 @@ function TenantFile({ token, tenantId, onSaved }: { token: string; tenantId: num
           </button>
         ))}
       </div>
+
+      {pane === "build" && (
+        <div className="mt-8">
+          <OrderBuild token={token} tenantId={tenantId} team />
+        </div>
+      )}
 
       {pane === "file" && (
         <div className="mt-8 space-y-4">

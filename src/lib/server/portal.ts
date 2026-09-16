@@ -104,11 +104,17 @@ export const listOfficeBoard = createServerFn({ method: "POST" })
     const { data: rows, error } = await sb
       .from("tenants")
       .select(
-        "id, name, email, phone, plan, status, billing, site_count, trial_ends_at, term_months, group_name, principal_name, created_at",
+        "id, name, email, phone, plan, status, billing, site_count, trial_ends_at, term_months, group_name, principal_name, created_at, stage",
       )
       .order("created_at", { ascending: false });
-    if (error) throw new Error(error.message);
-    const tenants = rows ?? [];
+    const tenants = error
+      ? ((
+          await sb
+            .from("tenants")
+            .select("id, name, email, phone, plan, status, billing, site_count, trial_ends_at, term_months, group_name, principal_name, created_at")
+            .order("created_at", { ascending: false })
+        ).data ?? []).map((row) => ({ ...row, stage: null as string | null }))
+      : (rows ?? []);
     const ids = tenants.map((t) => t.id);
     const lastBy: Record<
       number,
@@ -129,7 +135,7 @@ export const listOfficeBoard = createServerFn({ method: "POST" })
     return tenants.map((t) => ({
       ...t,
       last_message_at: lastBy[t.id]?.at ?? null,
-      waiting: lastBy[t.id] ? !lastBy[t.id].from_team : false,
+      waiting: lastBy[t.id] ? !lastBy[t.id].from_team : t.stage === "paid" || t.stage === "brief",
     }));
   });
 
