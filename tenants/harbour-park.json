@@ -1,0 +1,19 @@
+{
+  "slug": "harbour-park",
+  "name": "Harbour Park",
+  "legal": "Harbour Park Automotive Ltd",
+  "phone": "01202 774 410",
+  "email": "sales@harbourpark.example",
+  "domain": "portal.harbourpark.example",
+  "sites": ["Poole"],
+  "ingest": "excel",
+  "features": {
+    "overview": true,
+    "stock": true,
+    "locator": true,
+    "pipeline": true,
+    "customer": true,
+    "mind": true,
+    "manufacturer": false
+  }
+}
