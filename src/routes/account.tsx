@@ -136,6 +136,10 @@ function AccountInner() {
 
   async function save() {
     if (!token) return;
+    if (!name.trim()) {
+      setNotice("Need a trading name.");
+      return;
+    }
     setBusy(true);
     try {
       const res = await upsertTenant({
@@ -155,24 +159,48 @@ function AccountInner() {
       setNotice(`Tenant ${res.slug} saved. One JSON. No fork.`);
       await reload();
       setActiveId(res.id);
+      return res.id;
+    } catch (e) {
+      setNotice(e instanceof Error ? e.message : "Could not save the rooftop.");
+      return null;
     } finally {
       setBusy(false);
     }
   }
 
   async function pay() {
-    if (!activeId) {
-      setNotice("Save the rooftop first.");
+    if (!token) return;
+    if (!name.trim()) {
+      setNotice("Need a trading name before checkout.");
       return;
     }
-    if (!token) return;
     setBusy(true);
     try {
-      const res = await startCheckout({
-        data: { token, plan: "pilot", origin: window.location.origin, tenantId: activeId },
+      const saved = await upsertTenant({
+        data: {
+          token,
+          name,
+          legal,
+          phone,
+          email,
+          domain,
+          sites: sites.split(",").map((s) => s.trim()).filter(Boolean),
+          features,
+          ingest,
+          plan: "pilot",
+        },
       });
-      if (res.url) window.location.assign(res.url);
-      else setNotice(res.message);
+      setActiveId(saved.id);
+      const res = await startCheckout({
+        data: { token, plan: "pilot", origin: window.location.origin, tenantId: saved.id },
+      });
+      if (res.url) {
+        window.location.assign(res.url);
+        return;
+      }
+      setNotice(res.message ?? "Checkout did not open. Check STRIPE_SECRET_KEY on the Forecourt Vercel project, then redeploy.");
+    } catch (e) {
+      setNotice(e instanceof Error ? e.message : "Could not start checkout.");
     } finally {
       setBusy(false);
     }
@@ -263,14 +291,17 @@ function AccountInner() {
               ))}
             </div>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Button type="button" onClick={() => void save()} disabled={busy || !name}>
-              Save tenant JSON
+          <div className="flex flex-wrap items-center gap-2 pt-2">
+            <Button type="button" size="lg" onClick={() => void pay()} disabled={busy || !name.trim()}>
+              {busy ? "Opening checkout…" : `Pay the 60-day pilot ${gbpPence(PLANS.pilot.setupPence)}`}
             </Button>
-            <Button type="button" variant="secondary" onClick={() => void pay()} disabled={busy || !activeId}>
-              Pay pilot {gbpPence(PLANS.pilot.setupPence)}
+            <Button type="button" variant="secondary" onClick={() => void save()} disabled={busy || !name.trim()}>
+              Save without paying
             </Button>
           </div>
+          <p className="text-xs text-muted">
+            Test mode: use card 4242 4242 4242 4242. Nothing live is charged.
+          </p>
         </div>
 
         {tenants.length > 0 && (
