@@ -1,6 +1,6 @@
-# Provision a rooftop
+# Provision a site
 
-Do this after they have paid the pilot. Half a day once you have done it twice. **Never clone Aberdeen. Never share a database.**
+Do this after they have paid. Half a day for a site once you have done it twice. A franchise or group is a project — that is why those packages have no trial. **Never clone Aberdeen. Never share a database.**
 
 The sales demo they clicked (Forecourt `/demo`) is fictional. This template is what goes live.
 
@@ -9,11 +9,12 @@ The sales demo they clicked (Forecourt `/demo`) is fictional. This template is w
 You need, from `/account` or the briefing call:
 
 - Group name, legal entity, phone, email
-- Rooftop / sites
+- Site / sites
 - Primary franchise (hex + word — e.g. Audi `#BB0A30`)
 - Extra franchises if it is a group
+- Package: **site** (trial or subscribed), **franchise**, or **group**
 - Features on/off
-- Ingest: Excel unless they have manufacturer credentials
+- Ingest: Excel unless they have manufacturer credentials (franchise / group default)
 - Staff: name, email, **role**, site, franchise
 - Domain they want (`portal.theirname.co.uk`)
 
@@ -45,12 +46,12 @@ Do not paste manufacturer logos unless they have given you the file they are all
 
 ## 3. Seats — do not invent roles
 
-Aberdeen already runs two: **sales** (own book) and **management** (the floor). That is the **pilot**.
+Aberdeen already runs two: **sales** (own book) and **management** (the floor). That is the **60-day site trial**.
 
 | Package | Seats in the box |
 |---|---|
-| Pilot | sales, management |
-| Site | + host, progressor, admin, accounts |
+| Site trial | sales, management |
+| Site (subscribed) / Franchise | + host, progressor, admin, accounts |
 | Group | + principal. Every seat scoped to `site` and optional `franchise` |
 
 A showroom host is `host`. A vehicle progressor is `progressor`. Accounts get GP read, not the customer thread. Job title is `name`. Role is one of seven.
@@ -87,11 +88,11 @@ Aberdeen’s project is out of bounds. One client, one database, RLS on.
 
 ## 5. Ingest
 
-**Excel / CSV (default).** Staff upload on the Stock tab. Upsert by VIN (`src/data/ingest.js`). That is week one for every rooftop.
+**Excel / CSV (default on a site trial).** Staff upload on the Stock tab. Upsert by VIN (`src/data/ingest.js`). That is week one for every site.
 
 **HTML drop** — same upsert, different parser. Add only if they dump manufacturer HTML.
 
-**Manufacturer feed** — only with *their* credentials on *their* project. Implement `src/data/ingest.manufacturer.js`. Škoda UK ingest from Aberdeen is an adapter you can port; it is not the core.
+**Manufacturer feed** — franchise and group. Only with *their* credentials on *their* project. Implement `src/data/ingest.manufacturer.js`. Škoda UK ingest from Aberdeen is an adapter you can port; it is not the core.
 
 ## 6. Ship
 
@@ -111,7 +112,7 @@ Send the GM: magic-link login. Success metric stays: every live deal has a locat
 | Request | How |
 |---|---|
 | Extra site | Add to `tenant.json` `sites` |
-| Second franchise | `franchises[]` + franchise pack. Not a new role |
+| Second franchise | `franchises[]`. That is Group, not a new role |
 | Turn off customer glass | `features.customer: false` |
 | Different locator labels | `src/config/locator.js` — franchise pack, not a fork |
 | Expenses / overtime / buy-in | Aberdeen-only extras. Port behind a feature flag if they ask. Not default. |
@@ -121,4 +122,4 @@ If you are editing `App.jsx` to change the dealer name, you have left the produc
 
 ## After go-live
 
-Monthly billing starts here, not at checkout. Isolation is the default: another rooftop in the same group still gets its own database unless they are explicitly on Group and share a contract.
+Monthly billing starts here for a subscription. A site on the 60-day trial converts or it comes down. Isolation is the default: another site in the same group still gets its own database unless they are explicitly on Group and share a contract.

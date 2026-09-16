@@ -2,9 +2,10 @@ export const FEATURES = [
   { id: "overview", label: "Overview + GP", defaultOn: true },
   { id: "stock", label: "Stock", defaultOn: true },
   { id: "locator", label: "Locator", defaultOn: true },
-  { id: "pipeline", label: "Pipeline", defaultOn: true },
+  { id: "pipeline", label: "Dealer view", defaultOn: true },
   { id: "customer", label: "Customer view", defaultOn: true },
   { id: "mind", label: "Keep in mind", defaultOn: true },
+  { id: "forms", label: "Buy-in, quotes, car check", defaultOn: true },
   { id: "manufacturer", label: "Manufacturer ingest", defaultOn: false },
 ] as const;
 
@@ -27,66 +28,115 @@ export const PROVISION = [
   { id: "ship", n: "05", title: "Go live", body: "Your link. Staff sign in with a code." },
 ] as const;
 
-export type PlanId = "pilot" | "site" | "group";
+export type PlanId = "site" | "franchise" | "group";
+export type BillingKind = "trial" | "subscription";
 
-export const PLANS: Record<
-  PlanId,
-  {
-    id: PlanId;
-    name: string;
-    setupPence: number;
-    monthPence: number | null;
-    perSite: boolean;
-    stripeMode: "payment" | "invoice";
-    sellNow: boolean;
-    tag: string;
-    body: string;
-    why: string;
-  }
-> = {
-  pilot: {
-    id: "pilot",
-    name: "60-day rooftop pilot",
-    setupPence: 150_000,
-    monthPence: null,
-    perSite: false,
-    stripeMode: "payment",
-    sellNow: true,
-    tag: "Start here",
-    body: "One rooftop. Your colours. Comes off the setup if you stay.",
-    why: "",
-  },
+export type Plan = {
+  id: PlanId;
+  name: string;
+  tag: string;
+  setupPence: number;
+  monthPence: number;
+  trialPence: number | null;
+  perSite: boolean;
+  trial: boolean;
+  contractMonths: number | null;
+  minSites: number;
+  sellNow: boolean;
+  body: string;
+  why: string;
+  includes: string[];
+};
+
+export const PLANS: Record<PlanId, Plan> = {
   site: {
     id: "site",
-    name: "One site",
+    name: "Site",
+    tag: "One dealership",
     setupPence: 450_000,
     monthPence: 39_900,
+    trialPence: 150_000,
     perSite: false,
-    stripeMode: "invoice",
-    sellNow: false,
-    tag: "When you’re live",
-    body: "Stock, deals, locator, customers. One dealership.",
-    why: "",
+    trial: true,
+    contractMonths: null,
+    minSites: 1,
+    sellNow: true,
+    body: "One dealership. Stock, deals, locator, customers. The desk as it already runs on the floor.",
+    why: "The 60-day trial lives here and only here. A site takes half a day to stand up. If it does not earn its keep, we have not built a group.",
+    includes: [
+      "One site, one desk",
+      "Sales exec and sales manager on the trial",
+      "Host, progressor, admin, accounts when you subscribe",
+      "Spreadsheet ingest to start",
+    ],
+  },
+  franchise: {
+    id: "franchise",
+    name: "Franchise",
+    tag: "One manufacturer brand",
+    setupPence: 650_000,
+    monthPence: 49_900,
+    trialPence: null,
+    perSite: false,
+    trial: false,
+    contractMonths: 12,
+    minSites: 1,
+    sellNow: true,
+    body: "A franchise dealer. Manufacturer feed, option codes, extra seats. Twelve-month contract.",
+    why: "No trial. Manufacturer ingest is a real build. We will not spend that on a maybe.",
+    includes: [
+      "One manufacturer brand",
+      "Every site seat: host, progressor, admin, accounts",
+      "Manufacturer ingest and locator mapping",
+      "Billed monthly on a 12-month contract",
+    ],
   },
   group: {
     id: "group",
     name: "Group",
+    tag: "Every site, every brand",
     setupPence: 850_000,
     monthPence: 24_900,
+    trialPence: null,
     perSite: true,
-    stripeMode: "invoice",
-    sellNow: false,
-    tag: "A few rooftops",
-    body: "Several sites. One picture of the pipeline.",
-    why: "",
+    trial: false,
+    contractMonths: 12,
+    minSites: 2,
+    sellNow: true,
+    body: "A motor group. Every site, every franchise, one picture of the pipeline.",
+    why: "No trial. A group is a project. The contract starts when we do.",
+    includes: [
+      "Every site on the contract",
+      "Principal roll-up across the group",
+      "Seats scoped to site and franchise",
+      "£249 per site / month, 12-month contract",
+    ],
   },
 };
 
-export const FRANCHISE_PACK = {
-  setupPence: 150_000,
-  monthPence: 9_900,
-  body: "Manufacturer ingest, locator mapping, option codes. Priced per franchise, only if they have credentials.",
-};
+export const PLAN_ORDER: PlanId[] = ["site", "franchise", "group"];
+
+export function isPlanId(v: unknown): v is PlanId {
+  return v === "site" || v === "franchise" || v === "group";
+}
+
+export function isBillingKind(v: unknown): v is BillingKind {
+  return v === "trial" || v === "subscription";
+}
+
+/** Old rows used plan = "pilot". That is now a Site on the 60-day trial. */
+export function normalizePlan(v: string | null | undefined): PlanId {
+  if (v === "pilot") return "site";
+  if (isPlanId(v)) return v;
+  return "site";
+}
+
+export function normalizeBilling(plan: PlanId, v: string | null | undefined): BillingKind {
+  if (v === "trial" && plan === "site") return "trial";
+  if (v === "subscription") return "subscription";
+  if (v === "pilot" || plan === "site") return "trial";
+  return "subscription";
+}
 
 export function gbpPence(pence: number) {
   return new Intl.NumberFormat("en-GB", { style: "currency", currency: "GBP", maximumFractionDigits: 0 }).format(
@@ -94,5 +144,30 @@ export function gbpPence(pence: number) {
   );
 }
 
-export const defaultFeatures = (): Record<FeatureId, boolean> =>
-  Object.fromEntries(FEATURES.map((f) => [f.id, f.defaultOn])) as Record<FeatureId, boolean>;
+export function monthTotalPence(plan: PlanId, siteCount = 1) {
+  const p = PLANS[plan];
+  const n = Math.max(p.minSites, siteCount);
+  return p.perSite ? p.monthPence * n : p.monthPence;
+}
+
+export function setupDuePence(plan: PlanId, billing: BillingKind, convertFromTrial = false) {
+  const p = PLANS[plan];
+  if (billing === "trial") return p.trialPence ?? 0;
+  if (convertFromTrial && p.trialPence) return Math.max(0, p.setupPence - p.trialPence);
+  return p.setupPence;
+}
+
+export function firstChargePence(plan: PlanId, billing: BillingKind, siteCount = 1, convertFromTrial = false) {
+  const setup = setupDuePence(plan, billing, convertFromTrial);
+  if (billing === "trial") return setup;
+  return setup + monthTotalPence(plan, siteCount);
+}
+
+export function defaultFeaturesFor(plan: PlanId, billing: BillingKind): Record<FeatureId, boolean> {
+  const base = Object.fromEntries(FEATURES.map((f) => [f.id, f.defaultOn])) as Record<FeatureId, boolean>;
+  if (plan === "franchise" || plan === "group") base.manufacturer = true;
+  if (plan === "site" && billing === "trial") base.manufacturer = false;
+  return base;
+}
+
+export const defaultFeatures = (): Record<FeatureId, boolean> => defaultFeaturesFor("site", "trial");

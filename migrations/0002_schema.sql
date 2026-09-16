@@ -11,7 +11,13 @@ create table if not exists tenants (
   sites        text not null default '[]',
   features     text not null default '{}',
   ingest       text not null default 'excel',
-  plan         text not null default 'pilot',
+  plan         text not null default 'site',
+  billing      text not null default 'trial',
+  site_count   integer not null default 1,
+  stripe_customer_id text,
+  stripe_subscription_id text,
+  term_months  integer,
+  trial_ends_at timestamptz,
   status       text not null default 'briefing',
   created_at   timestamptz not null default now(),
   unique (user_id, slug)
@@ -25,6 +31,9 @@ create table if not exists orders (
   plan               text not null,
   amount_pence       integer not null,
   stripe_session_id  text,
+  stripe_subscription_id text,
+  kind               text not null default 'trial',
+  site_count         integer not null default 1,
   status             text not null default 'pending',
   created_at         timestamptz not null default now()
 );

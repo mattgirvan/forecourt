@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { Link } from "@tanstack/react-router";
 import { ArrowRight } from "lucide-react";
-import { BRAND_LIST, BRANDS, ROOFTOP_PRESETS, groupMark, rooftopSearch } from "@/lib/brands";
+import { BRAND_LIST, BRANDS, DEALER_PRESETS, deskSearch, groupMark } from "@/lib/brands";
 import { useDemo } from "@/lib/demo-store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +17,7 @@ export function OpenDeskButton({ className }: { className?: string }) {
 
   return (
     <Button className={className} asChild>
-      <Link to="/demo" search={rooftopSearch({ company, brandId, site })}>
+      <Link to="/demo" search={deskSearch({ company, brandId, site })}>
         Open {mark} + {brand.word}
         <ArrowRight className="size-4" />
       </Link>
@@ -25,14 +25,14 @@ export function OpenDeskButton({ className }: { className?: string }) {
   );
 }
 
-export function RooftopBar({ showOpen = true }: { showOpen?: boolean }) {
+export function DealerBar({ showOpen = true }: { showOpen?: boolean }) {
   const company = useDemo((s) => s.company);
   const brandId = useDemo((s) => s.brandId);
   const site = useDemo((s) => s.site);
   const setCompany = useDemo((s) => s.setCompany);
   const setBrand = useDemo((s) => s.setBrand);
   const setSite = useDemo((s) => s.setSite);
-  const setRooftop = useDemo((s) => s.setRooftop);
+  const setDealer = useDemo((s) => s.setDealer);
   const hydrate = useDemo((s) => s.hydrate);
   const brand = BRANDS[brandId];
   const mark = groupMark(company.trim() || "Your group");
@@ -49,11 +49,11 @@ export function RooftopBar({ showOpen = true }: { showOpen?: boolean }) {
           <p className="mt-1 max-w-xl text-sm text-muted">Group, site, brand — then open the desk.</p>
         </div>
         <div className="flex flex-wrap gap-1.5">
-          {ROOFTOP_PRESETS.map((p) => (
+          {DEALER_PRESETS.map((p) => (
             <button
               key={p.company}
               type="button"
-              onClick={() => setRooftop(p)}
+              onClick={() => setDealer(p)}
               className={cn(
                 "h-8 rounded-full px-3 text-[11px] transition-colors",
                 company === p.company && brandId === p.brandId
@@ -80,9 +80,9 @@ export function RooftopBar({ showOpen = true }: { showOpen?: boolean }) {
           />
         </div>
         <div>
-          <Label htmlFor="rooftop-site">Rooftop</Label>
+          <Label htmlFor="dealer-site">Site</Label>
           <Input
-            id="rooftop-site"
+            id="dealer-site"
             className="mt-1.5"
             value={site}
             onChange={(e) => setSite(e.target.value)}

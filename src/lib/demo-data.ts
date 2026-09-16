@@ -1,446 +1,374 @@
-export type TenantSlug = "northbridge" | "harbour" | "ridgemont";
-
-export type Tenant = {
-  slug: TenantSlug;
-  name: string;
-  legal: string;
-  phone: string;
-  email: string;
-  domain: string;
-  sites: string[];
-  note: string;
-};
-
-export const tenants: Record<TenantSlug, Tenant> = {
-  northbridge: {
-    slug: "northbridge",
-    name: "Northbridge Motor Co.",
-    legal: "Northbridge Motor Company Ltd",
-    phone: "01904 551 200",
-    email: "sales@northbridge.example",
-    domain: "portal.northbridge.example",
-    sites: ["York"],
-    note: "Owner-driven independent. One rooftop.",
-  },
-  harbour: {
-    slug: "harbour",
-    name: "Harbour Park",
-    legal: "Harbour Park Automotive Ltd",
-    phone: "01202 774 410",
-    email: "sales@harbourpark.example",
-    domain: "portal.harbourpark.example",
-    sites: ["Poole"],
-    note: "Coastal Ford independent. Sales manager still walks the yard.",
-  },
-  ridgemont: {
-    slug: "ridgemont",
-    name: "Ridgemont",
-    legal: "Ridgemont Motor Group Ltd",
-    phone: "01423 900 180",
-    email: "enquiries@ridgemont.example",
-    domain: "portal.ridgemont.example",
-    sites: ["Harrogate", "Leeds", "Wakefield"],
-    note: "Three-site group. Shared pipeline, per-site stock.",
-  },
-};
-
 export const locatorLane = [
-  { code: "A10", label: "In production" },
-  { code: "B22", label: "At port" },
-  { code: "C04", label: "On vessel" },
-  { code: "D11", label: "UK compound" },
-  { code: "E07", label: "Dealer rail" },
-  { code: "F01", label: "On site" },
+  { code: "01", label: "Pending Build Date" },
+  { code: "02", label: "Build Date Confirmed" },
+  { code: "03", label: "In Production" },
+  { code: "04", label: "At International Port" },
+  { code: "05", label: "On Boat to UK" },
+  { code: "06", label: "UK Port" },
+  { code: "07", label: "In Transit To Dealership" },
+  { code: "08", label: "Arrived at Dealership" },
 ] as const;
 
 export type LocatorCode = (typeof locatorLane)[number]["code"];
 
-export const pipelineStages = [
-  "Confirmed",
-  "Build / inbound",
-  "PDI",
-  "Ready",
-  "Handover booked",
-  "Delivered",
-] as const;
+export const STAGE_SETS = {
+  Motability: [
+    "Motability Approved",
+    "Car Ordered",
+    "VIN Assigned",
+    "Reg Assigned",
+    "Handover Arranged",
+    "Car Ready",
+    "Car Invoiced",
+    "Delivered",
+  ],
+  Lease: [
+    "Order Confirmed",
+    "Finance Approved",
+    "Car Ordered",
+    "VIN Assigned",
+    "Reg Assigned",
+    "Handover Arranged",
+    "Agency Approved",
+    "Car Ready",
+    "Car Invoiced",
+    "Delivered",
+  ],
+  "New-Finance": [
+    "Order Confirmed",
+    "Car Ordered",
+    "Finance Approved",
+    "VIN Assigned",
+    "Reg Assigned",
+    "Handover Arranged",
+    "Car Ready",
+    "Car Invoiced",
+    "Delivered",
+  ],
+  "New-Cash": [
+    "Order Confirmed",
+    "Car Ordered",
+    "VIN Assigned",
+    "Reg Assigned",
+    "Handover Arranged",
+    "Car Ready",
+    "Car Invoiced",
+    "Delivered",
+  ],
+  "Used-Cash": [
+    "Order Confirmed",
+    "Car Prepped",
+    "Quality Check",
+    "Car Ready",
+    "Handover Arranged",
+    "Car Invoiced",
+    "Delivered",
+  ],
+  "Used-Finance": [
+    "Order Confirmed",
+    "Finance Approved",
+    "Car Prepped",
+    "Quality Check",
+    "Car Ready",
+    "Handover Arranged",
+    "Car Invoiced",
+    "Delivered",
+  ],
+} as const;
 
 export type CustomerType = "Finance" | "Cash" | "Lease" | "Motability";
 export type CarType = "New" | "Used";
 
+export function getStages(customerType: CustomerType, carType: CarType): readonly string[] {
+  if (customerType === "Motability") return STAGE_SETS.Motability;
+  if (customerType === "Lease") return STAGE_SETS.Lease;
+  return STAGE_SETS[`${carType}-${customerType}` as keyof typeof STAGE_SETS] ?? STAGE_SETS["New-Cash"];
+}
+
+export const pipelineStages = STAGE_SETS["New-Finance"];
+
+export const SITE_STATUS_OPTIONS = [
+  "On-site",
+  "Bodyshop",
+  "Commercials",
+  "Washbay",
+  "Marywell",
+  "Out",
+  "Not arrived yet",
+] as const;
+
+export const SITE_SPOT_OPTIONS = ["Showroom", "Side Showroom", "Pitch", "1st Carpark", "3rd Carpark"] as const;
+
+export type SiteStatus = (typeof SITE_STATUS_OPTIONS)[number];
+export type SiteSpot = (typeof SITE_SPOT_OPTIONS)[number];
+
+export const CHECKLIST_DEFS: Record<
+  string,
+  { label: string; tooltip?: string; greyUntilInvoiced?: boolean; greyUntilVin?: boolean }
+> = {
+  idVerification: {
+    label: "ID Verification",
+    tooltip: "A text will have been sent to you via text to verify your ID. Let me know if you need a new link.",
+  },
+  socialSecurityLetter: {
+    label: "Social Security Letter",
+    tooltip: "Please send me your latest award letter via email.",
+  },
+  motabilityPin: { label: "Motability PIN" },
+  advancePayment: { label: "Advance Payment" },
+  v5Document: {
+    label: "V5 Document",
+    tooltip: "Upload this to your dealer portal — the link was sent to your email. If you need a new link, let me know.",
+  },
+  signedDealerDocuments: {
+    label: "Signed Dealer Documents",
+    tooltip: "Sign these in your dealer portal — the link was sent to your email. Let me know if you need a new link.",
+    greyUntilInvoiced: true,
+  },
+  signedFinanceDocuments: {
+    label: "Signed Finance Documents",
+    tooltip: "Sign these in your Finance Portal — sent to you via email from the finance company. Let me know if you need a new link.",
+    greyUntilInvoiced: true,
+  },
+  balancePaid: {
+    label: "Balance Paid",
+    tooltip: "This payment must come from your own bank account, in your name.",
+  },
+  connect: {
+    label: "Manufacturer Connect",
+    tooltip: "Check email for the Connect invite. If you need another link, let me know.",
+    greyUntilVin: true,
+  },
+  retentionDocument: { label: "Send Retention Document via Email" },
+};
+
+export function checklistKeysFor(order: {
+  customerType: CustomerType;
+  type: CarType;
+  hasPartExchange: boolean;
+  hasPrivateReg?: boolean;
+}): string[] {
+  let base: string[];
+  if (order.customerType === "Motability") {
+    base = ["socialSecurityLetter", "signedDealerDocuments", "motabilityPin", "advancePayment"];
+  } else if (order.customerType === "Finance" || order.customerType === "Lease") {
+    base = [
+      "idVerification",
+      ...(order.hasPartExchange ? ["v5Document"] : []),
+      "signedDealerDocuments",
+      "signedFinanceDocuments",
+      "balancePaid",
+    ];
+  } else {
+    base = [
+      "idVerification",
+      ...(order.hasPartExchange ? ["v5Document"] : []),
+      "signedDealerDocuments",
+      "balancePaid",
+    ];
+  }
+  if (order.type !== "Used") base = [...base, "connect"];
+  if (order.hasPrivateReg) base = [...base, "retentionDocument"];
+  return base;
+}
+
+export const PRODUCTS_INCLUDED = [
+  { key: "ceramicProtection" as const, label: "Ceramic Protection" },
+  { key: "bodyworkProtection" as const, label: "Bodywork Protection" },
+  { key: "alloyTyreProtection" as const, label: "Alloy and Tyre Protection" },
+  { key: "servicePlan" as const, label: "Service Plan", hiddenFor: ["Motability", "Lease"] as CustomerType[] },
+];
+
+export const HANDOVER_METHODS = ["Pickup from Showroom", "Delivery", "Ferry Drop-Off"] as const;
+export type HandoverMethod = (typeof HANDOVER_METHODS)[number];
+
+export type Todo = { label: string; done: boolean };
+export type ThreadMsg = { from: "staff" | "customer"; text: string; at: string };
+
 export type Deal = {
   id: string;
   customer: string;
+  email: string;
+  phone: string;
+  nickname: string;
   vehicle: string;
   colour: string;
   vin: string;
+  reg: string;
   type: CarType;
   customerType: CustomerType;
   site: string;
+  salesperson: string;
+  salespersonInitials: string;
   stageIndex: number;
   locatorIndex: number;
   gp: number | null;
   monthEnd: boolean;
+  monthEndTasksComplete: boolean;
   handover: string | null;
+  handoverTime: string | null;
+  handoverMethod: HandoverMethod | "";
+  handoverConfirmed: boolean;
+  estimatedStart: string | null;
+  estimatedEnd: string | null;
   confirmed: boolean;
   missing: string[];
+  balance: number;
+  todos: Todo[];
+  checklistState: Record<string, boolean>;
+  messages: ThreadMsg[];
+  hasPartExchange: boolean;
+  partExchangeReg: string;
+  financeSettle: "" | "Yes" | "No";
+  trackerRef: string;
+  wsReq: "" | "Pushed";
+  onHoDiary: boolean;
+  internalNotes: string;
+  dealFileStatus: "No" | "Uploaded";
+  usedOnSite: "" | "Yes" | "No";
+  financeCompany: string;
+  financeType: string;
+  monthlyAmount: number | null;
+  ceramicProtection: boolean;
+  bodyworkProtection: boolean;
+  alloyTyreProtection: boolean;
+  servicePlan: boolean;
+  leaseServicing: string;
+  agreedActions: { id: string; label: string; done: boolean }[];
+  handoverChecklist: { id: string; label: string }[];
+  activityLog: { ts: string; text: string }[];
+  photoSpecs: string[];
+  notes: string;
+  isBev: boolean;
+  hasPrivateReg: boolean;
 };
 
 export type StockCar = {
   id: string;
   vehicle: string;
+  derivative: string;
   colour: string;
   vin: string;
+  reg: string;
   type: CarType;
   site: string;
-  keys: "Cabinet A" | "Cabinet B" | "With PDI" | "Unknown";
+  keys: string;
   days: number;
   price: number;
   miles: number | null;
+  year: number | null;
   missing: boolean;
   matchedDealId: string | null;
+  siteStatus: SiteStatus | "";
+  siteSpot: SiteSpot | "";
+  fuel: string;
+  transmission: string;
+  source: string;
 };
 
 export type Brief = {
   id: string;
   name: string;
+  phone: string;
+  email: string;
   want: string;
   colour: string;
   maxMiles: number;
   maxPrice: number;
+  interestType: "out_of_stock" | "not_yet_released";
+  reminderDate: string;
+  matches: number;
 };
 
-export const seedDeals: Deal[] = [
-  {
-    id: "ORD-1042",
-    customer: "Priya Shah",
-    vehicle: "Kuga ST-Line 1.5",
-    colour: "Frozen White",
-    vin: "WF0AXXWPMA123001",
-    type: "New",
-    customerType: "Finance",
-    site: "York",
-    stageIndex: 3,
-    locatorIndex: 4,
-    gp: 2140,
-    monthEnd: true,
-    handover: "2026-09-22",
-    confirmed: true,
-    missing: ["V5"],
-  },
-  {
-    id: "ORD-1048",
-    customer: "Callum Reid",
-    vehicle: "Rav4 Design Hybrid",
-    colour: "Silver Metallic",
-    vin: "JTMW123400000218",
-    type: "Used",
-    customerType: "Cash",
-    site: "York",
-    stageIndex: 2,
-    locatorIndex: 5,
-    gp: 980,
-    monthEnd: false,
-    handover: "2026-09-18",
-    confirmed: true,
-    missing: ["Connect", "Identity"],
-  },
-  {
-    id: "ORD-1051",
-    customer: "Helen Okonkwo",
-    vehicle: "Puma Titanium",
-    colour: "Desert Island Blue",
-    vin: "WF0AXXWPMK123882",
-    type: "New",
-    customerType: "Motability",
-    site: "Harrogate",
-    stageIndex: 1,
-    locatorIndex: 2,
-    gp: null,
-    monthEnd: true,
-    handover: null,
-    confirmed: false,
-    missing: ["GP", "Locator confirm"],
-  },
-  {
-    id: "ORD-1055",
-    customer: "James Lyle",
-    vehicle: "Corolla Icon Tech",
-    colour: "Night Time Black",
-    vin: "SB1K123400000441",
-    type: "Used",
-    customerType: "Finance",
-    site: "Leeds",
-    stageIndex: 4,
-    locatorIndex: 5,
-    gp: 1640,
-    monthEnd: true,
-    handover: "2026-09-19",
-    confirmed: true,
-    missing: [],
-  },
-  {
-    id: "ORD-1059",
-    customer: "Sofia Berg",
-    vehicle: "Explorer ST-Line",
-    colour: "Magnetic",
-    vin: "WF0AXXWPMA124010",
-    type: "New",
-    customerType: "Lease",
-    site: "Poole",
-    stageIndex: 0,
-    locatorIndex: 0,
-    gp: 1880,
-    monthEnd: false,
-    handover: null,
-    confirmed: false,
-    missing: ["Handover date"],
-  },
-  {
-    id: "ORD-1062",
-    customer: "Owen MacKay",
-    vehicle: "Yaris Cross Excel",
-    colour: "Juniper Blue",
-    vin: "JTDK123400000903",
-    type: "Used",
-    customerType: "Finance",
-    site: "Wakefield",
-    stageIndex: 3,
-    locatorIndex: 5,
-    gp: -120,
-    monthEnd: true,
-    handover: "2026-09-25",
-    confirmed: true,
-    missing: ["PX V5", "GP"],
-  },
+export type StaffSeat = {
+  name: string;
+  role: string;
+  email: string;
+  initials: string;
+  target: number;
+};
+
+export const STAFF: StaffSeat[] = [
+  { name: "Alex Reed", role: "Sales manager", email: "alex@", initials: "AR", target: 8 },
+  { name: "Sam Cole", role: "Sales exec", email: "sam@", initials: "SC", target: 6 },
+  { name: "Jordan Hale", role: "Host", email: "jordan@", initials: "JH", target: 0 },
 ];
 
-export const seedStock: StockCar[] = [
-  {
-    id: "STK-01",
-    vehicle: "Kuga ST-Line 1.5",
-    colour: "Frozen White",
-    vin: "WF0AXXWPMA123001",
-    type: "New",
-    site: "York",
-    keys: "Cabinet A",
-    days: 4,
-    price: 32995,
-    miles: 12,
-    missing: false,
-    matchedDealId: "ORD-1042",
-  },
-  {
-    id: "STK-02",
-    vehicle: "Rav4 Design Hybrid",
-    colour: "Silver Metallic",
-    vin: "JTMW123400000218",
-    type: "Used",
-    site: "York",
-    keys: "With PDI",
-    days: 11,
-    price: 27450,
-    miles: 18420,
-    missing: false,
-    matchedDealId: "ORD-1048",
-  },
-  {
-    id: "STK-03",
-    vehicle: "Fiesta ST-Line",
-    colour: "Race Red",
-    vin: "WF0AXXWPMK119004",
-    type: "Used",
-    site: "York",
-    keys: "Unknown",
-    days: 38,
-    price: 12995,
-    miles: 41200,
-    missing: true,
-    matchedDealId: null,
-  },
-  {
-    id: "STK-04",
-    vehicle: "Corolla Icon Tech",
-    colour: "Night Time Black",
-    vin: "SB1K123400000441",
-    type: "Used",
-    site: "Leeds",
-    keys: "Cabinet B",
-    days: 6,
-    price: 18950,
-    miles: 22110,
-    missing: false,
-    matchedDealId: "ORD-1055",
-  },
-  {
-    id: "STK-05",
-    vehicle: "Puma Titanium",
-    colour: "Desert Island Blue",
-    vin: "WF0AXXWPMK123882",
-    type: "New",
-    site: "Harrogate",
-    keys: "Cabinet A",
-    days: 0,
-    price: 26440,
-    miles: null,
-    missing: false,
-    matchedDealId: "ORD-1051",
-  },
-  {
-    id: "STK-06",
-    vehicle: "Yaris Cross Excel",
-    colour: "Juniper Blue",
-    vin: "JTDK123400000903",
-    type: "Used",
-    site: "Wakefield",
-    keys: "Cabinet B",
-    days: 9,
-    price: 21750,
-    miles: 15340,
-    missing: false,
-    matchedDealId: "ORD-1062",
-  },
-  {
-    id: "STK-07",
-    vehicle: "Ranger Wildtrak",
-    colour: "Agate Black",
-    vin: "WF0AXXWPMA118773",
-    type: "Used",
-    site: "Poole",
-    keys: "Cabinet A",
-    days: 21,
-    price: 33995,
-    miles: 28600,
-    missing: false,
-    matchedDealId: null,
-  },
-];
+export const monthTarget = { units: 17, gp: 30000, extrasPct: 80 };
 
-export const seedBriefs: Brief[] = [
-  {
-    id: "BR-1",
-    name: "A. Patel",
-    want: "Kuga or equivalent SUV",
-    colour: "White or grey",
-    maxMiles: 20000,
-    maxPrice: 34000,
-  },
-  {
-    id: "BR-2",
-    name: "N. Crowe",
-    want: "Small crossover, auto",
-    colour: "Blue",
-    maxMiles: 25000,
-    maxPrice: 23000,
-  },
-  {
-    id: "BR-3",
-    name: "Fleet — 2 trucks",
-    want: "Ranger / pickup",
-    colour: "Any",
-    maxMiles: 40000,
-    maxPrice: 36000,
-  },
-];
+export function todosFor(customerType: CustomerType, carType: CarType): Todo[] {
+  return checklistKeysFor({ customerType, type: carType, hasPartExchange: customerType !== "Motability" && customerType !== "Lease" }).map(
+    (k, i) => ({ label: CHECKLIST_DEFS[k]?.label ?? k, done: i === 0 }),
+  );
+}
 
-export const monthTarget = { units: 17, gp: 30000 };
+export function isCarAtDealership(deal: Deal) {
+  if (deal.type === "New") return deal.locatorIndex >= 6;
+  return deal.usedOnSite === "Yes";
+}
 
-export const modules = [
-  {
-    n: "01",
-    title: "Stock",
-    body: "New and used in one glass. Ingest from manufacturer, Excel or HTML. Missing-car flags, site and key location.",
-  },
-  {
-    n: "02",
-    title: "Locator",
-    body: "Factory to port to boat to dealer rail, mapped to real status codes — not tribal knowledge.",
-  },
-  {
-    n: "03",
-    title: "Pipeline",
-    body: "Every live order: stage, VIN, reg, handover, confirmed deal, month-end flag.",
-  },
-  {
-    n: "04",
-    title: "Overview + GP",
-    body: "Tick columns sales actually use. GP on the row. Delivered month versus target.",
-  },
-  {
-    n: "05",
-    title: "Customer view",
-    body: "Their car, their to-dos, messages, handover reminders. No extra app.",
-  },
-  {
-    n: "06",
-    title: "Keep in mind",
-    body: "Scan live stock against saved customer briefs — model, colour, miles, price.",
-  },
-] as const;
+export function wsReqApplicable(deal: Deal) {
+  if (deal.type === "New") return deal.locatorIndex >= 6;
+  return deal.usedOnSite === "Yes" || deal.usedOnSite === "No";
+}
 
-export const jobs = [
-  {
-    title: "Stock is a spreadsheet",
-    body: "Used and new sit in different systems. Locator status is tribal knowledge.",
-  },
-  {
-    title: "The deal lives in heads",
-    body: "Handover diary, Connect, identity, PX V5 — ticked in six places or none.",
-  },
-  {
-    title: "GP is after the fact",
-    body: "Month-end deals and extras are discovered in a board pack.",
-  },
-  {
-    title: "The customer is blind",
-    body: "They chase the sales exec. The exec chases the factory.",
-  },
-] as const;
+export function isOrderDelivered(deal: Deal) {
+  const stages = getStages(deal.customerType, deal.type);
+  return deal.stageIndex >= stages.length - 1;
+}
 
-export const reasons = [
-  {
-    title: "Proof",
-    body: "Already running live deals, stock ingest, and customer messages at a franchised site.",
-  },
-  {
-    title: "Speed to desk",
-    body: "Sales can be on Overview the week the instance is stood up — not after a six-month DMS project.",
-  },
-  {
-    title: "Their brand",
-    body: "Logos, colour, phone, legal and domain are theirs. It should not look like a vendor product on the iPad.",
-  },
-  {
-    title: "Narrow job",
-    body: "It does not replace the DMS. It sits on the bits the DMS is bad at: journey, locator, GP hygiene.",
-  },
-] as const;
+export function formatShortDate(dateStr: string) {
+  const d = new Date(dateStr + "T00:00:00");
+  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+}
 
-export const tiers = [
-  {
-    name: "Site",
-    setup: "£4,500",
-    month: "£349 / month",
-    body: "One rooftop. Brand pack. Stock + deals + customer view. Excel / HTML ingest.",
-  },
-  {
-    name: "Group",
-    setup: "£8,500",
-    month: "£249 / site / mo",
-    body: "2–8 sites. Shared pipeline, per-site stock, group Overview. One contract.",
-    featured: true,
-  },
-  {
-    name: "Franchise pack",
-    setup: "+£1,500",
-    month: "+£99 / month",
-    body: "Manufacturer ingest, locator mapping, option codes. Priced per franchise.",
-  },
-] as const;
+export function formatLongDate(dateStr: string) {
+  const d = new Date(dateStr + "T00:00:00");
+  return d.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
+}
 
-export const dispatch = [
-  { n: "01", title: "Brand pack", body: "Logo SVG, hex colours, dealer name, phone, email, legal entity, domain." },
-  { n: "02", title: "Tenant config", body: "JSON dropped into tenants/{slug}.json — no App.jsx edits." },
-  { n: "03", title: "Data plane", body: "New Supabase project, migrations, RLS, first staff user." },
-  { n: "04", title: "Ingest", body: "Excel / HTML now. Manufacturer feed only if they have credentials." },
-  { n: "05", title: "Ship", body: "Vercel project + custom domain + staff login link. Half a day, not a project." },
-] as const;
+export function daysUntil(dateStr: string) {
+  const d = new Date(dateStr + "T00:00:00");
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  return Math.round((d.getTime() - now.getTime()) / 86400000);
+}
+
+export function firstNameFor(deal: Deal) {
+  if (deal.nickname.trim()) return deal.nickname.trim();
+  return deal.customer.split(" ")[0] ?? deal.customer;
+}
+
+export function initials(name: string) {
+  return name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((n) => n[0]!.toUpperCase())
+    .join("");
+}
+
+export const TINTS = {
+  blue: { bg: "var(--tint-blue-bg)", fg: "var(--tint-blue-fg)" },
+  purple: { bg: "var(--tint-purple-bg)", fg: "var(--tint-purple-fg)" },
+  rose: { bg: "var(--tint-rose-bg)", fg: "var(--tint-rose-fg)" },
+  amber: { bg: "var(--wash-amber-bg)", fg: "var(--shell-accent)" },
+  emerald: { bg: "var(--wash-emerald-bg)", fg: "#C5F0B0" },
+};
+
+export const CUSTOMER_TYPE_TINT: Record<CustomerType, { bg: string; fg: string }> = {
+  Finance: TINTS.blue,
+  Cash: TINTS.emerald,
+  Lease: TINTS.purple,
+  Motability: TINTS.rose,
+};
+
+export const SITE_STATUS_PILL: Record<string, { bg: string; fg: string }> = {
+  "On-site": { bg: "var(--pine-tint)", fg: "var(--emerald)" },
+  Bodyshop: { bg: "var(--tint-purple-bg)", fg: "var(--tint-purple-fg)" },
+  Commercials: { bg: "var(--moss-tint)", fg: "var(--moss)" },
+  Washbay: { bg: "rgba(34,211,238,0.16)", fg: "#67E8F9" },
+  Marywell: { bg: "rgba(251,146,60,0.2)", fg: "#FB923C" },
+  Out: { bg: "var(--danger-bg)", fg: "var(--danger)" },
+  "Not arrived yet": { bg: "rgba(59,130,246,0.18)", fg: "#60A5FA" },
+};

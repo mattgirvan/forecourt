@@ -1,4 +1,4 @@
-import type { PlanId } from "./catalog";
+import type { BillingKind, PlanId } from "./catalog";
 
 /**
  * Job titles on a drive are many. Forecourt roles are few.
@@ -12,7 +12,8 @@ export const ROLES = [
     title: "Sales executive",
     sees: "Own customers only. Locator, GP on their book, customer glass.",
     cannot: "Everyone else's deals. Staff admin. Group totals.",
-    packages: ["pilot", "site", "group"] as PlanId[],
+    packages: ["site", "franchise", "group"] as PlanId[],
+    trial: true,
     tabs: ["overview", "stock", "locator", "pipeline", "customer", "mind"],
   },
   {
@@ -20,8 +21,9 @@ export const ROLES = [
     label: "Sales manager",
     title: "Sales manager / desk manager",
     sees: "The floor. Reassign. Month-end. GP on every live deal.",
-    cannot: "Group roll-up across rooftops (that is principal).",
-    packages: ["pilot", "site", "group"] as PlanId[],
+    cannot: "Group roll-up across sites (that is principal).",
+    packages: ["site", "franchise", "group"] as PlanId[],
+    trial: true,
     tabs: ["overview", "stock", "locator", "pipeline", "customer", "mind"],
   },
   {
@@ -30,7 +32,8 @@ export const ROLES = [
     title: "Vehicle progressor",
     sees: "Locator and inbound stock. Stage the car. No GP.",
     cannot: "Gross, customer thread, month-end numbers.",
-    packages: ["site", "group"] as PlanId[],
+    packages: ["site", "franchise", "group"] as PlanId[],
+    trial: false,
     tabs: ["stock", "locator", "pipeline"],
   },
   {
@@ -39,7 +42,8 @@ export const ROLES = [
     title: "Showroom host / reception",
     sees: "Who is coming, which exec, where the car is. Lookup only.",
     cannot: "Edit a deal, see GP, move locator.",
-    packages: ["site", "group"] as PlanId[],
+    packages: ["site", "franchise", "group"] as PlanId[],
+    trial: false,
     tabs: ["customer", "locator"],
   },
   {
@@ -48,7 +52,8 @@ export const ROLES = [
     title: "Administrator",
     sees: "Staff list, documents, month-end checklist, handover pack.",
     cannot: "Reassign live deals (manager). Close GP (accounts).",
-    packages: ["site", "group"] as PlanId[],
+    packages: ["site", "franchise", "group"] as PlanId[],
+    trial: false,
     tabs: ["overview", "pipeline"],
   },
   {
@@ -57,7 +62,8 @@ export const ROLES = [
     title: "Accounts / office",
     sees: "GP and month-end by deal ref. Export.",
     cannot: "Customer thread, phone, email. They get a number, not a person.",
-    packages: ["site", "group"] as PlanId[],
+    packages: ["site", "franchise", "group"] as PlanId[],
+    trial: false,
     tabs: ["overview"],
   },
   {
@@ -67,14 +73,20 @@ export const ROLES = [
     sees: "Every site, every franchise on the contract. Totals.",
     cannot: "Nothing on the floor they cannot already see as management.",
     packages: ["group"] as PlanId[],
+    trial: false,
     tabs: ["overview", "stock", "locator", "pipeline", "customer", "mind"],
   },
 ] as const;
 
 export type RoleId = (typeof ROLES)[number]["id"];
 
-export function rolesForPlan(plan: PlanId) {
-  return ROLES.filter((r) => (r.packages as readonly string[]).includes(plan));
+export function rolesForPlan(plan: PlanId, billing: BillingKind = "subscription") {
+  const trial = plan === "site" && billing === "trial";
+  return ROLES.filter((r) => {
+    if (!(r.packages as readonly string[]).includes(plan)) return false;
+    if (trial) return r.trial;
+    return true;
+  });
 }
 
 export function isRoleId(v: unknown): v is RoleId {
@@ -90,10 +102,11 @@ export type StaffSeat = {
 };
 
 export const ROLE_RULES = [
-  "Pilot is Aberdeen as it runs today: sales + management. Do not dump seven seats on a 60-day trial.",
+  "The 60-day trial is Site only: sales + management. Do not dump seven seats on a trial.",
   "A job title is a label. The role is the seat. Host, receptionist, greeter → host.",
   "Accountant does not get a finance product. They get GP read and a CSV.",
   "Progressor is the locator tab with stock. Not a second app.",
-  "Multi-franchise is Group: one contract, seats scoped to site and franchise — not a fourth plan.",
+  "Franchise is one manufacturer brand on a 12-month contract. No trial.",
+  "Multi-franchise is Group: one contract, seats scoped to site and franchise.",
   "Do not let a client invent roles. If it is not in this list, it is a title on an existing seat.",
 ] as const;

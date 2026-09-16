@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight } from "lucide-react";
-import { RooftopBar } from "@/components/demo/rooftop-bar";
+import { DealerBar } from "@/components/demo/dealer-bar";
 import { Reveal } from "@/components/reveal";
 import { SiteShell } from "@/components/site-shell";
 import { Button } from "@/components/ui/button";
@@ -41,10 +41,10 @@ const steps = [
   },
   {
     n: "2",
-    title: "Start 60 days",
-    body: `${gbpPence(PLANS.pilot.setupPence)}. One rooftop. Your colours. If you stay, it comes off the setup.`,
-    href: "/account",
-    cta: "Get started",
+    title: "Start on one site",
+    body: `${gbpPence(PLANS.site.trialPence!)} for 60 days. One dealership. If you stay, it comes off the setup. Franchise and group skip the trial.`,
+    href: "/pricing",
+    cta: "See packages",
   },
   {
     n: "3",
@@ -149,7 +149,7 @@ function Home() {
                 </a>
               ) : (
                 <Link
-                  to={s.href as "/account" | "/how"}
+                  to={s.href as "/account" | "/how" | "/pricing"}
                   className="mt-6 inline-flex items-center gap-1 text-sm font-medium text-fg"
                 >
                   {s.cta} <ArrowRight className="size-4" />
@@ -171,7 +171,7 @@ function Home() {
           </p>
         </Reveal>
         <div className="mt-10">
-          <RooftopBar />
+          <DealerBar />
         </div>
       </section>
     </SiteShell>

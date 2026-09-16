@@ -1,4 +1,4 @@
--- Forecourt desk — core schema for one rooftop.
+-- Forecourt desk — core schema for one site.
 -- Run on a NEW Supabase project. Never on Aberdeen.
 
 create sequence if not exists orders_id_seq start with 1000;

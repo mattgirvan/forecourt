@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowLeft, SlidersHorizontal } from "lucide-react";
 import { Desk } from "@/components/demo/desk";
-import { RooftopBar } from "@/components/demo/rooftop-bar";
+import { DealerBar } from "@/components/demo/dealer-bar";
 import { Mark } from "@/components/mark";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,7 +25,7 @@ export const Route = createFileRoute("/demo")({
 
 function DemoPage() {
   const search = Route.useSearch();
-  const setRooftop = useDemo((s) => s.setRooftop);
+  const setDealer = useDemo((s) => s.setDealer);
   const hydrate = useDemo((s) => s.hydrate);
   const company = useDemo((s) => s.company);
   const brandId = useDemo((s) => s.brandId);
@@ -37,7 +37,7 @@ function DemoPage() {
 
   useEffect(() => {
     if (search.group || search.brand || search.site) {
-      setRooftop({
+      setDealer({
         ...(search.group ? { company: search.group } : {}),
         ...(search.brand ? { brandId: search.brand } : {}),
         ...(search.site ? { site: search.site } : {}),
@@ -45,7 +45,7 @@ function DemoPage() {
       return;
     }
     hydrate();
-  }, [search.group, search.brand, search.site, setRooftop, hydrate]);
+  }, [search.group, search.brand, search.site, setDealer, hydrate]);
 
   return (
     <div className="flex min-h-dvh flex-col bg-[#0b0f14] text-white">
@@ -72,7 +72,7 @@ function DemoPage() {
             className="inline-flex h-9 items-center gap-1.5 rounded-md border border-white/15 px-3 font-mono text-[10px] uppercase tracking-[0.12em] text-white/70 hover:text-white"
           >
             <SlidersHorizontal className="size-3.5" />
-            {edit ? "Hide" : "Change rooftop"}
+            {edit ? "Hide" : "Change site"}
           </button>
           <Button
             size="sm"
@@ -86,14 +86,16 @@ function DemoPage() {
             </Link>
           </Button>
           <Button size="sm" className="desk-cta" asChild>
-            <Link to="/pilot">This, on our rooftop</Link>
+            <Link to="/account" search={{ plan: "site", billing: "trial" }}>
+              This, on our site
+            </Link>
           </Button>
         </div>
       </header>
 
       {edit && (
         <div className="shrink-0 border-b border-white/10 bg-[#10141a] px-3 py-3 sm:px-4">
-          <RooftopBar showOpen={false} />
+          <DealerBar showOpen={false} />
         </div>
       )}
 

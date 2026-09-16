@@ -8,9 +8,9 @@ The dealer operating system you already run — packaged for others.
 
 | Repo | Job |
 |---|---|
-| **this one** (`forecourt`) | Product site, fictional demo desk, paid pilot |
+| **this one** (`forecourt`) | Product site, fictional demo desk, billing |
 | [`forecourt-desk`](https://github.com/mattgirvan/forecourt-desk) | The actual portal you clone when someone orders |
-| `skoda-aberdeen-portal` | Live Aberdeen rooftop. Prototype. Never fork `App.jsx` for a client |
+| `skoda-aberdeen-portal` | Live Aberdeen site. Prototype. Never fork `App.jsx` for a client |
 
 The demo a principal opens in another tab is **not** what goes live. After they pay, you clone `forecourt-desk`, drop `tenant.json`, stand up a new Supabase, point Vercel at their domain. Steps: [`desk-template/PROVISION.md`](./desk-template/PROVISION.md).
 
@@ -19,7 +19,7 @@ The demo a principal opens in another tab is **not** what goes live. After they 
 - Product story
 - Configure group + franchise, then **open a full-page demo** (fictional stock)
 - How an order ships
-- Account: brand pack, features, Stripe pilot
+- Account: package, brand pack, Stripe (trial or subscription)
 
 ## What you ship (the other repo)
 
@@ -33,13 +33,25 @@ See `desk-template/` in this tree (canonical copy) and the GitHub template `matt
 
 ## Pricing
 
-| Plan | Now | Later |
-|---|---|---|
-| 60-day pilot | £1,500 one-off, credited to setup | — |
-| Site | not on a card | £4,500 setup + £399/mo from go-live |
-| Group | not on a card | £8,500 + £249/site/mo |
+Three platforms. **Rooftop is not a word we use** — it is site, franchise, or group.
+
+| Package | Trial | Setup | Monthly | Contract |
+|---|---|---|---|---|
+| **Site** | £1,500 for 60 days, credited if they stay | £4,500 | £399 | Month to month after trial |
+| **Franchise** | None | £6,500 | £499 | 12 months |
+| **Group** | None | £8,500 | £249 / site | 12 months |
+
+The 60-day trial is **site only**. Franchise and group are a build. We do not stand those up on a maybe.
+
+Site trial = sales + management. Subscribed site / franchise = extra seats (host, progressor, admin, accounts). Group adds principal.
+
+Stripe: one-off payment for the site trial; subscription checkout (setup + recurring) for everything else. Convert a trial by paying remaining setup (£3,000) + £399/month.
+
+Webhook: `POST /api/stripe/webhook`. Needs `STRIPE_WEBHOOK_SECRET` and `SUPABASE_SERVICE_ROLE_KEY` on Vercel. Return-URL confirm still works without the webhook.
+
+Billing columns: paste [`supabase/billing.sql`](./supabase/billing.sql) into the Forecourt Supabase SQL editor.
 
 ## Stack
 
-Marketing: TanStack Start, Postgres, Better Auth, Stripe.  
+Marketing: TanStack Start, Supabase, Stripe.  
 Desk template: Vite + React + Supabase + Vercel (same shape as Aberdeen).

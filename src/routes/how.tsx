@@ -1,10 +1,19 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { RooftopBar } from "@/components/demo/rooftop-bar";
+import { DealerBar } from "@/components/demo/dealer-bar";
 import { Reveal } from "@/components/reveal";
 import { SiteShell } from "@/components/site-shell";
 import { Button } from "@/components/ui/button";
-import { FEATURES, INGEST, PLANS, PROVISION, type FeatureId, type PlanId } from "@/lib/catalog";
+import {
+  FEATURES,
+  INGEST,
+  PLAN_ORDER,
+  PLANS,
+  PROVISION,
+  type BillingKind,
+  type FeatureId,
+  type PlanId,
+} from "@/lib/catalog";
 import { rolesForPlan } from "@/lib/roles";
 import { cn } from "@/lib/utils";
 
@@ -16,8 +25,10 @@ export function HowPage() {
   );
   const [ingest, setIngest] = useState("excel");
   const [seatPlan, setSeatPlan] = useState<PlanId>("site");
+  const [seatBilling, setSeatBilling] = useState<BillingKind>("trial");
 
-  const seats = rolesForPlan(seatPlan);
+  const billing: BillingKind = seatPlan === "site" ? seatBilling : "subscription";
+  const seats = rolesForPlan(seatPlan, billing);
 
   return (
     <SiteShell>
@@ -25,10 +36,11 @@ export function HowPage() {
         <Reveal className="text-center">
           <p className="text-[13px] font-medium text-muted">How it works</p>
           <h1 className="mx-auto mt-3 max-w-2xl text-4xl font-semibold tracking-tight sm:text-5xl">
-            You pay. We put your name on it. You go live.
+            You pick a package. We put your name on it. You go live.
           </h1>
-          <p className="mx-auto mt-4 max-w-md text-base text-muted">
-            Same product that’s already on a showroom floor. Your colours, your cars, your staff.
+          <p className="mx-auto mt-4 max-w-lg text-base text-muted">
+            Same product that’s already on a showroom floor. Site can start on 60 days.
+            Franchise and group start on a 12-month contract.
           </p>
         </Reveal>
 
@@ -81,7 +93,10 @@ export function HowPage() {
                     </div>
                   )}
                   {p.id === "data" && (
-                    <p className="text-sm leading-relaxed text-muted">Your cars stay yours. Nobody else can see them.</p>
+                    <p className="text-sm leading-relaxed text-muted">
+                      Your cars stay yours. Nobody else can see them. A group still gets a database
+                      per site unless you are explicitly on the group contract.
+                    </p>
                   )}
                   {p.id === "ingest" && (
                     <div>
@@ -100,12 +115,15 @@ export function HowPage() {
                           </button>
                         ))}
                       </div>
-                      <p className="mt-4 text-sm text-muted">Start with a spreadsheet. Factory feed later if you have one.</p>
+                      <p className="mt-4 text-sm text-muted">
+                        Start with a spreadsheet. Factory feed is in the franchise and group packages.
+                      </p>
                     </div>
                   )}
                   {p.id === "ship" && (
                     <p className="text-sm leading-relaxed text-muted">
-                      Your own web address. Staff get a code to sign in. Then you’re live.
+                      Your own web address. Staff get a code to sign in. Then you’re live. Monthly
+                      billing starts here for a subscription — not at the first conversation.
                     </p>
                   )}
                 </div>
@@ -119,27 +137,53 @@ export function HowPage() {
         <Reveal>
           <p className="text-[13px] font-medium text-muted">Who uses it</p>
           <h2 className="mt-3 max-w-2xl text-3xl font-semibold tracking-tight sm:text-4xl">
-            Sales, the manager, and whoever else you need.
+            Sales, the manager, and whoever else the package includes.
           </h2>
           <p className="mt-4 max-w-md text-sm leading-relaxed text-muted">
-            One desk. Different logins. Host, accounts, progressor — only if you want them.
+            One desk. Different logins. The 60-day trial is sales and the manager only. Extra seats
+            arrive when you subscribe.
           </p>
         </Reveal>
 
         <div className="mt-8 flex flex-wrap gap-1.5">
-          {(Object.values(PLANS) as (typeof PLANS)[keyof typeof PLANS][]).map((p) => (
+          {PLAN_ORDER.map((id) => (
             <button
-              key={p.id}
+              key={id}
               type="button"
-              onClick={() => setSeatPlan(p.id)}
+              onClick={() => setSeatPlan(id)}
               className={cn(
                 "h-9 rounded-full px-3 text-xs",
-                seatPlan === p.id ? "bg-fg text-accent-fg" : "bg-elevated text-muted",
+                seatPlan === id ? "bg-fg text-accent-fg" : "bg-elevated text-muted",
               )}
             >
-              {p.name}
+              {PLANS[id].name}
             </button>
           ))}
+          {seatPlan === "site" && (
+            <>
+              <span className="mx-1 self-center text-subtle">/</span>
+              <button
+                type="button"
+                onClick={() => setSeatBilling("trial")}
+                className={cn(
+                  "h-9 rounded-full px-3 text-xs",
+                  billing === "trial" ? "bg-fg text-accent-fg" : "bg-elevated text-muted",
+                )}
+              >
+                60-day trial
+              </button>
+              <button
+                type="button"
+                onClick={() => setSeatBilling("subscription")}
+                className={cn(
+                  "h-9 rounded-full px-3 text-xs",
+                  billing === "subscription" ? "bg-fg text-accent-fg" : "bg-elevated text-muted",
+                )}
+              >
+                Subscribed
+              </button>
+            </>
+          )}
         </div>
 
         <div className="mt-8 grid gap-4 sm:grid-cols-2">
@@ -157,11 +201,18 @@ export function HowPage() {
           <h2 className="text-3xl font-semibold tracking-tight">See it with your name.</h2>
         </Reveal>
         <div className="mt-8">
-          <RooftopBar />
+          <DealerBar />
         </div>
-        <Button className="mt-6" asChild>
-          <Link to="/account">Get started</Link>
-        </Button>
+        <div className="mt-6 flex flex-wrap gap-2">
+          <Button asChild>
+            <Link to="/account" search={{ plan: "site", billing: "trial" }}>
+              Start 60 days
+            </Link>
+          </Button>
+          <Button variant="secondary" asChild>
+            <Link to="/pricing">See packages</Link>
+          </Button>
+        </div>
       </section>
     </SiteShell>
   );

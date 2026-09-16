@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { Mark } from "@/components/mark";
-import { rooftopSearch } from "@/lib/brands";
+import { deskSearch } from "@/lib/brands";
 import { useDemo } from "@/lib/demo-store";
 import { SITE } from "@/lib/site";
 
@@ -23,7 +23,7 @@ export function SiteFooter() {
           <Link to="/" className="hover:text-fg">
             Product
           </Link>
-          <Link to="/demo" search={rooftopSearch({ company, brandId, site })} className="hover:text-fg">
+          <Link to="/demo" search={deskSearch({ company, brandId, site })} className="hover:text-fg">
             Try it
           </Link>
           <Link to="/how" className="hover:text-fg">

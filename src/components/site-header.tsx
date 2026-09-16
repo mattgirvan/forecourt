@@ -1,7 +1,7 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { Mark } from "@/components/mark";
 import { Button } from "@/components/ui/button";
-import { rooftopSearch } from "@/lib/brands";
+import { deskSearch } from "@/lib/brands";
 import { useDemo } from "@/lib/demo-store";
 import { SignedIn, SignedOut, UserButton } from "@/lib/sb-session";
 import { cn } from "@/lib/utils";
@@ -33,7 +33,7 @@ function NavLink({
   return (
     <Link
       to={to}
-      search={desk ? rooftopSearch({ company, brandId, site }) : undefined}
+      search={desk ? deskSearch({ company, brandId, site }) : undefined}
       className={cn(
         "rounded-full px-3.5 py-1.5 text-[13px] text-muted transition-colors hover:text-fg",
         on && "bg-elevated text-fg",

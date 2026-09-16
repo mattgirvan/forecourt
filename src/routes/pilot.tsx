@@ -44,7 +44,7 @@ export function PilotPage() {
 
   const briefing = useMemo(() => {
     return [
-      "FORECOURT — 60-day rooftop pilot",
+      "FORECOURT — 60-day site trial",
       "",
       `From: ${form.name || "—"} (${form.role})`,
       `Dealer: ${form.dealer || "—"}`,
@@ -53,7 +53,7 @@ export function PilotPage() {
       `Worst month-end: ${form.problem}`,
       `Success metric: ${form.metric}`,
       "",
-      "Ask: one rooftop, 60 days, their brand on the glass.",
+      "Ask: one site, 60 days, their brand on the glass.",
       "If the metric is true at day 60, the product stays.",
     ].join("\n");
   }, [form]);
@@ -68,18 +68,21 @@ export function PilotPage() {
         <div>
           <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-subtle">The ask</p>
           <h1 className="mt-3 font-display text-4xl tracking-tight sm:text-5xl">
-            A 60-day rooftop pilot.
+            A 60-day site trial.
           </h1>
           <p className="mt-4 max-w-lg text-base leading-relaxed text-muted">
             One success number. Their brand on the glass. The briefing is still useful. The paid
-            path is the account: sign in, drop the brand pack, pay £1,500. Or write{" "}
+            path is the account: sign in, drop the brand pack, pay £1,500 for one site. Franchise
+            and group skip this — they start on a 12-month contract. Or write{" "}
             <a href="mailto:hello@forecourt.me" className="text-fg underline-offset-2 hover:underline">
               hello@forecourt.me
             </a>
             .
           </p>
           <Button className="mt-6" asChild>
-            <Link to="/account">Pay the pilot instead</Link>
+            <Link to="/account" search={{ plan: "site", billing: "trial" }}>
+              Pay the trial instead
+            </Link>
           </Button>
 
 
@@ -163,7 +166,7 @@ export function PilotPage() {
           <h2 className="font-display text-2xl">Do not sell until this is done</h2>
           <p className="mt-3 text-sm leading-relaxed text-muted">
             The live franchised build is a product prototype. This site is the packaging layer:
-            brand-agnostic desk, tenant switcher, commercial story, pilot ask.
+            brand-agnostic desk, tenant switcher, commercial story, site trial.
           </p>
           <ul className="mt-6 space-y-4 text-sm text-muted">
             <li>

@@ -137,7 +137,7 @@ function Overview({ showGp = true }) {
   if (!live.length) {
     return (
       <div className="glass empty">
-        No live deals yet. Add an order or ingest stock — this rooftop starts empty on purpose.
+        No live deals yet. Add an order or ingest stock — this site starts empty on purpose.
       </div>
     );
   }
