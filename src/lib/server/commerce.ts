@@ -335,6 +335,7 @@ export const startCheckout = createServerFn({ method: "POST" })
             success_url: `${success}&session_id={CHECKOUT_SESSION_ID}`,
             cancel_url: cancel,
             customer_email: owned.email || undefined,
+            customer_creation: "always",
             line_items: [
               {
                 quantity: 1,

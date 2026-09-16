@@ -230,12 +230,24 @@ function TenantFile({ token, tenantId, onSaved }: { token: string; tenantId: num
   }
 
   async function billingAction(action: "cancel" | "refund" | "sign-off") {
+    const ask =
+      action === "refund"
+        ? "Refund the last card payment through Stripe and end this package?"
+        : action === "cancel"
+          ? "End this package? If they are on a monthly Stripe, it stops at the period end. A 60-day trial has no monthly — this just marks it cancelled."
+          : "Sign this desk off as live? Setup is then not refundable.";
+    if (typeof window !== "undefined" && !window.confirm(ask)) return;
     setBusy(true);
+    setNotice(null);
     try {
       const res = await runBillingAction({ data: { token, tenantId, action } });
       setNotice(res.message);
-      const row = await getTenantFile({ data: { token, tenantId } });
+      const [row, rec] = await Promise.all([
+        getTenantFile({ data: { token, tenantId } }),
+        listReceipts({ data: { token, tenantId } }).catch(() => receipts),
+      ]);
       setFile(row);
+      setReceipts(rec);
       onSaved();
     } catch (e) {
       setNotice(e instanceof Error ? e.message : "Could not update billing.");
@@ -366,9 +378,11 @@ function TenantFile({ token, tenantId, onSaved }: { token: string; tenantId: num
               <p className="mt-1 text-sm text-muted">
                 {file.signed_off_at
                   ? "Signed off live. Setup is not refundable from here."
-                  : "Not signed off yet. Refund is still possible."}
+                  : "Refund sends the last card payment back. End subscription stops monthly Stripe, or marks a trial cancelled — trials have no monthly."}
               </p>
-              {notice && <p className="mt-2 text-sm text-muted">{notice}</p>}
+              {notice && (
+                <p className="mt-3 rounded-xl border border-line-strong bg-elevated px-3 py-2 text-sm">{notice}</p>
+              )}
               <div className="mt-4 flex flex-wrap gap-2">
                 <Button
                   type="button"
@@ -376,10 +390,10 @@ function TenantFile({ token, tenantId, onSaved }: { token: string; tenantId: num
                   disabled={busy || Boolean(file.signed_off_at)}
                   onClick={() => void billingAction("sign-off")}
                 >
-                  Sign off live
+                  {busy ? "Working…" : "Sign off live"}
                 </Button>
                 <Button type="button" variant="secondary" disabled={busy} onClick={() => void billingAction("cancel")}>
-                  End subscription
+                  End package
                 </Button>
                 <Button
                   type="button"
@@ -387,7 +401,7 @@ function TenantFile({ token, tenantId, onSaved }: { token: string; tenantId: num
                   disabled={busy || Boolean(file.signed_off_at)}
                   onClick={() => void billingAction("refund")}
                 >
-                  Refund
+                  Refund last payment
                 </Button>
               </div>
             </div>

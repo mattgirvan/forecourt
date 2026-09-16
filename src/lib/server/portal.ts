@@ -466,19 +466,44 @@ export const runBillingAction = createServerFn({ method: "POST" })
     const { sb, team, role, email } = await actor(data.token);
     if (!team) throw new Error("Office is for the Forecourt team.");
     if (role !== "owner") throw new Error("Only an owner can change billing.");
-    const { data: tenant, error } = await sb
+
+    const admin = sbAdmin() ?? sb;
+    const loaded = await admin
       .from("tenants")
-      .select("id, status, stripe_customer_id, stripe_subscription_id, signed_off_at")
+      .select("id, status, billing, stripe_customer_id, stripe_subscription_id, signed_off_at")
       .eq("id", data.tenantId)
       .maybeSingle();
-    if (error || !tenant) throw new Error(error?.message ?? "No dealership on this file.");
+    const tenant = loaded.data
+      ? loaded.data
+      : (
+          await admin
+            .from("tenants")
+            .select("id, status, billing, stripe_customer_id, stripe_subscription_id")
+            .eq("id", data.tenantId)
+            .maybeSingle()
+        ).data;
+    if (!tenant) throw new Error(loaded.error?.message ?? "No dealership on this file.");
+    const signedOff = Boolean((tenant as { signed_off_at?: string | null }).signed_off_at);
 
     const secret = stripeSecret();
     const Stripe = secret ? (await import("stripe")).default : null;
     const stripe = secret && Stripe ? new Stripe(secret) : null;
 
+    async function trail(body: string) {
+      try {
+        await admin.from("notes").insert({
+          tenant_id: data.tenantId,
+          author_email: email,
+          visibility: "internal",
+          body,
+        });
+      } catch {
+        /* optional */
+      }
+    }
+
     if (data.action === "sign-off") {
-      const { error: up } = await sb
+      const { error: up } = await admin
         .from("tenants")
         .update({
           signed_off_at: new Date().toISOString(),
@@ -486,53 +511,110 @@ export const runBillingAction = createServerFn({ method: "POST" })
           stage: "live",
         })
         .eq("id", data.tenantId);
-      if (up) await sb.from("tenants").update({ status: "live" }).eq("id", data.tenantId);
-      try {
-        await sb.from("build_events").insert({
-          tenant_id: data.tenantId,
-          kind: "stage",
-          visibility: "customer",
-          body: `Signed off live by ${email}.`,
-          actor_email: email,
-        });
-      } catch {
-        /* optional */
-      }
-      return { ok: true, message: "Signed off. Setup is not refundable from here." };
+      if (up) await admin.from("tenants").update({ status: "live" }).eq("id", data.tenantId);
+      await trail(`Signed off live by ${email}. Setup is not refundable.`);
+      return { ok: true, message: "Signed off live. Setup is not refundable from here." };
     }
 
-    if (data.action === "refund" && tenant.signed_off_at) {
-      throw new Error(
-        "Live and signed off. Terms say setup is not refundable. Refund in Stripe only if you mean an exception.",
-      );
+    if (data.action === "refund" && signedOff) {
+      throw new Error("Live and signed off — terms say no refund of setup. Exception only in Stripe by hand.");
     }
 
-    if (stripe && tenant.stripe_subscription_id) {
+    if (!stripe) {
+      throw new Error("Stripe is not connected on the server, so nothing was sent to the card.");
+    }
+
+    const { data: orders } = await admin
+      .from("orders")
+      .select("id, stripe_session_id, stripe_subscription_id, status")
+      .eq("tenant_id", data.tenantId)
+      .order("created_at", { ascending: false })
+      .limit(8);
+
+    let subId = (tenant.stripe_subscription_id as string | null) || null;
+    let customerId = (tenant.stripe_customer_id as string | null) || null;
+    let paymentIntent: string | null = null;
+    let sessionId: string | null = null;
+
+    for (const o of orders ?? []) {
+      if (o.stripe_subscription_id && !subId) subId = o.stripe_subscription_id as string;
+      const sid = o.stripe_session_id as string | null;
+      if (!sid || !sid.startsWith("cs_")) continue;
       try {
-        if (data.action === "cancel") {
-          await stripe.subscriptions.update(tenant.stripe_subscription_id, { cancel_at_period_end: true });
-        } else {
-          await stripe.subscriptions.cancel(tenant.stripe_subscription_id);
+        const session = await stripe.checkout.sessions.retrieve(sid);
+        if (!customerId && typeof session.customer === "string") customerId = session.customer;
+        if (!subId && typeof session.subscription === "string") subId = session.subscription;
+        if (!paymentIntent && typeof session.payment_intent === "string") {
+          paymentIntent = session.payment_intent;
+          sessionId = sid;
         }
-      } catch (e) {
-        throw new Error(e instanceof Error ? e.message : "Stripe could not change the subscription.");
+        if (session.mode === "payment" && session.payment_status === "paid" && !paymentIntent) {
+          paymentIntent = typeof session.payment_intent === "string" ? session.payment_intent : null;
+          sessionId = sid;
+        }
+      } catch {
+        /* next order */
+      }
+      if (paymentIntent && subId) break;
+    }
+
+    if (customerId && !paymentIntent) {
+      const pis = await stripe.paymentIntents.list({ customer: customerId, limit: 8 });
+      const paid = pis.data.find((p) => p.status === "succeeded" && (p.amount_received ?? 0) > 0);
+      if (paid) paymentIntent = paid.id;
+    }
+
+    const bits: string[] = [];
+
+    if (data.action === "cancel") {
+      if (subId) {
+        await stripe.subscriptions.update(subId, { cancel_at_period_end: true });
+        bits.push("Stripe will stop the monthly at the period end.");
+      } else {
+        bits.push("No monthly Stripe subscription on this file (a 60-day trial is a one-off). Package marked cancelled.");
       }
     }
 
-    if (data.action === "refund" && stripe && tenant.stripe_customer_id) {
-      const charges = await stripe.charges.list({ customer: tenant.stripe_customer_id, limit: 8 });
-      const charge = charges.data.find((c) => c.paid && !c.refunded);
-      if (!charge) throw new Error("No paid charge to refund.");
-      await stripe.refunds.create({ charge: charge.id });
-      await sb.from("orders").update({ status: "refunded" }).eq("tenant_id", data.tenantId);
+    if (data.action === "refund") {
+      if (subId) {
+        try {
+          await stripe.subscriptions.cancel(subId);
+          bits.push("Monthly Stripe subscription cancelled now.");
+        } catch (e) {
+          bits.push(e instanceof Error ? e.message : "Could not cancel the subscription.");
+        }
+      }
+      if (!paymentIntent) {
+        throw new Error(
+          "No card payment on this file to refund. If they paid, the checkout session never landed — refund in Stripe by hand.",
+        );
+      }
+      try {
+        await stripe.refunds.create({ payment_intent: paymentIntent });
+        bits.push("Last card payment refunded.");
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : "Stripe refused the refund.";
+        if (!/already been refunded/i.test(msg)) throw new Error(msg);
+        bits.push("Stripe says that payment was already refunded.");
+      }
+      if (sessionId) {
+        await admin.from("orders").update({ status: "refunded" }).eq("stripe_session_id", sessionId);
+      } else {
+        await admin.from("orders").update({ status: "refunded" }).eq("tenant_id", data.tenantId);
+      }
     }
 
     const status = data.action === "refund" ? "refunded" : "cancelled";
-    const patch: Record<string, unknown> = { status, cancelled_at: new Date().toISOString() };
-    const { error: up } = await sb.from("tenants").update(patch).eq("id", data.tenantId);
-    if (up) await sb.from("tenants").update({ status }).eq("id", data.tenantId);
-    return {
-      ok: true,
-      message: data.action === "refund" ? "Refunded and subscription ended." : "Subscription set to end. No refund.",
+    const patch: Record<string, unknown> = {
+      status,
+      cancelled_at: new Date().toISOString(),
     };
+    if (customerId) patch.stripe_customer_id = customerId;
+    if (subId) patch.stripe_subscription_id = subId;
+    const { error: up } = await admin.from("tenants").update(patch).eq("id", data.tenantId);
+    if (up) await admin.from("tenants").update({ status }).eq("id", data.tenantId);
+
+    const message = bits.join(" ");
+    await trail(`${data.action} by ${email}. ${message}`);
+    return { ok: true, message };
   });
