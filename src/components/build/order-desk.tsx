@@ -5,6 +5,7 @@ import {
   applyBrand,
   brandOptions,
   featureList,
+  isBuildStage,
   packGaps,
   stageIndex,
   stageMeta,
@@ -443,7 +444,13 @@ function StaffBuild({
           disabled={busy}
           onClick={() =>
             void setBuildStage({
-              data: { token, tenantId, stage: preview ? "preview" : build.stage, preview_url: preview, repo_slug: repo },
+              data: {
+                token,
+                tenantId,
+                stage: preview ? "preview" : isBuildStage(build.stage) ? build.stage : "pack",
+                preview_url: preview,
+                repo_slug: repo,
+              },
             }).then(onReload)
           }
         >
