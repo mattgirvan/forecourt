@@ -5,7 +5,7 @@ import { Reveal } from "@/components/reveal";
 import { SiteShell } from "@/components/site-shell";
 import { Button } from "@/components/ui/button";
 import { FEATURES, INGEST, PLANS, PROVISION, type FeatureId, type PlanId } from "@/lib/catalog";
-import { ROLE_RULES, ROLES, rolesForPlan } from "@/lib/roles";
+import { rolesForPlan } from "@/lib/roles";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/how")({ component: HowPage });
@@ -17,38 +17,18 @@ export function HowPage() {
   const [ingest, setIngest] = useState("excel");
   const [seatPlan, setSeatPlan] = useState<PlanId>("site");
 
-  const sample = {
-    slug: "harbour-park",
-    name: "Harbour Park",
-    legal: "Harbour Park Automotive Ltd",
-    groupMark: "HP",
-    phone: "01202 774 410",
-    domain: "portal.harbourpark.example",
-    sites: ["Poole"],
-    franchise: { id: "ford", word: "FORD", accent: "#2A6BAC" },
-    ingest,
-    features: on,
-    staff: [
-      { name: "Alex Reed", email: "alex@harbourpark.example", role: "management", site: "Poole" },
-      { name: "Sam Cole", email: "sam@harbourpark.example", role: "sales", site: "Poole" },
-    ],
-    seedDemo: false,
-  };
-
   const seats = rolesForPlan(seatPlan);
 
   return (
     <SiteShell>
       <section className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-20">
         <Reveal>
-          <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-subtle">How an order ships</p>
+          <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-subtle">How it works</p>
           <h1 className="mt-3 max-w-3xl font-display text-4xl tracking-tight sm:text-5xl">
-            One template. One JSON file. Never a fork.
+            You pay. We put your name on it. You go live.
           </h1>
-          <p className="mt-4 max-w-xl text-base text-muted">
-            The Aberdeen portal is the live prototype. The sales demo is a separate tab with fictional
-            cars. An order is a clone of the desk template — one JSON file, a new database, their
-            domain. Never a copy of App.jsx.
+          <p className="mt-4 max-w-md text-base text-muted">
+            Same product that’s already on a showroom floor. Your colours, your cars, your staff.
           </p>
         </Reveal>
 
@@ -65,16 +45,16 @@ export function HowPage() {
                   {p.id === "brand" && (
                     <div className="rounded-lg border border-line bg-surface p-5">
                       <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-subtle">
-                        Brand pack — one page
+                        What we need
                       </p>
                       <ul className="mt-3 space-y-2 text-sm text-muted">
                         {[
-                          "Wordmark + stacked logo",
-                          "Primary / surface / danger hex",
-                          "Trading name and legal name",
-                          "Showroom phone and sales inbox",
-                          "portal.theirdomain.co.uk",
-                          "Staff list: name, email, role, site, franchise if they have more than one",
+                          "Logo",
+                          "Your colours",
+                          "Dealership name",
+                          "Showroom phone and sales email",
+                          "The web address you want",
+                          "Who should have a login",
                         ].map((item) => (
                           <li key={item} className="border-b border-line py-2">
                             {item}
@@ -100,17 +80,14 @@ export function HowPage() {
                           </button>
                         ))}
                       </div>
-                      <pre className="overflow-x-auto rounded-md border border-line bg-elevated p-4 font-mono text-[11px] leading-relaxed text-muted">
-                        {JSON.stringify(sample, null, 2)}
-                      </pre>
+                      <p className="mt-2 max-w-sm text-sm text-muted">
+                        Tick what you need. We turn the rest off.
+                      </p>
                     </div>
                   )}
                   {p.id === "data" && (
                     <div className="rounded-lg border border-line p-5 text-sm leading-relaxed text-muted">
-                      Each client is a row-set scoped to their account. Aberdeen stays on its own
-                      database. The next rooftop does not inherit their deals, VINs, or staff. Until
-                      row-level tenancy is proven, the rule is: new project, new keys, first staff
-                      user. Never share.
+                      Your cars stay yours. Nobody else can see them.
                     </div>
                   )}
                   {p.id === "ingest" && (
@@ -130,19 +107,12 @@ export function HowPage() {
                           </button>
                         ))}
                       </div>
-                      <p className="mt-4 text-sm text-muted">
-                        Core is upsert-by-VIN. Škoda UK is one adapter. Excel is another. A Ford
-                        group does not get the Škoda function pasted into App.jsx.
-                      </p>
+                      <p className="mt-4 text-sm text-muted">Start with a spreadsheet. Factory feed later if you have one.</p>
                     </div>
                   )}
                   {p.id === "ship" && (
                     <div className="rounded-lg border border-line p-5 text-sm leading-relaxed text-muted">
-                      <code className="text-fg">gh repo create desk-harbour-park --template mattgirvan/forecourt-desk</code>
-                      <p className="mt-3">
-                        Fill tenant.json, new Supabase, Vercel domain. The tab they played with is the
-                        sales demo. This clone is the live glass. Monthly billing starts here.
-                      </p>
+                      Your own web address. Staff get a code to sign in. Then you’re live.
                     </div>
                   )}
                 </div>
@@ -155,14 +125,12 @@ export function HowPage() {
       <section className="border-t border-line">
         <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-20">
           <Reveal>
-            <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-subtle">Who sits where</p>
+            <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-subtle">Who uses it</p>
             <h2 className="mt-3 max-w-2xl font-display text-3xl tracking-tight sm:text-4xl">
-              Job titles vary. Seats do not.
+              Sales, the manager, and whoever else you need.
             </h2>
-            <p className="mt-4 max-w-xl text-sm leading-relaxed text-muted">
-              Aberdeen already has execs (own book) and management (the floor). A host, a progressor,
-              an accountant are extra seats on the same desk — not extra products. A group with three
-              franchises is still Group: seats scoped to rooftop and badge.
+            <p className="mt-4 max-w-md text-sm leading-relaxed text-muted">
+              One desk. Different logins. Host, accounts, progressor — only if you want them.
             </p>
           </Reveal>
 
@@ -194,35 +162,19 @@ export function HowPage() {
               </article>
             ))}
           </div>
-
-          <ul className="mt-10 space-y-3">
-            {ROLE_RULES.map((rule) => (
-              <li key={rule} className="border-b border-line pb-3 text-sm leading-relaxed text-muted">
-                {rule}
-              </li>
-            ))}
-          </ul>
-          <p className="mt-6 text-xs text-subtle">
-            {ROLES.length} seats in the product. A John Clark–scale group does not get a custom role
-            named “Škoda Aberdeen sales host”. They get host, on Aberdeen, franchise Škoda.
-          </p>
         </div>
       </section>
 
       <section className="border-t border-line bg-bg-2">
         <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
           <Reveal>
-            <h2 className="font-display text-3xl tracking-tight">The glass they would get.</h2>
-            <p className="mt-3 max-w-xl text-sm text-muted">
-              Name the group and franchise. Open a full desk on its own page — not a widget here.
-              Feature flags above are what a real order would turn on.
-            </p>
+            <h2 className="font-display text-3xl tracking-tight">See it with your name.</h2>
           </Reveal>
           <div className="mt-8">
             <RooftopBar />
           </div>
-          <Button className="mt-6" variant="secondary" asChild>
-            <Link to="/account">Start a rooftop</Link>
+          <Button className="mt-6" asChild>
+            <Link to="/account">Start 60 days</Link>
           </Button>
         </div>
       </section>

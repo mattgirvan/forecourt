@@ -26,9 +26,7 @@ export function SiteFooter() {
               {SITE.name}
             </span>
           </div>
-          <p className="mt-3 max-w-sm text-sm text-muted">
-            The dealer operating system you already run — packaged for others.
-          </p>
+          <p className="mt-3 max-w-sm text-sm text-muted">Your dealership. On one screen.</p>
           <a
             href={`mailto:${SITE.email}`}
             className="mt-3 inline-block font-mono text-[11px] uppercase tracking-[0.14em] text-muted hover:text-fg"
@@ -38,11 +36,11 @@ export function SiteFooter() {
         </div>
         <div className="flex flex-wrap gap-x-5 gap-y-2 font-mono text-[11px] uppercase tracking-[0.14em] text-muted">
           <Link to="/how" className="hover:text-fg">
-            How it ships
+            How it works
           </Link>
           <DeskFooterLink />
           <Link to="/pricing" className="hover:text-fg">
-            Commercial
+            Pricing
           </Link>
           <Link to="/pilot" className="hover:text-fg">
             Pilot

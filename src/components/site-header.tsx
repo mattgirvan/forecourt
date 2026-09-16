@@ -7,9 +7,9 @@ import { SignedIn, SignedOut, UserButton } from "@/lib/sb-session";
 import { cn } from "@/lib/utils";
 
 const links = [
-  { to: "/", label: "Product" },
-  { to: "/how", label: "How it ships" },
-  { to: "/pricing", label: "Commercial" },
+  { to: "/", label: "Home" },
+  { to: "/how", label: "How it works" },
+  { to: "/pricing", label: "Pricing" },
 ] as const;
 
 function DeskNavLink({ className }: { className?: string }) {
@@ -69,7 +69,7 @@ export function SiteHeader() {
             </Button>
           </SignedOut>
           <Button size="sm" asChild>
-            <Link to="/account">60-day pilot</Link>
+            <Link to="/account">Start 60 days</Link>
           </Button>
         </div>
       </div>

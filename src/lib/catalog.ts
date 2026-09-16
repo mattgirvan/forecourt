@@ -20,11 +20,11 @@ export const INGEST = [
 export type IngestId = (typeof INGEST)[number]["id"];
 
 export const PROVISION = [
-  { id: "brand", n: "01", title: "Brand pack", body: "Logo, hex, trading name, phone, legal, domain — written into tenant.json." },
-  { id: "config", n: "02", title: "Clone the desk template", body: "GitHub template forecourt-desk. Never a copy of Aberdeen App.jsx. Never a copy of the sales demo." },
-  { id: "data", n: "03", title: "Data plane", body: "New Supabase project. Own rows, own staff. Paste 0001_core.sql. Never share Aberdeen." },
-  { id: "ingest", n: "04", title: "Ingest adapter", body: "Excel now (upsert-by-VIN). Manufacturer only if they have credentials, in their project." },
-  { id: "ship", n: "05", title: "Ship", body: "Vercel + custom domain + magic-link staff login. Half a day once the template exists." },
+  { id: "brand", n: "01", title: "Your colours", body: "Logo, name, phone, website." },
+  { id: "config", n: "02", title: "Your desk", body: "A copy of the portal, with your name on it." },
+  { id: "data", n: "03", title: "Your stock", body: "A private list of cars. Not mixed with anyone else." },
+  { id: "ingest", n: "04", title: "How cars come in", body: "A spreadsheet to start. Factory feed if you have one." },
+  { id: "ship", n: "05", title: "Go live", body: "Your link. Staff sign in with a code." },
 ] as const;
 
 export type PlanId = "pilot" | "site" | "group";
@@ -52,21 +52,21 @@ export const PLANS: Record<
     perSite: false,
     stripeMode: "payment",
     sellNow: true,
-    tag: "Pay this now",
-    body: "One rooftop. Their brand. Locator + GP as the success number. 100% credited against setup if they convert. Seats: sales execs + manager — Aberdeen as it already runs.",
-    why: "A free pilot gets ignored. Fifteen hundred pounds is a day of a principal’s attention, not a software licence.",
+    tag: "Start here",
+    body: "One rooftop. Your colours. Comes off the setup if you stay.",
+    why: "",
   },
   site: {
     id: "site",
-    name: "Site",
+    name: "One site",
     setupPence: 450_000,
     monthPence: 39_900,
     perSite: false,
     stripeMode: "invoice",
     sellNow: false,
-    tag: "After go-live",
-    body: "One rooftop, one franchise. Brand pack. Stock + deals + customer view. Excel / HTML ingest. Host, progressor, admin, accounts seats if they need them — not extra SKUs.",
-    why: "£399/mo is still cheap against a DMS. £349 looked like a side project. The setup is the real fee because standing it up is the work.",
+    tag: "When you’re live",
+    body: "Stock, deals, locator, customers. One dealership.",
+    why: "",
   },
   group: {
     id: "group",
@@ -76,9 +76,9 @@ export const PLANS: Record<
     perSite: true,
     stripeMode: "invoice",
     sellNow: false,
-    tag: "The actual business",
-    body: "2–8 sites, one or many franchises. Shared pipeline, per-site stock, principal roll-up. Seats scoped to rooftop and badge. Franchise pack extra.",
-    why: "Independents of 2–8 rooftops are the wedge. Price per site drops; you do not discount the first one to win the fifth.",
+    tag: "A few rooftops",
+    body: "Several sites. One picture of the pipeline.",
+    why: "",
   },
 };
 

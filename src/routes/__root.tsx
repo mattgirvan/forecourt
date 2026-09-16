@@ -13,7 +13,7 @@ export const Route = createRootRoute({
       {
         name: "description",
         content:
-          "Forecourt is the dealer operating system you already run — stock, deals, GP, locator and the customer journey — packaged for other rooftops.",
+          "Forecourt is the screen on the sales desk: stock, deals, and where every car is — in your dealership’s colours.",
       },
       { name: "theme-color", content: "#0A0B0A" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
@@ -22,7 +22,7 @@ export const Route = createRootRoute({
       { name: "mobile-web-app-capable", content: "yes" },
       { property: "og:title", content: SITE.name },
       { property: "og:url", content: SITE.url },
-      { property: "og:description", content: "The dealer OS. Their brand on the glass." },
+      { property: "og:description", content: "Your dealership. On one screen." },
       { property: "og:image", content: `${SITE.url}/og.jpg` },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:image", content: `${SITE.url}/og.jpg` },

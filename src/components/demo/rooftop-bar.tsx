@@ -45,13 +45,8 @@ export function RooftopBar({ showOpen = true }: { showOpen?: boolean }) {
     <div className="rounded-xl border border-line bg-surface p-4 sm:p-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-subtle">
-            Put their name on the glass
-          </p>
-          <p className="mt-1 max-w-xl text-sm text-muted">
-            Group, rooftop, franchise. Then open a full desk — their book, their badge, not a widget
-            in this page.
-          </p>
+          <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-subtle">Your dealer</p>
+          <p className="mt-1 max-w-xl text-sm text-muted">Group, site, brand — then open the desk.</p>
         </div>
         <div className="flex flex-wrap gap-1.5">
           {ROOFTOP_PRESETS.map((p) => (
@@ -135,10 +130,7 @@ export function RooftopBar({ showOpen = true }: { showOpen?: boolean }) {
               <span className="mx-1.5 text-muted">+</span>
               <span style={{ color: brand.accent }}>{brand.word}</span>
             </div>
-            <p className="mt-0.5 text-xs text-muted">
-              Opens a full {brand.label} desk. Fictional stock. Clickable — locator, GP, customer
-              glass.
-            </p>
+            <p className="mt-0.5 text-xs text-muted">A working {brand.label} desk. Sample cars.</p>
           </div>
           <OpenDeskButton />
         </div>

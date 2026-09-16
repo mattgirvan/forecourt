@@ -28,7 +28,7 @@ function Login() {
   async function send(e: FormEvent) {
     e.preventDefault();
     if (!supabaseReady()) {
-      setNotice("Supabase anon key is not on this deploy yet.");
+      setNotice("Sign-in is not connected on this site yet.");
       return;
     }
     setBusy(true);
@@ -42,7 +42,7 @@ function Login() {
         return;
       }
       setSent(true);
-      setNotice("Code is in the email. Type it here — stay in this window. Do not tap the link if you opened Forecourt from the home screen.");
+      setNotice(null);
     } finally {
       setBusy(false);
     }
@@ -69,17 +69,14 @@ function Login() {
 
   return (
     <main className="grid min-h-dvh place-items-center bg-bg px-4 text-fg">
-      <div className="w-full max-w-sm space-y-6">
+      <div className="w-full max-w-sm space-y-8">
         <Link to="/" className="flex items-center gap-2 text-fg">
           <Mark />
           <span className="font-mono text-[11px] uppercase tracking-[0.2em]">{SITE.name}</span>
         </Link>
         <div>
-          <h1 className="font-display text-3xl tracking-tight">Sign in to your instance.</h1>
-          <p className="mt-2 text-sm text-muted">
-            A code, in this window. The home-screen app and Mail are different Safari boxes — tapping
-            the link opens a new one and drops the session.
-          </p>
+          <h1 className="font-display text-4xl tracking-tight">Sign in.</h1>
+          <p className="mt-2 text-sm text-muted">{sent ? `Code sent to ${email}` : "We’ll email a code."}</p>
         </div>
         {!sent ? (
           <form className="space-y-3" onSubmit={(e) => void send(e)}>
@@ -92,24 +89,23 @@ function Login() {
               onChange={(e) => setEmail(e.target.value)}
             />
             <Button type="submit" className="w-full" disabled={busy || !email}>
-              {busy ? "Sending…" : "Email me a code"}
+              {busy ? "Sending…" : "Send code"}
             </Button>
           </form>
         ) : (
           <form className="space-y-3" onSubmit={(e) => void confirm(e)}>
-            <p className="text-sm text-muted">Sent to {email}</p>
             <Input
               inputMode="numeric"
               autoComplete="one-time-code"
               pattern="[0-9]*"
               maxLength={8}
-              placeholder="8-digit code"
+              placeholder="Code"
               value={code}
               onChange={(e) => setCode(e.target.value)}
               autoFocus
             />
             <Button type="submit" className="w-full" disabled={busy || code.replace(/\s/g, "").length < 6}>
-              {busy ? "Signing in…" : "Sign in"}
+              {busy ? "Signing in…" : "Continue"}
             </Button>
             <button
               type="button"
@@ -120,14 +116,11 @@ function Login() {
                 setNotice(null);
               }}
             >
-              Use a different email
+              Use another email
             </button>
           </form>
         )}
         {notice && <p className="text-sm text-muted">{notice}</p>}
-        <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-subtle">
-          Inbox for us: {SITE.email}
-        </p>
       </div>
     </main>
   );

@@ -102,7 +102,7 @@ function AccountInner() {
           previewOrderId: order ? Number(order) : undefined,
         },
       }).then((r) => {
-        if (r.ok) setNotice("Pilot is marked paid. Finish the brand pack and we ship.");
+        if (r.ok) setNotice("Paid. We’ll set up your desk.");
         void reload();
       });
     }
@@ -137,7 +137,7 @@ function AccountInner() {
   async function save() {
     if (!token) return;
     if (!name.trim()) {
-      setNotice("Need a trading name.");
+      setNotice("Need a dealership name.");
       return;
     }
     setBusy(true);
@@ -156,7 +156,7 @@ function AccountInner() {
           plan: "pilot",
         },
       });
-      setNotice(`Tenant ${res.slug} saved. One JSON. No fork.`);
+      setNotice("Saved.");
       await reload();
       setActiveId(res.id);
       return res.id;
@@ -171,7 +171,7 @@ function AccountInner() {
   async function pay() {
     if (!token) return;
     if (!name.trim()) {
-      setNotice("Need a trading name before checkout.");
+      setNotice("Need a dealership name.");
       return;
     }
     setBusy(true);
@@ -198,7 +198,7 @@ function AccountInner() {
         window.location.assign(res.url);
         return;
       }
-      setNotice(res.message ?? "Checkout did not open. Check STRIPE_SECRET_KEY on the Forecourt Vercel project, then redeploy.");
+      setNotice(res.message ?? "Checkout didn’t open. Try again.");
     } catch (e) {
       setNotice(e instanceof Error ? e.message : "Could not start checkout.");
     } finally {
@@ -206,36 +206,18 @@ function AccountInner() {
     }
   }
 
-  const jsonPreview = {
-    slug: name.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 40) || "rooftop",
-    name,
-    legal,
-    phone,
-    email,
-    domain,
-    sites: sites.split(",").map((s) => s.trim()).filter(Boolean),
-    ingest,
-    features,
-    staff: email
-      ? [{ name: "", email, role: "management", site: sites.split(",")[0]?.trim() || "Main" }]
-      : [],
-  };
-
   return (
     <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 sm:px-6 lg:grid-cols-[1fr_0.9fr]">
       <div>
-        <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-subtle">Account</p>
-        <h1 className="mt-2 font-display text-4xl tracking-tight">Your instance.</h1>
-        <p className="mt-3 text-sm text-muted">
-          Pay the pilot. Drop the brand pack. Tick provision. Monthly Site / Group invoices after the
-          desk is live — we do not take a subscription for a product that is still a prototype.
-        </p>
+        <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-subtle">Start</p>
+        <h1 className="mt-2 font-display text-4xl tracking-tight">Your rooftop.</h1>
+        <p className="mt-3 max-w-md text-sm text-muted">Name the dealership. Pay for 60 days. We put it in your colours.</p>
         {notice && (
           <p className="mt-4 rounded-md border border-line bg-elevated px-3 py-2 text-sm">{notice}</p>
         )}
 
         <div className="mt-8 space-y-4">
-          <Field label="Trading name" htmlFor="n">
+          <Field label="Dealership" htmlFor="n">
             <Input id="n" value={name} onChange={(e) => setName(e.target.value)} required />
           </Field>
           <Field label="Legal name" htmlFor="l">
@@ -249,10 +231,10 @@ function AccountInner() {
               <Input id="e" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
             </Field>
           </div>
-          <Field label="Preferred subdomain" htmlFor="d">
-            <Input id="d" value={domain} onChange={(e) => setDomain(e.target.value)} placeholder="portal.theirdomain.co.uk" />
+          <Field label="Website you’d like" htmlFor="d">
+            <Input id="d" value={domain} onChange={(e) => setDomain(e.target.value)} placeholder="sales.yourdealership.co.uk" />
           </Field>
-          <Field label="Sites (comma)" htmlFor="s">
+          <Field label="Sites" htmlFor="s">
             <Input id="s" value={sites} onChange={(e) => setSites(e.target.value)} />
           </Field>
           <div>
@@ -293,15 +275,12 @@ function AccountInner() {
           </div>
           <div className="flex flex-wrap items-center gap-2 pt-2">
             <Button type="button" size="lg" onClick={() => void pay()} disabled={busy || !name.trim()}>
-              {busy ? "Opening checkout…" : `Pay the 60-day pilot ${gbpPence(PLANS.pilot.setupPence)}`}
+              {busy ? "Opening…" : `Pay ${gbpPence(PLANS.pilot.setupPence)}`}
             </Button>
-            <Button type="button" variant="secondary" onClick={() => void save()} disabled={busy || !name.trim()}>
-              Save without paying
+            <Button type="button" variant="ghost" onClick={() => void save()} disabled={busy || !name.trim()}>
+              Save
             </Button>
           </div>
-          <p className="text-xs text-muted">
-            Test mode: use card 4242 4242 4242 4242. Nothing live is charged.
-          </p>
         </div>
 
         {tenants.length > 0 && (
@@ -328,16 +307,11 @@ function AccountInner() {
       </div>
 
       <aside className="space-y-6">
-        <div className="rounded-lg border border-line bg-surface p-5">
-          <div className="font-mono text-[11px] uppercase tracking-[0.16em] text-subtle">
-            tenants/{jsonPreview.slug}.json
-          </div>
-          <pre className="mt-3 overflow-x-auto font-mono text-[11px] leading-relaxed text-muted">
-            {JSON.stringify(jsonPreview, null, 2)}
-          </pre>
+        <div className="relative min-h-[220px] overflow-hidden rounded-lg border border-line">
+          <img src="/images/desk.jpg" alt="" className="absolute inset-0 size-full object-cover opacity-80" />
         </div>
         <div className="rounded-lg border border-line p-5">
-          <h2 className="font-medium">Provision</h2>
+          <h2 className="font-display text-2xl tracking-tight">After you pay</h2>
           <ol className="mt-3 space-y-2">
             {PROVISION.map((p) => {
               const row = steps.find((s) => s.step === p.id);
