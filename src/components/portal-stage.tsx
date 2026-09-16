@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Desk } from "@/components/demo/desk";
+import { RooftopBar } from "@/components/demo/rooftop-bar";
 import { Button } from "@/components/ui/button";
+import { companySlug } from "@/lib/brands";
 import { useDemo, type DeskTab } from "@/lib/demo-store";
 import { cn } from "@/lib/utils";
 
@@ -12,7 +14,9 @@ export function PortalStage({ playing = true }: { playing?: boolean }) {
   const setTab = useDemo((s) => s.setTab);
   const view = useDemo((s) => s.view);
   const setView = useDemo((s) => s.setView);
+  const company = useDemo((s) => s.company);
   const [paused, setPaused] = useState(!playing);
+  const host = `portal.${companySlug(company.trim() || "group")}.co.uk`;
 
   useEffect(() => {
     if (paused) return;
@@ -31,6 +35,7 @@ export function PortalStage({ playing = true }: { playing?: boolean }) {
 
   return (
     <div className="space-y-3">
+      <RooftopBar />
       <div
         className="overflow-hidden rounded-xl border border-line bg-bg-2 p-2 shadow-soft sm:p-3"
         onPointerDown={() => setPaused(true)}
@@ -40,15 +45,15 @@ export function PortalStage({ playing = true }: { playing?: boolean }) {
           <span className="size-2 rounded-full bg-line-strong" />
           <span className="size-2 rounded-full bg-line-strong" />
           <span className="ml-2 font-mono text-[10px] uppercase tracking-[0.16em] text-subtle">
-            portal.theirdomain.co.uk — live desk
+            {host} — live desk
           </span>
         </div>
         <Desk />
       </div>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs text-muted">
-          Click the glass. Switch brand. Advance a locator. Same product the franchised prototype runs —
-          fictional data, their name on it.
+          Type the group. Pick Audi, Škoda, BMW. The glass, the wordmark and the book all move. Click
+          in to take over the tour.
         </p>
         <div className="flex gap-2">
           <button

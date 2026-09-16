@@ -81,8 +81,9 @@ function Home() {
               The portal already exists. This is it, clickable, with their name on the door.
             </h2>
             <p className="mt-4 max-w-xl text-sm leading-relaxed text-muted">
-              Built from the live franchised prototype. Fictional stock — no Aberdeen customers on
-              this glass. Play the tour or take over: locator, GP, month-end, customer view.
+              Built from the live franchised prototype. Type their group, pick the franchise — the
+              glass restyles. Fictional stock. Play the tour or take over: locator, GP, month-end,
+              customer view.
             </p>
           </Reveal>
           <div className="mt-8">

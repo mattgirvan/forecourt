@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --font-desk: "Inter", "IBM Plex Sans", system-ui, sans-serif;
   --font-display: "Newsreader", "Times New Roman", serif;
   --font-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
 
@@ -110,5 +110,133 @@
     filter: none;
     transition: none;
   }
+  .desk-pane,
+  .desk-orb {
+    animation: none;
+  }
 }
+
+.desk-shell {
+  --desk-accent: #4ba82e;
+  --desk-glow: rgba(75, 168, 46, 0.42);
+  --mx: 50%;
+  --my: 18%;
+  font-family: var(--font-desk);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: #0b0f14;
+  color: #fff;
+  box-shadow:
+    0 28px 64px rgba(0, 0, 0, 0.58),
+    0 6px 18px rgba(0, 0, 0, 0.38),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  transition: border-color 400ms ease;
+}
+
+.desk-orb {
+  position: absolute;
+  top: -140px;
+  right: -80px;
+  width: 420px;
+  height: 420px;
+  border-radius: 50%;
+  background: var(--desk-glow);
+  filter: blur(72px);
+  pointer-events: none;
+  animation: orbDrift 28s ease-in-out infinite;
+  transition: background 500ms ease;
+}
+
+.desk-orb-2 {
+  top: auto;
+  right: auto;
+  bottom: -160px;
+  left: -100px;
+  width: 360px;
+  height: 360px;
+  background: rgba(90, 110, 220, 0.22);
+  animation: orbDrift 36s ease-in-out infinite reverse;
+}
+
+@keyframes orbDrift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  40% {
+    transform: translate3d(4%, 3%, 0) scale(1.06);
+  }
+  70% {
+    transform: translate3d(-3%, 5%, 0) scale(0.97);
+  }
+}
+
+.desk-nav {
+  background: rgba(15, 20, 26, 0.42);
+  backdrop-filter: blur(32px) saturate(180%);
+  -webkit-backdrop-filter: blur(32px) saturate(180%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.desk-inset {
+  background: rgba(0, 0, 0, 0.42);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  box-shadow:
+    inset 0 3px 12px rgba(0, 0, 0, 0.72),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.desk-glass {
+  position: relative;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+.desk-glass::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(
+    180px circle at var(--mx) var(--my),
+    rgba(255, 255, 255, 0.16),
+    transparent 58%
+  );
+  mix-blend-mode: soft-light;
+}
+
+.desk-pane {
+  animation: pageLift 400ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes pageLift {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 10px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.desk-cta {
+  background: color-mix(in srgb, #d9a24b 88%, white 12%) !important;
+  color: #20160a !important;
+  border-color: rgba(255, 255, 255, 0.35) !important;
+}
+
+.desk-car-pill {
+  color: #0b0f14;
+}
+
+.desk-shell input {
+  color-scheme: dark;
+}
+
 
