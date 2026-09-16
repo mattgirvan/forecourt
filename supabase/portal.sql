@@ -6,8 +6,7 @@ create table if not exists team_emails (
   email text primary key
 );
 insert into team_emails (email) values
-  ('hello@forecourt.me'),
-  ('mattgirvan39@gmail.com')
+  ('hello@forecourt.me')
 on conflict do nothing;
 
 create or replace function is_team()

@@ -1,4 +1,4 @@
-export const TEAM_EMAILS = ["hello@forecourt.me", "mattgirvan39@gmail.com"] as const;
+export const TEAM_EMAILS = ["hello@forecourt.me"] as const;
 
 export type StaffRole = "owner" | "operator";
 export type StaffStatus = "active" | "invited" | "revoked";
@@ -11,8 +11,7 @@ export const STAFF_ROLES: { id: StaffRole; label: string; sees: string }[] = [
 export function looksLikeTeam(email?: string | null) {
   const e = (email ?? "").trim().toLowerCase();
   if (!e) return false;
-  if (e.endsWith("@forecourt.me")) return true;
-  return (TEAM_EMAILS as readonly string[]).includes(e);
+  return e.endsWith("@forecourt.me");
 }
 
 export function packageLive(status: string | null | undefined) {
@@ -31,6 +30,8 @@ export function statusLabel(status: string | null | undefined) {
       return "Live";
     case "cancelled":
       return "Cancelled";
+    case "refunded":
+      return "Refunded";
     case "expired":
       return "Trial ended";
     default:

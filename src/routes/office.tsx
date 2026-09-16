@@ -13,6 +13,7 @@ import {
   listOfficeBoard,
   listReceipts,
   listStaff,
+  runBillingAction,
   saveTenantFile,
 } from "@/lib/server/portal";
 import { packageLive, statusLabel, trialDaysLeft } from "@/lib/team";
@@ -177,6 +178,8 @@ function OfficeInner() {
 }
 
 function TenantFile({ token, tenantId, onSaved }: { token: string; tenantId: number; onSaved: () => void }) {
+  const { me } = useWhoAmI();
+  const owner = me?.role === "owner";
   const [file, setFile] = useState<Awaited<ReturnType<typeof getTenantFile>> | null>(null);
   const [receipts, setReceipts] = useState<Awaited<ReturnType<typeof listReceipts>>>([]);
   const [research, setResearch] = useState("");
@@ -221,6 +224,21 @@ function TenantFile({ token, tenantId, onSaved }: { token: string; tenantId: num
       onSaved();
     } catch (e) {
       setNotice(e instanceof Error ? e.message : "Could not save.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function billingAction(action: "cancel" | "refund" | "sign-off") {
+    setBusy(true);
+    try {
+      const res = await runBillingAction({ data: { token, tenantId, action } });
+      setNotice(res.message);
+      const row = await getTenantFile({ data: { token, tenantId } });
+      setFile(row);
+      onSaved();
+    } catch (e) {
+      setNotice(e instanceof Error ? e.message : "Could not update billing.");
     } finally {
       setBusy(false);
     }
@@ -320,27 +338,61 @@ function TenantFile({ token, tenantId, onSaved }: { token: string; tenantId: num
       )}
 
       {pane === "billing" && (
-        <ul className="mt-8 divide-y divide-line rounded-[1.75rem] border border-line bg-surface px-6">
-          {receipts.length === 0 && <li className="py-6 text-sm text-muted">No receipts.</li>}
-          {receipts.map((r) => (
-            <li key={r.id} className="flex items-center justify-between gap-3 py-4 text-sm">
-              <div>
-                <div>{r.label}</div>
-                <div className="text-xs text-subtle">
-                  {r.date ? new Date(r.date).toLocaleDateString("en-GB") : ""} · {r.status}
+        <div className="mt-8 space-y-6">
+          <ul className="divide-y divide-line rounded-[1.75rem] border border-line bg-surface px-6">
+            {receipts.length === 0 && <li className="py-6 text-sm text-muted">No receipts.</li>}
+            {receipts.map((r) => (
+              <li key={r.id} className="flex items-center justify-between gap-3 py-4 text-sm">
+                <div>
+                  <div>{r.label}</div>
+                  <div className="text-xs text-subtle">
+                    {r.date ? new Date(r.date).toLocaleDateString("en-GB") : ""} · {r.status}
+                  </div>
                 </div>
+                <div className="flex items-center gap-3">
+                  <span>{r.amount}</span>
+                  {r.url && (
+                    <a href={r.url} className="text-xs text-muted underline-offset-4 hover:underline" target="_blank" rel="noreferrer">
+                      Open
+                    </a>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+          {owner && (
+            <div className="rounded-[1.75rem] border border-line bg-surface p-6">
+              <div className="text-sm font-medium">Package</div>
+              <p className="mt-1 text-sm text-muted">
+                {file.signed_off_at
+                  ? "Signed off live. Setup is not refundable from here."
+                  : "Not signed off yet. Refund is still possible."}
+              </p>
+              {notice && <p className="mt-2 text-sm text-muted">{notice}</p>}
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={busy || Boolean(file.signed_off_at)}
+                  onClick={() => void billingAction("sign-off")}
+                >
+                  Sign off live
+                </Button>
+                <Button type="button" variant="secondary" disabled={busy} onClick={() => void billingAction("cancel")}>
+                  End subscription
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  disabled={busy || Boolean(file.signed_off_at)}
+                  onClick={() => void billingAction("refund")}
+                >
+                  Refund
+                </Button>
               </div>
-              <div className="flex items-center gap-3">
-                <span>{r.amount}</span>
-                {r.url && (
-                  <a href={r.url} className="text-xs text-muted underline-offset-4 hover:underline" target="_blank" rel="noreferrer">
-                    Open
-                  </a>
-                )}
-              </div>
-            </li>
-          ))}
-        </ul>
+            </div>
+          )}
+        </div>
       )}
 
       {pane === "support" && (

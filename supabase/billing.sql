@@ -8,6 +8,8 @@ alter table tenants add column if not exists stripe_customer_id text;
 alter table tenants add column if not exists stripe_subscription_id text;
 alter table tenants add column if not exists term_months integer;
 alter table tenants add column if not exists trial_ends_at timestamptz;
+alter table tenants add column if not exists signed_off_at timestamptz;
+alter table tenants add column if not exists cancelled_at timestamptz;
 
 alter table orders add column if not exists kind text not null default 'trial';
 alter table orders add column if not exists stripe_subscription_id text;

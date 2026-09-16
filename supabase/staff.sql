@@ -15,9 +15,14 @@ create table if not exists team_members (
 
 insert into team_members (email, name, role, status)
 values
-  ('mattgirvan39@gmail.com', 'Matt Girvan', 'owner', 'active'),
-  ('hello@forecourt.me', 'Forecourt', 'owner', 'active')
-on conflict (email) do nothing;
+  ('hello@forecourt.me', 'Matt Girvan', 'owner', 'active')
+on conflict (email) do update
+  set name = excluded.name,
+      role = 'owner',
+      status = 'active';
+
+delete from team_members where email = 'mattgirvan39@gmail.com';
+delete from team_emails where email = 'mattgirvan39@gmail.com';
 
 insert into team_members (email, role, status)
 select email, 'operator', 'active' from team_emails

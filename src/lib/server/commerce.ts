@@ -322,6 +322,12 @@ export const startCheckout = createServerFn({ method: "POST" })
         ? "Forecourt — 60-day site trial"
         : `Forecourt — ${plan.name}`;
 
+    const termsText = {
+      submit: {
+        message: "Paying agrees to Forecourt terms at https://www.forecourt.me/terms — including when setup is not refundable.",
+      },
+    };
+
     const session =
       data.billing === "trial"
         ? await stripe.checkout.sessions.create({
@@ -344,6 +350,7 @@ export const startCheckout = createServerFn({ method: "POST" })
             ],
             metadata,
             invoice_creation: { enabled: true },
+            custom_text: termsText,
           })
         : await stripe.checkout.sessions.create({
             mode: "subscription",
@@ -385,6 +392,7 @@ export const startCheckout = createServerFn({ method: "POST" })
             subscription_data: {
               metadata,
             },
+            custom_text: termsText,
           });
 
     await sb.from("orders").update({ stripe_session_id: session.id }).eq("id", orderId);

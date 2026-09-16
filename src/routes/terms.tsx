@@ -52,6 +52,38 @@ function TermsPage() {
         </ul>
         <p>{LEGAL.vat}</p>
 
+        <h2>Payment</h2>
+        <p>
+          Setup (and the 60-day trial fee, if that is what you chose) is due <strong>up front</strong>, on
+          the card, before we start the build. Monthly fees follow on the subscription. You see the amount,
+          the package, and these terms on the checkout screen before you pay. We do not start work on an
+          unpaid order.
+        </p>
+
+        <h2>Go-live and sign-off</h2>
+        <p>
+          When the desk is up, you sign it off — that you have seen it, it is yours, and it is live.{" "}
+          <strong>
+            Once the site is live and signed off, setup and the current period are not refundable.
+          </strong>{" "}
+          That is the deal: we have stood up a private desk for you.
+        </p>
+
+        <h2>Refunds before sign-off</h2>
+        <p>
+          If we have not started, we will refund the card, minus what Stripe keeps. If we have started but
+          the desk is not signed off, a refund is at our discretion — we will not leave you with half a
+          site. After sign-off, no refund of setup. We can still end the monthly billing; we cannot unwind
+          work already delivered.
+        </p>
+
+        <h2>Cancellation</h2>
+        <p>
+          Month-to-month: 30 days’ written notice after any minimum term. 12-month franchise or group:
+          remaining months are still due unless we agree otherwise in writing. You can ask to cancel from
+          your account; we process it in the office. Ending it does not, by itself, refund setup.
+        </p>
+
         <h2>How an order starts</h2>
         <p>
           You pay. The order files itself. We collect a brand pack (name, colours, people, domain, how cars
@@ -91,9 +123,9 @@ function TermsPage() {
 
         <h2>Ending it</h2>
         <p>
-          Month-to-month: 30 days’ notice after any minimum term. 12-month: remaining months due. When it
-          ends we will export what we reasonably can and then delete our copy of your desk, except records
-          we must keep for tax. Stripe keeps its own payment records.
+          When a package ends we will export what we reasonably can and then delete our copy of your desk,
+          except records we must keep for tax. Stripe keeps its own payment records. See Cancellation and
+          Refunds above for money.
         </p>
 
         <h2>Law</h2>

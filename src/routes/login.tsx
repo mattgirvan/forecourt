@@ -98,7 +98,7 @@ function Login() {
         <div>
           <h1 className="font-display text-4xl tracking-tight">Your account.</h1>
           <p className="mt-2 text-sm text-muted">
-            {sent ? `Code sent to ${email}` : "Dealers see their package. Staff see the office."}
+            {sent ? `Code sent to ${email}` : "Dealers see their package. Staff sign in with hello@forecourt.me."}
           </p>
         </div>
         {!sent ? (

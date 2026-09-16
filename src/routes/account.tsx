@@ -526,6 +526,25 @@ function AccountInner() {
               ))}
             </div>
           </div>
+          <div className="rounded-md border border-line bg-surface px-3 py-3 text-sm">
+            <div className="font-medium">Before you pay</div>
+            <ul className="mt-2 space-y-1 text-muted">
+              <li>Due now: {gbpPence(setup)}</li>
+              <li>
+                Then {gbpPence(monthly)}
+                {chosen.perSite ? ` / month for ${siteCount} sites` : " / month"}
+                {chosen.contractMonths ? ` · ${chosen.contractMonths}-month contract` : " · month to month"}
+              </li>
+              {effectiveBilling === "trial" && <li>60-day site trial. The £1,500 comes off setup if you stay.</li>}
+              <li>
+                Full terms, including payment and sign-off:{" "}
+                <Link to="/terms" className="text-fg underline-offset-4 hover:underline">
+                  Terms
+                </Link>
+                .
+              </li>
+            </ul>
+          </div>
           {needsContract && (
             <label className="flex items-start gap-3 rounded-md border border-line bg-surface px-3 py-3 text-sm">
               <input

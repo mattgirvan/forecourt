@@ -58,6 +58,31 @@ async function actor(token: string) {
     };
   }
 
+  if (looksLikeTeam(email)) {
+    const admin = sbAdmin();
+    if (admin) {
+      await admin.from("team_members").upsert(
+        {
+          email,
+          name: email === "hello@forecourt.me" ? "Matt Girvan" : "",
+          role: "owner",
+          status: "active",
+          last_seen_at: new Date().toISOString(),
+        },
+        { onConflict: "email" },
+      );
+      await admin.from("team_emails").upsert({ email });
+    }
+    return {
+      sb,
+      userId: data.user.id,
+      email,
+      team: true,
+      role: "owner" as StaffRole,
+      name: email === "hello@forecourt.me" ? "Matt Girvan" : "",
+    };
+  }
+
   const { data: row } = await sb.from("team_emails").select("email").eq("email", email).maybeSingle();
   const team = Boolean(row) || looksLikeTeam(email);
   return {
@@ -146,11 +171,22 @@ export const getTenantFile = createServerFn({ method: "POST" })
     const q = sb
       .from("tenants")
       .select(
-        "id, slug, name, legal, phone, email, domain, sites, features, ingest, plan, status, billing, site_count, stripe_customer_id, stripe_subscription_id, trial_ends_at, term_months, principal_name, group_name, research, staff_json, created_at, user_id",
+        "id, slug, name, legal, phone, email, domain, sites, features, ingest, plan, status, billing, site_count, stripe_customer_id, stripe_subscription_id, trial_ends_at, term_months, principal_name, group_name, research, staff_json, created_at, user_id, signed_off_at, cancelled_at",
       )
       .eq("id", data.tenantId)
       .maybeSingle();
-    const { data: row, error } = await q;
+    let { data: row, error } = await q;
+    if (error) {
+      const fallback = await sb
+        .from("tenants")
+        .select(
+          "id, slug, name, legal, phone, email, domain, sites, features, ingest, plan, status, billing, site_count, stripe_customer_id, stripe_subscription_id, trial_ends_at, term_months, principal_name, group_name, research, staff_json, created_at, user_id",
+        )
+        .eq("id", data.tenantId)
+        .maybeSingle();
+      row = fallback.data ? { ...fallback.data, signed_off_at: null, cancelled_at: null } : null;
+      error = fallback.error;
+    }
     if (error) throw new Error(error.message);
     if (!row) throw new Error("No dealership on this account.");
     if (!team && row.user_id !== userId) throw new Error("No dealership on this account.");
@@ -320,7 +356,7 @@ export const listStaff = createServerFn({ method: "POST" })
     if (error) {
       return TEAM_EMAILS.map((email) => ({
         email,
-        name: email === "mattgirvan39@gmail.com" ? "Matt Girvan" : "Forecourt",
+        name: "Matt Girvan",
         role: "owner" as StaffRole,
         status: "active" as StaffStatus,
         invited_by: "",
@@ -422,4 +458,81 @@ export const addTeamEmail = createServerFn({ method: "POST" })
   .validator((d: { token: string; email: string }) => d)
   .handler(async ({ data }) => {
     return inviteStaff({ data: { token: data.token, email: data.email, role: "operator" } });
+  });
+
+export const runBillingAction = createServerFn({ method: "POST" })
+  .validator((d: { token: string; tenantId: number; action: "cancel" | "refund" | "sign-off" }) => d)
+  .handler(async ({ data }) => {
+    const { sb, team, role, email } = await actor(data.token);
+    if (!team) throw new Error("Office is for the Forecourt team.");
+    if (role !== "owner") throw new Error("Only an owner can change billing.");
+    const { data: tenant, error } = await sb
+      .from("tenants")
+      .select("id, status, stripe_customer_id, stripe_subscription_id, signed_off_at")
+      .eq("id", data.tenantId)
+      .maybeSingle();
+    if (error || !tenant) throw new Error(error?.message ?? "No dealership on this file.");
+
+    const secret = stripeSecret();
+    const Stripe = secret ? (await import("stripe")).default : null;
+    const stripe = secret && Stripe ? new Stripe(secret) : null;
+
+    if (data.action === "sign-off") {
+      const { error: up } = await sb
+        .from("tenants")
+        .update({
+          signed_off_at: new Date().toISOString(),
+          status: "live",
+          stage: "live",
+        })
+        .eq("id", data.tenantId);
+      if (up) await sb.from("tenants").update({ status: "live" }).eq("id", data.tenantId);
+      try {
+        await sb.from("build_events").insert({
+          tenant_id: data.tenantId,
+          kind: "stage",
+          visibility: "customer",
+          body: `Signed off live by ${email}.`,
+          actor_email: email,
+        });
+      } catch {
+        /* optional */
+      }
+      return { ok: true, message: "Signed off. Setup is not refundable from here." };
+    }
+
+    if (data.action === "refund" && tenant.signed_off_at) {
+      throw new Error(
+        "Live and signed off. Terms say setup is not refundable. Refund in Stripe only if you mean an exception.",
+      );
+    }
+
+    if (stripe && tenant.stripe_subscription_id) {
+      try {
+        if (data.action === "cancel") {
+          await stripe.subscriptions.update(tenant.stripe_subscription_id, { cancel_at_period_end: true });
+        } else {
+          await stripe.subscriptions.cancel(tenant.stripe_subscription_id);
+        }
+      } catch (e) {
+        throw new Error(e instanceof Error ? e.message : "Stripe could not change the subscription.");
+      }
+    }
+
+    if (data.action === "refund" && stripe && tenant.stripe_customer_id) {
+      const charges = await stripe.charges.list({ customer: tenant.stripe_customer_id, limit: 8 });
+      const charge = charges.data.find((c) => c.paid && !c.refunded);
+      if (!charge) throw new Error("No paid charge to refund.");
+      await stripe.refunds.create({ charge: charge.id });
+      await sb.from("orders").update({ status: "refunded" }).eq("tenant_id", data.tenantId);
+    }
+
+    const status = data.action === "refund" ? "refunded" : "cancelled";
+    const patch: Record<string, unknown> = { status, cancelled_at: new Date().toISOString() };
+    const { error: up } = await sb.from("tenants").update(patch).eq("id", data.tenantId);
+    if (up) await sb.from("tenants").update({ status }).eq("id", data.tenantId);
+    return {
+      ok: true,
+      message: data.action === "refund" ? "Refunded and subscription ended." : "Subscription set to end. No refund.",
+    };
   });
