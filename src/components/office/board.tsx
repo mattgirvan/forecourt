@@ -24,14 +24,20 @@ export type BoardRow = {
 
 export function BoardStats({ rows }: { rows: BoardRow[] }) {
   const live = rows.filter((r) => packageLive(r.status)).length;
-  const trial = rows.filter((r) => normalizeBilling(normalizePlan(r.plan), r.billing) === "trial").length;
+  const trial = rows.filter((r) => {
+    const days = trialDaysLeft(r.trial_ends_at);
+    return normalizeBilling(normalizePlan(r.plan), r.billing) === "trial" && (days == null || days > 0);
+  }).length;
+  const expired = rows.filter((r) => {
+    const days = trialDaysLeft(r.trial_ends_at);
+    return normalizeBilling(normalizePlan(r.plan), r.billing) === "trial" && days === 0;
+  }).length;
   const waiting = rows.filter((r) => r.waiting).length;
-  const idle = rows.filter((r) => !packageLive(r.status)).length;
   const items = [
     { n: live, label: "Live" },
     { n: trial, label: "On trial" },
+    { n: expired, label: "Trial ended" },
     { n: waiting, label: "Waiting on us" },
-    { n: idle, label: "Not started" },
   ];
   return (
     <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -92,8 +98,10 @@ export function CustomerTable({
                     {billing === "trial" ? " trial" : ` · ${gbpPence(monthly)}/mo`}
                   </td>
                   <td className="px-4 py-3">
-                    {statusLabel(r.status)}
-                    {billing === "trial" && days != null ? ` · ${days}d` : ""}
+                    {normalizeBilling(normalizePlan(r.plan), r.billing) === "trial" && trialDaysLeft(r.trial_ends_at) === 0
+                      ? "Trial ended"
+                      : statusLabel(r.status)}
+                    {billing === "trial" && days != null && days > 0 ? ` · ${days}d` : ""}
                   </td>
                   <td className="px-4 py-3">{stageMeta(r.stage).label}</td>
                   <td className="px-4 py-3">

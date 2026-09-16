@@ -3,6 +3,7 @@ import { Reveal } from "@/components/reveal";
 import { SiteShell } from "@/components/site-shell";
 import { Button } from "@/components/ui/button";
 import { PLAN_ORDER, PLANS, gbpPence } from "@/lib/catalog";
+import { LEGAL } from "@/lib/legal";
 
 export const Route = createFileRoute("/pricing")({ component: PricingPage });
 
@@ -76,6 +77,7 @@ export function PricingPage() {
           Trial credit: the £1,500 comes off site setup if you stay, so converting is £3,000 remaining + £399/month.
           Manufacturer ingest on a site is quoted, not bundled.
         </p>
+        <p className="mx-auto mt-4 max-w-lg text-center text-xs text-subtle">{LEGAL.vat}</p>
       </div>
     </SiteShell>
   );

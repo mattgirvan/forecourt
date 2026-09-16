@@ -44,6 +44,16 @@ async function applyCheckout(session: {
       .eq("id", orderId);
   }
   if (!tenantId) return;
+  const { data: current } = await sb
+    .from("tenants")
+    .select("status, trial_ends_at")
+    .eq("id", tenantId)
+    .maybeSingle();
+  const alreadyLive = current?.status === "trial" || current?.status === "subscribed" || current?.status === "live";
+  const trialEnds =
+    billing === "trial"
+      ? current?.trial_ends_at || new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString()
+      : null;
   await sb
     .from("tenants")
     .update({
@@ -52,13 +62,15 @@ async function applyCheckout(session: {
       billing,
       stripe_subscription_id: sub ?? null,
       stripe_customer_id: customer ?? null,
-      trial_ends_at: billing === "trial" ? new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString() : null,
+      trial_ends_at: trialEnds,
     })
     .eq("id", tenantId);
-  try {
-    await seedPaidOrder(sb, tenantId, "stripe");
-  } catch {
-    /* build tables may not be live yet */
+  if (!alreadyLive || !current?.trial_ends_at) {
+    try {
+      await seedPaidOrder(sb, tenantId, "stripe");
+    } catch {
+      /* build tables may not be live yet */
+    }
   }
 }
 

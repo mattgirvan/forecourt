@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { Mark } from "@/components/mark";
 import { deskSearch } from "@/lib/brands";
 import { useDemo } from "@/lib/demo-store";
+import { LEGAL, LEGAL_LINKS } from "@/lib/legal";
 import { SITE } from "@/lib/site";
 
 export function SiteFooter() {
@@ -18,6 +19,9 @@ export function SiteFooter() {
             <span className="text-sm font-medium">Forecourt</span>
           </div>
           <p className="mt-2 text-sm text-muted">The screen on the sales desk.</p>
+          <p className="mt-2 text-[11px] leading-relaxed text-subtle">
+            {LEGAL.who}. Not affiliated with any manufacturer. Demo stock is fictional.
+          </p>
         </div>
         <div className="flex flex-wrap gap-x-5 gap-y-2 text-[13px] text-muted">
           <Link to="/" className="hover:text-fg">
@@ -32,6 +36,11 @@ export function SiteFooter() {
           <Link to="/pricing" className="hover:text-fg">
             Pricing
           </Link>
+          {LEGAL_LINKS.map((l) => (
+            <Link key={l.to} to={l.to} className="hover:text-fg">
+              {l.label}
+            </Link>
+          ))}
           <a href={`mailto:${SITE.email}`} className="hover:text-fg">
             {SITE.email}
           </a>

@@ -61,7 +61,7 @@ function DemoPage() {
               {mark} + {brand.word}
             </div>
             <div className="font-mono text-[10px] uppercase tracking-[0.12em] text-white/40">
-              Preview · fictional {brand.label} book · {host}
+              Preview · fictional {brand.label} book · not affiliated · {host}
             </div>
           </div>
         </div>

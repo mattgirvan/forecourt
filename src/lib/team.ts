@@ -31,6 +31,8 @@ export function statusLabel(status: string | null | undefined) {
       return "Live";
     case "cancelled":
       return "Cancelled";
+    case "expired":
+      return "Trial ended";
     default:
       return "Not started";
   }

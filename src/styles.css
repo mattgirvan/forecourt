@@ -650,3 +650,33 @@
     transition: none !important;
   }
 }
+
+.legal-copy h2 {
+  margin-top: 2.25rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.legal-copy p,
+.legal-copy li {
+  margin-top: 0.75rem;
+  font-size: 0.95rem;
+  line-height: 1.65;
+  color: var(--muted, #8b8e89);
+}
+.legal-copy strong {
+  color: var(--fg, #f4f4f2);
+  font-weight: 500;
+}
+.legal-copy a {
+  color: var(--fg, #f4f4f2);
+  text-underline-offset: 4px;
+}
+.legal-copy a:hover {
+  text-decoration: underline;
+}
+.legal-copy ul {
+  padding-left: 1.1rem;
+  list-style: disc;
+}
+

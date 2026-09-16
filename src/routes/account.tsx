@@ -115,6 +115,7 @@ function AccountInner() {
   );
   const [siteCount, setSiteCount] = useState(2);
   const [contractOk, setContractOk] = useState(false);
+  const [termsOk, setTermsOk] = useState(false);
   const [team, setTeam] = useState(false);
   const [wantCheckout, setWantCheckout] = useState(Boolean(search.plan || search.checkout));
 
@@ -272,6 +273,10 @@ function AccountInner() {
     }
     if (needsContract && !contractOk) {
       setNotice("Franchise and group are a 12-month contract. Tick to continue.");
+      return;
+    }
+    if (!termsOk) {
+      setNotice("Tick that you agree to the terms.");
       return;
     }
     setBusy(true);
@@ -535,12 +540,35 @@ function AccountInner() {
               </span>
             </label>
           )}
+          <label className="flex items-start gap-3 rounded-md border border-line bg-surface px-3 py-3 text-sm">
+            <input
+              type="checkbox"
+              className="mt-1"
+              checked={termsOk}
+              onChange={(e) => setTermsOk(e.target.checked)}
+            />
+            <span>
+              I agree to the{" "}
+              <Link to="/terms" className="underline-offset-4 hover:underline">
+                terms
+              </Link>
+              ,{" "}
+              <Link to="/privacy" className="underline-offset-4 hover:underline">
+                privacy
+              </Link>
+              , and{" "}
+              <Link to="/dpa" className="underline-offset-4 hover:underline">
+                data
+              </Link>{" "}
+              addendum. This is a business purchase.
+            </span>
+          </label>
           <div className="flex flex-wrap items-center gap-2 pt-2">
             <Button
               type="button"
               size="lg"
               onClick={() => void pay()}
-              disabled={busy || !name.trim() || (needsContract && !contractOk)}
+              disabled={busy || !name.trim() || !termsOk || (needsContract && !contractOk)}
             >
               {payLabel}
             </Button>

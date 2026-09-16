@@ -12,11 +12,14 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AccountRouteImport } from './routes/account'
 import { Route as DemoRouteImport } from './routes/demo'
+import { Route as DpaRouteImport } from './routes/dpa'
 import { Route as HowRouteImport } from './routes/how'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as OfficeRouteImport } from './routes/office'
 import { Route as PilotRouteImport } from './routes/pilot'
 import { Route as PricingRouteImport } from './routes/pricing'
+import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as TermsRouteImport } from './routes/terms'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as ApiStripeWebhookRouteImport } from './routes/api/stripe/webhook'
 
@@ -33,6 +36,11 @@ const AccountRoute = AccountRouteImport.update({
 const DemoRoute = DemoRouteImport.update({
   id: '/demo',
   path: '/demo',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DpaRoute = DpaRouteImport.update({
+  id: '/dpa',
+  path: '/dpa',
   getParentRoute: () => rootRouteImport,
 } as any)
 const HowRoute = HowRouteImport.update({
@@ -60,6 +68,16 @@ const PricingRoute = PricingRouteImport.update({
   path: '/pricing',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
@@ -75,11 +93,14 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/account': typeof AccountRoute
   '/demo': typeof DemoRoute
+  '/dpa': typeof DpaRoute
   '/how': typeof HowRoute
   '/login': typeof LoginRoute
   '/office': typeof OfficeRoute
   '/pilot': typeof PilotRoute
   '/pricing': typeof PricingRoute
+  '/privacy': typeof PrivacyRoute
+  '/terms': typeof TermsRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/stripe/webhook': typeof ApiStripeWebhookRoute
 }
@@ -87,11 +108,14 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/account': typeof AccountRoute
   '/demo': typeof DemoRoute
+  '/dpa': typeof DpaRoute
   '/how': typeof HowRoute
   '/login': typeof LoginRoute
   '/office': typeof OfficeRoute
   '/pilot': typeof PilotRoute
   '/pricing': typeof PricingRoute
+  '/privacy': typeof PrivacyRoute
+  '/terms': typeof TermsRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/stripe/webhook': typeof ApiStripeWebhookRoute
 }
@@ -100,11 +124,14 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/account': typeof AccountRoute
   '/demo': typeof DemoRoute
+  '/dpa': typeof DpaRoute
   '/how': typeof HowRoute
   '/login': typeof LoginRoute
   '/office': typeof OfficeRoute
   '/pilot': typeof PilotRoute
   '/pricing': typeof PricingRoute
+  '/privacy': typeof PrivacyRoute
+  '/terms': typeof TermsRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/stripe/webhook': typeof ApiStripeWebhookRoute
 }
@@ -114,11 +141,14 @@ export interface FileRouteTypes {
     | '/'
     | '/account'
     | '/demo'
+    | '/dpa'
     | '/how'
     | '/login'
     | '/office'
     | '/pilot'
     | '/pricing'
+    | '/privacy'
+    | '/terms'
     | '/api/auth/$'
     | '/api/stripe/webhook'
   fileRoutesByTo: FileRoutesByTo
@@ -126,11 +156,14 @@ export interface FileRouteTypes {
     | '/'
     | '/account'
     | '/demo'
+    | '/dpa'
     | '/how'
     | '/login'
     | '/office'
     | '/pilot'
     | '/pricing'
+    | '/privacy'
+    | '/terms'
     | '/api/auth/$'
     | '/api/stripe/webhook'
   id:
@@ -138,11 +171,14 @@ export interface FileRouteTypes {
     | '/'
     | '/account'
     | '/demo'
+    | '/dpa'
     | '/how'
     | '/login'
     | '/office'
     | '/pilot'
     | '/pricing'
+    | '/privacy'
+    | '/terms'
     | '/api/auth/$'
     | '/api/stripe/webhook'
   fileRoutesById: FileRoutesById
@@ -151,11 +187,14 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AccountRoute: typeof AccountRoute
   DemoRoute: typeof DemoRoute
+  DpaRoute: typeof DpaRoute
   HowRoute: typeof HowRoute
   LoginRoute: typeof LoginRoute
   OfficeRoute: typeof OfficeRoute
   PilotRoute: typeof PilotRoute
   PricingRoute: typeof PricingRoute
+  PrivacyRoute: typeof PrivacyRoute
+  TermsRoute: typeof TermsRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiStripeWebhookRoute: typeof ApiStripeWebhookRoute
 }
@@ -181,6 +220,13 @@ declare module '@tanstack/react-router' {
       path: '/demo'
       fullPath: '/demo'
       preLoaderRoute: typeof DemoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dpa': {
+      id: '/dpa'
+      path: '/dpa'
+      fullPath: '/dpa'
+      preLoaderRoute: typeof DpaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/how': {
@@ -218,6 +264,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PricingRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/auth/$': {
       id: '/api/auth/$'
       path: '/api/auth/$'
@@ -239,11 +299,14 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AccountRoute: AccountRoute,
   DemoRoute: DemoRoute,
+  DpaRoute: DpaRoute,
   HowRoute: HowRoute,
   LoginRoute: LoginRoute,
   OfficeRoute: OfficeRoute,
   PilotRoute: PilotRoute,
   PricingRoute: PricingRoute,
+  PrivacyRoute: PrivacyRoute,
+  TermsRoute: TermsRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiStripeWebhookRoute: ApiStripeWebhookRoute,
 }

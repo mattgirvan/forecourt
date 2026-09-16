@@ -343,6 +343,7 @@ export const startCheckout = createServerFn({ method: "POST" })
               },
             ],
             metadata,
+            invoice_creation: { enabled: true },
           })
         : await stripe.checkout.sessions.create({
             mode: "subscription",
