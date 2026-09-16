@@ -3,8 +3,8 @@ import { Mark } from "@/components/mark";
 import { Button } from "@/components/ui/button";
 import { deskSearch } from "@/lib/brands";
 import { useDemo } from "@/lib/demo-store";
-import { SignedIn, SignedOut, UserButton, useSbUser } from "@/lib/sb-session";
-import { looksLikeTeam } from "@/lib/team";
+import { SignedIn, SignedOut, UserButton } from "@/lib/sb-session";
+import { useWhoAmI } from "@/lib/who-am-i";
 import { cn } from "@/lib/utils";
 
 const links = [
@@ -47,8 +47,8 @@ function NavLink({
 }
 
 export function SiteHeader() {
-  const { user } = useSbUser();
-  const team = looksLikeTeam(user?.email);
+  const { me } = useWhoAmI();
+  const team = Boolean(me?.team);
 
   return (
     <header className="sticky top-3 z-40 px-3 sm:top-4">

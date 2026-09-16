@@ -1,26 +1,33 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useEffect, useMemo, useState } from "react";
 import { Notes, Thread } from "@/components/account/portal";
+import { BoardStats, CustomerTable, type BoardRow } from "@/components/office/board";
+import { StaffPanel } from "@/components/office/staff-panel";
 import { SiteShell } from "@/components/site-shell";
 import { Button } from "@/components/ui/button";
 import { SignInGate, useSbAccessToken } from "@/lib/sb-session";
 import { normalizeBilling, normalizePlan } from "@/lib/catalog";
 import {
-  addTeamEmail,
   getTenantFile,
-  listAllTenants,
+  listOfficeBoard,
   listReceipts,
+  listStaff,
   saveTenantFile,
-  whoAmI,
 } from "@/lib/server/portal";
 import { packageLive, statusLabel, trialDaysLeft } from "@/lib/team";
+import { useWhoAmI } from "@/lib/who-am-i";
 import { cn } from "@/lib/utils";
 
+type OfficeSearch = { id?: number; tab?: "customers" | "staff" };
+
 export const Route = createFileRoute("/office")({
-  validateSearch: (raw: Record<string, unknown>): { id?: number } => {
+  validateSearch: (raw: Record<string, unknown>): OfficeSearch => {
     const n = typeof raw.id === "string" ? Number(raw.id) : typeof raw.id === "number" ? raw.id : undefined;
-    if (typeof n === "number" && Number.isFinite(n)) return { id: n };
-    return {};
+    const tab = raw.tab === "staff" ? "staff" : raw.tab === "customers" ? "customers" : undefined;
+    const out: OfficeSearch = {};
+    if (typeof n === "number" && Number.isFinite(n)) out.id = n;
+    if (tab) out.tab = tab;
+    return out;
   },
   component: OfficePage,
 });
@@ -31,8 +38,8 @@ function OfficePage() {
       <SignInGate
         fallback={
           <div className="mx-auto max-w-lg px-4 py-20 text-center">
-            <h1 className="text-3xl font-semibold tracking-tight">Office is for Forecourt.</h1>
-            <p className="mt-3 text-sm text-muted">Sign in with the team inbox.</p>
+            <h1 className="text-3xl font-semibold tracking-tight">Office is for Forecourt staff.</h1>
+            <p className="mt-3 text-sm text-muted">Customers have their own account. Staff sign in here.</p>
             <Button className="mt-6" asChild>
               <Link to="/login">Sign in</Link>
             </Button>
@@ -47,36 +54,48 @@ function OfficePage() {
 
 function OfficeInner() {
   const token = useSbAccessToken();
+  const { me, pending } = useWhoAmI();
   const search = Route.useSearch();
-  const [team, setTeam] = useState<boolean | null>(null);
-  const [rows, setRows] = useState<Awaited<ReturnType<typeof listAllTenants>>>([]);
+  const navigate = useNavigate({ from: "/office" });
+  const [rows, setRows] = useState<BoardRow[]>([]);
+  const [staff, setStaff] = useState<Awaited<ReturnType<typeof listStaff>>>([]);
   const [err, setErr] = useState<string | null>(null);
-  const [activeId, setActiveId] = useState<number | null>(search.id ?? null);
-  const [invite, setInvite] = useState("");
+  const [q, setQ] = useState("");
+  const tab = search.tab === "staff" ? "staff" : "customers";
 
   async function reload() {
     if (!token) return;
-    const me = await whoAmI({ data: { token } });
-    setTeam(me.team);
-    if (!me.team) return;
-    setRows(await listAllTenants({ data: { token } }));
+    const [board, people] = await Promise.all([
+      listOfficeBoard({ data: { token } }),
+      listStaff({ data: { token } }).catch(() => []),
+    ]);
+    setRows(board);
+    setStaff(people);
   }
 
   useEffect(() => {
-    if (!token) return;
+    if (!token || !me?.team) return;
     void reload().catch((e) => setErr(e instanceof Error ? e.message : "Could not load the office."));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
+  }, [token, me?.team]);
 
-  useEffect(() => {
-    if (search.id) setActiveId(search.id);
-  }, [search.id]);
+  const filtered = useMemo(() => {
+    const s = q.trim().toLowerCase();
+    if (!s) return rows;
+    return rows.filter((r) =>
+      [r.name, r.email, r.group_name, r.principal_name, r.plan, r.status].some((v) =>
+        (v ?? "").toLowerCase().includes(s),
+      ),
+    );
+  }, [rows, q]);
 
-  if (team === false) {
+  if (pending) return <div className="mx-auto max-w-5xl px-4 py-20 text-sm text-muted">Checking access…</div>;
+
+  if (!me?.team) {
     return (
       <div className="mx-auto max-w-lg px-4 py-20 text-center">
-        <h1 className="text-3xl font-semibold tracking-tight">This is the team office.</h1>
-        <p className="mt-3 text-sm text-muted">Your account is the dealer portal.</p>
+        <h1 className="text-3xl font-semibold tracking-tight">This is the staff office.</h1>
+        <p className="mt-3 text-sm text-muted">Your login is a dealer account. An owner has to add you as staff.</p>
         <Button className="mt-6" asChild>
           <Link to="/account">Go to account</Link>
         </Button>
@@ -84,60 +103,74 @@ function OfficeInner() {
     );
   }
 
-  const active = rows.find((r) => r.id === activeId) ?? rows[0] ?? null;
+  function go(next: OfficeSearch) {
+    void navigate({ search: next });
+  }
 
   return (
-    <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 sm:px-6 lg:grid-cols-[16rem_1fr]">
-      <aside>
-        <p className="text-[13px] font-medium text-muted">Office</p>
-        <h1 className="mt-2 text-2xl font-semibold tracking-tight">Dealerships</h1>
-        {err && <p className="mt-3 text-sm text-muted">{err}</p>}
-        <ul className="mt-6 space-y-1">
-          {rows.map((t) => (
-            <li key={t.id}>
-              <button
-                type="button"
-                onClick={() => setActiveId(t.id)}
-                className={cn(
-                  "w-full rounded-2xl px-3 py-2 text-left text-sm",
-                  t.id === (active?.id ?? null) ? "bg-elevated" : "text-muted hover:text-fg",
-                )}
-              >
-                <div className="truncate font-medium text-fg">{t.name}</div>
-                <div className="text-[11px] uppercase tracking-[0.12em] text-subtle">
-                  {statusLabel(t.status)} · {normalizePlan(t.plan)}
-                </div>
-              </button>
-            </li>
+    <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="text-[13px] font-medium text-muted">Forecourt staff</p>
+          <h1 className="mt-2 text-4xl font-semibold tracking-tight">Office</h1>
+        </div>
+        <div className="flex gap-1.5">
+          {(["customers", "staff"] as const).map((id) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => go({ tab: id })}
+              className={cn(
+                "h-9 rounded-full px-4 text-[13px]",
+                tab === id && !search.id ? "bg-fg text-accent-fg" : "bg-elevated text-muted",
+              )}
+            >
+              {id === "customers" ? "Customers" : "Staff"}
+            </button>
           ))}
-          {rows.length === 0 && team && <li className="text-sm text-muted">None yet.</li>}
-        </ul>
-        <form
-          className="mt-8 space-y-2"
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (!token || !invite.trim()) return;
-            void addTeamEmail({ data: { token, email: invite } })
-              .then(() => setInvite(""))
-              .catch((e) => setErr(e instanceof Error ? e.message : "Could not add."));
-          }}
-        >
-          <div className="text-[11px] uppercase tracking-[0.12em] text-subtle">Team inbox</div>
-          <input
-            className="h-10 w-full rounded-2xl border border-line bg-elevated px-3 text-sm"
-            placeholder="email@forecourt.me"
-            value={invite}
-            onChange={(e) => setInvite(e.target.value)}
-          />
-        </form>
-      </aside>
-      <div>
-        {!token || !active ? (
-          <p className="text-sm text-muted">Pick a dealership.</p>
-        ) : (
-          <TenantFile token={token} tenantId={active.id} onSaved={() => void reload()} />
-        )}
+        </div>
       </div>
+      {err && <p className="mt-4 text-sm text-muted">{err}</p>}
+
+      {tab === "staff" && !search.id && token && (
+        <div className="mt-10">
+          <StaffPanel
+            token={token}
+            meEmail={me.email}
+            owner={me.role === "owner"}
+            members={staff}
+            onChange={() => void reload()}
+          />
+        </div>
+      )}
+
+      {tab !== "staff" && !search.id && (
+        <div className="mt-10 space-y-6">
+          <BoardStats rows={rows} />
+          <input
+            className="h-11 w-full rounded-2xl border border-line bg-elevated px-4 text-sm"
+            placeholder="Find a dealership"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+          />
+          <CustomerTable rows={filtered} onOpen={(id) => go({ tab: "customers", id })} />
+        </div>
+      )}
+
+      {search.id && token && (
+        <div className="mt-10">
+          <button
+            type="button"
+            className="text-sm text-muted underline-offset-4 hover:text-fg hover:underline"
+            onClick={() => go({ tab: "customers" })}
+          >
+            All customers
+          </button>
+          <div className="mt-6">
+            <TenantFile token={token} tenantId={search.id} onSaved={() => void reload()} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -160,7 +193,9 @@ function TenantFile({ token, tenantId, onSaved }: { token: string; tenantId: num
       setPrincipal(row.principal_name ?? "");
       setGroup(row.group_name ?? "");
     });
-    void listReceipts({ data: { token, tenantId } }).then(setReceipts).catch(() => setReceipts([]));
+    void listReceipts({ data: { token, tenantId } })
+      .then(setReceipts)
+      .catch(() => setReceipts([]));
   }, [token, tenantId]);
 
   if (!file) return <p className="text-sm text-muted">Loading file…</p>;
@@ -244,7 +279,7 @@ function TenantFile({ token, tenantId, onSaved }: { token: string; tenantId: num
             />
           </label>
           <label className="block text-sm">
-            Research — only you see this
+            Research — staff only
             <textarea
               rows={10}
               className="mt-1.5 w-full rounded-2xl border border-line bg-elevated px-3 py-2 text-sm leading-relaxed outline-none focus:border-line-strong"
@@ -266,7 +301,7 @@ function TenantFile({ token, tenantId, onSaved }: { token: string; tenantId: num
               <br />
               Stripe customer: {file.stripe_customer_id ? "yes" : "not yet"}
               <br />
-              Staff JSON: {file.staff_json && file.staff_json !== "[]" ? "they named people" : "empty"}
+              Desk people: {file.staff_json && file.staff_json !== "[]" ? "they named people" : "empty"}
             </div>
           </div>
           <Button disabled={busy} onClick={() => void save()}>

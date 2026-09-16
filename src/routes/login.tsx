@@ -4,6 +4,7 @@ import { Mark } from "@/components/mark";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getSb, magicRedirect, supabaseReady } from "@/lib/sb";
+import { whoAmI } from "@/lib/server/portal";
 import { SITE } from "@/lib/site";
 
 export const Route = createFileRoute("/login")({ component: Login });
@@ -16,13 +17,33 @@ function Login() {
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  async function afterAuth() {
+    const { data } = await getSb().auth.getSession();
+    const token = data.session?.access_token;
+    if (!token) {
+      await navigate({ to: "/account" });
+      return;
+    }
+    try {
+      const me = await whoAmI({ data: { token } });
+      if (me.team) {
+        await navigate({ to: "/office", search: {} });
+        return;
+      }
+    } catch {
+      /* dealer */
+    }
+    await navigate({ to: "/account" });
+  }
+
   useEffect(() => {
     if (!supabaseReady()) return;
     void getSb()
       .auth.getSession()
       .then(({ data }) => {
-        if (data.session) void navigate({ to: "/account" });
+        if (data.session) void afterAuth();
       });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigate]);
 
   async function send(e: FormEvent) {
@@ -61,7 +82,7 @@ function Login() {
         setNotice(error.message);
         return;
       }
-      await navigate({ to: "/account" });
+      await afterAuth();
     } finally {
       setBusy(false);
     }
@@ -77,7 +98,7 @@ function Login() {
         <div>
           <h1 className="font-display text-4xl tracking-tight">Your account.</h1>
           <p className="mt-2 text-sm text-muted">
-            {sent ? `Code sent to ${email}` : "Package, billing, and a line to us. We’ll email a code."}
+            {sent ? `Code sent to ${email}` : "Dealers see their package. Staff see the office."}
           </p>
         </div>
         {!sent ? (

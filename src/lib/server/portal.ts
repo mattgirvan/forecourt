@@ -3,7 +3,8 @@ import { createServerFn } from "@tanstack/react-start";
 import { gbpPence, normalizeBilling, normalizePlan } from "@/lib/catalog";
 import { env } from "@/lib/env.server";
 import { SUPABASE_ANON, SUPABASE_URL } from "@/lib/sb";
-import { TEAM_EMAILS, looksLikeTeam } from "@/lib/team";
+import { SITE } from "@/lib/site";
+import { TEAM_EMAILS, looksLikeTeam, type StaffRole, type StaffStatus } from "@/lib/team";
 
 function sbFor(token: string) {
   const key = SUPABASE_ANON || env("VITE_SUPABASE_ANON_KEY") || env("VITE_SUPABASE_PUBLISHABLE_KEY") || "";
@@ -13,14 +14,60 @@ function sbFor(token: string) {
   });
 }
 
+function sbAdmin() {
+  const key = env("SUPABASE_SERVICE_ROLE_KEY") ?? env("GROK_SUPABASE_SERVICE_ROLE_KEY");
+  if (!key) return null;
+  return createClient(SUPABASE_URL, key, { auth: { persistSession: false, autoRefreshToken: false } });
+}
+
 async function actor(token: string) {
   const sb = sbFor(token);
   const { data, error } = await sb.auth.getUser(token);
   if (error || !data.user) throw new Error("Sign in again.");
   const email = (data.user.email ?? "").toLowerCase();
+
+  const { data: member } = await sb
+    .from("team_members")
+    .select("email, role, status, name")
+    .eq("email", email)
+    .maybeSingle();
+
+  if (member) {
+    if (member.status === "revoked") {
+      return {
+        sb,
+        userId: data.user.id,
+        email,
+        team: false,
+        role: null as StaffRole | null,
+        name: member.name as string,
+      };
+    }
+    if (member.status === "invited") {
+      void sb.from("team_members").update({ status: "active", last_seen_at: new Date().toISOString() }).eq("email", email);
+    } else {
+      void sb.from("team_members").update({ last_seen_at: new Date().toISOString() }).eq("email", email);
+    }
+    return {
+      sb,
+      userId: data.user.id,
+      email,
+      team: true,
+      role: (member.role as StaffRole) ?? "operator",
+      name: member.name as string,
+    };
+  }
+
   const { data: row } = await sb.from("team_emails").select("email").eq("email", email).maybeSingle();
   const team = Boolean(row) || looksLikeTeam(email);
-  return { sb, userId: data.user.id, email, team };
+  return {
+    sb,
+    userId: data.user.id,
+    email,
+    team,
+    role: (team ? "owner" : null) as StaffRole | null,
+    name: "",
+  };
 }
 
 function stripeSecret() {
@@ -30,8 +77,8 @@ function stripeSecret() {
 export const whoAmI = createServerFn({ method: "POST" })
   .validator((d: { token: string }) => d)
   .handler(async ({ data }) => {
-    const { email, team } = await actor(data.token);
-    return { email, team };
+    const { email, team, role, name } = await actor(data.token);
+    return { email, team, role, name };
   });
 
 export const listAllTenants = createServerFn({ method: "POST" })
@@ -47,6 +94,43 @@ export const listAllTenants = createServerFn({ method: "POST" })
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
     return rows ?? [];
+  });
+
+export const listOfficeBoard = createServerFn({ method: "POST" })
+  .validator((d: { token: string }) => d)
+  .handler(async ({ data }) => {
+    const { sb, team } = await actor(data.token);
+    if (!team) throw new Error("Office is for the Forecourt team.");
+    const { data: rows, error } = await sb
+      .from("tenants")
+      .select(
+        "id, name, email, phone, plan, status, billing, site_count, trial_ends_at, term_months, group_name, principal_name, created_at",
+      )
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    const tenants = rows ?? [];
+    const ids = tenants.map((t) => t.id);
+    const lastBy: Record<
+      number,
+      { at: string; from_team: boolean }
+    > = {};
+    if (ids.length) {
+      const { data: msgs } = await sb
+        .from("messages")
+        .select("tenant_id, from_team, created_at")
+        .in("tenant_id", ids)
+        .order("created_at", { ascending: false });
+      for (const m of msgs ?? []) {
+        const id = m.tenant_id as number;
+        if (lastBy[id]) continue;
+        lastBy[id] = { at: m.created_at as string, from_team: Boolean(m.from_team) };
+      }
+    }
+    return tenants.map((t) => ({
+      ...t,
+      last_message_at: lastBy[t.id]?.at ?? null,
+      waiting: lastBy[t.id] ? !lastBy[t.id].from_team : false,
+    }));
   });
 
 export const getTenantFile = createServerFn({ method: "POST" })
@@ -171,12 +255,11 @@ export const listReceipts = createServerFn({ method: "POST" })
   .validator((d: { token: string; tenantId: number }) => d)
   .handler(async ({ data }) => {
     const { sb, team, userId } = await actor(data.token);
-    let tq = sb
+    const { data: tenant, error: tErr } = await sb
       .from("tenants")
       .select("id, stripe_customer_id, user_id")
       .eq("id", data.tenantId)
       .maybeSingle();
-    const { data: tenant, error: tErr } = await tq;
     if (tErr) throw new Error(tErr.message);
     if (!tenant) return [];
     if (!team && tenant.user_id !== userId) return [];
@@ -219,14 +302,118 @@ export const listReceipts = createServerFn({ method: "POST" })
     return local;
   });
 
-export const addTeamEmail = createServerFn({ method: "POST" })
-  .validator((d: { token: string; email: string }) => d)
+export const listStaff = createServerFn({ method: "POST" })
+  .validator((d: { token: string }) => d)
   .handler(async ({ data }) => {
     const { sb, team } = await actor(data.token);
     if (!team) throw new Error("Office is for the Forecourt team.");
+    const { data: rows, error } = await sb
+      .from("team_members")
+      .select("email, name, role, status, invited_by, created_at, last_seen_at")
+      .order("created_at", { ascending: true });
+    if (error) {
+      return TEAM_EMAILS.map((email) => ({
+        email,
+        name: email === "mattgirvan39@gmail.com" ? "Matt Girvan" : "Forecourt",
+        role: "owner" as StaffRole,
+        status: "active" as StaffStatus,
+        invited_by: "",
+        created_at: null as string | null,
+        last_seen_at: null as string | null,
+      }));
+    }
+    return rows ?? [];
+  });
+
+async function sendSignIn(email: string, toOffice: boolean) {
+  const admin = sbAdmin() ?? createClient(SUPABASE_URL, SUPABASE_ANON, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const redirect = `${SITE.url}${toOffice ? "/office" : "/account"}`;
+  const { error } = await admin.auth.signInWithOtp({
+    email,
+    options: { emailRedirectTo: redirect, shouldCreateUser: true },
+  });
+  if (error) throw new Error(error.message);
+}
+
+export const inviteStaff = createServerFn({ method: "POST" })
+  .validator((d: { token: string; email: string; name?: string; role?: StaffRole }) => d)
+  .handler(async ({ data }) => {
+    const { sb, team, role, email: by } = await actor(data.token);
+    if (!team) throw new Error("Office is for the Forecourt team.");
+    if (role !== "owner") throw new Error("Only an owner can add staff.");
     const email = data.email.trim().toLowerCase();
     if (!email.includes("@")) throw new Error("Need an email.");
-    const { error } = await sb.from("team_emails").insert({ email });
-    if (error && !error.message.includes("duplicate")) throw new Error(error.message);
+    const staffRole: StaffRole = data.role === "owner" ? "owner" : "operator";
+    const { error } = await sb.from("team_members").upsert(
+      {
+        email,
+        name: (data.name ?? "").trim(),
+        role: staffRole,
+        status: "invited",
+        invited_by: by,
+      },
+      { onConflict: "email" },
+    );
+    if (error) throw new Error(error.message);
+    await sb.from("team_emails").upsert({ email });
+    await sendSignIn(email, true);
     return { ok: true };
+  });
+
+export const setStaffRole = createServerFn({ method: "POST" })
+  .validator((d: { token: string; email: string; role: StaffRole }) => d)
+  .handler(async ({ data }) => {
+    const { sb, team, role, email } = await actor(data.token);
+    if (!team || role !== "owner") throw new Error("Only an owner can change roles.");
+    const target = data.email.trim().toLowerCase();
+    if (target === email && data.role !== "owner") {
+      const { data: owners } = await sb.from("team_members").select("email").eq("role", "owner").eq("status", "active");
+      if ((owners ?? []).length <= 1) throw new Error("Keep at least one owner.");
+    }
+    const { error } = await sb.from("team_members").update({ role: data.role }).eq("email", target);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const setStaffStatus = createServerFn({ method: "POST" })
+  .validator((d: { token: string; email: string; status: StaffStatus }) => d)
+  .handler(async ({ data }) => {
+    const { sb, team, role, email } = await actor(data.token);
+    if (!team || role !== "owner") throw new Error("Only an owner can change access.");
+    const target = data.email.trim().toLowerCase();
+    if (target === email && data.status === "revoked") throw new Error("You cannot revoke yourself.");
+    if (data.status === "revoked") {
+      const { data: row } = await sb.from("team_members").select("role").eq("email", target).maybeSingle();
+      if (row?.role === "owner") {
+        const { data: owners } = await sb.from("team_members").select("email").eq("role", "owner").eq("status", "active");
+        if ((owners ?? []).filter((o) => o.email !== target).length < 1) {
+          throw new Error("Keep at least one owner.");
+        }
+      }
+      await sb.from("team_emails").delete().eq("email", target);
+    } else {
+      await sb.from("team_emails").upsert({ email: target });
+    }
+    const { error } = await sb.from("team_members").update({ status: data.status }).eq("email", target);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+export const sendStaffSignIn = createServerFn({ method: "POST" })
+  .validator((d: { token: string; email: string }) => d)
+  .handler(async ({ data }) => {
+    const { team, role } = await actor(data.token);
+    if (!team || role !== "owner") throw new Error("Only an owner can send a sign-in.");
+    const email = data.email.trim().toLowerCase();
+    if (!email.includes("@")) throw new Error("Need an email.");
+    await sendSignIn(email, true);
+    return { ok: true };
+  });
+
+export const addTeamEmail = createServerFn({ method: "POST" })
+  .validator((d: { token: string; email: string }) => d)
+  .handler(async ({ data }) => {
+    return inviteStaff({ data: { token: data.token, email: data.email, role: "operator" } });
   });

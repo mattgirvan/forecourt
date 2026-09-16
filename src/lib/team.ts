@@ -1,5 +1,13 @@
 export const TEAM_EMAILS = ["hello@forecourt.me", "mattgirvan39@gmail.com"] as const;
 
+export type StaffRole = "owner" | "operator";
+export type StaffStatus = "active" | "invited" | "revoked";
+
+export const STAFF_ROLES: { id: StaffRole; label: string; sees: string }[] = [
+  { id: "owner", label: "Owner", sees: "Customers, billing, files, and who is on staff." },
+  { id: "operator", label: "Operator", sees: "Customers, billing, and files. Cannot add or revoke staff." },
+];
+
 export function looksLikeTeam(email?: string | null) {
   const e = (email ?? "").trim().toLowerCase();
   if (!e) return false;
@@ -33,4 +41,8 @@ export function trialDaysLeft(trialEndsAt?: string | null) {
   const end = new Date(trialEndsAt).getTime();
   if (Number.isNaN(end)) return null;
   return Math.max(0, Math.ceil((end - Date.now()) / 86_400_000));
+}
+
+export function roleLabel(role?: string | null) {
+  return role === "owner" ? "Owner" : "Operator";
 }
