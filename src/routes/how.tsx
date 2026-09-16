@@ -19,11 +19,15 @@ export function HowPage() {
     slug: "harbour-park",
     name: "Harbour Park",
     legal: "Harbour Park Automotive Ltd",
+    groupMark: "HP",
     phone: "01202 774 410",
     domain: "portal.harbourpark.example",
     sites: ["Poole"],
+    franchise: { id: "ford", word: "FORD", accent: "#2A6BAC" },
     ingest,
     features: on,
+    staff: ["gm@harbourpark.example"],
+    seedDemo: false,
   };
 
   return (
@@ -32,12 +36,12 @@ export function HowPage() {
         <Reveal>
           <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-subtle">How an order ships</p>
           <h1 className="mt-3 max-w-3xl font-display text-4xl tracking-tight sm:text-5xl">
-            One codebase. One JSON file. Never a fork.
+            One template. One JSON file. Never a fork.
           </h1>
           <p className="mt-4 max-w-xl text-base text-muted">
-            The Aberdeen portal is the prototype. The next client does not get a copy of App.jsx.
-            They get a tenant file, feature flags, and an ingest adapter. That is the only way this
-            is sellable.
+            The Aberdeen portal is the live prototype. The sales demo is a separate tab with fictional
+            cars. An order is a clone of the <em>desk template</em> — one JSON file, a new database,
+            their domain. Never a copy of App.jsx.
           </p>
         </Reveal>
 
@@ -126,9 +130,12 @@ export function HowPage() {
                     </div>
                   )}
                   {p.id === "ship" && (
-                    <div className="rounded-lg border border-line p-5 text-sm text-muted">
-                      Custom domain, staff login, customer glass optional on day one. Monthly billing
-                      starts here — not at the pitch meeting.
+                    <div className="rounded-lg border border-line p-5 text-sm leading-relaxed text-muted">
+                      <code className="text-fg">gh repo create desk-harbour-park --template mattgirvan/forecourt-desk</code>
+                      <p className="mt-3">
+                        Fill tenant.json, new Supabase, Vercel domain. The tab they played with is the
+                        sales demo. This clone is the live glass. Monthly billing starts here.
+                      </p>
                     </div>
                   )}
                 </div>

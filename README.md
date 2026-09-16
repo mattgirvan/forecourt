@@ -2,18 +2,34 @@
 
 The dealer operating system you already run — packaged for others.
 
-Stock, deals, GP, locator, customer journey. Built from live use at a franchised rooftop, sold as a white-label instance. **One codebase. One tenant JSON. Never a fork.**
+**Two codebases. Do not mix them.**
 
-This repo is the product site, the working desk template, paid-pilot checkout, and the provision model. The Aberdeen portal stays in `skoda-aberdeen-portal`. Do not copy `App.jsx` per client.
+| Repo | Job |
+|---|---|
+| **this one** (`forecourt`) | Product site, fictional demo desk, paid pilot |
+| [`forecourt-desk`](https://github.com/mattgirvan/forecourt-desk) | The actual portal you clone when someone orders |
+| `skoda-aberdeen-portal` | Live Aberdeen rooftop. Prototype. Never fork `App.jsx` for a client |
 
-## What a principal sees
+The demo a principal opens in another tab is **not** what goes live. After they pay, you clone `forecourt-desk`, drop `tenant.json`, stand up a new Supabase, point Vercel at their domain. Steps: [`desk-template/PROVISION.md`](./desk-template/PROVISION.md).
 
-- Product story and a **clickable desk** (fictional dealers)
-- How an order ships (brand pack → JSON → ingest adapter → domain)
-- Commercial: paid 60-day pilot on a card; Site / Group invoiced after go-live
-- Account: sign in, drop a brand pack, toggle features, pay Stripe
+## What a principal sees (this repo)
 
-## Pricing (challenged)
+- Product story
+- Configure group + franchise, then **open a full-page demo** (fictional stock)
+- How an order ships
+- Account: brand pack, features, Stripe pilot
+
+## What you ship (the other repo)
+
+See `desk-template/` in this tree (canonical copy) and the GitHub template `mattgirvan/forecourt-desk`.
+
+1. Brand pack → `tenant.json`
+2. Clone template (not Aberdeen)
+3. New database
+4. Excel ingest, upsert-by-VIN
+5. Custom domain + staff login
+
+## Pricing
 
 | Plan | Now | Later |
 |---|---|---|
@@ -21,24 +37,7 @@ This repo is the product site, the working desk template, paid-pilot checkout, a
 | Site | not on a card | £4,500 setup + £399/mo from go-live |
 | Group | not on a card | £8,500 + £249/site/mo |
 
-£349/mo was too cheap to look like a system. Monthly is not taken until the second rooftop can be stood up from config.
-
-## Tenant file
-
-See `tenants/harbour-park.json`. Features on/off, ingest adapter, sites. The desk reads that shape. Manufacturer ingest is an adapter (upsert-by-VIN), not a second app.
-
-## Provision (the actual product)
-
-1. Brand pack (logo, hex, names, phone, domain)
-2. Tenant JSON — no App.jsx edits
-3. Data plane — own rows, never share Aberdeen
-4. Ingest — Excel now, manufacturer only with their credentials
-5. Ship — custom domain + staff login
-
 ## Stack
 
-TanStack Start, Postgres, Better Auth (Google / X), Stripe Checkout for the pilot.
-
-## Legal
-
-Manufacturer marks do not ship. Feed credentials stay on the client’s account. Demo data is fictional.
+Marketing: TanStack Start, Postgres, Better Auth, Stripe.  
+Desk template: Vite + React + Supabase + Vercel (same shape as Aberdeen).

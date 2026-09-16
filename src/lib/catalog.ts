@@ -20,11 +20,11 @@ export const INGEST = [
 export type IngestId = (typeof INGEST)[number]["id"];
 
 export const PROVISION = [
-  { id: "brand", n: "01", title: "Brand pack", body: "Logo, hex, trading name, phone, legal, domain. No App.jsx edits." },
-  { id: "config", n: "02", title: "Tenant config", body: "JSON for this rooftop. Features on or off. Sites listed." },
-  { id: "data", n: "03", title: "Data plane", body: "Own rows, own staff users. Never share a database with another client." },
-  { id: "ingest", n: "04", title: "Ingest adapter", body: "Excel now. Manufacturer only if they have credentials. Core is upsert-by-VIN." },
-  { id: "ship", n: "05", title: "Ship", body: "Custom domain + staff login. Half a day, not a project — once the template is real." },
+  { id: "brand", n: "01", title: "Brand pack", body: "Logo, hex, trading name, phone, legal, domain — written into tenant.json." },
+  { id: "config", n: "02", title: "Clone the desk template", body: "GitHub template forecourt-desk. Never a copy of Aberdeen App.jsx. Never a copy of the sales demo." },
+  { id: "data", n: "03", title: "Data plane", body: "New Supabase project. Own rows, own staff. Paste 0001_core.sql. Never share Aberdeen." },
+  { id: "ingest", n: "04", title: "Ingest adapter", body: "Excel now (upsert-by-VIN). Manufacturer only if they have credentials, in their project." },
+  { id: "ship", n: "05", title: "Ship", body: "Vercel + custom domain + magic-link staff login. Half a day once the template exists." },
 ] as const;
 
 export type PlanId = "pilot" | "site" | "group";

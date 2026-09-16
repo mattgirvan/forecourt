@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Forecourt tenant",
+  "type": "object",
+  "required": ["slug", "name", "franchise", "sites", "features", "ingest", "staff"],
+  "properties": {
+    "slug": { "type": "string" },
+    "name": { "type": "string" },
+    "legal": { "type": "string" },
+    "groupMark": { "type": "string" },
+    "phone": { "type": "string" },
+    "email": { "type": "string" },
+    "domain": { "type": "string" },
+    "sites": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+    "franchise": {
+      "type": "object",
+      "required": ["word", "accent"],
+      "properties": {
+        "id": { "type": "string" },
+        "word": { "type": "string" },
+        "label": { "type": "string" },
+        "accent": { "type": "string" },
+        "glow": { "type": "string" },
+        "ink": { "type": "string" }
+      }
+    },
+    "ingest": { "enum": ["excel", "html", "api", "manufacturer"] },
+    "features": {
+      "type": "object",
+      "properties": {
+        "overview": { "type": "boolean" },
+        "stock": { "type": "boolean" },
+        "locator": { "type": "boolean" },
+        "pipeline": { "type": "boolean" },
+        "customer": { "type": "boolean" },
+        "mind": { "type": "boolean" },
+        "manufacturer": { "type": "boolean" }
+      }
+    },
+    "staff": { "type": "array", "items": { "type": "string", "format": "email" } },
+    "seedDemo": { "type": "boolean" }
+  }
+}

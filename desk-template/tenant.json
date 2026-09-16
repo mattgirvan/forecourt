@@ -1,0 +1,30 @@
+{
+  "slug": "example",
+  "name": "Example Motor Co.",
+  "legal": "Example Motor Company Ltd",
+  "groupMark": "EX",
+  "phone": "01234 000 000",
+  "email": "sales@example.invalid",
+  "domain": "portal.example.invalid",
+  "sites": ["Main"],
+  "franchise": {
+    "id": "independent",
+    "word": "INDEPENDENT",
+    "label": "Independent",
+    "accent": "#D9A24B",
+    "glow": "rgba(217, 162, 75, 0.36)",
+    "ink": "#20160A"
+  },
+  "ingest": "excel",
+  "features": {
+    "overview": true,
+    "stock": true,
+    "locator": true,
+    "pipeline": true,
+    "customer": true,
+    "mind": true,
+    "manufacturer": false
+  },
+  "staff": ["you@example.invalid"],
+  "seedDemo": false
+}
