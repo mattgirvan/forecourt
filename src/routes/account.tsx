@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 
+import { DealerPortal } from "@/components/account/portal";
 import { SignInGate } from "@/lib/sb-session";
 import { SiteShell } from "@/components/site-shell";
 import { Button } from "@/components/ui/button";
@@ -33,6 +34,8 @@ import {
   toggleStep,
   upsertTenant,
 } from "@/lib/server/commerce";
+import { whoAmI } from "@/lib/server/portal";
+import { packageLive } from "@/lib/team";
 import { cn } from "@/lib/utils";
 import { useSbAccessToken } from "@/lib/sb-session";
 import { supabaseReady } from "@/lib/sb";
@@ -40,6 +43,7 @@ import { supabaseReady } from "@/lib/sb";
 type Search = {
   plan?: PlanId;
   billing?: BillingKind;
+  checkout?: string;
   paid?: string;
   canceled?: string;
   session_id?: string;
@@ -51,6 +55,7 @@ export const Route = createFileRoute("/account")({
   validateSearch: (raw: Record<string, unknown>): Search => ({
     plan: isPlanId(raw.plan) ? raw.plan : undefined,
     billing: isBillingKind(raw.billing) ? raw.billing : undefined,
+    checkout: typeof raw.checkout === "string" ? raw.checkout : undefined,
     paid: typeof raw.paid === "string" ? raw.paid : undefined,
     canceled: typeof raw.canceled === "string" ? raw.canceled : undefined,
     session_id: typeof raw.session_id === "string" ? raw.session_id : undefined,
@@ -70,9 +75,9 @@ function AccountPage() {
       <SignInGate
         fallback={
           <div className="mx-auto max-w-lg px-4 py-20 text-center">
-            <h1 className="font-display text-3xl">Sign in to start a site.</h1>
+            <h1 className="font-display text-3xl">Your Forecourt account.</h1>
             <p className="mt-3 text-sm text-muted">
-              Account is how you pick a package, pay, drop a brand pack, and watch provision.
+              Package, billing, receipts, and a line to us. Sign in with the email you used to start.
             </p>
             <Button className="mt-6" asChild>
               <Link to="/login">Sign in</Link>
@@ -110,6 +115,8 @@ function AccountInner() {
   );
   const [siteCount, setSiteCount] = useState(2);
   const [contractOk, setContractOk] = useState(false);
+  const [team, setTeam] = useState(false);
+  const [wantCheckout, setWantCheckout] = useState(Boolean(search.plan || search.checkout));
 
   const chosen = PLANS[plan];
   const trialLocked = plan !== "site";
@@ -139,12 +146,14 @@ function AccountInner() {
 
   async function reload() {
     if (!token) return;
-    const [t, o] = await Promise.all([
+    const [t, o, me] = await Promise.all([
       listMyTenants({ data: { token } }),
       listMyOrders({ data: { token } }),
+      whoAmI({ data: { token } }).catch(() => ({ email: "", team: false })),
     ]);
     setTenants(t);
     setOrders(o);
+    setTeam(me.team);
     const current = t.find((x) => x.id === activeId) ?? t[0];
     if (current) {
       setActiveId(current.id);
@@ -302,6 +311,68 @@ function AccountInner() {
     return `Start subscription — ${gbpPence(setup)} + ${gbpPence(monthly)}/mo`;
   })();
 
+  const live = tenants.filter((t) => packageLive(t.status));
+  const current = live.find((t) => t.id === activeId) ?? live[0] ?? null;
+  const showPortal = Boolean(current) && !search.plan && !wantCheckout;
+
+  async function convert() {
+    if (!token || !current) return;
+    setBusy(true);
+    try {
+      const res = await startCheckout({
+        data: {
+          token,
+          plan: "site",
+          billing: "subscription",
+          origin: window.location.origin,
+          tenantId: current.id,
+          siteCount: current.site_count ?? 1,
+          convertFromTrial: true,
+        },
+      });
+      if (res.url) {
+        window.location.assign(res.url);
+        return;
+      }
+      setNotice(res.message ?? "Checkout didn’t open. Try again.");
+    } catch (e) {
+      setNotice(e instanceof Error ? e.message : "Could not start checkout.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (team && tenants.length === 0 && !search.plan && !wantCheckout) {
+    return (
+      <div className="mx-auto max-w-lg px-4 py-20 text-center">
+        <h1 className="text-3xl font-semibold tracking-tight">You’re on the team.</h1>
+        <p className="mt-3 text-sm text-muted">Dealer accounts live here. The office is where you work the files.</p>
+        <div className="mt-6 flex flex-wrap justify-center gap-2">
+          <Button asChild>
+            <Link to="/office" search={{}}>
+              Open the office
+            </Link>
+          </Button>
+          <Button variant="secondary" type="button" onClick={() => setWantCheckout(true)}>
+            Start a test package
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (showPortal && current && token) {
+    return (
+      <DealerPortal
+        token={token}
+        tenant={current}
+        converting={busy}
+        onConvert={normalizeBilling(normalizePlan(current.plan), current.billing) === "trial" ? () => void convert() : undefined}
+        onNewPackage={() => setWantCheckout(true)}
+      />
+    );
+  }
+
   return (
     <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 sm:px-6 lg:grid-cols-[1fr_0.9fr]">
       <div>
@@ -310,6 +381,15 @@ function AccountInner() {
         <p className="mt-3 max-w-md text-sm text-muted">
           Site can start on 60 days. Franchise and group are a 12-month subscription — we don’t build those on a maybe.
         </p>
+        {current && (
+          <button
+            type="button"
+            className="mt-3 text-sm text-muted underline-offset-4 hover:text-fg hover:underline"
+            onClick={() => setWantCheckout(false)}
+          >
+            Back to account
+          </button>
+        )}
         {notice && (
           <p className="mt-4 rounded-md border border-line bg-elevated px-3 py-2 text-sm">{notice}</p>
         )}

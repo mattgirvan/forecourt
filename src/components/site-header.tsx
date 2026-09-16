@@ -3,7 +3,8 @@ import { Mark } from "@/components/mark";
 import { Button } from "@/components/ui/button";
 import { deskSearch } from "@/lib/brands";
 import { useDemo } from "@/lib/demo-store";
-import { SignedIn, SignedOut, UserButton } from "@/lib/sb-session";
+import { SignedIn, SignedOut, UserButton, useSbUser } from "@/lib/sb-session";
+import { looksLikeTeam } from "@/lib/team";
 import { cn } from "@/lib/utils";
 
 const links = [
@@ -46,6 +47,9 @@ function NavLink({
 }
 
 export function SiteHeader() {
+  const { user } = useSbUser();
+  const team = looksLikeTeam(user?.email);
+
   return (
     <header className="sticky top-3 z-40 px-3 sm:top-4">
       <div className="mx-auto flex h-12 max-w-5xl items-center justify-between gap-2 rounded-full border border-line bg-bg/70 px-2 pl-3 shadow-soft backdrop-blur-xl sm:h-14 sm:px-3">
@@ -60,6 +64,18 @@ export function SiteHeader() {
         </nav>
         <div className="flex items-center gap-1">
           <SignedIn>
+            {team && (
+              <Link
+                to="/office"
+                search={{}}
+                className="hidden rounded-full px-3 py-1.5 text-[13px] text-muted hover:text-fg sm:inline"
+              >
+                Office
+              </Link>
+            )}
+            <Button size="sm" variant="secondary" className="rounded-full" asChild>
+              <Link to="/account">Account</Link>
+            </Button>
             <UserButton />
           </SignedIn>
           <SignedOut>
@@ -69,10 +85,10 @@ export function SiteHeader() {
             >
               Sign in
             </Link>
+            <Button size="sm" className="rounded-full" asChild>
+              <Link to="/account">Get started</Link>
+            </Button>
           </SignedOut>
-          <Button size="sm" className="rounded-full" asChild>
-            <Link to="/account">Get started</Link>
-          </Button>
         </div>
       </div>
       <nav className="mx-auto mt-2 flex max-w-5xl gap-1 overflow-x-auto px-1 md:hidden">

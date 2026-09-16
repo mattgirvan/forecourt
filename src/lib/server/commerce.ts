@@ -48,17 +48,19 @@ function stripeSecret() {
 export const listMyTenants = createServerFn({ method: "POST" })
   .validator((d: { token: string }) => d)
   .handler(async ({ data }) => {
-    const { sb } = await uid(data.token);
+    const { sb, userId } = await uid(data.token);
     const { data: rows, error } = await sb
       .from("tenants")
       .select(
-        "id, slug, name, legal, phone, email, domain, sites, features, ingest, plan, status, billing, site_count, stripe_subscription_id, trial_ends_at, term_months",
+        "id, slug, name, legal, phone, email, domain, sites, features, ingest, plan, status, billing, site_count, stripe_subscription_id, trial_ends_at, term_months, principal_name, group_name, staff_json, created_at",
       )
+      .eq("user_id", userId)
       .order("created_at", { ascending: false });
     if (error) {
       const { data: fallback, error: err2 } = await sb
         .from("tenants")
         .select("id, slug, name, legal, phone, email, domain, sites, features, ingest, plan, status")
+        .eq("user_id", userId)
         .order("created_at", { ascending: false });
       if (err2) throw new Error(err2.message);
       return (fallback ?? []).map((row) => ({
@@ -68,6 +70,10 @@ export const listMyTenants = createServerFn({ method: "POST" })
         stripe_subscription_id: null as string | null,
         trial_ends_at: null as string | null,
         term_months: null as number | null,
+        principal_name: "",
+        group_name: "",
+        staff_json: "[]",
+        created_at: null as string | null,
       }));
     }
     return rows ?? [];
@@ -76,15 +82,17 @@ export const listMyTenants = createServerFn({ method: "POST" })
 export const listMyOrders = createServerFn({ method: "POST" })
   .validator((d: { token: string }) => d)
   .handler(async ({ data }) => {
-    const { sb } = await uid(data.token);
+    const { sb, userId } = await uid(data.token);
     const { data: rows, error } = await sb
       .from("orders")
       .select("id, plan, amount_pence, status, stripe_session_id, kind, site_count")
+      .eq("user_id", userId)
       .order("created_at", { ascending: false });
     if (error) {
       const { data: fallback, error: err2 } = await sb
         .from("orders")
         .select("id, plan, amount_pence, status, stripe_session_id")
+        .eq("user_id", userId)
         .order("created_at", { ascending: false });
       if (err2) throw new Error(err2.message);
       return (fallback ?? []).map((row) => ({

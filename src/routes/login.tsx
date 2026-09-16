@@ -75,8 +75,10 @@ function Login() {
           <span className="font-mono text-[11px] uppercase tracking-[0.2em]">{SITE.name}</span>
         </Link>
         <div>
-          <h1 className="font-display text-4xl tracking-tight">Sign in.</h1>
-          <p className="mt-2 text-sm text-muted">{sent ? `Code sent to ${email}` : "We’ll email a code."}</p>
+          <h1 className="font-display text-4xl tracking-tight">Your account.</h1>
+          <p className="mt-2 text-sm text-muted">
+            {sent ? `Code sent to ${email}` : "Package, billing, and a line to us. We’ll email a code."}
+          </p>
         </div>
         {!sent ? (
           <form className="space-y-3" onSubmit={(e) => void send(e)}>

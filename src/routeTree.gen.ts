@@ -14,6 +14,7 @@ import { Route as AccountRouteImport } from './routes/account'
 import { Route as DemoRouteImport } from './routes/demo'
 import { Route as HowRouteImport } from './routes/how'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as OfficeRouteImport } from './routes/office'
 import { Route as PilotRouteImport } from './routes/pilot'
 import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
@@ -44,6 +45,11 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OfficeRoute = OfficeRouteImport.update({
+  id: '/office',
+  path: '/office',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PilotRoute = PilotRouteImport.update({
   id: '/pilot',
   path: '/pilot',
@@ -71,6 +77,7 @@ export interface FileRoutesByFullPath {
   '/demo': typeof DemoRoute
   '/how': typeof HowRoute
   '/login': typeof LoginRoute
+  '/office': typeof OfficeRoute
   '/pilot': typeof PilotRoute
   '/pricing': typeof PricingRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -82,6 +89,7 @@ export interface FileRoutesByTo {
   '/demo': typeof DemoRoute
   '/how': typeof HowRoute
   '/login': typeof LoginRoute
+  '/office': typeof OfficeRoute
   '/pilot': typeof PilotRoute
   '/pricing': typeof PricingRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -94,6 +102,7 @@ export interface FileRoutesById {
   '/demo': typeof DemoRoute
   '/how': typeof HowRoute
   '/login': typeof LoginRoute
+  '/office': typeof OfficeRoute
   '/pilot': typeof PilotRoute
   '/pricing': typeof PricingRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -107,6 +116,7 @@ export interface FileRouteTypes {
     | '/demo'
     | '/how'
     | '/login'
+    | '/office'
     | '/pilot'
     | '/pricing'
     | '/api/auth/$'
@@ -118,6 +128,7 @@ export interface FileRouteTypes {
     | '/demo'
     | '/how'
     | '/login'
+    | '/office'
     | '/pilot'
     | '/pricing'
     | '/api/auth/$'
@@ -129,6 +140,7 @@ export interface FileRouteTypes {
     | '/demo'
     | '/how'
     | '/login'
+    | '/office'
     | '/pilot'
     | '/pricing'
     | '/api/auth/$'
@@ -141,6 +153,7 @@ export interface RootRouteChildren {
   DemoRoute: typeof DemoRoute
   HowRoute: typeof HowRoute
   LoginRoute: typeof LoginRoute
+  OfficeRoute: typeof OfficeRoute
   PilotRoute: typeof PilotRoute
   PricingRoute: typeof PricingRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
@@ -184,6 +197,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/office': {
+      id: '/office'
+      path: '/office'
+      fullPath: '/office'
+      preLoaderRoute: typeof OfficeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/pilot': {
       id: '/pilot'
       path: '/pilot'
@@ -221,6 +241,7 @@ const rootRouteChildren: RootRouteChildren = {
   DemoRoute: DemoRoute,
   HowRoute: HowRoute,
   LoginRoute: LoginRoute,
+  OfficeRoute: OfficeRoute,
   PilotRoute: PilotRoute,
   PricingRoute: PricingRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,

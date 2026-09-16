@@ -5,7 +5,7 @@ import type { User } from "@supabase/supabase-js";
 
 const SIGN_IN_PATH = "/login";
 
-function useSbUser() {
+export function useSbUser() {
   const [user, setUser] = useState<User | null>(null);
   const [pending, setPending] = useState(true);
 
