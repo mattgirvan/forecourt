@@ -1,0 +1,44 @@
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { SITE } from "./site";
+
+export const SUPABASE_URL =
+  (import.meta.env.VITE_SUPABASE_URL as string | undefined)?.trim() ||
+  "https://hxodmtmrnpxzkfwhrsjg.supabase.co";
+
+export const SUPABASE_ANON =
+  (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined)?.trim() ||
+  (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined)?.trim() ||
+  "";
+
+export function supabaseReady() {
+  return Boolean(SUPABASE_URL && SUPABASE_ANON);
+}
+
+let browser: SupabaseClient | null = null;
+
+export function getSb(): SupabaseClient {
+  if (!SUPABASE_ANON) {
+    throw new Error("Set VITE_SUPABASE_ANON_KEY on the Forecourt Vercel project.");
+  }
+  if (typeof window === "undefined") {
+    return createClient(SUPABASE_URL, SUPABASE_ANON, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
+  }
+  if (!browser) {
+    browser = createClient(SUPABASE_URL, SUPABASE_ANON, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+        flowType: "pkce",
+      },
+    });
+  }
+  return browser;
+}
+
+export function magicRedirect() {
+  if (typeof window !== "undefined") return `${window.location.origin}/account`;
+  return `${SITE.url}/account`;
+}

@@ -3,7 +3,7 @@ import { Mark } from "@/components/mark";
 import { Button } from "@/components/ui/button";
 import { rooftopSearch } from "@/lib/brands";
 import { useDemo } from "@/lib/demo-store";
-import { SignedIn, SignedOut, UserButton } from "@/lib/auth/gates";
+import { SignedIn, SignedOut, UserButton } from "@/lib/sb-session";
 import { cn } from "@/lib/utils";
 
 const links = [

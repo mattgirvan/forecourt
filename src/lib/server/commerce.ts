@@ -1,8 +1,8 @@
+import { createClient } from "@supabase/supabase-js";
 import { createServerFn } from "@tanstack/react-start";
-import { authMiddleware } from "@/lib/auth/middleware";
 import { PLANS, type PlanId } from "@/lib/catalog";
-import { getSql } from "@/lib/db";
 import { env } from "@/lib/env.server";
+import { SUPABASE_ANON, SUPABASE_URL } from "@/lib/sb";
 
 function slugify(name: string) {
   return (
@@ -14,54 +14,63 @@ function slugify(name: string) {
   );
 }
 
-export const listMyTenants = createServerFn({ method: "GET" })
-  .middleware([authMiddleware])
-  .handler(async ({ context }) => {
-    const sql = await getSql();
-    return sql<{
-      id: number;
-      slug: string;
-      name: string;
-      legal: string;
-      phone: string;
-      email: string;
-      domain: string;
-      sites: string;
-      features: string;
-      ingest: string;
-      plan: string;
-      status: string;
-    }>`select id, slug, name, legal, phone, email, domain, sites, features, ingest, plan, status from tenants where user_id = ${context.userId} order by created_at desc`;
+function sbFor(token: string) {
+  const key = SUPABASE_ANON || env("VITE_SUPABASE_ANON_KEY") || env("VITE_SUPABASE_PUBLISHABLE_KEY") || "";
+  const url = SUPABASE_URL;
+  return createClient(url, key, {
+    global: { headers: { Authorization: `Bearer ${token}` } },
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+}
+
+async function uid(token: string) {
+  const sb = sbFor(token);
+  const { data, error } = await sb.auth.getUser(token);
+  if (error || !data.user) throw new Error("Sign in again.");
+  return { sb, userId: data.user.id };
+}
+
+export const listMyTenants = createServerFn({ method: "POST" })
+  .validator((d: { token: string }) => d)
+  .handler(async ({ data }) => {
+    const { sb } = await uid(data.token);
+    const { data: rows, error } = await sb
+      .from("tenants")
+      .select("id, slug, name, legal, phone, email, domain, sites, features, ingest, plan, status")
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return rows ?? [];
   });
 
-export const listMyOrders = createServerFn({ method: "GET" })
-  .middleware([authMiddleware])
-  .handler(async ({ context }) => {
-    const sql = await getSql();
-    return sql<{
-      id: number;
-      plan: string;
-      amount_pence: number;
-      status: string;
-      stripe_session_id: string | null;
-    }>`select id, plan, amount_pence, status, stripe_session_id from orders where user_id = ${context.userId} order by created_at desc`;
+export const listMyOrders = createServerFn({ method: "POST" })
+  .validator((d: { token: string }) => d)
+  .handler(async ({ data }) => {
+    const { sb } = await uid(data.token);
+    const { data: rows, error } = await sb
+      .from("orders")
+      .select("id, plan, amount_pence, status, stripe_session_id")
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return rows ?? [];
   });
 
-export const listProvision = createServerFn({ method: "GET" })
-  .middleware([authMiddleware])
-  .validator((tenantId: number) => tenantId)
-  .handler(async ({ context, data: tenantId }) => {
-    const sql = await getSql();
-    return sql<{ step: string; done: boolean; note: string }>`
-      select step, done, note from provision_steps
-      where tenant_id = ${tenantId} and user_id = ${context.userId}
-      order by id`;
+export const listProvision = createServerFn({ method: "POST" })
+  .validator((d: { token: string; tenantId: number }) => d)
+  .handler(async ({ data }) => {
+    const { sb } = await uid(data.token);
+    const { data: rows, error } = await sb
+      .from("provision_steps")
+      .select("step, done, note")
+      .eq("tenant_id", data.tenantId)
+      .order("id");
+    if (error) throw new Error(error.message);
+    return rows ?? [];
   });
 
 export const upsertTenant = createServerFn({ method: "POST" })
-  .middleware([authMiddleware])
   .validator(
     (d: {
+      token: string;
       name: string;
       legal?: string;
       phone?: string;
@@ -73,80 +82,105 @@ export const upsertTenant = createServerFn({ method: "POST" })
       plan?: PlanId;
     }) => d,
   )
-  .handler(async ({ context, data }) => {
-    const sql = await getSql();
+  .handler(async ({ data }) => {
+    const { sb, userId } = await uid(data.token);
     const slug = slugify(data.name);
     const sites = JSON.stringify(data.sites ?? ["Main"]);
     const features = JSON.stringify(data.features ?? {});
-    const existing = await sql<{ id: number }>`
-      select id from tenants where user_id = ${context.userId} and slug = ${slug}`;
-    if (existing[0]) {
-      await sql`
-        update tenants set
-          name = ${data.name},
-          legal = ${data.legal ?? ""},
-          phone = ${data.phone ?? ""},
-          email = ${data.email ?? ""},
-          domain = ${data.domain ?? ""},
-          sites = ${sites},
-          features = ${features},
-          ingest = ${data.ingest ?? "excel"}
-        where id = ${existing[0].id} and user_id = ${context.userId}`;
-      return { id: existing[0].id, slug };
+    const { data: existing } = await sb.from("tenants").select("id").eq("slug", slug).maybeSingle();
+    if (existing?.id) {
+      const { error } = await sb
+        .from("tenants")
+        .update({
+          name: data.name,
+          legal: data.legal ?? "",
+          phone: data.phone ?? "",
+          email: data.email ?? "",
+          domain: data.domain ?? "",
+          sites,
+          features,
+          ingest: data.ingest ?? "excel",
+        })
+        .eq("id", existing.id);
+      if (error) throw new Error(error.message);
+      return { id: existing.id as number, slug };
     }
-    const inserted = await sql<{ id: number }>`
-      insert into tenants (user_id, slug, name, legal, phone, email, domain, sites, features, ingest, plan, status)
-      values (
-        ${context.userId}, ${slug}, ${data.name}, ${data.legal ?? ""}, ${data.phone ?? ""},
-        ${data.email ?? ""}, ${data.domain ?? ""}, ${sites}, ${features},
-        ${data.ingest ?? "excel"}, ${data.plan ?? "pilot"}, 'briefing'
-      ) returning id`;
-    const id = inserted[0]!.id;
-    for (const step of ["brand", "config", "data", "ingest", "ship"]) {
-      await sql`
-        insert into provision_steps (tenant_id, user_id, step, done, note)
-        values (${id}, ${context.userId}, ${step}, ${step === "data"}, ${step === "data" ? "Rows created for this rooftop." : ""})`;
-    }
+    const { data: inserted, error } = await sb
+      .from("tenants")
+      .insert({
+        user_id: userId,
+        slug,
+        name: data.name,
+        legal: data.legal ?? "",
+        phone: data.phone ?? "",
+        email: data.email ?? "",
+        domain: data.domain ?? "",
+        sites,
+        features,
+        ingest: data.ingest ?? "excel",
+        plan: data.plan ?? "pilot",
+        status: "briefing",
+      })
+      .select("id")
+      .single();
+    if (error) throw new Error(error.message);
+    const id = inserted.id as number;
+    await sb.from("provision_steps").insert(
+      ["brand", "config", "data", "ingest", "ship"].map((step) => ({
+        tenant_id: id,
+        user_id: userId,
+        step,
+        done: step === "data",
+        note: step === "data" ? "Rows created for this rooftop." : "",
+      })),
+    );
     return { id, slug };
   });
 
 export const toggleStep = createServerFn({ method: "POST" })
-  .middleware([authMiddleware])
-  .validator((d: { tenantId: number; step: string; done: boolean }) => d)
-  .handler(async ({ context, data }) => {
-    const sql = await getSql();
-    await sql`
-      update provision_steps set done = ${data.done}
-      where tenant_id = ${data.tenantId} and user_id = ${context.userId} and step = ${data.step}`;
+  .validator((d: { token: string; tenantId: number; step: string; done: boolean }) => d)
+  .handler(async ({ data }) => {
+    const { sb } = await uid(data.token);
+    const { error } = await sb
+      .from("provision_steps")
+      .update({ done: data.done })
+      .eq("tenant_id", data.tenantId)
+      .eq("step", data.step);
+    if (error) throw new Error(error.message);
   });
 
 export const startCheckout = createServerFn({ method: "POST" })
-  .middleware([authMiddleware])
-  .validator((d: { plan: PlanId; origin: string; tenantId: number }) => d)
-  .handler(async ({ context, data }) => {
+  .validator((d: { token: string; plan: PlanId; origin: string; tenantId: number }) => d)
+  .handler(async ({ data }) => {
     const plan = PLANS[data.plan];
     if (!plan || !plan.sellNow) {
       return { url: null as string | null, message: "This plan is invoiced after go-live, not taken at checkout." };
     }
-    const sql = await getSql();
-    const owned = await sql<{ id: number }>`
-      select id from tenants where id = ${data.tenantId} and user_id = ${context.userId}`;
-    if (!owned[0]) return { url: null, message: "No rooftop on this account." };
+    const { sb, userId } = await uid(data.token);
+    const { data: owned } = await sb.from("tenants").select("id").eq("id", data.tenantId).maybeSingle();
+    if (!owned) return { url: null, message: "No rooftop on this account." };
 
-    const order = await sql<{ id: number }>`
-      insert into orders (user_id, tenant_id, plan, amount_pence, status)
-      values (${context.userId}, ${data.tenantId}, ${plan.id}, ${plan.setupPence}, 'pending')
-      returning id`;
+    const { data: order, error } = await sb
+      .from("orders")
+      .insert({
+        user_id: userId,
+        tenant_id: data.tenantId,
+        plan: plan.id,
+        amount_pence: plan.setupPence,
+        status: "pending",
+      })
+      .select("id")
+      .single();
+    if (error || !order) return { url: null, message: error?.message ?? "Could not open an order." };
 
     const secret = env("GROK_STRIPE_SECRET_KEY") ?? env("STRIPE_SECRET_KEY");
-    const success =
-      env("GROK_PAYMENT_SUCCESS_URL") ?? `${data.origin.replace(/\/$/, "")}/account?paid=1`;
-    const cancel = env("GROK_PAYMENT_CANCEL_URL") ?? `${data.origin.replace(/\/$/, "")}/account?canceled=1`;
+    const success = `${data.origin.replace(/\/$/, "")}/account?paid=1`;
+    const cancel = `${data.origin.replace(/\/$/, "")}/account?canceled=1`;
 
     if (!secret) {
       return {
-        url: `/account?preview=1&order=${order[0]!.id}`,
-        message: "Checkout is wired. Live card charges run on the published app.",
+        url: `/account?preview=1&order=${order.id}`,
+        message: "Checkout is wired. Live card charges need STRIPE_SECRET_KEY on Vercel.",
       };
     }
 
@@ -154,7 +188,7 @@ export const startCheckout = createServerFn({ method: "POST" })
     const stripe = new Stripe(secret);
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
-      success_url: `${success}${success.includes("?") ? "&" : "?"}session_id={CHECKOUT_SESSION_ID}`,
+      success_url: `${success}&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: cancel,
       line_items: [
         {
@@ -170,34 +204,25 @@ export const startCheckout = createServerFn({ method: "POST" })
         },
       ],
       metadata: {
-        user_id: context.userId,
+        user_id: userId,
         tenant_id: String(data.tenantId),
-        order_id: String(order[0]!.id),
+        order_id: String(order.id),
         plan: plan.id,
       },
     });
 
-    await sql`
-      update orders set stripe_session_id = ${session.id}
-      where id = ${order[0]!.id} and user_id = ${context.userId}`;
-
+    await sb.from("orders").update({ stripe_session_id: session.id }).eq("id", order.id);
     return { url: session.url, message: null as string | null };
   });
 
 export const confirmPayment = createServerFn({ method: "POST" })
-  .middleware([authMiddleware])
-  .validator((d: { sessionId?: string; previewOrderId?: number }) => d)
-  .handler(async ({ context, data }) => {
-    const sql = await getSql();
+  .validator((d: { token: string; sessionId?: string; previewOrderId?: number }) => d)
+  .handler(async ({ data }) => {
+    const { sb } = await uid(data.token);
     if (data.previewOrderId) {
-      await sql`
-        update orders set status = 'paid'
-        where id = ${data.previewOrderId} and user_id = ${context.userId}`;
-      await sql`
-        update tenants set status = 'paid'
-        where user_id = ${context.userId} and id in (
-          select tenant_id from orders where id = ${data.previewOrderId} and user_id = ${context.userId}
-        )`;
+      await sb.from("orders").update({ status: "paid" }).eq("id", data.previewOrderId);
+      const { data: row } = await sb.from("orders").select("tenant_id").eq("id", data.previewOrderId).maybeSingle();
+      if (row?.tenant_id) await sb.from("tenants").update({ status: "paid" }).eq("id", row.tenant_id);
       return { ok: true };
     }
     if (!data.sessionId) return { ok: false };
@@ -207,13 +232,8 @@ export const confirmPayment = createServerFn({ method: "POST" })
     const stripe = new Stripe(secret);
     const session = await stripe.checkout.sessions.retrieve(data.sessionId);
     if (session.payment_status !== "paid" && session.status !== "complete") return { ok: false };
-    await sql`
-      update orders set status = 'paid'
-      where stripe_session_id = ${data.sessionId} and user_id = ${context.userId}`;
-    const row = await sql<{ tenant_id: number | null }>`
-      select tenant_id from orders where stripe_session_id = ${data.sessionId} and user_id = ${context.userId}`;
-    if (row[0]?.tenant_id) {
-      await sql`update tenants set status = 'paid' where id = ${row[0].tenant_id} and user_id = ${context.userId}`;
-    }
+    await sb.from("orders").update({ status: "paid" }).eq("stripe_session_id", data.sessionId);
+    const { data: row } = await sb.from("orders").select("tenant_id").eq("stripe_session_id", data.sessionId).maybeSingle();
+    if (row?.tenant_id) await sb.from("tenants").update({ status: "paid" }).eq("id", row.tenant_id);
     return { ok: true };
   });

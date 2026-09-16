@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
 
-import { SignInGate } from "@/lib/auth/gates";
+import { SignInGate } from "@/lib/sb-session";
 import { SiteShell } from "@/components/site-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,8 @@ import {
   upsertTenant,
 } from "@/lib/server/commerce";
 import { cn } from "@/lib/utils";
+import { useSbAccessToken } from "@/lib/sb-session";
+import { supabaseReady } from "@/lib/sb";
 
 export const Route = createFileRoute("/account")({ component: AccountPage });
 
@@ -47,6 +49,7 @@ function AccountPage() {
 }
 
 function AccountInner() {
+  const token = useSbAccessToken();
   const [tenants, setTenants] = useState<TenantRow[]>([]);
   const [orders, setOrders] = useState<OrderRow[]>([]);
   const [steps, setSteps] = useState<StepRow[]>([]);
@@ -66,17 +69,26 @@ function AccountInner() {
   );
 
   async function reload() {
-    const [t, o] = await Promise.all([listMyTenants(), listMyOrders()]);
+    if (!token) return;
+    const [t, o] = await Promise.all([
+      listMyTenants({ data: { token } }),
+      listMyOrders({ data: { token } }),
+    ]);
     setTenants(t);
     setOrders(o);
     const current = t.find((x) => x.id === activeId) ?? t[0];
     if (current) {
       setActiveId(current.id);
-      setSteps(await listProvision({ data: current.id }));
+      setSteps(await listProvision({ data: { token, tenantId: current.id } }));
     }
   }
 
   useEffect(() => {
+    if (!supabaseReady()) {
+      setNotice("Supabase anon key is missing on this deploy.");
+      return;
+    }
+    if (!token) return;
     void reload().catch(() => setNotice("Could not load account."));
     const params = new URLSearchParams(window.location.search);
     const sessionId = params.get("session_id");
@@ -85,6 +97,7 @@ function AccountInner() {
     if (sessionId || preview) {
       void confirmPayment({
         data: {
+          token,
           sessionId: sessionId ?? undefined,
           previewOrderId: order ? Number(order) : undefined,
         },
@@ -94,12 +107,12 @@ function AccountInner() {
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [token]);
 
   useEffect(() => {
-    if (!activeId) return;
-    void listProvision({ data: activeId }).then(setSteps);
-  }, [activeId]);
+    if (!activeId || !token) return;
+    void listProvision({ data: { token, tenantId: activeId } }).then(setSteps);
+  }, [activeId, token]);
 
   function loadTenant(t: TenantRow) {
     setActiveId(t.id);
@@ -122,10 +135,12 @@ function AccountInner() {
   }
 
   async function save() {
+    if (!token) return;
     setBusy(true);
     try {
       const res = await upsertTenant({
         data: {
+          token,
           name,
           legal,
           phone,
@@ -150,10 +165,11 @@ function AccountInner() {
       setNotice("Save the rooftop first.");
       return;
     }
+    if (!token) return;
     setBusy(true);
     try {
       const res = await startCheckout({
-        data: { plan: "pilot", origin: window.location.origin, tenantId: activeId },
+        data: { token, plan: "pilot", origin: window.location.origin, tenantId: activeId },
       });
       if (res.url) window.location.assign(res.url);
       else setNotice(res.message);
@@ -309,8 +325,9 @@ function AccountInner() {
                         done ? "bg-ok/15 text-ok" : "bg-elevated text-muted",
                       )}
                       onClick={() =>
-                        void toggleStep({ data: { tenantId: activeId, step: p.id, done: !done } }).then(() =>
-                          listProvision({ data: activeId }).then(setSteps),
+                        token &&
+                        void toggleStep({ data: { token, tenantId: activeId, step: p.id, done: !done } }).then(() =>
+                          listProvision({ data: { token, tenantId: activeId } }).then(setSteps),
                         )
                       }
                     >
