@@ -157,11 +157,15 @@ export default defineConfig(({ command, isPreview }) => ({
     strictPort: true,
   },
   resolve: { tsconfigPaths: true },
-  // Keep real Node process.env on the SSR/server bundle. Without this, Vite
-  // can replace `process.env` with `{}` and dynamic/static secret reads miss
-  // Vercel runtime vars (e.g. GH_TEMPLATE_TOKEN for Send to build).
+  // Keep real Node process.env on SSR *and* the Nitro serverless environment.
+  // Top-level `ssr.keepProcessEnv` alone does not always reach Nitro's own
+  // Vite environment (`environments.nitro`), which is what ships to Vercel.
   ssr: {
     keepProcessEnv: true,
+  },
+  environments: {
+    ssr: { keepProcessEnv: true },
+    nitro: { keepProcessEnv: true },
   },
   plugins: [
     pgliteBootstrapPlugin(),
@@ -181,6 +185,19 @@ export default defineConfig(({ command, isPreview }) => ({
             // manifest + head-tag middleware). Nitro v3 defaults serverDir to
             // false, so removing this silently unwires /?install=1 on deploys.
             serverDir: "./server",
+            // Map unprefixed Vercel secrets into useRuntimeConfig(), and accept
+            // NITRO_GH_TEMPLATE_TOKEN (Vercel Vite+Nitro docs). envPrefix "" is
+            // checked in addition to NITRO_ so GH_TEMPLATE_TOKEN reaches
+            // runtimeConfig.ghTemplateToken when process.env has it.
+            runtimeConfig: {
+              ghTemplateToken: "",
+              githubTemplateToken: "",
+              forecourtGhTemplateToken: "",
+              grokGhTemplateToken: "",
+              nitro: {
+                envPrefix: "",
+              },
+            },
           }),
         ]
       : []),

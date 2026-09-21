@@ -19,10 +19,12 @@ import { Route as OfficeRouteImport } from './routes/office'
 import { Route as PilotRouteImport } from './routes/pilot'
 import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as SecurityRouteImport } from './routes/security'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as TrustRouteImport } from './routes/trust'
-import { Route as SecurityRouteImport } from './routes/security'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
+import { Route as ApiBuildSendRouteImport } from './routes/api/build/send'
+import { Route as ApiBuildTokenStatusRouteImport } from './routes/api/build/token-status'
 import { Route as ApiStripeWebhookRouteImport } from './routes/api/stripe/webhook'
 
 const IndexRoute = IndexRouteImport.update({
@@ -75,6 +77,11 @@ const PrivacyRoute = PrivacyRouteImport.update({
   path: '/privacy',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SecurityRoute = SecurityRouteImport.update({
+  id: '/security',
+  path: '/security',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
   path: '/terms',
@@ -85,14 +92,19 @@ const TrustRoute = TrustRouteImport.update({
   path: '/trust',
   getParentRoute: () => rootRouteImport,
 } as any)
-const SecurityRoute = SecurityRouteImport.update({
-  id: '/security',
-  path: '/security',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiBuildSendRoute = ApiBuildSendRouteImport.update({
+  id: '/api/build/send',
+  path: '/api/build/send',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiBuildTokenStatusRoute = ApiBuildTokenStatusRouteImport.update({
+  id: '/api/build/token-status',
+  path: '/api/build/token-status',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiStripeWebhookRoute = ApiStripeWebhookRouteImport.update({
@@ -112,10 +124,12 @@ export interface FileRoutesByFullPath {
   '/pilot': typeof PilotRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
+  '/security': typeof SecurityRoute
   '/terms': typeof TermsRoute
   '/trust': typeof TrustRoute
-  '/security': typeof SecurityRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/build/send': typeof ApiBuildSendRoute
+  '/api/build/token-status': typeof ApiBuildTokenStatusRoute
   '/api/stripe/webhook': typeof ApiStripeWebhookRoute
 }
 export interface FileRoutesByTo {
@@ -129,10 +143,12 @@ export interface FileRoutesByTo {
   '/pilot': typeof PilotRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
+  '/security': typeof SecurityRoute
   '/terms': typeof TermsRoute
   '/trust': typeof TrustRoute
-  '/security': typeof SecurityRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/build/send': typeof ApiBuildSendRoute
+  '/api/build/token-status': typeof ApiBuildTokenStatusRoute
   '/api/stripe/webhook': typeof ApiStripeWebhookRoute
 }
 export interface FileRoutesById {
@@ -147,10 +163,12 @@ export interface FileRoutesById {
   '/pilot': typeof PilotRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
+  '/security': typeof SecurityRoute
   '/terms': typeof TermsRoute
   '/trust': typeof TrustRoute
-  '/security': typeof SecurityRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/build/send': typeof ApiBuildSendRoute
+  '/api/build/token-status': typeof ApiBuildTokenStatusRoute
   '/api/stripe/webhook': typeof ApiStripeWebhookRoute
 }
 export interface FileRouteTypes {
@@ -166,10 +184,12 @@ export interface FileRouteTypes {
     | '/pilot'
     | '/pricing'
     | '/privacy'
+    | '/security'
     | '/terms'
     | '/trust'
-    | '/security'
     | '/api/auth/$'
+    | '/api/build/send'
+    | '/api/build/token-status'
     | '/api/stripe/webhook'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -183,10 +203,12 @@ export interface FileRouteTypes {
     | '/pilot'
     | '/pricing'
     | '/privacy'
+    | '/security'
     | '/terms'
     | '/trust'
-    | '/security'
     | '/api/auth/$'
+    | '/api/build/send'
+    | '/api/build/token-status'
     | '/api/stripe/webhook'
   id:
     | '__root__'
@@ -200,10 +222,12 @@ export interface FileRouteTypes {
     | '/pilot'
     | '/pricing'
     | '/privacy'
+    | '/security'
     | '/terms'
     | '/trust'
-    | '/security'
     | '/api/auth/$'
+    | '/api/build/send'
+    | '/api/build/token-status'
     | '/api/stripe/webhook'
   fileRoutesById: FileRoutesById
 }
@@ -218,10 +242,12 @@ export interface RootRouteChildren {
   PilotRoute: typeof PilotRoute
   PricingRoute: typeof PricingRoute
   PrivacyRoute: typeof PrivacyRoute
+  SecurityRoute: typeof SecurityRoute
   TermsRoute: typeof TermsRoute
   TrustRoute: typeof TrustRoute
-  SecurityRoute: typeof SecurityRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
+  ApiBuildSendRoute: typeof ApiBuildSendRoute
+  ApiBuildTokenStatusRoute: typeof ApiBuildTokenStatusRoute
   ApiStripeWebhookRoute: typeof ApiStripeWebhookRoute
 }
 
@@ -297,6 +323,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PrivacyRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/security': {
+      id: '/security'
+      path: '/security'
+      fullPath: '/security'
+      preLoaderRoute: typeof SecurityRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/terms': {
       id: '/terms'
       path: '/terms'
@@ -311,18 +344,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TrustRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/security': {
-      id: '/security'
-      path: '/security'
-      fullPath: '/security'
-      preLoaderRoute: typeof SecurityRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/api/auth/$': {
       id: '/api/auth/$'
       path: '/api/auth/$'
       fullPath: '/api/auth/$'
       preLoaderRoute: typeof ApiAuthSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/build/send': {
+      id: '/api/build/send'
+      path: '/api/build/send'
+      fullPath: '/api/build/send'
+      preLoaderRoute: typeof ApiBuildSendRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/build/token-status': {
+      id: '/api/build/token-status'
+      path: '/api/build/token-status'
+      fullPath: '/api/build/token-status'
+      preLoaderRoute: typeof ApiBuildTokenStatusRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/stripe/webhook': {
@@ -346,21 +386,14 @@ const rootRouteChildren: RootRouteChildren = {
   PilotRoute: PilotRoute,
   PricingRoute: PricingRoute,
   PrivacyRoute: PrivacyRoute,
+  SecurityRoute: SecurityRoute,
   TermsRoute: TermsRoute,
   TrustRoute: TrustRoute,
-  SecurityRoute: SecurityRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
+  ApiBuildSendRoute: ApiBuildSendRoute,
+  ApiBuildTokenStatusRoute: ApiBuildTokenStatusRoute,
   ApiStripeWebhookRoute: ApiStripeWebhookRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-  }
-}
