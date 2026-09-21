@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { OrderBuild } from "@/components/build/order-desk";
 import { SeatMatrix } from "@/components/trust/seat-matrix";
-import { DoorsOneLiner } from "@/components/trust/doors-map";
 import { Button } from "@/components/ui/button";
 import { PLANS, gbpPence, monthTotalPence, normalizeBilling, normalizePlan, setupDuePence } from "@/lib/catalog";
 import { rolesForPlan } from "@/lib/roles";
@@ -100,7 +99,14 @@ export function DealerPortal({
             onNewPackage={onNewPackage}
           />
         )}
-        {tab === "build" && <OrderBuild token={token} tenantId={tenant.id} team={false} />}
+        {tab === "build" && (
+          <OrderBuild
+            token={token}
+            tenantId={tenant.id}
+            team={false}
+            onInviteStaff={() => setTab("people")}
+          />
+        )}
         {tab === "billing" && <Billing token={token} tenant={tenant} converting={converting} onConvert={onConvert} />}
         {tab === "messages" && <Thread token={token} tenantId={tenant.id} team={false} />}
         {tab === "notes" && <Notes token={token} tenantId={tenant.id} team={false} />}

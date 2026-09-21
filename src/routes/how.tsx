@@ -60,7 +60,7 @@ export function HowPage() {
 
         <Reveal className="mt-16">
           <p className="text-[13px] font-medium text-muted">Where you log in</p>
-          <h2 className="mt-3 max-w-2xl text-3xl font-semibold tracking-tight">Five doors. Not one ambiguous Admin.</h2>
+          <h2 className="mt-3 max-w-2xl text-3xl font-semibold tracking-tight">Five doors. Not one ambiguous Administrator.</h2>
           <p className="mt-3 max-w-xl text-sm text-muted">
             This website, your account, your desk, customer glass, and our staff office. Administrator is a seat on your desk — the Forecourt team uses a separate door.
           </p>

@@ -63,10 +63,12 @@ export function OrderBuild({
   token,
   tenantId,
   team,
+  onInviteStaff,
 }: {
   token: string;
   tenantId: number;
   team: boolean;
+  onInviteStaff?: () => void;
 }) {
   const [build, setBuild] = useState<Build | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -98,9 +100,7 @@ export function OrderBuild({
         <GoLiveChecklist
           pack={build.pack}
           stage={build.stage}
-          onInviteStaff={() => {
-            /* People tab lives on the portal — dealer uses Support if they need a hand. */
-          }}
+          onInviteStaff={onInviteStaff}
         />
       ) : null}
             <StageRail
