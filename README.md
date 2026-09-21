@@ -74,6 +74,7 @@ Near the Token chip, staff see two lines of matching `process.env` **key names**
 What to look for after deploy:
 
 - **Token configured (green) + `route:` lists `GH_TEMPLATE_TOKEN` or `GROK_GH_TEMPLATE_TOKEN`** → fixed; Send to build should work.
+- **Token configured with source `runtimeConfig`** → Nitro saw the secret via runtimeConfig (process.env may still look empty); Send to build should work.
 - **Token missing + `route:` has `VERCEL_*` but not GH keys** → secret still not on this project/env; check Vercel project that serves Production.
 - **`route:` has GH keys but `serverFn:` does not** → confirms createServerFn empty-bag hypothesis; chip/scaffold correctly use the route path.
 - **Both `(none matching)`** → env not reaching serverless at all (wrong project / Preview vs Production-only).
