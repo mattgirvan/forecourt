@@ -46,12 +46,12 @@ Do not paste manufacturer logos unless they have given you the file they are all
 
 ## 3. Seats — do not invent roles
 
-Aberdeen already runs two: **sales** (own book) and **management** (the floor). That is the **60-day site trial**.
+**Trial** (Matt + Atlas): **sales**, **management**, **host**, **progressor**. Not admin or accounts.
 
 | Package | Seats in the box |
 |---|---|
-| Site trial | sales, management |
-| Site (subscribed) / Franchise | + host, progressor, admin, accounts |
+| Site trial | sales, management, host, progressor |
+| Site (subscribed) / Franchise | + admin, accounts |
 | Group | + principal. Every seat scoped to `site` and optional `franchise` |
 
 A showroom host is `host`. A vehicle progressor is `progressor`. Accounts get GP read, not the customer thread. Job title is `name`. Role is one of seven.

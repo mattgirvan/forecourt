@@ -43,7 +43,7 @@ Three platforms. **Rooftop is not a word we use** — it is site, franchise, or 
 
 The 60-day trial is **site only**. Franchise and group are a build. We do not stand those up on a maybe.
 
-Site trial = sales + management. Subscribed site / franchise = extra seats (host, progressor, admin, accounts). Group adds principal.
+Site trial = sales, management, host, progressor. Subscribed site / franchise = + admin, accounts. Group adds principal.
 
 Stripe: one-off payment for the site trial; subscription checkout (setup + recurring) for everything else. Convert a trial by paying remaining setup (£3,000) + £399/month.
 
