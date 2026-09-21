@@ -51,6 +51,16 @@ Webhook: `POST /api/stripe/webhook`. Needs `STRIPE_WEBHOOK_SECRET` and `SUPABASE
 
 Billing columns: paste [`supabase/billing.sql`](./supabase/billing.sql) into the Forecourt Supabase SQL editor.
 
+## Secrets (Vercel / server)
+
+| Secret | Required for | Notes |
+|---|---|---|
+| `STRIPE_WEBHOOK_SECRET` | Stripe webhook | Fail-closed without it |
+| `SUPABASE_SERVICE_ROLE_KEY` | Webhook + admin | Control-plane Supabase only |
+| `GH_TEMPLATE_TOKEN` | **Send to build** (Phase 1) | Fine-grained or classic PAT that can **create private repos from template** `mattgirvan/forecourt-desk`, read the template, and **Contents: write** on `desk-*` repos under `mattgirvan`. Aliases accepted: `GITHUB_TEMPLATE_TOKEN`, `FORECOURT_GH_TEMPLATE_TOKEN`. **Fail-closed** if missing — Office will not leave an orphan queued job. |
+
+Phase 1 does **not** create Supabase or Vercel projects. Those stay manual.
+
 ## Stack
 
 Marketing: TanStack Start, Supabase, Stripe.  
