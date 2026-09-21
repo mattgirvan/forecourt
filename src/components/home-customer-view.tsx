@@ -6,6 +6,7 @@ import { Reveal } from "@/components/reveal";
 import { Button } from "@/components/ui/button";
 import { BRANDS, customerViewSearch } from "@/lib/brands";
 import { useDemo } from "@/lib/demo-store";
+import { SHOWCASE_CUSTOMER_STAGES, SHOWCASE_CUSTOMER_STAGE_INDEX } from "@/lib/demo-data";
 import { cn } from "@/lib/utils";
 
 const highlights = [
@@ -111,7 +112,11 @@ export function HomeCustomerView({
 
           <Reveal delay={100} className="flex justify-center lg:justify-end">
             <PhoneFrame accent={brand.accent} glow={brand.glow}>
-              <CustomerPane hideStaffBar />
+              <CustomerPane
+              hideStaffBar
+              stagesOverride={SHOWCASE_CUSTOMER_STAGES}
+              stageIndexOverride={SHOWCASE_CUSTOMER_STAGE_INDEX}
+            />
             </PhoneFrame>
           </Reveal>
         </div>

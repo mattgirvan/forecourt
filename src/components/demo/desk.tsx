@@ -304,7 +304,16 @@ function MessageThread({
   );
 }
 
-export function CustomerPane({ hideStaffBar = false }: { hideStaffBar?: boolean } = {}) {
+export function CustomerPane({
+  hideStaffBar = false,
+  stagesOverride,
+  stageIndexOverride,
+}: {
+  hideStaffBar?: boolean;
+  /** Homepage / social: compact ≤5-stage rail that fits the phone bezel. */
+  stagesOverride?: readonly string[];
+  stageIndexOverride?: number;
+} = {}) {
   const deals = useDemo((s) => s.deals);
   const selectedDealId = useDemo((s) => s.selectedDealId);
   const pickDeal = useDemo((s) => s.pickDeal);
@@ -317,7 +326,8 @@ export function CustomerPane({ hideStaffBar = false }: { hideStaffBar?: boolean 
   const [showProducts, setShowProducts] = useState(false);
   if (!deal) return null;
 
-  const stages = getStages(deal.customerType, deal.type);
+  const stages = stagesOverride ?? getStages(deal.customerType, deal.type);
+  const stageIndex = stageIndexOverride ?? deal.stageIndex;
   const keys = checklistKeysFor(deal);
   const doneCount = keys.filter((k) => deal.checklistState[k]).length;
   const pct = keys.length ? Math.round((doneCount / keys.length) * 100) : 0;
@@ -492,7 +502,7 @@ export function CustomerPane({ hideStaffBar = false }: { hideStaffBar?: boolean 
 
       <div className="shell-glass mb-5 rounded-[24px] p-5">
         <div className="mb-3.5 text-[13px] font-semibold">Order Progress</div>
-        <ProgressRail stages={stages} stageIndex={deal.stageIndex} />
+        <ProgressRail stages={stages} stageIndex={stageIndex} />
       </div>
 
       {(deal.customerType === "Finance" || deal.customerType === "Lease") && (

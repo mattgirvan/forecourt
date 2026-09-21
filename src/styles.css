@@ -477,13 +477,17 @@
   position: relative;
   width: 100%;
   max-width: 100%;
-  overflow-x: hidden;
+  overflow-x: auto;
   overflow-y: hidden;
   padding: 8px 0 4px;
-  scrollbar-width: none;
+  scrollbar-width: thin;
 }
 .rail-scroll::-webkit-scrollbar {
-  display: none;
+  height: 4px;
+}
+.rail-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.22);
+  border-radius: 999px;
 }
 .progress-rail,
 .locator-rail {
@@ -791,18 +795,44 @@
   line-height: 1.25 !important;
 }
 .customer-phone-scroll .rail-scroll {
-  overflow-x: hidden !important;
+  overflow-x: hidden !important; /* phone-only: no x-scroll; showcase ≤5 stages must fit */
+  scrollbar-width: none;
+}
+.customer-phone-scroll .rail-scroll::-webkit-scrollbar {
+  display: none;
 }
 .customer-phone-scroll .now-pill,
 .customer-phone-scroll .arrived-pill {
   font-size: 10px;
-  padding: 0 8px;
-  height: 36px;
+  padding: 0 7px;
+  height: 34px;
+  max-width: 100%;
 }
 .customer-phone-scroll .rail-mark {
   height: 42px;
 }
+.customer-phone-scroll .stage-disc {
+  width: 22px;
+  height: 22px;
+}
+.customer-phone-scroll .stage-disc svg {
+  width: 11px;
+  height: 11px;
+}
 .customer-phone-scroll .progress-node.is-current,
 .customer-phone-scroll .locator-node.is-current {
-  max-width: 44%;
+  flex: 1.1 1 0;
+  max-width: 30%;
+}
+.customer-phone-scroll .progress-rail,
+.customer-phone-scroll .locator-rail {
+  padding: 6px 2px 0;
+}
+.customer-phone-scroll .progress-track,
+.customer-phone-scroll .locator-track {
+  left: 6px;
+  right: 6px;
+}
+.customer-phone-scroll .rail-label {
+  font-size: 8.5px;
 }

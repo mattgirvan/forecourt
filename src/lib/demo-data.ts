@@ -85,6 +85,18 @@ export function getStages(customerType: CustomerType, carType: CarType): readonl
   return STAGE_SETS[`${carType}-${customerType}` as keyof typeof STAGE_SETS] ?? STAGE_SETS["New-Cash"];
 }
 
+/** Homepage phone + social OG only: ≤5 honest Used/Cash nodes so discs fit ~300px bezel. */
+export const SHOWCASE_CUSTOMER_STAGES = [
+  "Order Confirmed",
+  "Car Prepped",
+  "Car Ready",
+  "Handover Arranged",
+  "Delivered",
+] as const;
+
+/** Current mark on Car Ready — mirrors sample ORD-1048 mid-journey. */
+export const SHOWCASE_CUSTOMER_STAGE_INDEX = 2;
+
 export const pipelineStages = STAGE_SETS["New-Finance"];
 
 export const SITE_STATUS_OPTIONS = [
