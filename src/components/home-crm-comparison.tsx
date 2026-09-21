@@ -62,25 +62,28 @@ export function HomeCrmComparison() {
           </p>
         </Reveal>
 
-        {/* Desktop / tablet: three-column table */}
-        <Reveal delay={80} className="mt-12 hidden md:block">
+        {/* Comparison table — same on mobile and desktop; scroll horizontally if needed */}
+        <Reveal delay={80} className="mt-12">
           <div className="overflow-hidden rounded-[1.75rem] border border-line bg-surface shadow-soft">
             <div className="max-h-[min(70vh,36rem)] overflow-auto">
-              <table className="w-full border-collapse text-left">
+              <table className="w-full min-w-[32rem] border-collapse text-left">
                 <thead className="sticky top-0 z-10">
                   <tr className="border-b border-line bg-elevated">
-                    <th scope="col" className="px-6 py-4 text-[13px] font-medium text-muted">
+                    <th
+                      scope="col"
+                      className="px-4 py-4 text-[13px] font-medium text-muted sm:px-6"
+                    >
                       Feature
                     </th>
                     <th
                       scope="col"
-                      className="px-4 py-4 text-center text-[13px] font-medium text-muted"
+                      className="px-3 py-4 text-center text-[13px] font-medium text-muted sm:px-4"
                     >
                       CRM alone
                     </th>
                     <th
                       scope="col"
-                      className="px-4 py-4 text-center text-[13px] font-semibold text-[#0a0b0a]"
+                      className="px-3 py-4 text-center text-[13px] font-semibold text-[#0a0b0a] sm:px-4"
                       style={{ backgroundColor: "#D9A24B" }}
                     >
                       + Forecourt
@@ -98,16 +101,16 @@ export function HomeCrmComparison() {
                     >
                       <th
                         scope="row"
-                        className="px-6 py-[15px] text-[15px] font-medium text-fg"
+                        className="px-4 py-[15px] text-[14px] font-medium text-fg sm:px-6 sm:text-[15px]"
                       >
                         {row.feature}
                       </th>
-                      <td className="px-4 py-[15px] text-center">
+                      <td className="px-3 py-[15px] text-center sm:px-4">
                         <span className="inline-flex justify-center">
                           <Mark ok={row.crm} label="CRM alone" />
                         </span>
                       </td>
-                      <td className="px-4 py-[15px] text-center">
+                      <td className="px-3 py-[15px] text-center sm:px-4">
                         <span className="inline-flex justify-center">
                           <Mark ok={row.forecourt} label="+ Forecourt" />
                         </span>
@@ -118,40 +121,6 @@ export function HomeCrmComparison() {
               </table>
             </div>
           </div>
-        </Reveal>
-
-        {/* Mobile: card stack */}
-        <Reveal delay={80} className="mt-10 space-y-3 md:hidden">
-          <div className="flex items-center justify-center gap-4 text-[12px] font-medium text-muted">
-            <span className="inline-flex items-center gap-1.5">
-              <span className="size-2 rounded-full bg-muted" aria-hidden />
-              CRM alone
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <span className="size-2 rounded-full bg-[#D9A24B]" aria-hidden />
-              + Forecourt
-            </span>
-          </div>
-          {ROWS.map((row) => (
-            <article
-              key={row.feature}
-              className="rounded-2xl border border-line bg-surface px-5 py-4"
-            >
-              <h3 className="text-[15px] font-semibold tracking-tight text-fg">
-                {row.feature}
-              </h3>
-              <div className="mt-3 flex items-center justify-between gap-4">
-                <div className="flex items-center gap-2 text-[13px] text-muted">
-                  <span>CRM alone</span>
-                  <Mark ok={row.crm} label="CRM alone" />
-                </div>
-                <div className="flex items-center gap-2 text-[13px] text-muted">
-                  <span className="font-medium text-[#D9A24B]">+ Forecourt</span>
-                  <Mark ok={row.forecourt} label="+ Forecourt" />
-                </div>
-              </div>
-            </article>
-          ))}
         </Reveal>
 
         <Reveal delay={140} className="mt-10 text-center">
