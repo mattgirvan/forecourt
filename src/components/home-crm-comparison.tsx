@@ -29,7 +29,7 @@ function Mark({ ok, label }: { ok: boolean; label: string }) {
   return (
     <span
       className={cn(
-        "inline-flex size-7 shrink-0 items-center justify-center rounded-full text-[13px] font-semibold leading-none",
+        "inline-flex size-6 shrink-0 items-center justify-center rounded-full text-[12px] font-semibold leading-none sm:size-7 sm:text-[13px]",
         ok ? "bg-ok/25 text-ok" : "bg-bad/25 text-bad",
       )}
       aria-label={`${label}: ${ok ? "yes" : "no"}`}
@@ -62,31 +62,38 @@ export function HomeCrmComparison() {
           </p>
         </Reveal>
 
-        {/* Comparison table — same on mobile and desktop; scroll horizontally if needed */}
+        {/* Comparison table — fits one phone viewport; marks fixed-narrow, feature takes rest */}
         <Reveal delay={80} className="mt-12">
           <div className="overflow-hidden rounded-[1.75rem] border border-line bg-surface shadow-soft">
-            <div className="max-h-[min(70vh,36rem)] overflow-auto">
-              <table className="w-full min-w-[32rem] border-collapse text-left">
+            <div className="max-h-[min(70vh,36rem)] overflow-y-auto overflow-x-hidden">
+              <table className="w-full table-fixed border-collapse text-left">
+                <colgroup>
+                  <col />
+                  <col className="w-[3.25rem] sm:w-[6.75rem]" />
+                  <col className="w-[3.5rem] sm:w-[7.5rem]" />
+                </colgroup>
                 <thead className="sticky top-0 z-10">
                   <tr className="border-b border-line bg-elevated">
                     <th
                       scope="col"
-                      className="px-4 py-4 text-[13px] font-medium text-muted sm:px-6"
+                      className="px-2.5 py-3 text-[12px] font-medium text-muted sm:px-6 sm:py-4 sm:text-[13px]"
                     >
                       Feature
                     </th>
                     <th
                       scope="col"
-                      className="px-3 py-4 text-center text-[13px] font-medium text-muted sm:px-4"
+                      className="px-1 py-3 text-center text-[11px] font-medium leading-tight text-muted sm:px-4 sm:py-4 sm:text-[13px]"
                     >
-                      CRM alone
+                      <span className="sm:hidden">CRM</span>
+                      <span className="hidden sm:inline">CRM alone</span>
                     </th>
                     <th
                       scope="col"
-                      className="px-3 py-4 text-center text-[13px] font-semibold text-[#0a0b0a] sm:px-4"
+                      className="px-1 py-3 text-center text-[11px] font-semibold leading-tight text-[#0a0b0a] sm:px-4 sm:py-4 sm:text-[13px]"
                       style={{ backgroundColor: "#D9A24B" }}
                     >
-                      + Forecourt
+                      <span className="sm:hidden">+ FC</span>
+                      <span className="hidden sm:inline">+ Forecourt</span>
                     </th>
                   </tr>
                 </thead>
@@ -101,16 +108,16 @@ export function HomeCrmComparison() {
                     >
                       <th
                         scope="row"
-                        className="px-4 py-[15px] text-[14px] font-medium text-fg sm:px-6 sm:text-[15px]"
+                        className="px-2.5 py-2.5 text-left text-[12.5px] font-medium leading-snug text-fg sm:px-6 sm:py-[15px] sm:text-[15px]"
                       >
                         {row.feature}
                       </th>
-                      <td className="px-3 py-[15px] text-center sm:px-4">
+                      <td className="px-1 py-2.5 text-center sm:px-4 sm:py-[15px]">
                         <span className="inline-flex justify-center">
                           <Mark ok={row.crm} label="CRM alone" />
                         </span>
                       </td>
-                      <td className="px-3 py-[15px] text-center sm:px-4">
+                      <td className="px-1 py-2.5 text-center sm:px-4 sm:py-[15px]">
                         <span className="inline-flex justify-center">
                           <Mark ok={row.forecourt} label="+ Forecourt" />
                         </span>
