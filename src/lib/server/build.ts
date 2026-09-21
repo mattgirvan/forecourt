@@ -5,10 +5,12 @@ import {
   buildBriefMarkdown,
   isBuildStage,
   packFromTenant,
+  packGaps,
   tenantJson,
   type BuildStage,
   type TenantPack,
 } from "@/lib/build";
+import { normalizeBilling, normalizePlan } from "@/lib/catalog";
 import { env } from "@/lib/env.server";
 import { SUPABASE_ANON, SUPABASE_URL } from "@/lib/sb";
 import { looksLikeTeam } from "@/lib/team";
@@ -231,6 +233,16 @@ export const sendToBuild = createServerFn({ method: "POST" })
       .maybeSingle();
     if (error || !t) throw new Error("No order.");
     const pack = packFromTenant(t);
+    const plan = normalizePlan(t.plan);
+    const billing = normalizeBilling(plan, t.billing);
+    const gaps = packGaps(pack, plan, billing);
+    if (gaps.length) {
+      throw new Error(
+        gaps.length === 1
+          ? gaps[0]!
+          : "Add a web address and at least one staff seat before we can build.",
+      );
+    }
     const brief = buildBriefMarkdown(pack, {
       plan: String(t.plan),
       billing: String(t.billing),
