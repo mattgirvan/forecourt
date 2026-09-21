@@ -2,6 +2,7 @@
  * Phase 1 desk scaffold: create desk-<slug> from mattgirvan/forecourt-desk
  * and write the locked tenant.json. No Supabase / Vercel yet.
  */
+import { createRequire } from "node:module";
 import nodeProcess from "node:process";
 import { tenantJson, type TenantPack } from "@/lib/build";
 
@@ -40,7 +41,7 @@ export type ScaffoldResult = {
   logoWritten: boolean;
 };
 
-export type GhTokenSource = "env" | "supabase" | "none";
+export type GhTokenSource = "env" | "runtimeConfig" | "supabase" | "none";
 
 type GhFile = { sha: string; content?: string };
 
@@ -84,6 +85,36 @@ function readGhTokenFromProcessEnv(): string | undefined {
 }
 
 /**
+ * Nitro runtimeConfig mirror of the same secrets (vite.config runtimeConfig +
+ * envPrefix ""). On some Vercel Vite+Nitro deploys the secret lands here even
+ * when process.env looks empty to the route handler.
+ */
+function readGhTokenFromRuntimeConfig(): string | undefined {
+  try {
+    // Nitro fills these from Vercel env when vite.config sets runtimeConfig + envPrefix "".
+    // createRequire keeps this sync-safe from the ESM server bundle.
+    const req = createRequire(import.meta.url);
+    const { useRuntimeConfig } = req("nitro/runtime-config") as {
+      useRuntimeConfig: () => Record<string, unknown>;
+    };
+    const rc = useRuntimeConfig() ?? {};
+    const asString = (v: unknown) => (typeof v === "string" ? v : undefined);
+    return firstNonEmpty(
+      asString(rc.ghTemplateToken),
+      asString(rc.githubTemplateToken),
+      asString(rc.forecourtGhTemplateToken),
+      asString(rc.grokGhTemplateToken),
+      // Raw env-style keys sometimes appear when envPrefix is "".
+      asString(rc.GH_TEMPLATE_TOKEN),
+      asString(rc.GROK_GH_TEMPLATE_TOKEN),
+      asString(rc.NITRO_GH_TEMPLATE_TOKEN),
+    );
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * Optional fail-closed fallback: service-role read of control-plane app_settings.
  * Only used when process.env / Nitro do not expose the PAT. Never returns a
  * value if the service role key is missing or the row is empty.
@@ -114,12 +145,14 @@ async function readGhTokenFromSupabase(): Promise<string | undefined> {
 
 /**
  * Read the GitHub template token at request time.
- * Order: process.env (static+dynamic aliases, incl. NITRO_) → (async) Supabase app_settings.
+ * Order: process.env → Nitro runtimeConfig → (async) Supabase app_settings.
  * Never log or echo the secret to the client.
  */
 function readGhTokenSync(): { token?: string; source: GhTokenSource } {
   const fromEnv = readGhTokenFromProcessEnv();
   if (fromEnv) return { token: fromEnv, source: "env" };
+  const fromRc = readGhTokenFromRuntimeConfig();
+  if (fromRc) return { token: fromRc, source: "runtimeConfig" };
   return { source: "none" };
 }
 
