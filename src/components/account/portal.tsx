@@ -168,7 +168,7 @@ function Overview({
         <div className="text-[13px] text-muted">On the desk</div>
         <h2 className="mt-2 text-3xl font-semibold tracking-tight">Seats</h2>
         <p className="mt-2 text-sm text-muted">
-          {tenant.domain || "Your web address is set when we go live."} Administrator is a desk seat — not the Forecourt team.
+          {tenant.domain || "Your web address is set when we go live."} Administrator is a desk seat, not the Forecourt team.
         </p>
         <div className="mt-6">
           <SeatMatrix plan={plan} billing={billing} compact />
@@ -293,7 +293,7 @@ export function Thread({ token, tenantId, team }: { token: string; tenantId: num
     <div className="rounded-[1.75rem] border border-line bg-surface p-6 sm:p-8">
       <h2 className="text-2xl font-semibold tracking-tight">{team ? "Conversation" : "Message the team"}</h2>
       <p className="mt-2 text-sm text-muted">
-        {team ? "They see this on their account." : "Forecourt sees this in the office. Not a public ticket system — just us."}
+        {team ? "They see this on their account." : "Forecourt sees this in the office. Not a public ticket system, just us."}
       </p>
       {err && <p className="mt-3 text-sm text-muted">{err}</p>}
       <ol className="mt-6 max-h-[28rem] space-y-3 overflow-y-auto">
@@ -372,7 +372,7 @@ export function Notes({
       <p className="mt-2 text-sm text-muted">
         {team
           ? "Internal notes stay on this file. Customer notes they can also see."
-          : "Things we should know — site quirks, who signs off, when you want to go live."}
+          : "Things we should know: site quirks, who signs off, when you want to go live."}
       </p>
       {err && <p className="mt-3 text-sm text-muted">{err}</p>}
       <ul className="mt-6 space-y-3">

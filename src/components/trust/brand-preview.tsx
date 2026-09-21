@@ -1,7 +1,7 @@
 import { brandOptions, type TenantPack } from "@/lib/build";
 import { cn } from "@/lib/utils";
 
-const OEM_NOTE = "Colours for preview only — not affiliated with the manufacturer.";
+const OEM_NOTE = "Colours for preview only, not affiliated with the manufacturer.";
 
 /** Dark desk chrome mock: accent pill + wordmark/letter + URL chip. */
 export function BrandPackPreview({
@@ -25,7 +25,7 @@ export function BrandPackPreview({
       <div>
         <h3 className="text-xl font-semibold tracking-tight">Brand pack preview</h3>
         <p className="mt-1 text-sm text-muted">
-          How the desk chrome will feel with your colours — still Forecourt glass, with your name on it.
+          How the desk chrome will feel with your colours: still Forecourt glass, with your name on it.
         </p>
       </div>
 
@@ -109,7 +109,7 @@ export function BrandPackPreview({
 
       <p className="text-[11px] leading-relaxed text-subtle">{OEM_NOTE}</p>
       <p className="text-xs text-muted">
-        Logo: {pack.brief.logoReady ? "Marked ready (or group mark)." : "Still needed — SVG or PNG."}
+        Logo: {pack.brief.logoReady ? "Marked ready (or group mark)." : "Still needed: SVG or PNG."}
       </p>
     </div>
   );

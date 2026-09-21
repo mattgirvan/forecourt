@@ -9,7 +9,7 @@ import {
 import { cn } from "@/lib/utils";
 
 /**
- * Your desk — five honest ticks. Done only when we have a real signal;
+ * Your desk: five honest ticks. Done only when we have a real signal;
  * staff / stock / customer stay upcoming until provision fields exist.
  */
 export function GoLiveChecklist({
@@ -30,7 +30,7 @@ export function GoLiveChecklist({
       <p className="text-[13px] font-medium text-muted">After you pay</p>
       <h3 className="mt-1 text-2xl font-semibold tracking-tight">Your desk</h3>
       <p className="mt-2 max-w-xl text-sm text-muted">
-        Five steps to go live. We email you as each one moves — no ticket numbers.
+        Five steps to go live. We email you as each one moves. No ticket numbers.
       </p>
 
       <ol className="mt-6 space-y-2">
@@ -65,9 +65,9 @@ export function GoLiveChecklist({
                     if (step.id === "domain") setShowDns((v) => !v);
                     else if (step.id === "staff") onInviteStaff?.();
                     else if (step.id === "stock")
-                      setTip("Upload an Excel or CSV with a VIN column — same sheet your stock team already keeps.");
+                      setTip("Upload an Excel or CSV with a VIN column (same sheet your stock team already keeps).");
                     else if (step.id === "customer")
-                      setTip("From the desk, open a deal and send customer glass — they get a magic link for that order only.");
+                      setTip("From the desk, open a deal and send customer glass. They get a magic link for that order only.");
                   }}
                 >
                   {step.cta}

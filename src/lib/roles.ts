@@ -5,7 +5,7 @@ import type { BillingKind, PlanId } from "./catalog";
  * A showroom host is not a new product. An accountant is not a finance suite.
  * Map their title onto one of these, then scope it to a site / franchise.
  *
- * Matrix columns (Pricing + Account) read from this file only — do not fork labels elsewhere.
+ * Matrix columns (Pricing + Account) read from this file only; do not fork labels elsewhere.
  */
 export const ROLES = [
   {
@@ -129,7 +129,7 @@ export const ROLE_RULES = [
   "A job title is a label. The role is the seat. Host, receptionist, greeter → host.",
   "Accountant does not get a finance product. They get GP read and a CSV.",
   "Progressor is the locator tab with stock. Not a second app.",
-  "Say Administrator seat (inside the desk) — never bare Admin. Forecourt team is a separate staff door.",
+  "Say Administrator seat (inside the desk), never bare Admin. Forecourt team is a separate staff door.",
   "Franchise is one manufacturer brand on a 12-month contract. No trial.",
   "Multi-franchise is Group: one contract, seats scoped to site and franchise.",
   "Do not let a client invent roles. If it is not in this list, it is a title on an existing seat.",

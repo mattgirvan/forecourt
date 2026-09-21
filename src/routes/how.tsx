@@ -25,7 +25,7 @@ const ORDER_PREVIEW: Record<string, boolean> = {
 const FLOOR = [
   {
     title: "Office / administrator seat",
-    line: "Knows what’s going out — without chasing the floor.",
+    line: "Knows what’s going out without chasing the floor.",
   },
   {
     title: "Progressor",
@@ -50,7 +50,7 @@ export function HowPage() {
             You pick a package. We put your name on it. You go live.
           </h1>
           <p className="mx-auto mt-4 max-w-lg text-base text-muted">
-            Built on a showroom floor, by someone who still works one. The gaps this fills are the ones we actually hit — not a consultant’s list.
+            Built on a showroom floor, by someone who still works one. The gaps this fills are the ones we actually hit, not a consultant’s list.
           </p>
           <p className="mx-auto mt-3 max-w-lg text-sm text-muted">
             It ties into the stock system you already run. We don’t replace DealerWeb or the DMS.
@@ -62,7 +62,7 @@ export function HowPage() {
           <p className="text-[13px] font-medium text-muted">Where you log in</p>
           <h2 className="mt-3 max-w-2xl text-3xl font-semibold tracking-tight">Five doors. Not one ambiguous Administrator.</h2>
           <p className="mt-3 max-w-xl text-sm text-muted">
-            This website, your account, your desk, customer glass, and our staff office. Administrator is a seat on your desk — the Forecourt team uses a separate door.
+            This website, your account, your desk, customer glass, and our staff office. Administrator is a seat on your desk. The Forecourt team uses a separate door.
           </p>
           <div className="mt-8">
             <DoorsMap />
@@ -116,7 +116,7 @@ export function HowPage() {
                         })}
                       </div>
                       <p className="max-w-sm text-sm text-muted">
-                        On the order you switch these. Some on, some off — wired to how you actually work, not a default we copied from someone else.
+                        On the order you switch these. Some on, some off, wired to how you actually work, not a default we copied from someone else.
                       </p>
                     </div>
                   )}
@@ -149,7 +149,7 @@ export function HowPage() {
                   {p.id === "ship" && (
                     <p className="text-sm leading-relaxed text-muted">
                       Your own web address. Staff get a code to sign in. Then you’re live. Monthly
-                      billing starts here for a subscription — not at the first conversation.
+                      billing starts here for a subscription, not at the first conversation.
                     </p>
                   )}
                 </div>

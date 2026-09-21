@@ -26,7 +26,7 @@ function TrustPage() {
           <Section title="One rooftop, one database">
             <p>
               Your live desk and stock sit in their own Supabase project. We do not share the John Clark
-              Aberdeen database — or any other dealer&apos;s — with you or with anyone else.
+              Aberdeen database (or any other dealer&apos;s) with you or with anyone else.
             </p>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               <div className="rounded-2xl border border-line bg-elevated/50 px-4 py-3 text-sm">
@@ -43,7 +43,7 @@ function TrustPage() {
           <Section title="Staff only see what their seat allows">
             <p>
               Seats are few on purpose. A showroom host is not an Administrator seat. The Forecourt team
-              uses a separate staff door — not a seat inside your desk.{" "}
+              uses a separate staff door, not a seat inside your desk.{" "}
               <Link to="/pricing" className="underline-offset-4 hover:underline">
                 See who sees what on Pricing
               </Link>
@@ -56,7 +56,7 @@ function TrustPage() {
 
           <Section title="Customer glass is invitation-only">
             <p>
-              Buyers get a magic link. They only see their own order — not your stock book, not someone
+              Buyers get a magic link. They only see their own order, not your stock book, not someone
               else&apos;s deal.
             </p>
           </Section>

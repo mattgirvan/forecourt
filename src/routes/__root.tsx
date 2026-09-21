@@ -14,7 +14,7 @@ export const Route = createRootRoute({
       {
         name: "description",
         content:
-          "Forecourt is the screen on the sales desk: stock, deals, and where every car is — in your dealership’s colours.",
+          "Forecourt is the screen on the sales desk: stock, deals, and where every car is, in your dealership’s colours.",
       },
       { name: "theme-color", content: "#0A0B0A" },
       { name: "apple-mobile-web-app-capable", content: "yes" },

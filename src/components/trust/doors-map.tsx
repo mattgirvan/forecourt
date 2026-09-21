@@ -26,7 +26,7 @@ export const DOORS = [
   {
     id: "glass",
     title: "Customer glass",
-    line: "\"Where's my car?\" — buyers only see their own order.",
+    line: "\"Where's my car?\" Buyers only see their own order.",
     for: "Invited customers.",
     href: null,
   },
@@ -75,7 +75,7 @@ export function DoorsMap({
         })}
       </div>
       <p className="text-xs leading-relaxed text-subtle">
-        Forecourt team uses a separate staff door (the office). That is not an Administrator seat — Administrator is a seat inside your desk.
+        Forecourt team uses a separate staff door (the office). That is not an Administrator seat. Administrator is a seat inside your desk.
       </p>
     </div>
   );

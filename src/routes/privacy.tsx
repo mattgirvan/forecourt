@@ -35,7 +35,7 @@ function PrivacyPage() {
 
         <h2>The demo</h2>
         <p>
-          The clickable demo is fiction — invented names, regs, and VINs — so you can see the desk. It is
+          The clickable demo is fiction (invented names, regs, and VINs) so you can see the desk. It is
           not live stock and it is not affiliated with the manufacturer whose colours you pick.
         </p>
 
@@ -47,10 +47,10 @@ function PrivacyPage() {
 
         <h2>Who else sees it</h2>
         <ul>
-          <li>Stripe — payments.</li>
-          <li>Supabase — the account database, in a project we control.</li>
-          <li>Vercel — hosting.</li>
-          <li>Resend / our mailbox — sign-in codes and mail from hello@forecourt.me.</li>
+          <li>Stripe: payments.</li>
+          <li>Supabase: the account database, in a project we control.</li>
+          <li>Vercel: hosting.</li>
+          <li>Resend / our mailbox: sign-in codes and mail from hello@forecourt.me.</li>
         </ul>
         <p>A live desk is a separate database. Other dealers cannot read it. We do not put your book on a shared server with someone else.</p>
 

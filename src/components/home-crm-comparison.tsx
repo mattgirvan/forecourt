@@ -8,7 +8,7 @@ type Row = {
   forecourt: boolean;
 };
 
-/** Locked 13-row CRM vs + Forecourt comparison — do not reorder or drop. */
+/** Locked 13-row CRM vs + Forecourt comparison; do not reorder or drop. */
 const ROWS: readonly Row[] = [
   { feature: "The stock book", crm: true, forecourt: true },
   { feature: "Detailed stock book", crm: false, forecourt: true },
@@ -62,7 +62,7 @@ export function HomeCrmComparison() {
           </p>
         </Reveal>
 
-        {/* Comparison table — fits one phone viewport; marks fixed-narrow, feature takes rest */}
+        {/* Comparison table: fits one phone viewport; marks fixed-narrow, feature takes rest */}
         <Reveal delay={80} className="mt-12">
           <div className="overflow-hidden rounded-[1.75rem] border border-line bg-surface shadow-soft">
             <div className="max-h-[min(70vh,36rem)] overflow-y-auto overflow-x-hidden">
@@ -132,7 +132,7 @@ export function HomeCrmComparison() {
 
         <Reveal delay={140} className="mt-10 text-center">
           <p className="text-[13px] font-medium text-muted">
-            Beside your CRM — not instead of it.
+            Beside your CRM, not instead of it.
           </p>
           <a
             href="#try"
