@@ -5,31 +5,33 @@ import { PreviewHostBridge } from "@/components/preview-host-bridge";
 import { SITE } from "@/lib/site";
 import appCss from "../styles.css?url";
 
+const DEFAULT_TITLE = "Dealership floor OS beside your CRM | Forecourt";
+const DEFAULT_DESCRIPTION =
+  "Your CRM keeps the book. Forecourt keeps the floor moving: keys, photo status, where the car is, and customer live track. Beside your CRM, not instead of it.";
+const DEFAULT_OG_DESCRIPTION =
+  "Beside your CRM, not instead of it. Keys, photo status, car location, and customer live track on the sales desk.";
+
 export const Route = createRootRoute({
   head: () => ({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: SITE.name },
-      {
-        name: "description",
-        content:
-          "Forecourt is the screen on the sales desk: stock, deals, and where every car is, in your dealership’s colours.",
-      },
+      { title: DEFAULT_TITLE },
+      { name: "description", content: DEFAULT_DESCRIPTION },
       { name: "theme-color", content: "#0A0B0A" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-title", content: SITE.name },
       { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
       { name: "mobile-web-app-capable", content: "yes" },
-      { property: "og:title", content: SITE.name },
+      { property: "og:title", content: DEFAULT_TITLE },
       { property: "og:url", content: SITE.url },
-      { property: "og:description", content: "Your dealership. On one screen." },
+      { property: "og:description", content: DEFAULT_OG_DESCRIPTION },
       { property: "og:image", content: `${SITE.url}/og.jpg` },
+      { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:image", content: `${SITE.url}/og.jpg` },
     ],
     links: [
-      { rel: "canonical", href: SITE.url },
       { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
       { rel: "icon", type: "image/png", sizes: "32x32", href: "/favicon-32.png" },
       { rel: "shortcut icon", href: "/favicon.ico" },

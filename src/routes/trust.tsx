@@ -6,8 +6,18 @@ import { Reveal } from "@/components/reveal";
 import { SiteShell } from "@/components/site-shell";
 import { LEGAL } from "@/lib/legal";
 import { SITE } from "@/lib/site";
+import { pageHead } from "@/lib/seo";
 
-export const Route = createFileRoute("/trust")({ component: TrustPage });
+export const Route = createFileRoute("/trust")({
+  component: TrustPage,
+  head: () =>
+    pageHead({
+      title: "Trust and how Forecourt works with your CRM | Forecourt",
+      description:
+        "Built for franchise and group desks. Your stock stays yours. Forecourt sits beside the CRM and DMS you already pay for.",
+      path: "/trust",
+    }),
+});
 
 function TrustPage() {
   return (

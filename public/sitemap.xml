@@ -28,17 +28,27 @@
   <url>
     <loc>https://www.forecourt.me/pilot</loc>
     <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://www.forecourt.me/for/beside-crm</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://www.forecourt.me/for/key-locator</loc>
+    <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://www.forecourt.me/login</loc>
+    <loc>https://www.forecourt.me/for/photo-status</loc>
     <changefreq>monthly</changefreq>
-    <priority>0.6</priority>
+    <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://www.forecourt.me/account</loc>
+    <loc>https://www.forecourt.me/for/customer-live-track</loc>
     <changefreq>monthly</changefreq>
-    <priority>0.5</priority>
+    <priority>0.8</priority>
   </url>
   <url>
     <loc>https://www.forecourt.me/security</loc>

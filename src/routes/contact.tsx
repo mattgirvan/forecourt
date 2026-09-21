@@ -3,19 +3,17 @@ import { ContactForm } from "@/components/contact-form";
 import { Reveal } from "@/components/reveal";
 import { SiteShell } from "@/components/site-shell";
 import { SITE } from "@/lib/site";
+import { pageHead } from "@/lib/seo";
 
 export const Route = createFileRoute("/contact")({
   component: ContactPage,
-  head: () => ({
-    meta: [
-      { title: `Contact · ${SITE.name}` },
-      {
-        name: "description",
-        content:
-          "Ask about a trial, group pricing, or something that does not fit the packaged plans. We reply from hello@forecourt.me.",
-      },
-    ],
-  }),
+  head: () =>
+    pageHead({
+      title: "Contact Forecourt | UK motor trade desks",
+      description:
+        "Ask about a trial, group pricing, or a site that does not fit the standard packages. We reply from hello@forecourt.me.",
+      path: "/contact",
+    }),
 });
 
 function ContactPage() {

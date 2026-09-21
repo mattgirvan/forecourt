@@ -7,8 +7,18 @@ import { PLAN_ORDER, PLANS, gbpPence } from "@/lib/catalog";
 import { DoorsOneLiner } from "@/components/trust/doors-map";
 import { SeatMatrix } from "@/components/trust/seat-matrix";
 import { LEGAL } from "@/lib/legal";
+import { pageHead } from "@/lib/seo";
 
-export const Route = createFileRoute("/pricing")({ component: PricingPage });
+export const Route = createFileRoute("/pricing")({
+  component: PricingPage,
+  head: () =>
+    pageHead({
+      title: "Forecourt pricing for UK dealerships | Forecourt",
+      description:
+        "Site trial, franchise, and group options. One desk that sits beside your CRM for keys, photo status, and customer live track.",
+      path: "/pricing",
+    }),
+});
 
 export function PricingPage() {
   return (

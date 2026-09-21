@@ -1,8 +1,17 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { pageHead } from "@/lib/seo";
 import { SiteShell } from "@/components/site-shell";
 import { LEGAL } from "@/lib/legal";
 
-export const Route = createFileRoute("/dpa")({ component: DpaPage });
+export const Route = createFileRoute("/dpa")({
+  component: DpaPage,
+  head: () =>
+    pageHead({
+      title: "Data processing agreement | Forecourt",
+      description: "How Forecourt processes dealership data as a processor under UK GDPR.",
+      path: "/dpa",
+    }),
+});
 
 function DpaPage() {
   return (

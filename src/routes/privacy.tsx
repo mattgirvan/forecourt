@@ -2,8 +2,17 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { SiteShell } from "@/components/site-shell";
 import { LEGAL } from "@/lib/legal";
 import { SITE } from "@/lib/site";
+import { pageHead } from "@/lib/seo";
 
-export const Route = createFileRoute("/privacy")({ component: PrivacyPage });
+export const Route = createFileRoute("/privacy")({
+  component: PrivacyPage,
+  head: () =>
+    pageHead({
+      title: "Privacy policy | Forecourt",
+      description: "What Forecourt holds, why, and your rights under UK GDPR.",
+      path: "/privacy",
+    }),
+});
 
 function PrivacyPage() {
   return (
