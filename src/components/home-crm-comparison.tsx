@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import { ArrowRight } from "lucide-react";
 import { Reveal } from "@/components/reveal";
 import { cn } from "@/lib/utils";
@@ -132,7 +133,9 @@ export function HomeCrmComparison() {
 
         <Reveal delay={140} className="mt-10 text-center">
           <p className="text-[13px] font-medium text-muted">
-            Beside your CRM, not instead of it.
+            <Link to="/for/beside-crm" className="underline-offset-4 hover:underline">
+              Beside your CRM, not instead of it.
+            </Link>
           </p>
           <a
             href="#try"

@@ -7,9 +7,19 @@ import { SiteShell } from "@/components/site-shell";
 import { Button } from "@/components/ui/button";
 import { FEATURES, INGEST, PROVISION, type IngestId } from "@/lib/catalog";
 import { DoorsMap } from "@/components/trust/doors-map";
+import { pageHead } from "@/lib/seo";
 import { cn } from "@/lib/utils";
 
-export const Route = createFileRoute("/how")({ component: HowPage });
+export const Route = createFileRoute("/how")({
+  component: HowPage,
+  head: () =>
+    pageHead({
+      title: "How Forecourt sits beside your CRM | Forecourt",
+      description:
+        "See how Forecourt plugs into the stock system you already run, puts your name on a desk, and keeps the floor moving without replacing your CRM.",
+      path: "/how",
+    }),
+});
 
 /** Stage 2 is a picture of the order, not a control. Mix of on and off. */
 const ORDER_PREVIEW: Record<string, boolean> = {
@@ -56,6 +66,25 @@ export function HowPage() {
           <p className="mx-auto mt-3 max-w-lg text-sm text-muted">
             It ties into the stock system you already run. We don’t replace DealerWeb or the DMS.
             Site can start on 60 days. Franchise and group start on a 12-month contract.
+          </p>
+          <p className="mx-auto mt-4 max-w-lg text-sm text-muted">
+            Floor gaps we cover:{" "}
+            <Link to="/for/beside-crm" className="text-fg underline-offset-4 hover:underline">
+              beside your CRM
+            </Link>
+            ,{" "}
+            <Link to="/for/key-locator" className="text-fg underline-offset-4 hover:underline">
+              key locator
+            </Link>
+            ,{" "}
+            <Link to="/for/photo-status" className="text-fg underline-offset-4 hover:underline">
+              photo status
+            </Link>
+            ,{" "}
+            <Link to="/for/customer-live-track" className="text-fg underline-offset-4 hover:underline">
+              customer live track
+            </Link>
+            .
           </p>
         </Reveal>
 

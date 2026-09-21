@@ -24,6 +24,10 @@ import { Route as SecurityRouteImport } from './routes/security'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as TrustRouteImport } from './routes/trust'
 import { Route as ApiContactRouteImport } from './routes/api/contact'
+import { Route as ForBesideCrmRouteImport } from './routes/for/beside-crm'
+import { Route as ForCustomerLiveTrackRouteImport } from './routes/for/customer-live-track'
+import { Route as ForKeyLocatorRouteImport } from './routes/for/key-locator'
+import { Route as ForPhotoStatusRouteImport } from './routes/for/photo-status'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as ApiBuildSendRouteImport } from './routes/api/build/send'
 import { Route as ApiBuildTokenStatusRouteImport } from './routes/api/build/token-status'
@@ -104,6 +108,26 @@ const ApiContactRoute = ApiContactRouteImport.update({
   path: '/api/contact',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ForBesideCrmRoute = ForBesideCrmRouteImport.update({
+  id: '/for/beside-crm',
+  path: '/for/beside-crm',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ForCustomerLiveTrackRoute = ForCustomerLiveTrackRouteImport.update({
+  id: '/for/customer-live-track',
+  path: '/for/customer-live-track',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ForKeyLocatorRoute = ForKeyLocatorRouteImport.update({
+  id: '/for/key-locator',
+  path: '/for/key-locator',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ForPhotoStatusRoute = ForPhotoStatusRouteImport.update({
+  id: '/for/photo-status',
+  path: '/for/photo-status',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
@@ -141,6 +165,10 @@ export interface FileRoutesByFullPath {
   '/terms': typeof TermsRoute
   '/trust': typeof TrustRoute
   '/api/contact': typeof ApiContactRoute
+  '/for/beside-crm': typeof ForBesideCrmRoute
+  '/for/customer-live-track': typeof ForCustomerLiveTrackRoute
+  '/for/key-locator': typeof ForKeyLocatorRoute
+  '/for/photo-status': typeof ForPhotoStatusRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/build/send': typeof ApiBuildSendRoute
   '/api/build/token-status': typeof ApiBuildTokenStatusRoute
@@ -162,6 +190,10 @@ export interface FileRoutesByTo {
   '/terms': typeof TermsRoute
   '/trust': typeof TrustRoute
   '/api/contact': typeof ApiContactRoute
+  '/for/beside-crm': typeof ForBesideCrmRoute
+  '/for/customer-live-track': typeof ForCustomerLiveTrackRoute
+  '/for/key-locator': typeof ForKeyLocatorRoute
+  '/for/photo-status': typeof ForPhotoStatusRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/build/send': typeof ApiBuildSendRoute
   '/api/build/token-status': typeof ApiBuildTokenStatusRoute
@@ -184,6 +216,10 @@ export interface FileRoutesById {
   '/terms': typeof TermsRoute
   '/trust': typeof TrustRoute
   '/api/contact': typeof ApiContactRoute
+  '/for/beside-crm': typeof ForBesideCrmRoute
+  '/for/customer-live-track': typeof ForCustomerLiveTrackRoute
+  '/for/key-locator': typeof ForKeyLocatorRoute
+  '/for/photo-status': typeof ForPhotoStatusRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/build/send': typeof ApiBuildSendRoute
   '/api/build/token-status': typeof ApiBuildTokenStatusRoute
@@ -207,6 +243,10 @@ export interface FileRouteTypes {
     | '/terms'
     | '/trust'
     | '/api/contact'
+    | '/for/beside-crm'
+    | '/for/customer-live-track'
+    | '/for/key-locator'
+    | '/for/photo-status'
     | '/api/auth/$'
     | '/api/build/send'
     | '/api/build/token-status'
@@ -228,6 +268,10 @@ export interface FileRouteTypes {
     | '/terms'
     | '/trust'
     | '/api/contact'
+    | '/for/beside-crm'
+    | '/for/customer-live-track'
+    | '/for/key-locator'
+    | '/for/photo-status'
     | '/api/auth/$'
     | '/api/build/send'
     | '/api/build/token-status'
@@ -249,6 +293,10 @@ export interface FileRouteTypes {
     | '/terms'
     | '/trust'
     | '/api/contact'
+    | '/for/beside-crm'
+    | '/for/customer-live-track'
+    | '/for/key-locator'
+    | '/for/photo-status'
     | '/api/auth/$'
     | '/api/build/send'
     | '/api/build/token-status'
@@ -271,6 +319,10 @@ export interface RootRouteChildren {
   TermsRoute: typeof TermsRoute
   TrustRoute: typeof TrustRoute
   ApiContactRoute: typeof ApiContactRoute
+  ForBesideCrmRoute: typeof ForBesideCrmRoute
+  ForCustomerLiveTrackRoute: typeof ForCustomerLiveTrackRoute
+  ForKeyLocatorRoute: typeof ForKeyLocatorRoute
+  ForPhotoStatusRoute: typeof ForPhotoStatusRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiBuildSendRoute: typeof ApiBuildSendRoute
   ApiBuildTokenStatusRoute: typeof ApiBuildTokenStatusRoute
@@ -384,6 +436,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiContactRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/for/beside-crm': {
+      id: '/for/beside-crm'
+      path: '/for/beside-crm'
+      fullPath: '/for/beside-crm'
+      preLoaderRoute: typeof ForBesideCrmRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/for/customer-live-track': {
+      id: '/for/customer-live-track'
+      path: '/for/customer-live-track'
+      fullPath: '/for/customer-live-track'
+      preLoaderRoute: typeof ForCustomerLiveTrackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/for/key-locator': {
+      id: '/for/key-locator'
+      path: '/for/key-locator'
+      fullPath: '/for/key-locator'
+      preLoaderRoute: typeof ForKeyLocatorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/for/photo-status': {
+      id: '/for/photo-status'
+      path: '/for/photo-status'
+      fullPath: '/for/photo-status'
+      preLoaderRoute: typeof ForPhotoStatusRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/auth/$': {
       id: '/api/auth/$'
       path: '/api/auth/$'
@@ -431,6 +511,10 @@ const rootRouteChildren: RootRouteChildren = {
   TermsRoute: TermsRoute,
   TrustRoute: TrustRoute,
   ApiContactRoute: ApiContactRoute,
+  ForBesideCrmRoute: ForBesideCrmRoute,
+  ForCustomerLiveTrackRoute: ForCustomerLiveTrackRoute,
+  ForKeyLocatorRoute: ForKeyLocatorRoute,
+  ForPhotoStatusRoute: ForPhotoStatusRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiBuildSendRoute: ApiBuildSendRoute,
   ApiBuildTokenStatusRoute: ApiBuildTokenStatusRoute,
@@ -439,3 +523,12 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}

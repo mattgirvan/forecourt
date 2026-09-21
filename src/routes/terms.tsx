@@ -2,8 +2,17 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { SiteShell } from "@/components/site-shell";
 import { LEGAL } from "@/lib/legal";
 import { SITE } from "@/lib/site";
+import { pageHead } from "@/lib/seo";
 
-export const Route = createFileRoute("/terms")({ component: TermsPage });
+export const Route = createFileRoute("/terms")({
+  component: TermsPage,
+  head: () =>
+    pageHead({
+      title: "Terms of use | Forecourt",
+      description: "Terms for using Forecourt websites, accounts, and paid desks.",
+      path: "/terms",
+    }),
+});
 
 function TermsPage() {
   return (

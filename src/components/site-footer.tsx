@@ -22,6 +22,10 @@ export function SiteFooter() {
           <p className="mt-2 text-[11px] leading-relaxed text-subtle">
             {LEGAL.who}. Not affiliated with any manufacturer. Demo stock is fictional.
           </p>
+          <p className="mt-2 text-[11px] leading-relaxed text-subtle">
+            Forecourt is a UK motor trade floor product for franchise and group desks. It is not a
+            consumer car marketplace.
+          </p>
         </div>
         <div className="flex flex-wrap gap-x-5 gap-y-2 text-[13px] text-muted">
           <Link to="/" className="hover:text-fg">

@@ -7,8 +7,25 @@ import { HomeCrmComparison } from "@/components/home-crm-comparison";
 import { SiteShell } from "@/components/site-shell";
 import { Button } from "@/components/ui/button";
 import { PLANS, gbpPence } from "@/lib/catalog";
+import { HOME_SEO, homeJsonLd, pageHead } from "@/lib/seo";
 
-export const Route = createFileRoute("/")({ component: Home });
+export const Route = createFileRoute("/")({
+  component: Home,
+  head: () => ({
+    ...pageHead({
+      title: HOME_SEO.title,
+      description: HOME_SEO.description,
+      path: "/",
+      ogDescription: HOME_SEO.ogDescription,
+    }),
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify(homeJsonLd()),
+      },
+    ],
+  }),
+});
 
 const pieces = [
   {
@@ -37,18 +54,22 @@ const floorGaps = [
   {
     title: "Where the car actually is",
     line: "Factory, boat, compound, yard. Not a status code only one person can read.",
+    href: "/for/beside-crm" as const,
   },
   {
     title: "Where the keys are",
     line: "Cabinet, with PDI, unknown. The host should not have to shout across the showroom.",
+    href: "/for/key-locator" as const,
   },
   {
     title: "Has it been photographed",
     line: "On the ramp, in the studio, done. The listing does not wait on a WhatsApp.",
+    href: "/for/photo-status" as const,
   },
   {
     title: "The customer already knows",
     line: "They open their order and see the car. The exec is not a switchboard.",
+    href: "/for/customer-live-track" as const,
   },
 ] as const;
 
@@ -132,6 +153,12 @@ function Home() {
             >
               <h3 className="text-xl font-semibold tracking-tight">{g.title}</h3>
               <p className="mt-2 text-[15px] leading-relaxed text-muted">{g.line}</p>
+              <Link
+                to={g.href}
+                className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-fg underline-offset-4 hover:underline"
+              >
+                Read more <ArrowRight className="size-3.5" />
+              </Link>
             </Reveal>
           ))}
         </div>
