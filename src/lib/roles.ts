@@ -33,7 +33,7 @@ export const ROLES = [
     sees: "Locator and inbound stock. Stage the car. No GP.",
     cannot: "Gross, customer thread, month-end numbers.",
     packages: ["site", "franchise", "group"] as PlanId[],
-    trial: false,
+    trial: true,
     tabs: ["stock", "locator", "pipeline"],
   },
   {
@@ -43,7 +43,7 @@ export const ROLES = [
     sees: "Who is coming, which exec, where the car is. Lookup only.",
     cannot: "Edit a deal, see GP, move locator.",
     packages: ["site", "franchise", "group"] as PlanId[],
-    trial: false,
+    trial: true,
     tabs: ["customer", "locator"],
   },
   {
@@ -102,7 +102,7 @@ export type StaffSeat = {
 };
 
 export const ROLE_RULES = [
-  "The 60-day trial is Site only: sales + management. Do not dump seven seats on a trial.",
+  "The 60-day trial is Site only: sales, management, host, progressor. Not admin or accounts.",
   "A job title is a label. The role is the seat. Host, receptionist, greeter → host.",
   "Accountant does not get a finance product. They get GP read and a CSV.",
   "Progressor is the locator tab with stock. Not a second app.",

@@ -82,7 +82,7 @@ export const PLANS: Record<PlanId, Plan> = {
     why: "The 60-day trial lives here and only here. A site takes half a day to stand up. If it does not earn its keep, we have not built a group.",
     includes: [
       "One site, one desk",
-      "Sales exec and sales manager on the trial",
+      "Sales, management, host, and progressor on the trial",
       "Host, progressor, admin, accounts when you subscribe",
       "Spreadsheet ingest to start",
     ],
