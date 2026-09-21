@@ -83,15 +83,15 @@ export const Route = createFileRoute("/api/stripe/webhook")({
         if (!secret) return new Response("no stripe", { status: 500 });
         const Stripe = (await import("stripe")).default;
         const stripe = new Stripe(secret);
+        // Fail closed: never treat an unverified body as a Stripe event.
+        if (!hookSecret || !String(hookSecret).trim()) {
+          return new Response("webhook secret not configured", { status: 500 });
+        }
         const raw = await request.text();
         let event: { type: string; data: { object: Record<string, unknown> } };
         try {
-          if (hookSecret) {
-            const sig = request.headers.get("stripe-signature") ?? "";
-            event = stripe.webhooks.constructEvent(raw, sig, hookSecret) as unknown as typeof event;
-          } else {
-            event = JSON.parse(raw) as typeof event;
-          }
+          const sig = request.headers.get("stripe-signature") ?? "";
+          event = stripe.webhooks.constructEvent(raw, sig, hookSecret) as unknown as typeof event;
         } catch {
           return new Response("bad signature", { status: 400 });
         }
