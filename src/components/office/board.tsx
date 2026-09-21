@@ -20,6 +20,7 @@ export type BoardRow = {
   last_message_at?: string | null;
   waiting?: boolean;
   stage?: string | null;
+  archived_at?: string | null;
 };
 
 export function BoardStats({ rows }: { rows: BoardRow[] }) {
@@ -54,9 +55,13 @@ export function BoardStats({ rows }: { rows: BoardRow[] }) {
 export function CustomerTable({
   rows,
   onOpen,
+  onArchive,
+  archivedView = false,
 }: {
   rows: BoardRow[];
   onOpen: (id: number) => void;
+  onArchive?: (id: number, archived: boolean) => void;
+  archivedView?: boolean;
 }) {
   if (rows.length === 0) {
     return <p className="mt-8 text-sm text-muted">No dealerships yet.</p>;
@@ -73,6 +78,7 @@ export function CustomerTable({
               <th className="px-4 py-3 font-medium">Build</th>
               <th className="px-4 py-3 font-medium">Support</th>
               <th className="px-4 py-3 font-medium">Inbox</th>
+              <th className="px-4 py-3 font-medium"></th>
             </tr>
           </thead>
           <tbody>
@@ -114,6 +120,20 @@ export function CustomerTable({
                     )}
                   </td>
                   <td className="px-4 py-3 text-muted">{r.email || "—"}</td>
+                  <td className="px-4 py-3 text-right">
+                    {onArchive ? (
+                      <button
+                        type="button"
+                        className="text-xs text-muted underline-offset-4 hover:text-fg hover:underline"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onArchive(r.id, !archivedView);
+                        }}
+                      >
+                        {archivedView ? "Unarchive" : "Archive"}
+                      </button>
+                    ) : null}
+                  </td>
                 </tr>
               );
             })}
@@ -136,6 +156,18 @@ export function CustomerTable({
                 {statusLabel(r.status)} · {normalizePlan(r.plan)} · {stageMeta(r.stage).label}
                 {r.waiting ? " · they wrote" : ""}
               </div>
+              {onArchive ? (
+                <button
+                  type="button"
+                  className="mt-2 text-xs text-muted underline-offset-4 hover:text-fg hover:underline"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onArchive(r.id, !archivedView);
+                  }}
+                >
+                  {archivedView ? "Unarchive" : "Archive"}
+                </button>
+              ) : null}
             </button>
           </li>
         ))}

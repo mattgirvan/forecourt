@@ -122,24 +122,53 @@ export const listAllTenants = createServerFn({ method: "POST" })
   });
 
 export const listOfficeBoard = createServerFn({ method: "POST" })
-  .validator((d: { token: string }) => d)
+  .validator((d: { token: string; showArchived?: boolean }) => d)
   .handler(async ({ data }) => {
     const { sb, team } = await actor(data.token);
     if (!team) throw new Error("Office is for the Forecourt team.");
-    const { data: rows, error } = await sb
-      .from("tenants")
-      .select(
-        "id, name, email, phone, plan, status, billing, site_count, trial_ends_at, term_months, group_name, principal_name, created_at, stage",
-      )
-      .order("created_at", { ascending: false });
-    const tenants = error
-      ? ((
-          await sb
-            .from("tenants")
-            .select("id, name, email, phone, plan, status, billing, site_count, trial_ends_at, term_months, group_name, principal_name, created_at")
-            .order("created_at", { ascending: false })
-        ).data ?? []).map((row) => ({ ...row, stage: null as string | null }))
-      : (rows ?? []);
+    const showArchived = Boolean(data.showArchived);
+    const selectFull =
+      "id, name, email, phone, plan, status, billing, site_count, trial_ends_at, term_months, group_name, principal_name, created_at, stage, archived_at";
+    const selectFallback =
+      "id, name, email, phone, plan, status, billing, site_count, trial_ends_at, term_months, group_name, principal_name, created_at";
+    let q = sb.from("tenants").select(selectFull).order("created_at", { ascending: false });
+    q = showArchived ? q.not("archived_at", "is", null) : q.is("archived_at", null);
+    const { data: rows, error } = await q;
+    type TenantBoard = {
+      id: number;
+      name: string;
+      email: string | null;
+      phone: string | null;
+      plan: string;
+      status: string;
+      billing: string | null;
+      site_count: number | null;
+      trial_ends_at: string | null;
+      term_months: number | null;
+      group_name: string | null;
+      principal_name: string | null;
+      created_at: string | null;
+      stage: string | null;
+      archived_at: string | null;
+    };
+    let tenants: TenantBoard[] = [];
+    if (error) {
+      // Column may not exist yet — fall back and treat everyone as active.
+      let fb = sb.from("tenants").select(selectFallback).order("created_at", { ascending: false });
+      const { data: fallbackRows, error: fbErr } = await fb;
+      if (fbErr) throw new Error(fbErr.message);
+      tenants = (fallbackRows ?? []).map((row) => ({
+        ...(row as Omit<TenantBoard, "stage" | "archived_at">),
+        stage: null,
+        archived_at: null,
+      }));
+      if (showArchived) tenants = [];
+    } else {
+      tenants = (rows ?? []).map((row) => {
+        const r = row as TenantBoard;
+        return { ...r, stage: r.stage ?? null, archived_at: r.archived_at ?? null };
+      });
+    }
     const ids = tenants.map((t) => t.id);
     const lastBy: Record<
       number,
@@ -171,7 +200,7 @@ export const getTenantFile = createServerFn({ method: "POST" })
     const q = sb
       .from("tenants")
       .select(
-        "id, slug, name, legal, phone, email, domain, sites, features, ingest, plan, status, billing, site_count, stripe_customer_id, stripe_subscription_id, trial_ends_at, term_months, principal_name, group_name, research, staff_json, created_at, user_id, signed_off_at, cancelled_at",
+        "id, slug, name, legal, phone, email, domain, sites, features, ingest, plan, status, billing, site_count, stripe_customer_id, stripe_subscription_id, trial_ends_at, term_months, principal_name, group_name, research, staff_json, created_at, user_id, signed_off_at, cancelled_at, archived_at",
       )
       .eq("id", data.tenantId)
       .maybeSingle();
@@ -184,7 +213,9 @@ export const getTenantFile = createServerFn({ method: "POST" })
         )
         .eq("id", data.tenantId)
         .maybeSingle();
-      row = fallback.data ? { ...fallback.data, signed_off_at: null, cancelled_at: null } : null;
+      row = fallback.data
+        ? { ...fallback.data, signed_off_at: null, cancelled_at: null, archived_at: null }
+        : null;
       error = fallback.error;
     }
     if (error) throw new Error(error.message);
@@ -227,6 +258,17 @@ export const saveTenantFile = createServerFn({ method: "POST" })
     const { error } = await q;
     if (error) throw new Error(error.message);
     return { ok: true };
+  });
+
+export const setTenantArchived = createServerFn({ method: "POST" })
+  .validator((d: { token: string; tenantId: number; archived: boolean }) => d)
+  .handler(async ({ data }) => {
+    const { sb, team } = await actor(data.token);
+    if (!team) throw new Error("Office is for the Forecourt team.");
+    const archived_at = data.archived ? new Date().toISOString() : null;
+    const { error } = await sb.from("tenants").update({ archived_at }).eq("id", data.tenantId);
+    if (error) throw new Error(error.message);
+    return { ok: true as const, archived_at };
   });
 
 export const listNotes = createServerFn({ method: "POST" })
