@@ -193,7 +193,7 @@
 .desk-shell {
   --pine: #0f2f24;
   --pine-tint: #e4e9e1;
-  --emerald: #4ba82e;
+  --emerald: #4BA82E;
   --paper: #f6f5f1;
   --card: #ffffff;
   --line: #e1e4de;
@@ -476,7 +476,8 @@
 .rail-scroll {
   position: relative;
   width: 100%;
-  overflow-x: auto;
+  max-width: 100%;
+  overflow-x: hidden;
   overflow-y: hidden;
   padding: 8px 0 4px;
   scrollbar-width: none;
@@ -487,8 +488,19 @@
 .progress-rail,
 .locator-rail {
   position: relative;
-  min-width: 640px;
-  padding: 6px 16px 0 8px;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  padding: 6px 4px 0;
+  box-sizing: border-box;
+}
+.progress-nodes,
+.locator-nodes {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  width: 100%;
+  min-width: 0;
 }
 .progress-track,
 .locator-track {
@@ -501,13 +513,9 @@
   z-index: 0;
   pointer-events: none;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.1);
-}
-.progress-nodes,
-.locator-nodes {
-  position: relative;
-  display: flex;
-  align-items: flex-start;
+  background: var(--shell-inset-bg);
+  box-shadow: var(--shell-inset-shadow);
+  border: 1px solid rgba(255, 255, 255, 0.06);
 }
 .progress-node,
 .locator-node {
@@ -516,14 +524,16 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  flex: 1;
-  min-width: 64px;
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 100%;
 }
 .progress-node.is-current,
 .locator-node.is-current {
-  flex: 0 0 auto;
-  min-width: 156px;
-  padding: 0 6px;
+  flex: 1.35 1 0;
+  min-width: 0;
+  max-width: 38%;
+  padding: 0 2px;
 }
 .stage-disc {
   width: 26px;
@@ -532,38 +542,47 @@
   display: grid;
   place-items: center;
   color: #fff;
-  background: var(--emerald);
+  background: #4BA82E;
   border: none;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4), 0 0 0 2px rgba(11, 15, 20, 0.35);
 }
 .stage-disc.is-faint {
-  background: #4c7ed8;
+  background: #4C7ED8;
+  color: #fff;
 }
 .now-pill {
   height: 42px;
-  padding: 0 16px;
+  max-width: 100%;
+  padding: 0 10px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--shell-accent) 88%, rgba(255, 255, 255, 0.18));
-  color: var(--shell-accent-ink);
-  font-size: 12px;
+  background: color-mix(in srgb, #D9A24B 88%, rgba(255, 255, 255, 0.18));
+  color: #20160A;
+  font-size: 11px;
   font-weight: 700;
+  line-height: 1.15;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  justify-content: center;
+  gap: 5px;
   box-shadow: var(--shell-float-shadow);
   z-index: 2;
   animation: pill-pulse 2.8s ease-in-out infinite;
 }
 .arrived-pill {
   height: 34px;
-  padding: 0 12px;
+  max-width: 100%;
+  padding: 0 10px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--emerald) 72%, #0b0f14);
+  background: color-mix(in srgb, #4BA82E 72%, #0b0f14);
   color: #f3fff0;
   font-size: 10.5px;
   font-weight: 700;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   display: inline-flex;
   align-items: center;
   gap: 5px;
@@ -574,15 +593,22 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  width: 100%;
 }
 .rail-label {
   margin-top: 4px;
-  padding: 0 2px 4px;
+  padding: 0 1px 4px;
   font-size: 9.5px;
-  line-height: 1.25;
+  line-height: 1.2;
   text-align: center;
   color: var(--shell-text-faint);
   max-width: 100%;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 .rail-label.is-done {
   color: var(--shell-text-dim);
@@ -758,6 +784,25 @@
   padding-bottom: 2.5rem !important;
 }
 .customer-phone-scroll .customer-header-card .text-\[26px\],
-.customer-phone-scroll .text-\[26px\] {
-  font-size: 1.25rem !important;
+.customer-phone-scroll .customer-header-card .text-\[20px\],
+.customer-phone-scroll .text-\[26px\],
+.customer-phone-scroll .text-\[20px\] {
+  font-size: 1.125rem !important; /* 18px in phone bezel */
+  line-height: 1.25 !important;
+}
+.customer-phone-scroll .rail-scroll {
+  overflow-x: hidden !important;
+}
+.customer-phone-scroll .now-pill,
+.customer-phone-scroll .arrived-pill {
+  font-size: 10px;
+  padding: 0 8px;
+  height: 36px;
+}
+.customer-phone-scroll .rail-mark {
+  height: 42px;
+}
+.customer-phone-scroll .progress-node.is-current,
+.customer-phone-scroll .locator-node.is-current {
+  max-width: 44%;
 }

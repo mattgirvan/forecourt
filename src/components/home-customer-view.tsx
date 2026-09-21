@@ -41,9 +41,18 @@ export function HomeCustomerView({
   const brandId = useDemo((s) => s.brandId);
   const brand = BRANDS[brandId];
 
+  const deals = useDemo((s) => s.deals);
+  const pickDeal = useDemo((s) => s.pickDeal);
+
   useEffect(() => {
     hydrate();
   }, [hydrate]);
+
+  useEffect(() => {
+    // Shorter Used/Cash journey fits the phone bezel without x-scroll.
+    const compact = deals.find((d) => d.type === "Used" && d.customerType === "Cash") ?? deals.find((d) => d.type === "Used");
+    if (compact) pickDeal(compact.id);
+  }, [deals, pickDeal]);
 
   return (
     <section
@@ -146,7 +155,7 @@ function PhoneFrame({
           }
         >
           <div className="desk-orb opacity-60" aria-hidden />
-          <div className="relative z-10 h-full overflow-y-auto overscroll-contain pt-8 [&_.mx-auto]:max-w-none [&_.px-5]:px-3.5 [&_.py-7]:py-4 [&_.pb-24]:pb-10 [&_.text-\\[26px\\]]:text-[20px]">
+          <div className="customer-phone-scroll relative z-10 h-full overflow-x-hidden overflow-y-auto overscroll-contain pt-8 [&_.mx-auto]:max-w-none [&_.px-5]:px-3.5 [&_.py-7]:py-4 [&_.pb-24]:pb-10 [&_.text-\[26px\]]:text-[18px] [&_.text-\[20px\]]:text-[18px]">
             {children}
           </div>
         </div>
