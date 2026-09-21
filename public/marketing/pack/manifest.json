@@ -1,0 +1,114 @@
+{
+  "pack": "forecourt-social-visual-pack-v1",
+  "assets": [
+    {
+      "file": "brand-mark.png",
+      "size": "1080x1080",
+      "purpose": "Minimal logo-led brand mark with amber bar and locked tagline.",
+      "suggested_themes": [
+        "brand intro",
+        "profile/cover companion",
+        "always-on brand post"
+      ]
+    },
+    {
+      "file": "headline-book-floor.png",
+      "size": "1080x1080",
+      "purpose": "Split typographic poster: CRM keeps the book vs Forecourt keeps the floor moving.",
+      "suggested_themes": [
+        "positioning",
+        "CRM coexistence",
+        "headline campaign"
+      ]
+    },
+    {
+      "file": "beside-not-instead.png",
+      "size": "1080x1080",
+      "purpose": "Single bold statement card with amber underline for the locked tagline.",
+      "suggested_themes": [
+        "tagline focus",
+        "objection handling",
+        "CRM-friendly pitch"
+      ]
+    },
+    {
+      "file": "pain-switchboard.png",
+      "size": "1080x1080",
+      "purpose": "Quote-style pain card about status-call switchboard load.",
+      "suggested_themes": [
+        "pain point",
+        "reception desk reality",
+        "status calls"
+      ]
+    },
+    {
+      "file": "feature-keys.png",
+      "size": "1080x1080",
+      "purpose": "Key locator feature beat with iconography cards (not product UI).",
+      "suggested_themes": [
+        "product feature",
+        "workshop ops",
+        "key board chaos"
+      ]
+    },
+    {
+      "file": "feature-photos.png",
+      "size": "1080x1080",
+      "purpose": "Photo status feature beat with camera/status metaphors.",
+      "suggested_themes": [
+        "proof of work",
+        "customer confidence",
+        "job photos"
+      ]
+    },
+    {
+      "file": "feature-live-track.png",
+      "size": "1080x1080",
+      "purpose": "Customer live-track text beat with amber callout, no product glass.",
+      "suggested_themes": [
+        "customer experience",
+        "live progress",
+        "desk load reduction"
+      ]
+    },
+    {
+      "file": "scotland-trust.png",
+      "size": "1080x1080",
+      "purpose": "Soft Scotland trust cue plus tagline. Quiet, not tartan.",
+      "suggested_themes": [
+        "trust",
+        "UK/Scotland origin",
+        "about the maker"
+      ]
+    },
+    {
+      "file": "comparison-crm.png",
+      "size": "1080x1080",
+      "purpose": "Stacked CRM vs Forecourt contrast cards (not a checklist table).",
+      "suggested_themes": [
+        "CRM vs Forecourt",
+        "complement not replace",
+        "sales enablement"
+      ]
+    },
+    {
+      "file": "og-brand.png",
+      "size": "1200x630",
+      "purpose": "OG/link-preview brand card.",
+      "suggested_themes": [
+        "link shares",
+        "landing OG",
+        "Buffer link posts"
+      ]
+    },
+    {
+      "file": "og-headline.png",
+      "size": "1200x630",
+      "purpose": "OG/link-preview split headline.",
+      "suggested_themes": [
+        "campaign OG",
+        "article/share cards"
+      ]
+    }
+  ]
+}
