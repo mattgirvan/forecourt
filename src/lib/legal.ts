@@ -17,4 +17,5 @@ export const LEGAL_LINKS = [
   { to: "/terms", label: "Terms" },
   { to: "/privacy", label: "Privacy" },
   { to: "/dpa", label: "Data" },
+  { to: "/trust", label: "Trust" },
 ] as const;

@@ -3,6 +3,8 @@ import { Reveal } from "@/components/reveal";
 import { SiteShell } from "@/components/site-shell";
 import { Button } from "@/components/ui/button";
 import { PLAN_ORDER, PLANS, gbpPence } from "@/lib/catalog";
+import { DoorsOneLiner } from "@/components/trust/doors-map";
+import { SeatMatrix } from "@/components/trust/seat-matrix";
 import { LEGAL } from "@/lib/legal";
 
 export const Route = createFileRoute("/pricing")({ component: PricingPage });
@@ -70,6 +72,21 @@ export function PricingPage() {
               </article>
             );
           })}
+        </div>
+
+                <div className="mx-auto mt-12 max-w-2xl text-center">
+          <DoorsOneLiner />
+          <p className="mt-3 text-sm text-muted">
+            Isolation detail:{" "}
+            <Link to="/trust" className="text-fg underline-offset-4 hover:underline">
+              Trust
+            </Link>
+            .
+          </p>
+        </div>
+
+        <div className="mt-16">
+          <SeatMatrix />
         </div>
 
         <p className="mx-auto mt-12 max-w-lg text-center text-sm text-muted">

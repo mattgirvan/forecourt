@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { OrderBuild } from "@/components/build/order-desk";
+import { SeatMatrix } from "@/components/trust/seat-matrix";
+import { DoorsOneLiner } from "@/components/trust/doors-map";
 import { Button } from "@/components/ui/button";
 import { PLANS, gbpPence, monthTotalPence, normalizeBilling, normalizePlan, setupDuePence } from "@/lib/catalog";
 import { rolesForPlan } from "@/lib/roles";
@@ -89,10 +91,10 @@ export function DealerPortal({
           <Overview
             tenant={tenant}
             planName={chosen.name}
-            seats={seats.map((s) => s.title)}
+            plan={plan}
+            billing={billing}
             includes={chosen.includes}
             days={days}
-            billing={billing}
             converting={converting}
             onConvert={onConvert}
             onNewPackage={onNewPackage}
@@ -111,7 +113,7 @@ export function DealerPortal({
 function Overview({
   tenant,
   planName,
-  seats,
+  plan,
   includes,
   days,
   billing,
@@ -121,10 +123,10 @@ function Overview({
 }: {
   tenant: Tenant;
   planName: string;
-  seats: string[];
+  plan: ReturnType<typeof normalizePlan>;
   includes: string[];
   days: number | null;
-  billing: string;
+  billing: ReturnType<typeof normalizeBilling>;
   converting?: boolean;
   onConvert?: () => void;
   onNewPackage?: () => void;
@@ -156,18 +158,21 @@ function Overview({
           </Button>
         )}
       </article>
-      <article className="rounded-[1.75rem] border border-line bg-surface p-6 sm:p-8">
+      <article className="rounded-[1.75rem] border border-line bg-surface p-6 sm:p-8 lg:col-span-2">
         <div className="text-[13px] text-muted">On the desk</div>
         <h2 className="mt-2 text-3xl font-semibold tracking-tight">Seats</h2>
-        <ul className="mt-6 space-y-2 text-sm text-muted">
-          {seats.map((s) => (
-            <li key={s} className="border-b border-line py-2">
-              {s}
-            </li>
-          ))}
-        </ul>
+        <p className="mt-2 text-sm text-muted">
+          {tenant.domain || "Your web address is set when we go live."} Administrator is a desk seat — not the Forecourt team.
+        </p>
+        <div className="mt-6">
+          <SeatMatrix plan={plan} billing={billing} compact />
+        </div>
         <p className="mt-6 text-sm text-muted">
-          {tenant.domain || "Your web address is set when we go live."}
+          Where do I log in?{" "}
+          <Link to="/how" className="underline-offset-4 hover:underline">
+            See the doors map
+          </Link>
+          .
         </p>
         {onNewPackage && (
           <button type="button" className="mt-4 text-sm text-muted underline-offset-4 hover:text-fg hover:underline" onClick={onNewPackage}>
