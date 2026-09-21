@@ -542,6 +542,8 @@
 .stage-disc {
   width: 26px;
   height: 26px;
+  aspect-ratio: 1 / 1;
+  flex-shrink: 0;
   border-radius: 999px;
   display: grid;
   place-items: center;
@@ -814,6 +816,8 @@
 .customer-phone-scroll .stage-disc {
   width: 22px;
   height: 22px;
+  aspect-ratio: 1 / 1;
+  flex-shrink: 0;
 }
 .customer-phone-scroll .stage-disc svg {
   width: 11px;
