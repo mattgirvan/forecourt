@@ -337,7 +337,7 @@ function CustomerPane() {
     return (
       <div className="mx-auto max-w-[640px] px-5 py-10">
         <div className="customer-preview-bar mb-4 flex flex-wrap items-center gap-2.5">
-          <div className="font-mono text-xs text-[var(--mist)]">Staff preview: viewing as customer —</div>
+          <div className="font-mono text-xs text-[var(--mist)]">Staff preview: viewing as customer</div>
           <select
             value={deal.id}
             onChange={(e) => pickDeal(e.target.value)}
@@ -346,7 +346,7 @@ function CustomerPane() {
           >
             {deals.map((o) => (
               <option key={o.id} value={o.id}>
-                {o.customer} — {o.vehicle}
+                {o.customer}: {o.vehicle}
               </option>
             ))}
           </select>
@@ -357,7 +357,7 @@ function CustomerPane() {
           </div>
           <div className="mb-2 text-2xl font-medium">Hi {first}, I hope you're enjoying your new car!</div>
           <p className="text-[14.5px] leading-relaxed text-[var(--shell-text-dim)]">
-            If you need any help, message me below — or reach out directly any time.
+            If you need any help, message me below, or reach out directly any time.
           </p>
         </div>
         <div className="shell-glass rounded-[24px] p-5">
@@ -371,7 +371,7 @@ function CustomerPane() {
   return (
     <div className="mx-auto max-w-[1200px] px-5 py-7 pb-24">
       <div className="customer-preview-bar mb-2.5 flex flex-wrap items-center gap-2.5">
-        <div className="font-mono text-xs text-[var(--mist)]">Staff preview: viewing as customer —</div>
+        <div className="font-mono text-xs text-[var(--mist)]">Staff preview: viewing as customer</div>
         <select
           value={deal.id}
           onChange={(e) => pickDeal(e.target.value)}
@@ -380,7 +380,7 @@ function CustomerPane() {
         >
           {deals.map((o) => (
             <option key={o.id} value={o.id}>
-              {o.customer} — {o.vehicle}
+              {o.customer}: {o.vehicle}
             </option>
           ))}
         </select>
@@ -406,7 +406,7 @@ function CustomerPane() {
           </span>
           <div className="text-[26px] leading-tight font-medium text-[#F6F5F1]">{deal.vehicle}</div>
         </div>
-        <div className="mb-1.5 font-mono text-[11.5px] text-[#7C8F84]">VIN: {deal.vin || "—"}</div>
+        <div className="mb-1.5 font-mono text-[11.5px] text-[#7C8F84]">VIN: {deal.vin || "-"}</div>
         <div className="mb-4 text-sm text-[#9FB0A6]">{deal.colour}</div>
 
         <div className="mb-4 flex flex-wrap gap-4 text-[12.5px] text-[#C9D3CC]">
@@ -425,7 +425,7 @@ function CustomerPane() {
           )}
           {deal.hasPartExchange && (
             <div className="flex items-center gap-1">
-              Part exchange: <strong className="text-white">{deal.partExchangeReg || "—"}</strong>
+              Part exchange: <strong className="text-white">{deal.partExchangeReg || "-"}</strong>
               <InfoBubble text="Final value will be confirmed before handover" />
             </div>
           )}
@@ -437,7 +437,7 @@ function CustomerPane() {
             <div>
               <div className="text-sm font-semibold">{deal.monthEndTasksComplete ? "Your paperwork is all sorted!" : "Everything needs to be finalised by the end of the month"}</div>
               <div className="font-mono text-[11.5px]" style={{ color: deal.monthEndTasksComplete ? "var(--emerald)" : "var(--brass)" }}>
-                Your car itself follows a little later — see the date below
+                Your car itself follows a little later. See the date below
               </div>
             </div>
           </div>
@@ -464,10 +464,10 @@ function CustomerPane() {
             <div>
               <div className="text-[15px] font-semibold">
                 {deal.estimatedStart && deal.estimatedEnd
-                  ? `${formatShortDate(deal.estimatedStart)} – ${formatShortDate(deal.estimatedEnd)}`
+                  ? `${formatShortDate(deal.estimatedStart)} to ${formatShortDate(deal.estimatedEnd)}`
                   : "Window to follow"}
               </div>
-              <div className="font-mono text-xs" style={{ color: "var(--brass)" }}>Estimated arrival — exact date to follow</div>
+              <div className="font-mono text-xs" style={{ color: "var(--brass)" }}>Estimated arrival: exact date to follow</div>
             </div>
           </div>
         ) : (
@@ -509,8 +509,8 @@ function CustomerPane() {
           {showFinance && (
             <div className="mt-4 flex flex-col gap-2.5 text-[13.5px]">
               <Row k="Finance company" v={deal.financeCompany || brand.label + " Financial Services"} />
-              <Row k="Finance type" v={deal.financeType || "—"} />
-              <Row k="Monthly amount" v={deal.monthlyAmount ? gbp(deal.monthlyAmount) : "—"} />
+              <Row k="Finance type" v={deal.financeType || "-"} />
+              <Row k="Monthly amount" v={deal.monthlyAmount ? gbp(deal.monthlyAmount) : "-"} />
             </div>
           )}
         </div>
@@ -694,7 +694,7 @@ function DealerPane() {
         {!q && (
           <label className="mb-3 flex cursor-pointer items-center gap-1.5 text-xs text-[var(--mist)]">
             <input type="checkbox" checked={monthOnly} onChange={(e) => setMonthOnly(e.target.checked)} />
-            This month only <span>— untick to see every active customer</span>
+            This month only <span>(untick to see every active customer)</span>
           </label>
         )}
         <div className="flex flex-col gap-2">
@@ -789,7 +789,7 @@ function DealerPane() {
               <div className="mb-3 text-[13px] font-semibold">Handover</div>
               <label className="mb-3 flex items-center gap-2 text-[13px]">
                 <input type="checkbox" checked={deal.monthEnd} onChange={() => patchDeal(deal.id, { monthEnd: !deal.monthEnd }, `Month-end ${!deal.monthEnd ? "on" : "off"}`)} />
-                Month-end deal — counts toward this month
+                Month-end deal: counts toward this month
               </label>
               {deal.monthEnd && (
                 <label className="mb-3 flex items-center gap-2 text-[13px]">
@@ -823,7 +823,7 @@ function DealerPane() {
                 {deal.handoverConfirmed && deal.handover
                   ? `${formatLongDate(deal.handover)}${deal.handoverTime ? ` at ${deal.handoverTime}` : ""}`
                   : deal.estimatedStart
-                    ? `Estimated ${formatShortDate(deal.estimatedStart)}${deal.estimatedEnd ? ` – ${formatShortDate(deal.estimatedEnd)}` : ""}`
+                    ? `Estimated ${formatShortDate(deal.estimatedStart)}${deal.estimatedEnd ? ` to ${formatShortDate(deal.estimatedEnd)}` : ""}`
                     : "No date set"}
               </div>
               <div className="mb-2 text-[10.5px] font-semibold tracking-wide text-[var(--shell-text-faint)] uppercase">Method</div>
@@ -958,8 +958,8 @@ function DealerPane() {
               {(deal.customerType === "Finance" || deal.customerType === "Lease") && (
                 <div className="mt-3 grid gap-1 text-[13px]">
                   <div className="flex justify-between"><span className="text-[var(--mist)]">Finance company</span><span>{deal.financeCompany || `${brand.label} Financial Services`}</span></div>
-                  <div className="flex justify-between"><span className="text-[var(--mist)]">Type</span><span>{deal.financeType || "—"}</span></div>
-                  <div className="flex justify-between"><span className="text-[var(--mist)]">Monthly</span><span>{deal.monthlyAmount ? gbp(deal.monthlyAmount) : "—"}</span></div>
+                  <div className="flex justify-between"><span className="text-[var(--mist)]">Type</span><span>{deal.financeType || "-"}</span></div>
+                  <div className="flex justify-between"><span className="text-[var(--mist)]">Monthly</span><span>{deal.monthlyAmount ? gbp(deal.monthlyAmount) : "-"}</span></div>
                 </div>
               )}
             </div>
@@ -968,7 +968,7 @@ function DealerPane() {
           <div>
             <div className="shell-glass mb-4 rounded-[24px] p-5">
               <div className="mb-1 text-[13px] font-semibold">Agreed actions</div>
-              <div className="mb-3 text-[12.5px] text-[var(--mist)]">Internal prep work — shown to the customer as read-only.</div>
+              <div className="mb-3 text-[12.5px] text-[var(--mist)]">Internal prep work, shown to the customer as read-only.</div>
               {deal.agreedActions.map((a) => (
                 <label key={a.id} className="mb-1 flex items-center gap-2 text-sm">
                   <input type="checkbox" checked={a.done} onChange={() => patchDeal(deal.id, { agreedActions: deal.agreedActions.map((x) => (x.id === a.id ? { ...x, done: !x.done } : x)) })} />
@@ -1042,7 +1042,7 @@ function DealerPane() {
         <div className="mb-3 text-sm font-bold">New customer profile</div>
         <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Customer name" className="mb-1.5 h-10 w-full rounded-[10px] border px-3 text-[13px]" style={{ background: "rgba(255,255,255,0.07)", borderColor: "rgba(255,255,255,0.16)" }} />
         <input value={newVehicle} onChange={(e) => setNewVehicle(e.target.value)} placeholder={`Vehicle (e.g. ${brand.label} model)`} className="mb-3 h-10 w-full rounded-[10px] border px-3 text-[13px]" style={{ background: "rgba(255,255,255,0.07)", borderColor: "rgba(255,255,255,0.16)" }} />
-        <p className="mb-3 text-[10.5px] text-white/80">This is a demo book — new profiles stay on this site until you refresh.</p>
+        <p className="mb-3 text-[10.5px] text-white/80">This is a demo book. New profiles stay on this site until you refresh.</p>
         <button
           type="button"
           className="w-full rounded-[10px] py-2.5 text-[13px] font-semibold text-white"
@@ -1209,13 +1209,13 @@ function OverviewPane() {
                   <td>{d.type}</td>
                   <td>{d.customerType}</td>
                   <td>{d.reg}</td>
-                  <td>{d.handover ? formatShortDate(d.handover) : "—"}</td>
+                  <td>{d.handover ? formatShortDate(d.handover) : "-"}</td>
                   <td>{d.isBev ? "Yes" : "No"}</td>
-                  <td>{d.financeType || "—"}</td>
-                  <td>{d.ceramicProtection ? "Yes" : "—"}</td>
-                  <td>{d.bodyworkProtection ? "Yes" : "—"}</td>
-                  <td>{d.alloyTyreProtection ? "Yes" : "—"}</td>
-                  <td>{d.gp == null ? "—" : gbp(d.gp)}</td>
+                  <td>{d.financeType || "-"}</td>
+                  <td>{d.ceramicProtection ? "Yes" : "-"}</td>
+                  <td>{d.bodyworkProtection ? "Yes" : "-"}</td>
+                  <td>{d.alloyTyreProtection ? "Yes" : "-"}</td>
+                  <td>{d.gp == null ? "-" : gbp(d.gp)}</td>
                 </tr>
               ))}
             </tbody>
@@ -1292,16 +1292,16 @@ function OverviewRow({
           {deal.monthEnd && <span className="month-end-tag">MONTH-END</span>}
         </button>
       </td>
-      <td>{deal.handover ? formatShortDate(deal.handover) : deal.estimatedStart ? `est ${formatShortDate(deal.estimatedStart)}` : "—"}</td>
-      <td>{deal.reg || "—"}</td>
-      <td>{deal.type === "New" && deal.vin ? <CheckCell checked={!!deal.checklistState.connect} onToggle={() => onToggle("connect")} title={connectLabel} /> : <span className="text-[var(--mist)]">—</span>}</td>
-      <td>{wsReqApplicable(deal) ? <CheckCell checked={deal.wsReq === "Pushed"} onToggle={() => onPatch({ wsReq: deal.wsReq === "Pushed" ? "" : "Pushed" })} /> : <span className="text-[var(--mist)]">—</span>}</td>
-      <td>{deal.customerType !== "Motability" ? <CheckCell checked={!!deal.checklistState.idVerification} onToggle={() => onToggle("idVerification")} /> : <span className="text-[var(--mist)]">—</span>}</td>
-      <td>{isCarAtDealership(deal) ? <CheckCell checked={deal.onHoDiary} onToggle={() => onPatch({ onHoDiary: !deal.onHoDiary })} /> : <span className="text-[var(--mist)]">—</span>}</td>
-      <td>{canPx ? <CheckCell checked={deal.hasPartExchange} onToggle={() => onPatch({ hasPartExchange: !deal.hasPartExchange })} /> : <span className="text-[var(--mist)]">—</span>}</td>
-      <td>{canPx && deal.hasPartExchange ? <CheckCell checked={!!deal.checklistState.v5Document} onToggle={() => onToggle("v5Document")} /> : <span className="text-[var(--mist)]">—</span>}</td>
-      <td>{isCarAtDealership(deal) ? deal.trackerRef || "—" : "—"}</td>
-      <td>{deal.type === "New" ? locatorLane[deal.locatorIndex]?.label ?? "—" : deal.usedOnSite || "—"}</td>
+      <td>{deal.handover ? formatShortDate(deal.handover) : deal.estimatedStart ? `est ${formatShortDate(deal.estimatedStart)}` : "-"}</td>
+      <td>{deal.reg || "-"}</td>
+      <td>{deal.type === "New" && deal.vin ? <CheckCell checked={!!deal.checklistState.connect} onToggle={() => onToggle("connect")} title={connectLabel} /> : <span className="text-[var(--mist)]">-</span>}</td>
+      <td>{wsReqApplicable(deal) ? <CheckCell checked={deal.wsReq === "Pushed"} onToggle={() => onPatch({ wsReq: deal.wsReq === "Pushed" ? "" : "Pushed" })} /> : <span className="text-[var(--mist)]">-</span>}</td>
+      <td>{deal.customerType !== "Motability" ? <CheckCell checked={!!deal.checklistState.idVerification} onToggle={() => onToggle("idVerification")} /> : <span className="text-[var(--mist)]">-</span>}</td>
+      <td>{isCarAtDealership(deal) ? <CheckCell checked={deal.onHoDiary} onToggle={() => onPatch({ onHoDiary: !deal.onHoDiary })} /> : <span className="text-[var(--mist)]">-</span>}</td>
+      <td>{canPx ? <CheckCell checked={deal.hasPartExchange} onToggle={() => onPatch({ hasPartExchange: !deal.hasPartExchange })} /> : <span className="text-[var(--mist)]">-</span>}</td>
+      <td>{canPx && deal.hasPartExchange ? <CheckCell checked={!!deal.checklistState.v5Document} onToggle={() => onToggle("v5Document")} /> : <span className="text-[var(--mist)]">-</span>}</td>
+      <td>{isCarAtDealership(deal) ? deal.trackerRef || "-" : "-"}</td>
+      <td>{deal.type === "New" ? locatorLane[deal.locatorIndex]?.label ?? "-" : deal.usedOnSite || "-"}</td>
       <td>
         <input
           value={deal.internalNotes}
@@ -1318,8 +1318,8 @@ function OverviewRow({
         </select>
       </td>
       <td>{deal.vehicle}</td>
-      <td>{deal.customerType === "Motability" ? "—" : financeYes ? "Y" : "No"}</td>
-      <td>{deal.hasPartExchange ? deal.financeSettle || "—" : "—"}</td>
+      <td>{deal.customerType === "Motability" ? "-" : financeYes ? "Y" : "No"}</td>
+      <td>{deal.hasPartExchange ? deal.financeSettle || "-" : "-"}</td>
       <td>
         <input
           inputMode="decimal"
@@ -1400,7 +1400,7 @@ function TodoPane() {
       label: k === "connect" ? `${brand.label} Connect` : CHECKLIST_DEFS[k]?.label ?? k,
     }));
     const diary = d.handover && d.handoverConfirmed && !d.onHoDiary
-      ? [{ deal: d, tag: "DIARY" as const, label: `Handover confirmed for ${formatShortDate(d.handover)} — not yet on the H/O diary` }]
+      ? [{ deal: d, tag: "DIARY" as const, label: `Handover confirmed for ${formatShortDate(d.handover)}, not yet on the H/O diary` }]
       : [];
     return [...tasks, ...diary];
   });
@@ -1420,7 +1420,7 @@ function TodoPane() {
             <span key={i} className="size-3 rounded-full" style={{ background: i < citnow ? "var(--emerald)" : "rgba(255,255,255,0.18)" }} />
           ))}
         </div>
-        <p className="mb-2 text-[12.5px] text-[var(--mist)]">{citnow >= 3 ? "Target hit — nice one." : "You'll get a nudge at 3pm if you're still short."}</p>
+        <p className="mb-2 text-[12.5px] text-[var(--mist)]">{citnow >= 3 ? "Target hit. Nice one." : "You'll get a nudge at 3pm if you're still short."}</p>
         <button type="button" className="cta-amber rounded-xl px-3 py-1.5 text-[12.5px] font-semibold" onClick={() => setCitnow((n) => Math.min(3, n + 1))}>
           Log one
         </button>
@@ -1437,12 +1437,12 @@ function TodoPane() {
       <div className="mb-3 shell-glass rounded-[18px] p-4">
         <div className="text-[13px] font-semibold">Reminders</div>
         <p className="mt-1 text-[12.5px] text-[var(--mist)]">Appear in your daily digest from the due date until ticked off.</p>
-        <div className="mt-2 text-sm">Chase Motability PIN — Helen · Fri 18 Sep</div>
+        <div className="mt-2 text-sm">Chase Motability PIN: Helen · Fri 18 Sep</div>
       </div>
 
       <div className="mb-6 shell-glass rounded-[18px] p-4">
         <div className="mb-1 text-[13px] font-semibold">Additional products · {extrasChase.length} to chase</div>
-        <p className="mb-2 text-[12.5px] text-[var(--mist)]">Tick once you've asked — stops it repeating in the daily digest.</p>
+        <p className="mb-2 text-[12.5px] text-[var(--mist)]">Tick once you've asked. Stops it repeating in the daily digest.</p>
         {extrasChase.slice(0, 4).map((d) => (
           <div key={d.id} className="flex justify-between border-b border-white/10 py-2 text-sm">
             <span>{d.customer}</span>
@@ -1452,7 +1452,7 @@ function TodoPane() {
       </div>
 
       {open.length === 0 ? (
-        <p className="text-sm text-[var(--mist)]">Nothing outstanding for this month — you're all caught up.</p>
+        <p className="text-sm text-[var(--mist)]">Nothing outstanding for this month. You're all caught up.</p>
       ) : (
         <ul className="divide-y divide-white/10">
           {open.map((row, i) => (

@@ -8,11 +8,11 @@ import { useDemo, type AdminSub, type FormKind } from "@/lib/demo-store";
 import { gbp } from "@/lib/utils";
 
 const FORM_KINDS: { id: FormKind; title: string; desc: string }[] = [
-  { id: "buyin", title: "Buy-In", desc: "Vehicle purchase invoices & payment request forms — not linked to customer orders." },
-  { id: "payment", title: "Payment", desc: "Payment request forms for accounts — refunds by card or bank transfer, not linked to customer orders." },
-  { id: "expenses", title: "Expenses", desc: "Expense claim forms for accounts — not linked to customer orders." },
-  { id: "overtime", title: "Overtime", desc: "Overtime claim forms for payroll — not linked to customer orders. No bank details." },
-  { id: "display", title: "Display", desc: "Showroom price boards for cars on the stand — save and A4 print, not linked to customer orders." },
+  { id: "buyin", title: "Buy-In", desc: "Vehicle purchase invoices & payment request forms, not linked to customer orders." },
+  { id: "payment", title: "Payment", desc: "Payment request forms for accounts: refunds by card or bank transfer, not linked to customer orders." },
+  { id: "expenses", title: "Expenses", desc: "Expense claim forms for accounts, not linked to customer orders." },
+  { id: "overtime", title: "Overtime", desc: "Overtime claim forms for payroll, not linked to customer orders. No bank details." },
+  { id: "display", title: "Display", desc: "Showroom price boards for cars on the stand: save and A4 print, not linked to customer orders." },
 ];
 
 const ADMIN_INFO: Record<AdminSub, { title: string; desc: string }> = {
@@ -22,20 +22,20 @@ const ADMIN_INFO: Record<AdminSub, { title: string; desc: string }> = {
   },
   content: {
     title: "Content",
-    desc: "A voice library that teaches drafts to sound like you, and a quick capture flow for what's worth posting — not linked to customer orders.",
+    desc: "A voice library that teaches drafts to sound like you, and a quick capture flow for what's worth posting, not linked to customer orders.",
   },
-  forms: { title: "Forms", desc: "Staff forms — buy-in, payment, expenses, overtime and display. Not linked to customer orders." },
+  forms: { title: "Forms", desc: "Staff forms: buy-in, payment, expenses, overtime and display. Not linked to customer orders." },
   carcheck: {
     title: "Car Check",
-    desc: "Trade-in due diligence — MOT history & mileage sanity check, not linked to customer orders.",
+    desc: "Trade-in due diligence: MOT history & mileage sanity check, not linked to customer orders.",
   },
   quotes: {
     title: "Quotes",
-    desc: "Printable four-square quote sheets — vehicle, part exchange, deposit and monthly payment on one page.",
+    desc: "Printable four-square quote sheets: vehicle, part exchange, deposit and monthly payment on one page.",
   },
   keepinmind: {
     title: "Keep in Mind",
-    desc: "Customers waiting on a model that's out of stock or not yet released — not linked to customer orders.",
+    desc: "Customers waiting on a model that's out of stock or not yet released, not linked to customer orders.",
   },
 };
 
@@ -220,7 +220,7 @@ function ContentPane() {
       <ToolHead hint="A voice library that teaches drafts to sound like you." />
       <div className="shell-glass mb-4 rounded-[18px] p-4">
         <div className="text-[13px] font-semibold">Voice library</div>
-        <p className="mt-1 text-[12.5px] text-[var(--mist)]">4 of 4 minimum active “good” examples — enough to draft in your voice.</p>
+        <p className="mt-1 text-[12.5px] text-[var(--mist)]">4 of 4 minimum active “good” examples, enough to draft in your voice.</p>
         <div className="mt-3 grid gap-2 sm:grid-cols-2">
           {["New arrival / stock spotlight", "Longest in stock", "Handover", "Service offer"].map((x) => (
             <div key={x} className="shell-glass-row rounded-xl px-3 py-2 text-[13px]">{x} · good</div>
@@ -279,7 +279,7 @@ function FourSquarePane() {
           <Field label="Vehicle" value={d?.vehicle ?? ""} />
           <Field label="Registration / stock no." value={d?.reg ?? ""} />
           <Field label="Price (£)" value={String(price)} />
-          <Field label="Their vehicle" value="PX — 2019 1.0 TSI" />
+          <Field label="Their vehicle" value="PX: 2019 1.0 TSI" />
           <Field label="Allowance (£)" value={String(px)} />
           <Field label="Settlement (£)" value="0" />
           <Field label="Cash deposit (£)" value={String(deposit)} />
@@ -483,7 +483,7 @@ function PaymentPane() {
           <Field label="Customer name" value={deals[0]?.customer ?? ""} />
           <Field label="Vehicle registration" value={deals[0]?.reg ?? ""} />
           <Field label="Amount" value="450" />
-          <Field label="Reason / reference" value="Deposit refund — order cancelled" />
+          <Field label="Reason / reference" value="Deposit refund: order cancelled" />
         </div>
         <div className="mb-3 text-[11px] font-semibold tracking-wide text-[var(--shell-text-faint)] uppercase">Pay by</div>
         <SlidingPillTrack value={kind} className="shell-glass-inset mb-3 inline-flex rounded-full p-1">
@@ -513,9 +513,9 @@ function PaymentPane() {
 function ExpensesPane() {
   const site = useDemo((s) => s.site);
   const rows = [
-    { t: "Fuel — collection", v: 48.6, s: "Submitted" },
-    { t: "Train — PDI course", v: 86, s: "Approved" },
-    { t: "Parking — compound", v: 12, s: "Draft" },
+    { t: "Fuel: collection", v: 48.6, s: "Submitted" },
+    { t: "Train: PDI course", v: 86, s: "Approved" },
+    { t: "Parking: compound", v: 12, s: "Draft" },
   ];
   return (
     <div>
@@ -541,9 +541,9 @@ function ExpensesPane() {
               <tr key={r.t}>
                 <td>12 Sep</td>
                 <td>{r.t}</td>
-                <td>{r.t.startsWith("Fuel") ? gbp(r.v) : "—"}</td>
-                <td>{r.t.startsWith("Train") ? gbp(r.v) : "—"}</td>
-                <td>{r.t.startsWith("Parking") ? gbp(r.v) : "—"}</td>
+                <td>{r.t.startsWith("Fuel") ? gbp(r.v) : "-"}</td>
+                <td>{r.t.startsWith("Train") ? gbp(r.v) : "-"}</td>
+                <td>{r.t.startsWith("Parking") ? gbp(r.v) : "-"}</td>
                 <td>Yes</td>
                 <td>{gbp(r.v)}</td>
               </tr>
@@ -558,12 +558,12 @@ function ExpensesPane() {
 
 function OvertimePane() {
   const rows = [
-    { t: "Saturday rota — 7 Sep", v: "4.0 h", s: "Approved" },
-    { t: "Late handover — Lyle", v: "1.5 h", s: "Submitted" },
+    { t: "Saturday rota: 7 Sep", v: "4.0 h", s: "Approved" },
+    { t: "Late handover: Lyle", v: "1.5 h", s: "Submitted" },
   ];
   return (
     <div>
-      <ToolHead hint="Record overtime accurately (e.g. 8–12pm = 4 hours). One form per week." cta="New claim" onNew={() => undefined} />
+      <ToolHead hint="Record overtime accurately (e.g. 8 to 12pm = 4 hours). One form per week." cta="New claim" onNew={() => undefined} />
       {rows.map((r) => (
         <div key={r.t} className="flex items-center justify-between border-b border-white/10 py-3">
           <div>
@@ -583,10 +583,10 @@ function OvertimePane() {
               <tr key={d}>
                 <td>{d}</td>
                 <td>{7 + i} Sep</td>
-                <td>{i === 6 ? "08:00" : "—"}</td>
-                <td>{i === 6 ? "12:00" : "—"}</td>
-                <td>{i === 6 ? "4.0" : "—"}</td>
-                <td>{i === 6 ? "Yes" : "—"}</td>
+                <td>{i === 6 ? "08:00" : "-"}</td>
+                <td>{i === 6 ? "12:00" : "-"}</td>
+                <td>{i === 6 ? "4.0" : "-"}</td>
+                <td>{i === 6 ? "Yes" : "-"}</td>
               </tr>
             ))}
           </tbody>

@@ -59,7 +59,7 @@ export function PricingPage() {
                   {t.trial && t.trialPence ? (
                     <Button asChild>
                       <Link to="/account" search={{ plan: t.id, billing: "trial" }}>
-                        60 days — {gbpPence(t.trialPence)}
+                        60 days: {gbpPence(t.trialPence)}
                       </Link>
                     </Button>
                   ) : null}

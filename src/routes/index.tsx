@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight } from "lucide-react";
 import { DealerBar } from "@/components/demo/dealer-bar";
 import { Reveal } from "@/components/reveal";
+import { HomeCrmComparison } from "@/components/home-crm-comparison";
 import { SiteShell } from "@/components/site-shell";
 import { Button } from "@/components/ui/button";
 import { PLANS, gbpPence } from "@/lib/catalog";
@@ -22,7 +23,7 @@ const pieces = [
   {
     n: "03",
     title: "Locator",
-    line: "Factory, boat, compound, or on the yard — so nobody has to guess.",
+    line: "Factory, boat, compound, or on the yard, so nobody has to guess.",
   },
   {
     n: "04",
@@ -91,7 +92,7 @@ function Home() {
           className="rise mx-auto mt-6 max-w-xl text-base leading-relaxed text-muted sm:text-lg"
           style={{ animationDelay: "180ms" }}
         >
-          Not another stock system. It ties into the one you already pay for — and does the floor work that system never did.
+          Not another stock system. It ties into the one you already pay for, and does the floor work that system never did.
         </p>
         <div className="rise mt-9 flex flex-wrap justify-center gap-3" style={{ animationDelay: "260ms" }}>
           <Button className="rounded-full" asChild>
@@ -118,7 +119,7 @@ function Home() {
             You already have a system. This sits next to it.
           </h2>
           <p className="mx-auto mt-4 max-w-lg text-[15px] leading-relaxed text-muted">
-            DealerWeb, the DMS, the manufacturer portal — they hold the book. They were never built for the person standing next to the car. Forecourt pulls from what you already run, and keeps the floor moving.
+            DealerWeb, the DMS, the manufacturer portal: they hold the book. They were never built for the person standing next to the car. Forecourt pulls from what you already run, and keeps the floor moving.
           </p>
         </Reveal>
         <div className="mt-12 grid gap-3 sm:grid-cols-2">
@@ -134,6 +135,8 @@ function Home() {
           ))}
         </div>
       </section>
+
+      <HomeCrmComparison />
 
       <section id="what" className="mx-auto max-w-5xl px-4 py-20 sm:px-6 sm:py-28">
         <Reveal className="text-center">
@@ -210,7 +213,7 @@ function Home() {
             Try it with your name.
           </h2>
           <p className="mx-auto mt-4 max-w-md text-[15px] leading-relaxed text-muted">
-            Type the group. Pick the brand. Open a real desk — not a slideshow.
+            Type the group. Pick the brand. Open a real desk, not a slideshow.
           </p>
         </Reveal>
         <div className="mt-10">

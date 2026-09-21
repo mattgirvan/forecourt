@@ -7,7 +7,7 @@ function rowsFor(plan?: PlanId, billing?: BillingKind): Role[] {
   return [...ROLES];
 }
 
-/** Seat · Sees · GP · On trial? — single source: src/lib/roles.ts */
+/** Seat · Sees · GP · On trial? Single source: src/lib/roles.ts */
 export function SeatMatrix({
   plan,
   billing,
@@ -26,7 +26,7 @@ export function SeatMatrix({
           <h3 className="mt-1 text-2xl font-semibold tracking-tight">Who sees what</h3>
         </div>
         <p className="max-w-sm text-xs leading-relaxed text-subtle">
-          Trial seats: sales, management, host, progressor. Administrator is a desk seat — not the Forecourt team.
+          Trial seats: sales, management, host, progressor. Administrator is a desk seat, not the Forecourt team.
         </p>
       </div>
       <table className="mt-6 w-full min-w-[36rem] text-left text-sm">

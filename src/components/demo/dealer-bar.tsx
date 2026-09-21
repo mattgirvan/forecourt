@@ -46,7 +46,7 @@ export function DealerBar({ showOpen = true }: { showOpen?: boolean }) {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-subtle">Your dealer</p>
-          <p className="mt-1 max-w-xl text-sm text-muted">Group, site, brand — then open the desk.</p>
+          <p className="mt-1 max-w-xl text-sm text-muted">Group, site, brand, then open the desk.</p>
         </div>
         <div className="flex flex-wrap gap-1.5">
           {DEALER_PRESETS.map((p) => (

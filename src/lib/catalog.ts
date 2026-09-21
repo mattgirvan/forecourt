@@ -31,7 +31,7 @@ export const INGEST = [
     id: "manufacturer",
     label: "Live stock feed",
     blurb:
-      "Wired to the manufacturer list. When a car moves — factory, compound, your yard — the customer’s profile updates on its own. They see it. They stop ringing.",
+      "Wired to the manufacturer list. When a car moves (factory, compound, your yard), the customer’s profile updates on its own. They see it. They stop ringing.",
   },
 ] as const;
 
@@ -41,7 +41,7 @@ export const PROVISION = [
   { id: "brand", n: "01", title: "Your colours", body: "Logo, name, phone, website." },
   { id: "config", n: "02", title: "Your desk", body: "Same portal, your name. On the order you switch what you need." },
   { id: "data", n: "03", title: "Your stock", body: "A private list of cars. Not mixed with anyone else." },
-  { id: "ingest", n: "04", title: "How cars come in", body: "Spreadsheet to start. Live feed if you have one — that feed also updates the customer." },
+  { id: "ingest", n: "04", title: "How cars come in", body: "Spreadsheet to start. Live feed if you have one; that feed also updates the customer." },
   { id: "ship", n: "05", title: "Go live", body: "Your link. Staff sign in with a code." },
 ] as const;
 

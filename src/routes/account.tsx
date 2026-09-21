@@ -308,12 +308,12 @@ function AccountInner() {
 
   const payLabel = (() => {
     if (busy) return "Opening…";
-    if (effectiveBilling === "trial") return `Start 60 days — ${gbpPence(setup)}`;
-    if (converting) return `Convert trial — ${gbpPence(setup)} + ${gbpPence(monthly)}/mo`;
+    if (effectiveBilling === "trial") return `Start 60 days: ${gbpPence(setup)}`;
+    if (converting) return `Convert trial: ${gbpPence(setup)} + ${gbpPence(monthly)}/mo`;
     if (chosen.perSite) {
-      return `Start contract — ${gbpPence(setup)} + ${gbpPence(monthly)}/mo`;
+      return `Start contract: ${gbpPence(setup)} + ${gbpPence(monthly)}/mo`;
     }
-    return `Start subscription — ${gbpPence(setup)} + ${gbpPence(monthly)}/mo`;
+    return `Start subscription: ${gbpPence(setup)} + ${gbpPence(monthly)}/mo`;
   })();
 
   const live = tenants.filter((t) => packageLive(t.status));

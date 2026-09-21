@@ -28,7 +28,7 @@ function TermsPage() {
 
         <h2>What you buy</h2>
         <p>
-          A licence to use a Forecourt desk for the package you pay for — site, franchise, or group — plus
+          A licence to use a Forecourt desk for the package you pay for (site, franchise, or group), plus
           the setup work to put your name, colours, stock ingest, and staff logins on it. We own the
           software. You own your data, your logo, and your customer records. Manufacturer names and logos
           stay with their owners. We are not affiliated with Škoda, Audi, Volkswagen, or any other franchise.
@@ -37,15 +37,15 @@ function TermsPage() {
         <h2>Packages</h2>
         <ul>
           <li>
-            <strong>Site, 60-day trial</strong> — a paid pilot for one dealership. £1,500. Sales and
+            <strong>Site, 60-day trial</strong>: a paid pilot for one dealership. £1,500. Sales and
             management seats. If you convert to a site subscription inside 60 days, that £1,500 comes off
             setup. If you do not, the desk comes down. No refund once we have started standing it up.
           </li>
           <li>
-            <strong>Site subscription</strong> — setup + monthly, month to month after any trial.
+            <strong>Site subscription</strong>: setup + monthly, month to month after any trial.
           </li>
           <li>
-            <strong>Franchise and group</strong> — setup + monthly, <strong>12-month minimum</strong>. No
+            <strong>Franchise and group</strong>: setup + monthly, <strong>12-month minimum</strong>. No
             trial. If you end it early, the remaining months are still due, unless we agree otherwise in
             writing.
           </li>
@@ -62,7 +62,7 @@ function TermsPage() {
 
         <h2>Go-live and sign-off</h2>
         <p>
-          When the desk is up, you sign it off — that you have seen it, it is yours, and it is live.{" "}
+          When the desk is up, you sign it off: that you have seen it, it is yours, and it is live.{" "}
           <strong>
             Once the site is live and signed off, setup and the current period are not refundable.
           </strong>{" "}
@@ -72,7 +72,7 @@ function TermsPage() {
         <h2>Refunds before sign-off</h2>
         <p>
           If we have not started, we will refund the card, minus what Stripe keeps. If we have started but
-          the desk is not signed off, a refund is at our discretion — we will not leave you with half a
+          the desk is not signed off, a refund is at our discretion. We will not leave you with half a
           site. After sign-off, no refund of setup. We can still end the monthly billing; we cannot unwind
           work already delivered.
         </p>
@@ -87,7 +87,7 @@ function TermsPage() {
         <h2>How an order starts</h2>
         <p>
           You pay. The order files itself. We collect a brand pack (name, colours, people, domain, how cars
-          come in). We clone our template — never another dealer’s desk — onto a private database and a
+          come in). We clone our template (never another dealer’s desk) onto a private database and a
           private site. You preview. Then it goes live on your domain. Dates we give you are estimates, not
           guarantees.
         </p>
@@ -96,7 +96,7 @@ function TermsPage() {
         <p>
           You warrant you have the right to give us logos, staff names, manufacturer credentials, and
           customer data. You keep manufacturer portal logins in your name, not ours. You are the controller
-          of your customers’ personal data. We process it only to run your desk — see the{" "}
+          of your customers’ personal data. We process it only to run your desk. See the{" "}
           <Link to="/dpa">data addendum</Link>.
         </p>
 

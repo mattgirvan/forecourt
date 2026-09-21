@@ -118,16 +118,16 @@ export const CHECKLIST_DEFS: Record<
   advancePayment: { label: "Advance Payment" },
   v5Document: {
     label: "V5 Document",
-    tooltip: "Upload this to your dealer portal — the link was sent to your email. If you need a new link, let me know.",
+    tooltip: "Upload this to your dealer portal. The link was sent to your email. If you need a new link, let me know.",
   },
   signedDealerDocuments: {
     label: "Signed Dealer Documents",
-    tooltip: "Sign these in your dealer portal — the link was sent to your email. Let me know if you need a new link.",
+    tooltip: "Sign these in your dealer portal. The link was sent to your email. Let me know if you need a new link.",
     greyUntilInvoiced: true,
   },
   signedFinanceDocuments: {
     label: "Signed Finance Documents",
-    tooltip: "Sign these in your Finance Portal — sent to you via email from the finance company. Let me know if you need a new link.",
+    tooltip: "Sign these in your Finance Portal, sent to you via email from the finance company. Let me know if you need a new link.",
     greyUntilInvoiced: true,
   },
   balancePaid: {
