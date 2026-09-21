@@ -41,25 +41,16 @@ async function main() {
   await page.locator("#customer-view").scrollIntoViewIfNeeded();
   await page.waitForTimeout(600);
 
-  // Capture-only tweaks: keep bezel width as designed; harden discs; ease label air.
+  // Capture-only: freeze motion so the amber pill is sharp in the PNG.
   await page.addStyleTag({
     content: `
       #customer-view .stage-disc {
         aspect-ratio: 1 / 1 !important;
         flex-shrink: 0 !important;
       }
-      #customer-view .customer-phone-scroll .rail-label {
-        font-size: 8.5px !important;
-        line-height: 1.15 !important;
-      }
-      #customer-view .customer-phone-scroll .now-pill {
-        font-size: 10px !important;
-        padding: 0 8px !important;
-        max-width: 94% !important;
-      }
-      #customer-view .customer-phone-scroll .progress-node.is-current {
-        flex: 1.05 1 0 !important;
-        max-width: 26% !important;
+      #customer-view .now-pill,
+      #customer-view .arrived-pill {
+        animation: none !important;
       }
     `,
   });

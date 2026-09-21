@@ -534,10 +534,11 @@
 }
 .progress-node.is-current,
 .locator-node.is-current {
-  flex: 1.35 1 0;
-  min-width: 0;
-  max-width: 38%;
-  padding: 0 2px;
+  /* Portal: current column sizes to the now-pill, not the other way round. */
+  flex: 0 0 auto;
+  min-width: 7.5rem;
+  max-width: none;
+  padding: 0 4px;
 }
 .stage-disc {
   width: 26px;
@@ -558,40 +559,44 @@
 }
 .now-pill {
   height: 42px;
-  max-width: 100%;
-  padding: 0 10px;
+  width: max-content;
+  max-width: none;
+  padding: 0 14px;
   border-radius: 999px;
   background: color-mix(in srgb, #D9A24B 88%, rgba(255, 255, 255, 0.18));
   color: #20160A;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   line-height: 1.15;
+  letter-spacing: 0;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow: visible;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 5px;
+  gap: 6px;
+  flex-shrink: 0;
+  transform: none;
   box-shadow: var(--shell-float-shadow);
   z-index: 2;
   animation: pill-pulse 2.8s ease-in-out infinite;
 }
 .arrived-pill {
   height: 34px;
-  max-width: 100%;
-  padding: 0 10px;
+  width: max-content;
+  max-width: none;
+  padding: 0 12px;
   border-radius: 999px;
   background: color-mix(in srgb, #4BA82E 72%, #0b0f14);
   color: #f3fff0;
   font-size: 10.5px;
   font-weight: 700;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow: visible;
   display: inline-flex;
   align-items: center;
   gap: 5px;
+  flex-shrink: 0;
 }
 .rail-mark {
   height: 42px;
@@ -599,7 +604,9 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  width: 100%;
+  /* Width follows the disc/pill; width:100% was crushing now-pill text. */
+  width: auto;
+  min-width: 0;
 }
 .rail-label {
   margin-top: 4px;
@@ -798,20 +805,32 @@
 }
 .customer-phone-scroll .rail-scroll {
   overflow-x: hidden !important; /* phone-only: no x-scroll; showcase ≤5 stages must fit */
+  overflow-y: visible;
   scrollbar-width: none;
+}
+.customer-phone-scroll .progress-nodes,
+.customer-phone-scroll .locator-nodes {
+  overflow: visible;
 }
 .customer-phone-scroll .rail-scroll::-webkit-scrollbar {
   display: none;
 }
 .customer-phone-scroll .now-pill,
 .customer-phone-scroll .arrived-pill {
-  font-size: 10px;
-  padding: 0 7px;
-  height: 34px;
-  max-width: 100%;
+  /* Portal-faithful proportions at handset size: roomy pad, no condensed tracking. */
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0;
+  padding: 0 14px;
+  height: 36px;
+  width: max-content;
+  max-width: none;
+  overflow: visible;
+  transform: none;
 }
 .customer-phone-scroll .rail-mark {
   height: 42px;
+  overflow: visible;
 }
 .customer-phone-scroll .stage-disc {
   width: 22px;
@@ -825,8 +844,10 @@
 }
 .customer-phone-scroll .progress-node.is-current,
 .customer-phone-scroll .locator-node.is-current {
-  flex: 1.1 1 0;
-  max-width: 30%;
+  flex: 0 0 auto;
+  min-width: 7.25rem;
+  max-width: none;
+  padding: 0 4px;
 }
 .customer-phone-scroll .progress-rail,
 .customer-phone-scroll .locator-rail {
