@@ -174,16 +174,8 @@ function ProgressRail({ stages, stageIndex }: { stages: readonly string[]; stage
   return (
     <div className="rail-scroll">
       <div className="progress-rail">
-        <div className="progress-track">
-          <div
-            className="h-full rounded-full"
-            style={{
-              width: `${(stageIndex / Math.max(stages.length - 1, 1)) * 100}%`,
-              background: "var(--desk-accent)",
-            }}
-          />
-        </div>
         <div className="progress-nodes">
+          <div className="progress-track shell-glass-inset" aria-hidden />
           {stages.map((stage, i) => {
             const current = i === stageIndex;
             const done = i < stageIndex;
@@ -192,12 +184,16 @@ function ProgressRail({ stages, stageIndex }: { stages: readonly string[]; stage
               <div key={stage} className={cn("progress-node", current && "is-current")}>
                 <div className="rail-mark">
                   {current ? (
-                    <span className={last ? "arrived-pill" : "now-pill"}>{last ? "Delivered" : "Now"}</span>
+                    <span className={last ? "arrived-pill" : "now-pill"}>{stage}</span>
                   ) : (
-                    <span className={cn("stage-disc", !done && "is-faint")}>{done ? <Check size={13} /> : i + 1}</span>
+                    <span className={cn("stage-disc", !done && "is-faint")} title={stage}>
+                      {done ? <Check size={13} strokeWidth={2.75} /> : null}
+                    </span>
                   )}
                 </div>
-                <div className={cn("rail-label", done && "is-done", current && (last ? "is-arrived" : "is-now"))}>{stage}</div>
+                <div className={cn("rail-label", done && "is-done", current && (last ? "is-arrived" : "is-now"))}>
+                  {current ? " " : stage}
+                </div>
               </div>
             );
           })}
@@ -211,13 +207,8 @@ function LocatorRail({ index, onPick }: { index: number; onPick?: (i: number) =>
   return (
     <div className="rail-scroll">
       <div className="locator-rail">
-        <div className="locator-track">
-          <div
-            className="h-full rounded-full"
-            style={{ width: `${(index / (locatorLane.length - 1)) * 100}%`, background: "var(--desk-accent)" }}
-          />
-        </div>
         <div className="locator-nodes">
+          <div className="locator-track shell-glass-inset" aria-hidden />
           {locatorLane.map((step, i) => {
             const current = i === index;
             const done = i < index;
@@ -232,14 +223,16 @@ function LocatorRail({ index, onPick }: { index: number; onPick?: (i: number) =>
                 <div className="rail-mark">
                   {current ? (
                     <span className={arrived ? "arrived-pill" : "now-pill"}>
-                      <Car size={13} /> {arrived ? "Arrived" : "Now"}
+                      <Car size={13} /> {step.label}
                     </span>
                   ) : (
-                    <span className={cn("stage-disc", !done && "is-faint")}>{done ? <Check size={13} /> : null}</span>
+                    <span className={cn("stage-disc", !done && "is-faint")} title={step.label}>
+                      {done ? <Check size={13} strokeWidth={2.75} /> : null}
+                    </span>
                   )}
                 </div>
                 <div className={cn("rail-label", done && "is-done", current && (arrived ? "is-arrived" : "is-now"))}>
-                  {step.label}
+                  {current ? " " : step.label}
                 </div>
               </button>
             );
@@ -311,7 +304,16 @@ function MessageThread({
   );
 }
 
-export function CustomerPane({ hideStaffBar = false }: { hideStaffBar?: boolean } = {}) {
+export function CustomerPane({
+  hideStaffBar = false,
+  stagesOverride,
+  stageIndexOverride,
+}: {
+  hideStaffBar?: boolean;
+  /** Homepage / social: compact ≤5-stage rail that fits the phone bezel. */
+  stagesOverride?: readonly string[];
+  stageIndexOverride?: number;
+} = {}) {
   const deals = useDemo((s) => s.deals);
   const selectedDealId = useDemo((s) => s.selectedDealId);
   const pickDeal = useDemo((s) => s.pickDeal);
@@ -324,7 +326,8 @@ export function CustomerPane({ hideStaffBar = false }: { hideStaffBar?: boolean 
   const [showProducts, setShowProducts] = useState(false);
   if (!deal) return null;
 
-  const stages = getStages(deal.customerType, deal.type);
+  const stages = stagesOverride ?? getStages(deal.customerType, deal.type);
+  const stageIndex = stageIndexOverride ?? deal.stageIndex;
   const keys = checklistKeysFor(deal);
   const doneCount = keys.filter((k) => deal.checklistState[k]).length;
   const pct = keys.length ? Math.round((doneCount / keys.length) * 100) : 0;
@@ -408,7 +411,7 @@ export function CustomerPane({ hideStaffBar = false }: { hideStaffBar?: boolean 
           <span className="flex size-11 items-center justify-center rounded-full" style={{ background: "rgba(255,255,255,0.08)" }}>
             <Car size={18} color="var(--shell-text-faint)" />
           </span>
-          <div className="text-[26px] leading-tight font-medium text-[#F6F5F1]">{deal.vehicle}</div>
+          <div className="text-[20px] leading-tight font-medium text-[#F6F5F1]">{deal.vehicle}</div>
         </div>
         <div className="mb-1.5 font-mono text-[11.5px] text-[#7C8F84]">VIN: {deal.vin || "-"}</div>
         <div className="mb-4 text-sm text-[#9FB0A6]">{deal.colour}</div>
@@ -499,7 +502,7 @@ export function CustomerPane({ hideStaffBar = false }: { hideStaffBar?: boolean 
 
       <div className="shell-glass mb-5 rounded-[24px] p-5">
         <div className="mb-3.5 text-[13px] font-semibold">Order Progress</div>
-        <ProgressRail stages={stages} stageIndex={deal.stageIndex} />
+        <ProgressRail stages={stages} stageIndex={stageIndex} />
       </div>
 
       {(deal.customerType === "Finance" || deal.customerType === "Lease") && (
