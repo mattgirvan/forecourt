@@ -1,0 +1,61 @@
+{
+  "brand": "Forecourt",
+  "tagline": "Beside your CRM, not instead of it.",
+  "palette": {
+    "bg": "#0a0b0a",
+    "amber": "#f5a623",
+    "text": "#f5f5f2"
+  },
+  "format": "1080x1080 square, H.264 yuv420p, silent, faststart",
+  "channels": [
+    "Facebook Forecourt.me",
+    "LinkedIn forecourtme"
+  ],
+  "clips": [
+    {
+      "file": "video-book-floor.mp4",
+      "poster": "video-book-floor.poster.png",
+      "duration_sec": 10.0,
+      "width": 1080,
+      "height": 1080,
+      "fps": 30,
+      "theme": "Split kinetic: CRM book vs Forecourt floor",
+      "caption_seed": "Your CRM keeps the book. Forecourt keeps the floor moving.\n#MotorTrade #CarDealership #AutomotiveUK",
+      "size_bytes": 81334
+    },
+    {
+      "file": "video-beside.mp4",
+      "poster": "video-beside.poster.png",
+      "duration_sec": 10.0,
+      "width": 1080,
+      "height": 1080,
+      "fps": 30,
+      "theme": "Bold statement: beside your CRM",
+      "caption_seed": "Beside your CRM, not instead of it. Built for UK motor trade desks.\n#MotorTrade #CarDealership #AutomotiveUK",
+      "size_bytes": 100130
+    },
+    {
+      "file": "video-switchboard.mp4",
+      "poster": "video-switchboard.poster.png",
+      "duration_sec": 10.0,
+      "width": 1080,
+      "height": 1080,
+      "fps": 30,
+      "theme": "Pain beat: switchboard chaos vs floor ops",
+      "caption_seed": "\"Any update on my car?\" Floor ops clear the noise so the switchboard stays quiet.\n#MotorTrade #CarDealership #AutomotiveUK",
+      "size_bytes": 112702
+    },
+    {
+      "file": "video-keys.mp4",
+      "poster": "video-keys.poster.png",
+      "duration_sec": 10.0,
+      "width": 1080,
+      "height": 1080,
+      "fps": 30,
+      "theme": "Feature: key locator kinetic bullets",
+      "caption_seed": "Keys found in seconds. Who has them, where they hang, ready before the customer asks.\n#MotorTrade #CarDealership #AutomotiveUK",
+      "size_bytes": 110402
+    }
+  ],
+  "notes": "Typography + simple iconography only. No product UI, glass, or fake screenshots."
+}
