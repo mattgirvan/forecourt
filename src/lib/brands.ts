@@ -296,16 +296,38 @@ export function isBrandId(v: unknown): v is BrandId {
   return typeof v === "string" && v in BRANDS;
 }
 
+export type DemoView =
+  | "customer"
+  | "dealer"
+  | "overview"
+  | "todo"
+  | "stock"
+  | "admin";
+
 export type DemoSearch = {
   group?: string;
   brand?: BrandId;
   site?: string;
+  /** Deep-link into a desk tab. Also accepted as `tab` in the URL. */
+  view?: DemoView;
 };
+
+export function isDemoView(v: unknown): v is DemoView {
+  return (
+    v === "customer" ||
+    v === "dealer" ||
+    v === "overview" ||
+    v === "todo" ||
+    v === "stock" ||
+    v === "admin"
+  );
+}
 
 export function deskSearch(input: {
   company: string;
   brandId: BrandId;
   site: string;
+  view?: DemoView;
 }): DemoSearch {
   const group = input.company.trim();
   const site = input.site.trim();
@@ -313,6 +335,21 @@ export function deskSearch(input: {
     group: group || undefined,
     brand: input.brandId,
     site: site || undefined,
+    ...(input.view ? { view: input.view } : {}),
+  };
+}
+
+/** Marketing CTAs that open the Customer view tab on the demo desk. */
+export function customerViewSearch(input?: {
+  company?: string;
+  brandId?: BrandId;
+  site?: string;
+}): DemoSearch {
+  return {
+    ...(input?.company?.trim() ? { group: input.company.trim() } : {}),
+    ...(input?.brandId ? { brand: input.brandId } : {}),
+    ...(input?.site?.trim() ? { site: input.site.trim() } : {}),
+    view: "customer",
   };
 }
 

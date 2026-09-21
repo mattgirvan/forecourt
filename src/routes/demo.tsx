@@ -10,16 +10,21 @@ import {
   companySlug,
   groupMark,
   isBrandId,
+  isDemoView,
   type DemoSearch,
 } from "@/lib/brands";
 import { useDemo } from "@/lib/demo-store";
 
 export const Route = createFileRoute("/demo")({
-  validateSearch: (raw: Record<string, unknown>): DemoSearch => ({
-    group: typeof raw.group === "string" ? raw.group : undefined,
-    brand: isBrandId(raw.brand) ? raw.brand : undefined,
-    site: typeof raw.site === "string" ? raw.site : undefined,
-  }),
+  validateSearch: (raw: Record<string, unknown>): DemoSearch => {
+    const viewRaw = raw.view ?? raw.tab;
+    return {
+      group: typeof raw.group === "string" ? raw.group : undefined,
+      brand: isBrandId(raw.brand) ? raw.brand : undefined,
+      site: typeof raw.site === "string" ? raw.site : undefined,
+      view: isDemoView(viewRaw) ? viewRaw : undefined,
+    };
+  },
   component: DemoPage,
 });
 
@@ -27,9 +32,9 @@ function DemoPage() {
   const search = Route.useSearch();
   const setDealer = useDemo((s) => s.setDealer);
   const hydrate = useDemo((s) => s.hydrate);
+  const setTab = useDemo((s) => s.setTab);
   const company = useDemo((s) => s.company);
   const brandId = useDemo((s) => s.brandId);
-  const site = useDemo((s) => s.site);
   const [edit, setEdit] = useState(false);
   const brand = BRANDS[brandId];
   const mark = groupMark(company.trim() || "Your group");
@@ -46,6 +51,10 @@ function DemoPage() {
     }
     hydrate();
   }, [search.group, search.brand, search.site, setDealer, hydrate]);
+
+  useEffect(() => {
+    if (search.view) setTab(search.view);
+  }, [search.view, setTab]);
 
   return (
     <div className="flex min-h-dvh flex-col bg-[#0b0f14] text-white">

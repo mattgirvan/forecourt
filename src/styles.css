@@ -748,3 +748,16 @@
 .cta-amber:hover {
   opacity: 0.92;
 }
+
+/* Marketing phone frame: tighten real CustomerPane for a handset width. */
+.customer-phone-scroll > div {
+  max-width: none !important;
+  padding-left: 0.875rem !important;
+  padding-right: 0.875rem !important;
+  padding-top: 1rem !important;
+  padding-bottom: 2.5rem !important;
+}
+.customer-phone-scroll .customer-header-card .text-\[26px\],
+.customer-phone-scroll .text-\[26px\] {
+  font-size: 1.25rem !important;
+}
