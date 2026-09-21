@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { DealerBar } from "@/components/demo/dealer-bar";
+import { ContactPromo } from "@/components/contact-promo";
 import { Reveal } from "@/components/reveal";
 import { SiteShell } from "@/components/site-shell";
 import { Button } from "@/components/ui/button";
@@ -180,6 +181,12 @@ export function HowPage() {
           ))}
         </div>
       </section>
+
+      <ContactPromo
+        eyebrow="Still weighing it up"
+        title="Something about your sites does not fit the steps above."
+        body="Integration notes, special requirements, or a trial question. Talk to us before you start a package."
+      />
 
       <section className="mx-auto max-w-5xl px-4 pb-24 sm:px-6">
         <Reveal>

@@ -738,3 +738,13 @@
   list-style: disc;
 }
 
+
+/* Marketing amber CTA (desk .cta-amber vars live under .desk-shell only). */
+.cta-amber {
+  background: #d9a24b !important;
+  color: #20160a !important;
+  border-color: rgba(255, 255, 255, 0.35) !important;
+}
+.cta-amber:hover {
+  opacity: 0.92;
+}

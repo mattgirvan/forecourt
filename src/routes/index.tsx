@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight } from "lucide-react";
 import { DealerBar } from "@/components/demo/dealer-bar";
 import { Reveal } from "@/components/reveal";
+import { ContactPromo } from "@/components/contact-promo";
 import { HomeCrmComparison } from "@/components/home-crm-comparison";
 import { SiteShell } from "@/components/site-shell";
 import { Button } from "@/components/ui/button";
@@ -137,6 +138,8 @@ function Home() {
       </section>
 
       <HomeCrmComparison />
+
+      <ContactPromo />
 
       <section id="what" className="mx-auto max-w-5xl px-4 py-20 sm:px-6 sm:py-28">
         <Reveal className="text-center">

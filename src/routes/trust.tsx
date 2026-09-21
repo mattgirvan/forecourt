@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
+import { ContactPromo } from "@/components/contact-promo";
 import { SeatMatrix } from "@/components/trust/seat-matrix";
 import { Reveal } from "@/components/reveal";
 import { SiteShell } from "@/components/site-shell";
@@ -82,6 +83,12 @@ function TrustPage() {
           </Section>
         </div>
       </article>
+
+      <ContactPromo
+        eyebrow="Still have a question"
+        title="Happy to spell out how isolation works for your group."
+        body="Send a short note. We reply from hello@forecourt.me."
+      />
     </SiteShell>
   );
 }
