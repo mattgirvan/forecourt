@@ -19,6 +19,7 @@ export function SiteFooter() {
             <span className="text-sm font-medium">Forecourt</span>
           </div>
           <p className="mt-2 text-sm text-muted">The screen on the sales desk.</p>
+          <p className="mt-2 text-[13px] text-muted">Built in Scotland for UK motor trade desks.</p>
           <p className="mt-2 text-[11px] leading-relaxed text-subtle">
             {LEGAL.who}. Not affiliated with any manufacturer. Demo stock is fictional.
           </p>

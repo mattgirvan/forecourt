@@ -31,6 +31,9 @@ function TrustPage() {
           <p className="mt-4 max-w-xl text-base text-muted">
             Plain English on how Forecourt keeps one dealer&apos;s desk apart from another&apos;s.
           </p>
+          <p className="mt-4 max-w-xl text-sm leading-relaxed text-muted">
+            Started on a Scottish franchise floor. Built beside the CRM you already run.
+          </p>
         </Reveal>
 
         <div className="mt-12 space-y-4">

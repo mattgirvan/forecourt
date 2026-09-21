@@ -36,6 +36,7 @@ function ContactPage() {
             </Link>
             .
           </p>
+          <p className="mx-auto mt-4 text-[13px] text-subtle">Scotland / UK</p>
         </Reveal>
 
         <div className="relative mt-12">
