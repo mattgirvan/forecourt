@@ -42,6 +42,12 @@ create table if not exists build_jobs (
 );
 create index if not exists build_jobs_status_idx on build_jobs (status, created_at desc);
 
+-- Phase 1 scaffold outcomes (safe to re-run)
+alter table build_jobs add column if not exists error_message text not null default '';
+alter table build_jobs add column if not exists finished_at timestamptz;
+alter table build_jobs add column if not exists repo_html_url text not null default '';
+
+
 alter table build_events enable row level security;
 alter table meetings enable row level security;
 alter table build_jobs enable row level security;

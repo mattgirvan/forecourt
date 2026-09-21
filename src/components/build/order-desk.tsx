@@ -313,7 +313,10 @@ function StaffBuild({
     try {
       await savePack({ data: { token, tenantId, pack } });
       const res = await sendToBuild({ data: { token, tenantId } });
-      setNotice(`Queued. Repo ${res.repo}. Clone the template, drop the pack, new database, Vercel.`);
+      const verb = res.created ? "Created" : "Updated";
+      setNotice(
+        `${verb} ${res.repo}. tenant.json locked${res.logoWritten ? " (logo committed)" : ""}. Supabase and Vercel are still manual — see next steps below.`,
+      );
       onReload();
     } catch (e) {
       setNotice(e instanceof Error ? e.message : "Could not send.");
@@ -475,6 +478,8 @@ function StaffBuild({
         )}
       </article>
 
+      <ScaffoldStatus build={build} />
+
       <article className="rounded-[1.75rem] border border-line bg-surface p-6">
         <h3 className="text-xl font-semibold tracking-tight">Ship</h3>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -525,6 +530,57 @@ function StaffBuild({
       </article>
       {notice && <p className="text-sm text-muted">{notice}</p>}
     </div>
+  );
+}
+
+function ScaffoldStatus({ build }: { build: Build }) {
+  const job = build.jobs[0];
+  const repo = (build.repo_slug ?? "").trim();
+  const html =
+    (job && "repo_html_url" in job && (job as { repo_html_url?: string }).repo_html_url) ||
+    (repo ? `https://github.com/mattgirvan/${repo}` : "");
+  if (!repo && !job) return null;
+  const status = job?.status ?? "";
+  const failed = status === "failed";
+  const ok = status === "succeeded";
+  return (
+    <article className="rounded-[1.75rem] border border-line bg-surface p-6">
+      <h3 className="text-xl font-semibold tracking-tight">Desk repo</h3>
+      <p className="mt-1 text-sm text-muted">
+        Phase 1 scaffolds a private GitHub repo from forecourt-desk and locks tenant.json. Supabase and Vercel stay manual.
+      </p>
+      {repo ? (
+        <p className="mt-4 text-sm">
+          Repo:{" "}
+          {html ? (
+            <a className="font-medium underline-offset-4 hover:underline" href={html} target="_blank" rel="noreferrer">
+              {repo}
+            </a>
+          ) : (
+            <span className="font-medium">{repo}</span>
+          )}
+          {status ? <span className="text-muted"> · last job {status}</span> : null}
+        </p>
+      ) : null}
+      {failed && job && "error_message" in job && (job as { error_message?: string }).error_message ? (
+        <p className="mt-3 rounded-2xl border border-line bg-elevated/60 px-4 py-3 text-sm text-muted">
+          {(job as { error_message: string }).error_message}
+        </p>
+      ) : null}
+      {ok || repo ? (
+        <div className="mt-4">
+          <div className="text-sm font-medium">Next (still human)</div>
+          <ol className="mt-2 list-decimal space-y-1.5 pl-5 text-sm text-muted">
+            <li>
+              New Supabase project <code className="text-fg">forecourt-&lt;slug&gt;</code> — never Aberdeen.
+            </li>
+            <li>Paste desk migrations 0001 → 0004, then insert staff from tenant.json.</li>
+            <li>Link Vercel to the repo, set Supabase env, deploy, custom domain.</li>
+            <li>Paste the preview URL above and move the stage to Preview.</li>
+          </ol>
+        </div>
+      ) : null}
+    </article>
   );
 }
 

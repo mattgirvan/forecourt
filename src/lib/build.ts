@@ -29,7 +29,7 @@ export const BUILD_STAGES = [
     label: "Build",
     n: "04",
     customer: "Your desk is being stood up. New database, your colours.",
-    staff: "Clone forecourt-desk, new Supabase, Vercel. Never clone Aberdeen.",
+    staff: "Repo + tenant.json are automated. Still: new Supabase, Vercel. Never clone Aberdeen.",
   },
   {
     id: "preview",
@@ -99,6 +99,8 @@ export type TenantPack = {
     logoReady: boolean;
     meetingPreference: string;
     customerNotes: string;
+    /** Optional https or data URL — Phase 1 commits to public/brand/ when set. */
+    logoUrl?: string;
   };
 };
 
@@ -330,15 +332,16 @@ Control-plane tenant: ${extras.tenantId}
 ${json}
 \`\`\`
 
-## Do this
+## Phase 1 (automated)
 
-1. \`gh repo create mattgirvan/desk-${pack.slug} --private --template mattgirvan/forecourt-desk\`
-2. Drop the JSON above into \`tenant.json\`. \`seedDemo: false\`.
-3. Logo at \`public/brand/logo.svg\` if they sent one.
-4. New Supabase \`forecourt-${pack.slug}\`. Paste migrations \`0001\` → \`0004\` in order.
-5. Insert staff_users from the pack. Magic link. Site URL = preview then their domain.
-6. Vercel → custom domain \`${pack.domain || "portal.…"}\`.
-7. Put the preview URL back on the order. Stage → Preview. They click around. Then Live.
+Forecourt creates private \`mattgirvan/desk-${pack.slug}\` from the template and writes \`tenant.json\` (and logo under \`public/brand/\` when a URL is on the pack).
+
+## Still do by hand (Phase 2+)
+
+1. New Supabase \`forecourt-${pack.slug}\`. Paste migrations \`0001\` → \`0004\` in order.
+2. Insert staff_users from the pack. Magic link. Site URL = preview then their domain.
+3. Vercel → link \`mattgirvan/desk-${pack.slug}\`, custom domain \`${pack.domain || "portal.…"}\`.
+4. Put the preview URL back on the order. Stage → Preview. They click around. Then Live.
 `;
 }
 
