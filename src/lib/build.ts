@@ -1,5 +1,5 @@
 import { BRANDS, type BrandId } from "@/lib/brands";
-import { FEATURES, defaultFeaturesFor, normalizeBilling, normalizePlan, type BillingKind, type PlanId } from "@/lib/catalog";
+import { FEATURES, INGEST, defaultFeaturesFor, normalizeBilling, normalizePlan, type BillingKind, type PlanId } from "@/lib/catalog";
 
 export const BUILD_STAGES = [
   {
@@ -246,18 +246,61 @@ export function tenantJson(pack: TenantPack) {
   return rest;
 }
 
-export function packGaps(pack: TenantPack, plan: PlanId = "site"): string[] {
+/** Atlas glass tips — keep copy exact. */
+export const PACK_GAP_TIPS = {
+  domain: "Add the web address for your desk.",
+  logo: "Add your logo (SVG or PNG).",
+  franchise: "Pick your franchise colours.",
+  staff: "Add at least one staff seat.",
+  name: "Add your site name.",
+  legal: "Add the legal entity name.",
+  contact: "Add a phone number and inbox.",
+  sites: "Add at least one site.",
+  sitesGroup: "Add two or more sites for a group.",
+  ingest: "Choose how stock will come in.",
+  staffRoles: "Staff seats on a trial need a trial role (sales, management, host, or progressor).",
+} as const;
+
+export const PACK_GAPS_SUMMARY = "Add a web address and at least one staff seat before we can build.";
+export const PACK_LOCKED_HELPER = "We'll unlock this when the pack has everything needed to build your desk.";
+export const PACK_READY_HELPER = "Pack looks ready — send it when you want us to build.";
+
+const TRIAL_ROLE_IDS = new Set(["sales", "management", "host", "progressor"]);
+
+export function packGaps(
+  pack: TenantPack,
+  plan: PlanId = "site",
+  billing: BillingKind = "subscription",
+): string[] {
   const gaps: string[] = [];
-  if (!pack.name.trim()) gaps.push("Dealership name");
-  if (!pack.domain.trim()) gaps.push("The web address they want");
-  if (!pack.franchise.word.trim() || !pack.franchise.accent) gaps.push("Primary franchise / colours");
-  if (!pack.brief.logoReady) gaps.push("Logo (or go live on the group mark)");
-  if (!pack.staff.some((s) => s.email.includes("@"))) gaps.push("At least one staff email");
-  if (plan === "group" && pack.sites.length < 2) gaps.push("Two or more sites");
-  if ((plan === "franchise" || plan === "group") && pack.ingest === "excel") {
-    gaps.push("Manufacturer ingest — credentials, or keep Excel for week one");
+  if (!pack.name.trim()) gaps.push(PACK_GAP_TIPS.name);
+  if (!pack.domain.trim()) gaps.push(PACK_GAP_TIPS.domain);
+  if (!pack.legal.trim()) gaps.push(PACK_GAP_TIPS.legal);
+  if (!pack.phone.trim() || !pack.email.includes("@")) gaps.push(PACK_GAP_TIPS.contact);
+  const sites = pack.sites.map((s) => s.trim()).filter(Boolean);
+  if (sites.length === 0) gaps.push(PACK_GAP_TIPS.sites);
+  if (plan === "group" && sites.length < 2) gaps.push(PACK_GAP_TIPS.sitesGroup);
+  if (!pack.franchise.word.trim() || !pack.franchise.accent) gaps.push(PACK_GAP_TIPS.franchise);
+  if (!pack.brief.logoReady) gaps.push(PACK_GAP_TIPS.logo);
+  const staffOk = pack.staff.filter((s) => s.email.includes("@"));
+  if (staffOk.length === 0) gaps.push(PACK_GAP_TIPS.staff);
+  const trial = plan === "site" && billing === "trial";
+  if (trial && staffOk.some((s) => !TRIAL_ROLE_IDS.has(s.role))) {
+    gaps.push(PACK_GAP_TIPS.staffRoles);
   }
+  if (!INGEST.some((i) => i.id === pack.ingest)) gaps.push(PACK_GAP_TIPS.ingest);
   return gaps;
+}
+
+/** Glass tip under the button: one tip, or the multi-gap summary. */
+export function packGapsTip(gaps: string[]): string | null {
+  if (gaps.length === 0) return null;
+  if (gaps.length === 1) return gaps[0]!;
+  return PACK_GAPS_SUMMARY;
+}
+
+export function packGapsHelper(gaps: string[]): string {
+  return gaps.length === 0 ? PACK_READY_HELPER : PACK_LOCKED_HELPER;
 }
 
 export function brandOptions() {
@@ -291,7 +334,7 @@ ${json}
 1. \`gh repo create mattgirvan/desk-${pack.slug} --private --template mattgirvan/forecourt-desk\`
 2. Drop the JSON above into \`tenant.json\`. \`seedDemo: false\`.
 3. Logo at \`public/brand/logo.svg\` if they sent one.
-4. New Supabase \`forecourt-${pack.slug}\`. Paste \`0001_core.sql\` then \`0002_roles.sql\`.
+4. New Supabase \`forecourt-${pack.slug}\`. Paste migrations \`0001\` → \`0004\` in order.
 5. Insert staff_users from the pack. Magic link. Site URL = preview then their domain.
 6. Vercel → custom domain \`${pack.domain || "portal.…"}\`.
 7. Put the preview URL back on the order. Stage → Preview. They click around. Then Live.

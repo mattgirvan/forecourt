@@ -7,13 +7,15 @@ import {
   featureList,
   isBuildStage,
   packGaps,
+  packGapsHelper,
+  packGapsTip,
   stageIndex,
   stageMeta,
   tenantJson,
   type BuildStage,
   type TenantPack,
 } from "@/lib/build";
-import { INGEST, normalizePlan, type PlanId } from "@/lib/catalog";
+import { INGEST, normalizeBilling, normalizePlan, type BillingKind, type PlanId } from "@/lib/catalog";
 import { ROLES } from "@/lib/roles";
 import { addMeeting, getBuild, savePack, sendToBuild, setBuildStage } from "@/lib/server/build";
 import { cn } from "@/lib/utils";
@@ -80,6 +82,7 @@ export function OrderBuild({
   if (!build) return <p className="text-sm text-muted">Loading the build…</p>;
 
   const plan = normalizePlan(build.plan);
+  const billing = normalizeBilling(plan, build.billing);
   const meta = stageMeta(build.stage);
 
   return (
@@ -105,6 +108,7 @@ export function OrderBuild({
           tenantId={tenantId}
           build={build}
           plan={plan}
+          billing={billing}
           busy={busy}
           setBusy={setBusy}
           onReload={() => void reload()}
@@ -115,6 +119,7 @@ export function OrderBuild({
           tenantId={tenantId}
           build={build}
           plan={plan}
+          billing={billing}
           busy={busy}
           setBusy={setBusy}
           onReload={() => void reload()}
@@ -130,6 +135,7 @@ function CustomerBuild({
   tenantId,
   build,
   plan,
+  billing,
   busy,
   setBusy,
   onReload,
@@ -138,12 +144,13 @@ function CustomerBuild({
   tenantId: number;
   build: Build;
   plan: PlanId;
+  billing: BillingKind;
   busy: boolean;
   setBusy: (v: boolean) => void;
   onReload: () => void;
 }) {
   const [pack, setPack] = useState(build.pack);
-  const gaps = packGaps(pack, plan);
+  const gaps = packGaps(pack, plan, billing);
   useEffect(() => setPack(build.pack), [build.pack]);
 
   async function save() {
@@ -231,6 +238,7 @@ function StaffBuild({
   tenantId,
   build,
   plan,
+  billing,
   busy,
   setBusy,
   onReload,
@@ -239,6 +247,7 @@ function StaffBuild({
   tenantId: number;
   build: Build;
   plan: PlanId;
+  billing: BillingKind;
   busy: boolean;
   setBusy: (v: boolean) => void;
   onReload: () => void;
@@ -249,7 +258,10 @@ function StaffBuild({
   const [when, setWhen] = useState("");
   const [meetTitle, setMeetTitle] = useState("Briefing call");
   const [notice, setNotice] = useState<string | null>(null);
-  const gaps = packGaps(pack, plan);
+  const gaps = packGaps(pack, plan, billing);
+  const sendReady = gaps.length === 0;
+  const sendHelper = packGapsHelper(gaps);
+  const sendTip = packGapsTip(gaps);
   useEffect(() => {
     setPack(build.pack);
     setPreview(build.preview_url);
@@ -412,9 +424,6 @@ function StaffBuild({
           />
           Logo in hand (or group mark is enough)
         </label>
-        {gaps.length > 0 && (
-          <p className="mt-4 text-sm text-muted">Still thin: {gaps.join(" · ")}</p>
-        )}
         <div className="mt-6 flex flex-wrap gap-2">
           <Button disabled={busy} onClick={() => void save()}>
             {busy ? "Saving…" : "Save pack"}
@@ -422,10 +431,21 @@ function StaffBuild({
           <Button variant="secondary" type="button" onClick={copyJson}>
             Copy tenant.json
           </Button>
-          <Button variant="secondary" disabled={busy} onClick={() => void fire()}>
+          <Button
+            className={sendReady ? "cta-amber" : undefined}
+            variant={sendReady ? "default" : "secondary"}
+            disabled={busy || !sendReady}
+            onClick={() => void fire()}
+          >
             Send to build
           </Button>
         </div>
+        <p className="mt-3 text-sm text-muted">{sendHelper}</p>
+        {sendTip && (
+          <p className="mt-2 rounded-2xl border border-line bg-elevated/60 px-4 py-3 text-sm text-muted">
+            {sendTip}
+          </p>
+        )}
       </article>
 
       <article className="rounded-[1.75rem] border border-line bg-surface p-6">
