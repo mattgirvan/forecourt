@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /office
+Disallow: /api
+Disallow: /demo
+
+Sitemap: https://www.forecourt.me/sitemap.xml
