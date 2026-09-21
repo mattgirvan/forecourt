@@ -311,7 +311,7 @@ function MessageThread({
   );
 }
 
-function CustomerPane() {
+export function CustomerPane({ hideStaffBar = false }: { hideStaffBar?: boolean } = {}) {
   const deals = useDemo((s) => s.deals);
   const selectedDealId = useDemo((s) => s.selectedDealId);
   const pickDeal = useDemo((s) => s.pickDeal);
@@ -336,21 +336,23 @@ function CustomerPane() {
   if (delivered) {
     return (
       <div className="mx-auto max-w-[640px] px-5 py-10">
-        <div className="customer-preview-bar mb-4 flex flex-wrap items-center gap-2.5">
-          <div className="font-mono text-xs text-[var(--mist)]">Staff preview: viewing as customer</div>
-          <select
-            value={deal.id}
-            onChange={(e) => pickDeal(e.target.value)}
-            className="rounded-[11px] border px-2.5 py-2 text-[13px]"
-            style={{ background: "rgba(255,255,255,0.07)", borderColor: "rgba(255,255,255,0.16)" }}
-          >
-            {deals.map((o) => (
-              <option key={o.id} value={o.id}>
-                {o.customer}: {o.vehicle}
-              </option>
-            ))}
-          </select>
-        </div>
+        {!hideStaffBar && (
+          <div className="customer-preview-bar mb-4 flex flex-wrap items-center gap-2.5">
+            <div className="font-mono text-xs text-[var(--mist)]">Staff preview: viewing as customer</div>
+            <select
+              value={deal.id}
+              onChange={(e) => pickDeal(e.target.value)}
+              className="rounded-[11px] border px-2.5 py-2 text-[13px]"
+              style={{ background: "rgba(255,255,255,0.07)", borderColor: "rgba(255,255,255,0.16)" }}
+            >
+              {deals.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.customer}: {o.vehicle}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
         <div className="shell-glass mb-5 rounded-[22px] p-10 text-center">
           <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-full" style={{ background: "var(--wash-emerald-bg)" }}>
             <CheckCircle2 size={28} color="var(--emerald)" />
@@ -370,21 +372,23 @@ function CustomerPane() {
 
   return (
     <div className="mx-auto max-w-[1200px] px-5 py-7 pb-24">
-      <div className="customer-preview-bar mb-2.5 flex flex-wrap items-center gap-2.5">
-        <div className="font-mono text-xs text-[var(--mist)]">Staff preview: viewing as customer</div>
-        <select
-          value={deal.id}
-          onChange={(e) => pickDeal(e.target.value)}
-          className="rounded-[11px] border px-2.5 py-2 text-[13px]"
-          style={{ background: "rgba(255,255,255,0.07)", borderColor: "rgba(255,255,255,0.16)" }}
-        >
-          {deals.map((o) => (
-            <option key={o.id} value={o.id}>
-              {o.customer}: {o.vehicle}
-            </option>
-          ))}
-        </select>
-      </div>
+      {!hideStaffBar && (
+        <div className="customer-preview-bar mb-2.5 flex flex-wrap items-center gap-2.5">
+          <div className="font-mono text-xs text-[var(--mist)]">Staff preview: viewing as customer</div>
+          <select
+            value={deal.id}
+            onChange={(e) => pickDeal(e.target.value)}
+            className="rounded-[11px] border px-2.5 py-2 text-[13px]"
+            style={{ background: "rgba(255,255,255,0.07)", borderColor: "rgba(255,255,255,0.16)" }}
+          >
+            {deals.map((o) => (
+              <option key={o.id} value={o.id}>
+                {o.customer}: {o.vehicle}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       <div className="mb-3.5 text-lg font-medium">Welcome back, {first}</div>
 

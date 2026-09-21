@@ -4,6 +4,7 @@ import { DealerBar } from "@/components/demo/dealer-bar";
 import { Reveal } from "@/components/reveal";
 import { ContactPromo } from "@/components/contact-promo";
 import { HomeCrmComparison } from "@/components/home-crm-comparison";
+import { HomeCustomerView } from "@/components/home-customer-view";
 import { SiteShell } from "@/components/site-shell";
 import { Button } from "@/components/ui/button";
 import { PLANS, gbpPence } from "@/lib/catalog";
@@ -163,6 +164,8 @@ function Home() {
           ))}
         </div>
       </section>
+
+      <HomeCustomerView />
 
       <HomeCrmComparison />
 
