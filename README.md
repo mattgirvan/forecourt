@@ -57,7 +57,7 @@ Billing columns: paste [`supabase/billing.sql`](./supabase/billing.sql) into the
 |---|---|---|
 | `STRIPE_WEBHOOK_SECRET` | Stripe webhook | Fail-closed without it |
 | `SUPABASE_SERVICE_ROLE_KEY` | Webhook + admin | Control-plane Supabase only |
-| `GH_TEMPLATE_TOKEN` | **Send to build** (Phase 1) | Fine-grained or classic PAT that can **create private repos from template** `mattgirvan/forecourt-desk`, read the template, and **Contents: write** on `desk-*` repos under `mattgirvan`. Aliases accepted: `GITHUB_TEMPLATE_TOKEN`, `FORECOURT_GH_TEMPLATE_TOKEN`. **Fail-closed** if missing — Office will not leave an orphan queued job. |
+| `GH_TEMPLATE_TOKEN` | **Send to build** (Phase 1) | Fine-grained or classic PAT that can **create private repos from template** `mattgirvan/forecourt-desk`, read the template, and **Contents: write** on `desk-*` repos under `mattgirvan`. Aliases accepted: `GITHUB_TEMPLATE_TOKEN`, `FORECOURT_GH_TEMPLATE_TOKEN`, `GROK_GH_TEMPLATE_TOKEN`. Read via static `node:process` env refs so Nitro/Vite cannot empty-snapshot the secret at build time. **Fail-closed** if missing — Office will not leave an orphan queued job. |
 
 Phase 1 does **not** create Supabase or Vercel projects. Those stay manual.
 

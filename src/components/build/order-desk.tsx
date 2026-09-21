@@ -454,7 +454,7 @@ function StaffBuild({
           />
           Logo in hand (or group mark is enough)
         </label>
-        <div className="mt-6 flex flex-wrap gap-2">
+        <div className="mt-6 flex flex-wrap items-center gap-2">
           <Button disabled={busy} onClick={() => void save()}>
             {busy ? "Saving…" : "Save pack"}
           </Button>
@@ -469,7 +469,21 @@ function StaffBuild({
           >
             Send to build
           </Button>
+          <TokenConfiguredDot configured={Boolean(build.ghTemplateConfigured)} />
         </div>
+        {notice ? (
+          <p
+            className={cn(
+              "mt-3 rounded-2xl border px-4 py-3 text-sm",
+              notice.startsWith("Could") || notice.includes("not configured") || notice.includes("Desk scaffold")
+                ? "border-line bg-elevated/60 text-muted"
+                : "border-line bg-elevated/40 text-muted",
+            )}
+            role="status"
+          >
+            {notice}
+          </p>
+        ) : null}
         <p className="mt-3 text-sm text-muted">{sendHelper}</p>
         {sendTip && (
           <p className="mt-2 rounded-2xl border border-line bg-elevated/60 px-4 py-3 text-sm text-muted">
@@ -528,8 +542,26 @@ function StaffBuild({
           <MeetingList meetings={build.meetings} />
         </div>
       </article>
-      {notice && <p className="text-sm text-muted">{notice}</p>}
     </div>
+  );
+}
+
+function TokenConfiguredDot({ configured }: { configured: boolean }) {
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 rounded-full border border-line bg-elevated px-2.5 py-1 text-[11px] text-muted"
+      title={
+        configured
+          ? "GH_TEMPLATE_TOKEN is set on this server"
+          : "GH_TEMPLATE_TOKEN is missing — Send to build will fail closed"
+      }
+    >
+      <span
+        className={cn("size-1.5 rounded-full", configured ? "bg-emerald-500" : "bg-amber-500")}
+        aria-hidden
+      />
+      Token {configured ? "configured" : "missing"}
+    </span>
   );
 }
 

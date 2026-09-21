@@ -2,7 +2,7 @@
  * Phase 1 desk scaffold: create desk-<slug> from mattgirvan/forecourt-desk
  * and write the locked tenant.json. No Supabase / Vercel yet.
  */
-import { env } from "@/lib/env.server";
+import nodeProcess from "node:process";
 import { tenantJson, type TenantPack } from "@/lib/build";
 
 export const DESK_TEMPLATE_OWNER = "mattgirvan";
@@ -11,6 +11,14 @@ export const DESK_OWNER = "mattgirvan";
 
 export const GH_TOKEN_MISSING =
   "Desk scaffold is not configured. Set GH_TEMPLATE_TOKEN on the server (Vercel) with permission to create private repos from the forecourt-desk template.";
+
+/** Env keys accepted for the GitHub template PAT (static refs for bundlers). */
+export const GH_TEMPLATE_TOKEN_KEYS = [
+  "GH_TEMPLATE_TOKEN",
+  "GITHUB_TEMPLATE_TOKEN",
+  "FORECOURT_GH_TEMPLATE_TOKEN",
+  "GROK_GH_TEMPLATE_TOKEN",
+] as const;
 
 export type ScaffoldResult = {
   owner: string;
@@ -23,12 +31,33 @@ export type ScaffoldResult = {
 
 type GhFile = { sha: string; content?: string };
 
+/**
+ * Read the GitHub template token at request time.
+ *
+ * - Reads via `node:process` (not bare `process.env`) so Vite cannot replace
+ *   the env object with an empty `{}` snapshot when `keepProcessEnv` is off.
+ * - Uses static property names (`env.GH_TEMPLATE_TOKEN`, …) so bundlers that
+ *   only keep statically referenced keys still see the Vercel secret.
+ * Never log or echo the secret to the client.
+ */
 function readGhToken(): string | undefined {
-  return (
-    env("GH_TEMPLATE_TOKEN") ??
-    env("GITHUB_TEMPLATE_TOKEN") ??
-    env("FORECOURT_GH_TEMPLATE_TOKEN")
-  );
+  const env = nodeProcess.env;
+  const candidates = [
+    env.GH_TEMPLATE_TOKEN,
+    env.GITHUB_TEMPLATE_TOKEN,
+    env.FORECOURT_GH_TEMPLATE_TOKEN,
+    env.GROK_GH_TEMPLATE_TOKEN,
+  ];
+  for (const raw of candidates) {
+    const v = raw?.trim();
+    if (v) return v;
+  }
+  return undefined;
+}
+
+/** Staff UI only — yes/no, never the secret. */
+export function isGhTemplateTokenConfigured(): boolean {
+  return Boolean(readGhToken());
 }
 
 /** Fail closed — never pretend a desk was stood up without a token. */

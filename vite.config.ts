@@ -157,6 +157,12 @@ export default defineConfig(({ command, isPreview }) => ({
     strictPort: true,
   },
   resolve: { tsconfigPaths: true },
+  // Keep real Node process.env on the SSR/server bundle. Without this, Vite
+  // can replace `process.env` with `{}` and dynamic/static secret reads miss
+  // Vercel runtime vars (e.g. GH_TEMPLATE_TOKEN for Send to build).
+  ssr: {
+    keepProcessEnv: true,
+  },
   plugins: [
     pgliteBootstrapPlugin(),
     // Before tanstackStart so /auth/popup never falls through to the SPA.

@@ -17,6 +17,7 @@ import { looksLikeTeam } from "@/lib/team";
 import {
   deskHtmlUrl,
   deskRepoName,
+  isGhTemplateTokenConfigured,
   nextHumanSteps,
   requireGhTemplateToken,
   scaffoldDeskRepo,
@@ -141,6 +142,8 @@ export const getBuild = createServerFn({ method: "POST" })
       jobs: jobs ?? [],
       plan: t.plan as string,
       billing: t.billing as string,
+      // Staff only — boolean, never the secret value.
+      ghTemplateConfigured: team ? isGhTemplateTokenConfigured() : false,
     };
   });
 

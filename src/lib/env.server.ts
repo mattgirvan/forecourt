@@ -1,6 +1,35 @@
+import nodeProcess from "node:process";
+
+/**
+ * Runtime env bag via `node:process` (not the free global).
+ *
+ * Vite's define plugin can replace bare `process.env` with `{}` when
+ * `keepProcessEnv` is false. Dynamic `process.env[key]` then always misses
+ * Vercel runtime secrets. Importing from `node:process` keeps a real Node
+ * env object that serverless can populate at request time.
+ */
+function envBag(): NodeJS.ProcessEnv {
+  return nodeProcess.env;
+}
+
 export function env(key: string): string | undefined {
-  const v = process.env[key]?.trim();
+  const v = envBag()[key]?.trim();
   return v || undefined;
+}
+
+/**
+ * Prefer static property reads for secrets that must survive bundling.
+ * Callers still fall through aliases via `env()` when needed.
+ */
+export function envStatic(
+  ...keys: Array<keyof NodeJS.ProcessEnv | string>
+): string | undefined {
+  const bag = envBag();
+  for (const key of keys) {
+    const v = bag[key as string]?.trim();
+    if (v) return v;
+  }
+  return undefined;
 }
 
 /**
