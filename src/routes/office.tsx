@@ -15,6 +15,7 @@ import {
   listStaff,
   runBillingAction,
   saveTenantFile,
+  setTenantArchived,
 } from "@/lib/server/portal";
 import { packageLive, statusLabel, trialDaysLeft } from "@/lib/team";
 import { useWhoAmI } from "@/lib/who-am-i";
@@ -63,23 +64,40 @@ function OfficeInner() {
   const [staff, setStaff] = useState<Awaited<ReturnType<typeof listStaff>>>([]);
   const [err, setErr] = useState<string | null>(null);
   const [q, setQ] = useState("");
+  const [showArchived, setShowArchived] = useState(false);
   const tab = search.tab === "staff" ? "staff" : "customers";
 
   async function reload() {
     if (!token) return;
     const [board, people] = await Promise.all([
-      listOfficeBoard({ data: { token } }),
+      listOfficeBoard({ data: { token, showArchived } }),
       listStaff({ data: { token } }).catch(() => []),
     ]);
     setRows(board);
     setStaff(people);
   }
 
+
+  async function archiveRow(id: number, archived: boolean) {
+    if (!token) return;
+    const ask = archived
+      ? "Archive this order? It leaves the main list. You can find it under Show archived and restore it anytime. Nothing is deleted."
+      : "Bring this order back to the main Office list?";
+    if (typeof window !== "undefined" && !window.confirm(ask)) return;
+    try {
+      await setTenantArchived({ data: { token, tenantId: id, archived } });
+      await reload();
+      if (archived && search.id === id) go({ tab: "customers" });
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Could not update archive.");
+    }
+  }
+
   useEffect(() => {
     if (!token || !me?.team) return;
     void reload().catch((e) => setErr(e instanceof Error ? e.message : "Could not load the office."));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, me?.team]);
+  }, [token, me?.team, showArchived]);
 
   const filtered = useMemo(() => {
     const s = q.trim().toLowerCase();
@@ -149,13 +167,32 @@ function OfficeInner() {
       {tab !== "staff" && !search.id && (
         <div className="mt-10 space-y-6">
           <BoardStats rows={rows} />
-          <input
-            className="h-11 w-full rounded-2xl border border-line bg-elevated px-4 text-sm"
-            placeholder="Find a dealership"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
+          <div className="flex flex-wrap items-center gap-3">
+            <input
+              className="h-11 min-w-[12rem] flex-1 rounded-2xl border border-line bg-elevated px-4 text-sm"
+              placeholder="Find a dealership"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+            />
+            <label className="inline-flex h-11 cursor-pointer items-center gap-2 rounded-2xl border border-line bg-elevated px-4 text-sm text-muted">
+              <input
+                type="checkbox"
+                className="size-4 accent-[var(--emerald)]"
+                checked={showArchived}
+                onChange={(e) => setShowArchived(e.target.checked)}
+              />
+              Show archived
+            </label>
+          </div>
+          {showArchived ? (
+            <p className="text-sm text-muted">Archived orders only. Unarchive puts them back on the main list.</p>
+          ) : null}
+          <CustomerTable
+            rows={filtered}
+            onOpen={(id) => go({ tab: "customers", id })}
+            onArchive={(id, archived) => void archiveRow(id, archived)}
+            archivedView={showArchived}
           />
-          <CustomerTable rows={filtered} onOpen={(id) => go({ tab: "customers", id })} />
         </div>
       )}
 
@@ -256,6 +293,28 @@ function TenantFile({ token, tenantId, onSaved }: { token: string; tenantId: num
     }
   }
 
+  async function toggleArchive() {
+    if (!file) return;
+    const archived = !file.archived_at;
+    const ask = archived
+      ? "Archive this order? It leaves the main list. You can restore it from Show archived. Nothing is deleted."
+      : "Bring this order back to the main Office list?";
+    if (typeof window !== "undefined" && !window.confirm(ask)) return;
+    setBusy(true);
+    setNotice(null);
+    try {
+      const res = await setTenantArchived({ data: { token, tenantId, archived } });
+      setFile((prev) => (prev ? { ...prev, archived_at: res.archived_at } : prev));
+      setNotice(archived ? "Archived. Hidden from the main list." : "Restored to the main list.");
+      onSaved();
+    } catch (e) {
+      setNotice(e instanceof Error ? e.message : "Could not update archive.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+
   return (
     <div>
       <p className="text-[13px] font-medium text-muted">
@@ -266,7 +325,13 @@ function TenantFile({ token, tenantId, onSaved }: { token: string; tenantId: num
       <h2 className="mt-2 text-4xl font-semibold tracking-tight">{file.name}</h2>
       <p className="mt-2 text-sm text-muted">
         {plan} · {file.email || "no inbox"} · {file.phone || "no phone"}
+        {file.archived_at ? " · archived" : ""}
       </p>
+      <div className="mt-3">
+        <Button type="button" variant="secondary" disabled={busy} onClick={() => void toggleArchive()}>
+          {busy ? "Working…" : file.archived_at ? "Unarchive" : "Archive"}
+        </Button>
+      </div>
 
       <div className="mt-6 flex flex-wrap gap-1.5">
         {(

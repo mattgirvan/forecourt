@@ -525,14 +525,43 @@ function StaffBuild({
           <Button variant="secondary" type="button" onClick={copyJson}>
             Copy tenant.json
           </Button>
-          <Button
-            className={sendReady ? "cta-amber" : undefined}
-            variant={sendReady ? "default" : "secondary"}
-            disabled={busy || !sendReady}
-            onClick={() => void fire()}
-          >
-            Send to build
-          </Button>
+          {deskAlreadySent(build) ? (
+            <>
+              <a
+                href={deskRepoUrl(build) || undefined}
+                target="_blank"
+                rel="noreferrer"
+                className={cn(
+                  "inline-flex h-11 items-center justify-center gap-2 rounded-full px-5 text-sm font-medium",
+                  "border border-[var(--wash-emerald-border)] bg-[var(--wash-emerald-bg)]",
+                  "text-[var(--emerald)] hover:opacity-90",
+                  !deskRepoUrl(build) && "pointer-events-none opacity-70",
+                )}
+              >
+                <span className="size-1.5 rounded-full bg-[var(--emerald)]" aria-hidden />
+                Desk repo ready
+              </a>
+              <Button
+                variant="ghost"
+                size="sm"
+                type="button"
+                disabled={busy || !sendReady}
+                onClick={() => void fire()}
+                title={sendReady ? "Create or refresh the desk repo again" : sendHelper}
+              >
+                {busy ? "Sending…" : "Send again"}
+              </Button>
+            </>
+          ) : (
+            <Button
+              className={sendReady ? "cta-amber" : undefined}
+              variant={sendReady ? "default" : "secondary"}
+              disabled={busy || !sendReady}
+              onClick={() => void fire()}
+            >
+              Send to build
+            </Button>
+          )}
           <TokenConfiguredDot
             configured={Boolean(tokenStatus?.configured)}
             source={tokenStatus?.source}
@@ -662,16 +691,37 @@ function TokenConfiguredDot({
   );
 }
 
+
+function deskRepoUrl(build: Build): string {
+  const job = build.jobs[0];
+  const fromJob =
+    job && "repo_html_url" in job
+      ? String((job as { repo_html_url?: string }).repo_html_url ?? "").trim()
+      : "";
+  if (fromJob) return fromJob;
+  const slug = (build.repo_slug ?? "").trim();
+  return slug ? `https://github.com/mattgirvan/${slug}` : "";
+}
+
+/** True once Phase 1 scaffold has produced a desk repo (or a succeeded job). */
+function deskAlreadySent(build: Build): boolean {
+  const slug = (build.repo_slug ?? "").trim();
+  if (slug) return true;
+  if (deskRepoUrl(build)) return true;
+  const jobs = build.jobs ?? [];
+  if (jobs.some((j) => j.status === "succeeded")) return true;
+  if (build.stage === "build" && jobs.some((j) => j.status === "succeeded")) return true;
+  return false;
+}
+
 function ScaffoldStatus({ build }: { build: Build }) {
   const job = build.jobs[0];
   const repo = (build.repo_slug ?? "").trim();
-  const html =
-    (job && "repo_html_url" in job && (job as { repo_html_url?: string }).repo_html_url) ||
-    (repo ? `https://github.com/mattgirvan/${repo}` : "");
+  const html = deskRepoUrl(build);
   if (!repo && !job) return null;
   const status = job?.status ?? "";
   const failed = status === "failed";
-  const ok = status === "succeeded";
+  const ok = status === "succeeded" || deskAlreadySent(build);
   return (
     <article className="rounded-[1.75rem] border border-line bg-surface p-6">
       <h3 className="text-xl font-semibold tracking-tight">Desk repo</h3>
