@@ -50,7 +50,7 @@ function PrivacyPage() {
           <li>Stripe: payments.</li>
           <li>Supabase: the account database, in a project we control.</li>
           <li>Vercel: hosting.</li>
-          <li>Resend / our mailbox: sign-in codes and mail from hello@forecourt.me.</li>
+          <li>Resend / our mailbox: sign-in codes, contact enquiries, and mail from hello@forecourt.me.</li>
         </ul>
         <p>A live desk is a separate database. Other dealers cannot read it. We do not put your book on a shared server with someone else.</p>
 

@@ -12,6 +12,7 @@ const links = [
   { to: "/demo", label: "Try it", desk: true },
   { to: "/how", label: "How it works" },
   { to: "/pricing", label: "Pricing" },
+  { to: "/contact", label: "Contact" },
 ] as const;
 
 function NavLink({

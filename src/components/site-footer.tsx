@@ -36,6 +36,9 @@ export function SiteFooter() {
           <Link to="/pricing" className="hover:text-fg">
             Pricing
           </Link>
+          <Link to="/contact" className="hover:text-fg">
+            Contact
+          </Link>
           {LEGAL_LINKS.map((l) => (
             <Link key={l.to} to={l.to} className="hover:text-fg">
               {l.label}

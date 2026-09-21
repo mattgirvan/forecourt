@@ -16,8 +16,9 @@ This is the **office** — sign-in, tenants, orders. Not Aberdeen. Not a custome
 7. SQL editor → paste `portal.sql` → run (dealer notes, support messages, team office)
 8. SQL editor → paste `staff.sql` → run (staff roles, invite, revoke)
 9. SQL editor → paste `build.sql` → run (order timeline, pack, meetings)
-10. Optional: SQL editor → paste `app-settings.sql` → run (GH_TEMPLATE_TOKEN fallback if Vercel env never reaches serverless)
-11. Redeploy Forecourt on Vercel (the next git push does this)
+10. SQL editor → paste `enquiries.sql` → run (contact form storage)
+11. Optional: SQL editor → paste `app-settings.sql` → run (GH_TEMPLATE_TOKEN fallback if Vercel env never reaches serverless)
+12. Redeploy Forecourt on Vercel (the next git push does this)
 
 Stripe webhook (optional, return-URL confirm still works): `https://www.forecourt.me/api/stripe/webhook`
 Needs `STRIPE_WEBHOOK_SECRET` and `SUPABASE_SERVICE_ROLE_KEY` on Vercel. Do not put the service-role key in `VITE_` vars.

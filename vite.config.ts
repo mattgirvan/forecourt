@@ -194,6 +194,8 @@ export default defineConfig(({ command, isPreview }) => ({
               githubTemplateToken: "",
               forecourtGhTemplateToken: "",
               grokGhTemplateToken: "",
+              resendApiKey: "",
+              supabaseServiceRoleKey: "",
               nitro: {
                 envPrefix: "",
               },
