@@ -541,6 +541,10 @@ function AccountInner() {
                 <Link to="/terms" className="text-fg underline-offset-4 hover:underline">
                   Terms
                 </Link>
+                . Isolation:{" "}
+                <Link to="/trust" className="text-fg underline-offset-4 hover:underline">
+                  Trust
+                </Link>
                 .
               </li>
             </ul>

@@ -1,4 +1,5 @@
 import { BRANDS, type BrandId } from "@/lib/brands";
+import { SITE } from "@/lib/site";
 import { FEATURES, INGEST, defaultFeaturesFor, normalizeBilling, normalizePlan, type BillingKind, type PlanId } from "@/lib/catalog";
 
 export const BUILD_STAGES = [
@@ -339,4 +340,79 @@ ${json}
 6. Vercel → custom domain \`${pack.domain || "portal.…"}\`.
 7. Put the preview URL back on the order. Stage → Preview. They click around. Then Live.
 `;
+}
+
+
+/** Day-one dealer checklist — status stubs OK; never invent Done without a real signal. */
+export const GO_LIVE_STEPS = [
+  {
+    id: "brand",
+    label: "Brand pack received",
+    waiting: "We're applying your logo and franchise colours.",
+    cta: null as string | null,
+  },
+  {
+    id: "domain",
+    label: "Your web address is live",
+    waiting: "Usually a day or two after DNS.",
+    cta: "Copy what to send IT",
+  },
+  {
+    id: "staff",
+    label: "First staff signed in",
+    waiting: "Send a login to your sales lead.",
+    cta: "Invite staff",
+  },
+  {
+    id: "stock",
+    label: "First stock list uploaded",
+    waiting: "Excel by VIN — same sheet you already use.",
+    cta: "How to upload",
+  },
+  {
+    id: "customer",
+    label: "First customer link sent",
+    waiting: "Optional — when you're ready.",
+    cta: "See customer glass",
+  },
+] as const;
+
+export type GoLiveStepId = (typeof GO_LIVE_STEPS)[number]["id"];
+export type GoLiveStatus = "done" | "current" | "upcoming";
+
+export const GO_LIVE_DNS_BLURB =
+  "Ask IT to CNAME your desk host (for example portal.yourdealer.co.uk) to the target we email after build. Keep their usual TTL. Tell us when the record is in — we finish the certificate and switch you over.";
+
+export function goLiveFooter() {
+  return `We'll email you when each step moves. Questions: ${SITE.email}`;
+}
+
+export function goLiveStatuses(
+  pack: TenantPack,
+  stage: string | null | undefined,
+): Record<GoLiveStepId, GoLiveStatus> {
+  const brandDone = Boolean(pack.brief.logoReady && pack.franchise.accent);
+  const domainDone = stage === "live";
+  // No control-plane telemetry yet for staff login / stock / customer glass — stay upcoming.
+  const done: Record<GoLiveStepId, boolean> = {
+    brand: brandDone,
+    domain: domainDone,
+    staff: false,
+    stock: false,
+    customer: false,
+  };
+
+  let currentSet = false;
+  const out = {} as Record<GoLiveStepId, GoLiveStatus>;
+  for (const step of GO_LIVE_STEPS) {
+    if (done[step.id]) {
+      out[step.id] = "done";
+    } else if (!currentSet) {
+      out[step.id] = "current";
+      currentSet = true;
+    } else {
+      out[step.id] = "upcoming";
+    }
+  }
+  return out;
 }

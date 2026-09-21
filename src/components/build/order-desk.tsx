@@ -18,6 +18,8 @@ import {
 import { INGEST, normalizeBilling, normalizePlan, type BillingKind, type PlanId } from "@/lib/catalog";
 import { ROLES } from "@/lib/roles";
 import { addMeeting, getBuild, savePack, sendToBuild, setBuildStage } from "@/lib/server/build";
+import { BrandPackPreview } from "@/components/trust/brand-preview";
+import { GoLiveChecklist } from "@/components/trust/go-live-checklist";
 import { cn } from "@/lib/utils";
 
 type Build = Awaited<ReturnType<typeof getBuild>>;
@@ -92,7 +94,16 @@ export function OrderBuild({
         <h2 className="mt-2 text-3xl font-semibold tracking-tight">{team ? "The build" : "Your desk"}</h2>
         <p className="mt-2 max-w-xl text-sm text-muted">{team ? meta.staff : meta.customer}</p>
       </div>
-      <StageRail
+      {!team ? (
+        <GoLiveChecklist
+          pack={build.pack}
+          stage={build.stage}
+          onInviteStaff={() => {
+            /* People tab lives on the portal — dealer uses Support if they need a hand. */
+          }}
+        />
+      ) : null}
+            <StageRail
         stage={build.stage}
         onPick={
           team
@@ -164,6 +175,21 @@ function CustomerBuild({
   }
 
   return (
+    <div className="space-y-4">
+      <article className="rounded-[1.75rem] border border-line bg-surface p-6">
+        <BrandPackPreview
+          pack={pack}
+          onAccentPick={(id) => setPack(applyBrand(pack, id))}
+        />
+        <label className="mt-4 flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={pack.brief.logoReady}
+            onChange={(e) => setPack({ ...pack, brief: { ...pack.brief, logoReady: e.target.checked } })}
+          />
+          Logo is ready (SVG or PNG), or use the group mark
+        </label>
+      </article>
     <div className="grid gap-4 lg:grid-cols-2">
       <article className="rounded-[1.75rem] border border-line bg-surface p-6">
         <h3 className="text-xl font-semibold tracking-tight">What we need from you</h3>
@@ -229,6 +255,7 @@ function CustomerBuild({
           </p>
         )}
       </article>
+    </div>
     </div>
   );
 }

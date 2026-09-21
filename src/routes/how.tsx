@@ -5,6 +5,7 @@ import { Reveal } from "@/components/reveal";
 import { SiteShell } from "@/components/site-shell";
 import { Button } from "@/components/ui/button";
 import { FEATURES, INGEST, PROVISION, type IngestId } from "@/lib/catalog";
+import { DoorsMap } from "@/components/trust/doors-map";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/how")({ component: HowPage });
@@ -23,7 +24,7 @@ const ORDER_PREVIEW: Record<string, boolean> = {
 
 const FLOOR = [
   {
-    title: "Admin",
+    title: "Office / administrator seat",
     line: "Knows what’s going out — without chasing the floor.",
   },
   {
@@ -55,6 +56,17 @@ export function HowPage() {
             It ties into the stock system you already run. We don’t replace DealerWeb or the DMS.
             Site can start on 60 days. Franchise and group start on a 12-month contract.
           </p>
+        </Reveal>
+
+        <Reveal className="mt-16">
+          <p className="text-[13px] font-medium text-muted">Where you log in</p>
+          <h2 className="mt-3 max-w-2xl text-3xl font-semibold tracking-tight">Five doors. Not one ambiguous Admin.</h2>
+          <p className="mt-3 max-w-xl text-sm text-muted">
+            This website, your account, your desk, customer glass, and our staff office. Administrator is a seat on your desk — the Forecourt team uses a separate door.
+          </p>
+          <div className="mt-8">
+            <DoorsMap />
+          </div>
         </Reveal>
 
         <ol className="mt-16 space-y-10">
