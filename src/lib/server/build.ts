@@ -2,26 +2,16 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { createServerFn } from "@tanstack/react-start";
 import {
   BUILD_STAGES,
-  buildBriefMarkdown,
   isBuildStage,
   packFromTenant,
-  packGaps,
-  tenantJson,
   type BuildStage,
   type TenantPack,
 } from "@/lib/build";
-import { normalizeBilling, normalizePlan } from "@/lib/catalog";
 import { env } from "@/lib/env.server";
 import { SUPABASE_ANON, SUPABASE_URL } from "@/lib/sb";
 import { looksLikeTeam } from "@/lib/team";
-import {
-  deskHtmlUrl,
-  deskRepoName,
-  isGhTemplateTokenConfigured,
-  nextHumanSteps,
-  requireGhTemplateToken,
-  scaffoldDeskRepo,
-} from "@/lib/server/desk-scaffold";
+import { listStaffEnvKeyNames } from "@/lib/server/desk-scaffold";
+import { executeSendToBuild } from "@/lib/server/build-api";
 
 function sbFor(token: string) {
   const key = SUPABASE_ANON || env("VITE_SUPABASE_ANON_KEY") || env("VITE_SUPABASE_PUBLISHABLE_KEY") || "";
@@ -132,6 +122,9 @@ export const getBuild = createServerFn({ method: "POST" })
             claimed_at: string | null;
           }[],
         };
+    // Token chip / scaffold use /api/build/* route handlers (Stripe-webhook path).
+    // createServerFn env keys are returned only for staff A/B diagnostic.
+    const serverFnEnvKeys = team ? listStaffEnvKeyNames() : null;
     return {
       stage: (isBuildStage(t.stage) ? t.stage : (t.stage as string) || "briefing") as BuildStage | "briefing",
       preview_url: (t.preview_url as string | null) ?? "",
@@ -142,8 +135,7 @@ export const getBuild = createServerFn({ method: "POST" })
       jobs: jobs ?? [],
       plan: t.plan as string,
       billing: t.billing as string,
-      // Staff only — boolean, never the secret value.
-      ghTemplateConfigured: team ? isGhTemplateTokenConfigured() : false,
+      serverFnEnvKeys,
     };
   });
 
@@ -244,117 +236,7 @@ export const addMeeting = createServerFn({ method: "POST" })
 export const sendToBuild = createServerFn({ method: "POST" })
   .validator((d: { token: string; tenantId: number }) => d)
   .handler(async ({ data }) => {
-    const { sb, team, email } = await actor(data.token);
-    if (!team) throw new Error("Only staff send a build.");
-    // Fail closed before queuing — no orphan queued jobs without a token.
-    requireGhTemplateToken();
-    const { data: t, error } = await sb
-      .from("tenants")
-      .select(
-        "id, slug, name, legal, phone, email, domain, sites, features, ingest, plan, billing, staff_json, principal_name, group_name, pack_json, stage",
-      )
-      .eq("id", data.tenantId)
-      .maybeSingle();
-    if (error || !t) throw new Error("No order.");
-    const pack = packFromTenant(t);
-    const plan = normalizePlan(t.plan);
-    const billing = normalizeBilling(plan, t.billing);
-    const gaps = packGaps(pack, plan, billing);
-    if (gaps.length) {
-      throw new Error(
-        gaps.length === 1
-          ? gaps[0]!
-          : "Add a web address and at least one staff seat before we can build.",
-      );
-    }
-    const repo = deskRepoName(pack.slug);
-    const brief = buildBriefMarkdown(pack, {
-      plan: String(t.plan),
-      billing: String(t.billing),
-      tenantId: data.tenantId,
-    });
-    await sb
-      .from("tenants")
-      .update({
-        stage: "build",
-        pack_json: JSON.stringify(pack),
-        repo_slug: repo,
-      })
-      .eq("id", data.tenantId);
-
-    const claimedAt = new Date().toISOString();
-    const { data: job, error: jobErr } = await sb
-      .from("build_jobs")
-      .insert({
-        tenant_id: data.tenantId,
-        status: "queued",
-        pack_json: JSON.stringify(tenantJson(pack)),
-        brief_md: brief,
-        claimed_at: claimedAt,
-      })
-      .select("id")
-      .single();
-    if (jobErr || !job) throw new Error(jobErr?.message ?? "Could not queue the build job.");
-
-    try {
-      const result = await scaffoldDeskRepo(pack);
-      const finishedAt = new Date().toISOString();
-      await sb
-        .from("build_jobs")
-        .update({
-          status: "succeeded",
-          error_message: "",
-          repo_html_url: result.htmlUrl,
-          finished_at: finishedAt,
-        })
-        .eq("id", job.id);
-      await sb
-        .from("tenants")
-        .update({
-          repo_slug: result.repo,
-        })
-        .eq("id", data.tenantId);
-      const body = result.created
-        ? `Private repo ${result.repo} created from forecourt-desk. tenant.json locked. Supabase and Vercel are still manual.`
-        : `Repo ${result.repo} already existed — tenant.json updated. Supabase and Vercel are still manual.`;
-      await sb.from("build_events").insert({
-        tenant_id: data.tenantId,
-        kind: "stage",
-        stage: "build",
-        title: "Sent to build",
-        body,
-        visibility: "customer",
-        actor_email: email,
-      });
-      return {
-        ok: true as const,
-        brief,
-        repo: result.repo,
-        htmlUrl: result.htmlUrl,
-        created: result.created,
-        logoWritten: result.logoWritten,
-        nextSteps: nextHumanSteps(pack.slug, pack.domain),
-      };
-    } catch (e) {
-      const message = e instanceof Error ? e.message : "Desk scaffold failed.";
-      await sb
-        .from("build_jobs")
-        .update({
-          status: "failed",
-          error_message: message.slice(0, 2000),
-          repo_html_url: deskHtmlUrl(repo),
-          finished_at: new Date().toISOString(),
-        })
-        .eq("id", job.id);
-      await sb.from("build_events").insert({
-        tenant_id: data.tenantId,
-        kind: "note",
-        stage: "build",
-        title: "Build scaffold failed",
-        body: message.slice(0, 500),
-        visibility: "internal",
-        actor_email: email,
-      });
-      throw new Error(message);
-    }
+    // Prefer /api/build/send from the browser (route handler = webhook env path).
+    // Kept as a thin delegate for any leftover callers.
+    return executeSendToBuild(data.token, data.tenantId);
   });

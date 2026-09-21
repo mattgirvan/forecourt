@@ -17,12 +17,52 @@ import {
 } from "@/lib/build";
 import { INGEST, normalizeBilling, normalizePlan, type BillingKind, type PlanId } from "@/lib/catalog";
 import { ROLES } from "@/lib/roles";
-import { addMeeting, getBuild, savePack, sendToBuild, setBuildStage } from "@/lib/server/build";
+import { addMeeting, getBuild, savePack, setBuildStage } from "@/lib/server/build";
 import { BrandPackPreview } from "@/components/trust/brand-preview";
 import { GoLiveChecklist } from "@/components/trust/go-live-checklist";
 import { cn } from "@/lib/utils";
 
 type Build = Awaited<ReturnType<typeof getBuild>>;
+
+type TokenStatus = {
+  configured: boolean;
+  source: string;
+  routeEnvKeys: string[];
+  runtime: string;
+};
+
+async function fetchTokenStatus(token: string): Promise<TokenStatus> {
+  const res = await fetch("/api/build/token-status", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ token }),
+  });
+  const body = (await res.json()) as TokenStatus & { error?: string };
+  if (!res.ok) throw new Error(body.error || "Could not check token.");
+  return body;
+}
+
+async function postSendToBuild(token: string, tenantId: number) {
+  const res = await fetch("/api/build/send", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ token, tenantId }),
+  });
+  const body = (await res.json()) as {
+    ok?: true;
+    created?: boolean;
+    repo?: string;
+    logoWritten?: boolean;
+    error?: string;
+  };
+  if (!res.ok || !body.ok) throw new Error(body.error || "Could not send.");
+  return body as {
+    ok: true;
+    created: boolean;
+    repo: string;
+    logoWritten: boolean;
+  };
+}
 
 export function StageRail({
   stage,
@@ -285,6 +325,7 @@ function StaffBuild({
   const [when, setWhen] = useState("");
   const [meetTitle, setMeetTitle] = useState("Briefing call");
   const [notice, setNotice] = useState<string | null>(null);
+  const [tokenStatus, setTokenStatus] = useState<TokenStatus | null>(null);
   const gaps = packGaps(pack, plan, billing);
   const sendReady = gaps.length === 0;
   const sendHelper = packGapsHelper(gaps);
@@ -294,6 +335,26 @@ function StaffBuild({
     setPreview(build.preview_url);
     setRepo(build.repo_slug);
   }, [build]);
+  useEffect(() => {
+    let cancelled = false;
+    void fetchTokenStatus(token)
+      .then((s) => {
+        if (!cancelled) setTokenStatus(s);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setTokenStatus({
+            configured: false,
+            source: "none",
+            routeEnvKeys: [],
+            runtime: "route-handler",
+          });
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
 
   async function save() {
     setBusy(true);
@@ -312,11 +373,14 @@ function StaffBuild({
     setBusy(true);
     try {
       await savePack({ data: { token, tenantId, pack } });
-      const res = await sendToBuild({ data: { token, tenantId } });
+      // Route handler path — same bundling as /api/stripe/webhook (not createServerFn).
+      const res = await postSendToBuild(token, tenantId);
       const verb = res.created ? "Created" : "Updated";
       setNotice(
         `${verb} ${res.repo}. tenant.json locked${res.logoWritten ? " (logo committed)" : ""}. Supabase and Vercel are still manual — see next steps below.`,
       );
+      const status = await fetchTokenStatus(token).catch(() => null);
+      if (status) setTokenStatus(status);
       onReload();
     } catch (e) {
       setNotice(e instanceof Error ? e.message : "Could not send.");
@@ -469,7 +533,12 @@ function StaffBuild({
           >
             Send to build
           </Button>
-          <TokenConfiguredDot configured={Boolean(build.ghTemplateConfigured)} />
+          <TokenConfiguredDot
+            configured={Boolean(tokenStatus?.configured)}
+            source={tokenStatus?.source}
+            routeEnvKeys={tokenStatus?.routeEnvKeys}
+            serverFnEnvKeys={build.serverFnEnvKeys}
+          />
         </div>
         {notice ? (
           <p
@@ -546,21 +615,49 @@ function StaffBuild({
   );
 }
 
-function TokenConfiguredDot({ configured }: { configured: boolean }) {
+function TokenConfiguredDot({
+  configured,
+  source,
+  routeEnvKeys,
+  serverFnEnvKeys,
+}: {
+  configured: boolean;
+  source?: string | null;
+  routeEnvKeys?: string[] | null;
+  serverFnEnvKeys?: string[] | null;
+}) {
+  const routeKeys = routeEnvKeys ?? [];
+  const fnKeys = serverFnEnvKeys ?? [];
+  const title = configured
+    ? `GH_TEMPLATE_TOKEN reachable via ${source || "env"} (route handler)`
+    : "GH_TEMPLATE_TOKEN is missing on the route-handler path — Send to build will fail closed";
   return (
-    <span
-      className="inline-flex items-center gap-1.5 rounded-full border border-line bg-elevated px-2.5 py-1 text-[11px] text-muted"
-      title={
-        configured
-          ? "GH_TEMPLATE_TOKEN is set on this server"
-          : "GH_TEMPLATE_TOKEN is missing — Send to build will fail closed"
-      }
-    >
+    <span className="inline-flex max-w-full flex-col gap-1">
       <span
-        className={cn("size-1.5 rounded-full", configured ? "bg-emerald-500" : "bg-amber-500")}
-        aria-hidden
-      />
-      Token {configured ? "configured" : "missing"}
+        className="inline-flex items-center gap-1.5 rounded-full border border-line bg-elevated px-2.5 py-1 text-[11px] text-muted"
+        title={title}
+      >
+        <span
+          className={cn("size-1.5 rounded-full", configured ? "bg-emerald-500" : "bg-amber-500")}
+          aria-hidden
+        />
+        Token {configured ? "configured" : "missing"}
+        {configured && source ? (
+          <span className="text-subtle">· {source}</span>
+        ) : null}
+      </span>
+      <span
+        className="rounded-2xl border border-line bg-elevated/60 px-2.5 py-1.5 font-mono text-[10px] leading-snug text-subtle"
+        title="Route handler process.env key names (same path as scaffold + Stripe webhook). Values never shown."
+      >
+        route: {routeKeys.length ? routeKeys.join(", ") : "(none matching)"}
+      </span>
+      <span
+        className="rounded-2xl border border-line bg-elevated/60 px-2.5 py-1.5 font-mono text-[10px] leading-snug text-subtle"
+        title="createServerFn process.env key names for comparison. Values never shown."
+      >
+        serverFn: {fnKeys.length ? fnKeys.join(", ") : "(none matching)"}
+      </span>
     </span>
   );
 }
