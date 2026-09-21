@@ -27,7 +27,10 @@
     "manufacturer": false
   },
   "staff": [
-    { "name": "You", "email": "you@example.invalid", "role": "management", "site": "Main" }
+    { "name": "You", "email": "you@example.invalid", "role": "management", "site": "Main" },
+    { "name": "Sales", "email": "sales@example.invalid", "role": "sales", "site": "Main" },
+    { "name": "Host", "email": "host@example.invalid", "role": "host", "site": "Main" },
+    { "name": "Progressor", "email": "progressor@example.invalid", "role": "progressor", "site": "Main" }
   ],
   "seedDemo": false
 }

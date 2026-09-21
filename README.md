@@ -23,7 +23,7 @@ The demo a principal opens in another tab is **not** what goes live. After they 
 
 ## What you ship (the other repo)
 
-See `desk-template/` in this tree (canonical copy) and the GitHub template `mattgirvan/forecourt-desk`.
+[`forecourt-desk`](https://github.com/mattgirvan/forecourt-desk) remains the **ship source** — clone that template per order. `desk-template/` in this tree is a mirror for the control plane and must **not lag** desk `main` (including migrations, staff session / LoginGate, PROVISION, tenant schema, trial seats). Sync from desk; do not invent features here.
 
 1. Brand pack → `tenant.json`
 2. Clone template (not Aberdeen)

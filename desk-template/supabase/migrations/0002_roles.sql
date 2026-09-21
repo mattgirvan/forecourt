@@ -1,6 +1,6 @@
--- Seats on this site. Job title is display_name. Role is the product seat.
--- Site trial: sales + management only (Aberdeen as it runs).
--- Site subscribed / Franchise: + progressor, host, admin, accounts.
+-- Seats on this rooftop. Job title is display_name. Role is the product seat.
+-- Pilot: sales + management only (Aberdeen as it runs).
+-- Site: + progressor, host, admin, accounts.
 -- Group: + principal, and franchise/site on the row.
 
 alter table staff_users add column if not exists role text not null default 'sales';

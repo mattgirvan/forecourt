@@ -3,9 +3,10 @@ import { KeyRound, MapPin, TriangleAlert } from "lucide-react";
 import { tenant, groupMark, featureOn, applyBrand } from "./tenant";
 import { locatorLane, pipelineStages } from "./config/locator";
 import { useDesk } from "./data/store";
+import { useStaffSeat, previewSeats } from "./data/staffSession";
 import { gbp } from "./lib/money";
 import { LoginGate } from "./LoginGate";
-import { normaliseStaff, roleOf } from "./roles";
+import { roleOf } from "./roles";
 
 const ALL_TABS = [
   { id: "overview", label: "Overview" },
@@ -27,16 +28,22 @@ export default function App() {
 function Desk() {
   const boot = useDesk((s) => s.boot);
   const ready = useDesk((s) => s.ready);
-  const seats = useMemo(() => normaliseStaff(tenant.staff), []);
-  const [seatEmail, setSeatEmail] = useState(seats[0]?.email || "");
-  const seat = seats.find((s) => s.email === seatEmail) ?? seats[0];
+  const { mode: authMode, seat: boundSeat, error: seatError } = useStaffSeat();
+  const previewList = useMemo(() => previewSeats(), []);
+  const [previewEmail, setPreviewEmail] = useState(previewList[0]?.email || "");
+
+  const seat =
+    authMode === "preview"
+      ? previewList.find((s) => s.email === previewEmail) ?? previewList[0]
+      : boundSeat;
   const pack = roleOf(seat?.role);
-  const [tab, setTab] = useState(pack.tabs[0] || "overview");
-  const [view, setView] = useState("staff");
+  const [tab, setTab] = useState("overview");
+  const [view, setView] = useState(authMode === "customer" ? "customer" : "staff");
   const tabs = ALL_TABS.filter((t) => featureOn(t.id) && pack.tabs.includes(t.id));
   const mark = groupMark();
   const word = tenant.franchise?.word || "";
   const logo = "/brand/logo.svg";
+  const siteLabel = seat?.site || tenant.sites?.[0] || "Main";
 
   useEffect(() => {
     applyBrand();
@@ -44,10 +51,47 @@ function Desk() {
   }, [boot]);
 
   useEffect(() => {
+    if (authMode === "customer") {
+      setView("customer");
+      return;
+    }
+    if ((authMode === "staff" || authMode === "preview") && seat?.role) {
+      const next = roleOf(seat.role);
+      setTab(next.tabs.find((id) => featureOn(id)) || next.tabs[0] || "overview");
+      if (authMode === "staff") setView("staff");
+    }
+  }, [authMode, seat?.role]);
+
+  useEffect(() => {
     if (!tabs.find((t) => t.id === tab)) setTab(tabs[0]?.id || "overview");
   }, [tab, tabs]);
 
-  if (!ready) return null;
+  if (!ready || authMode === "loading") return null;
+
+  if (authMode === "customer") {
+    return (
+      <div className="shell">
+        <div className="orb" />
+        <header className="nav">
+          <div>
+            <div className="word">
+              {mark} <span style={{ color: "rgba(255,255,255,0.35)" }}>+</span> <span>{word}</span>
+            </div>
+            <div className="eyebrow">Your order · {tenant.name}</div>
+          </div>
+          <div className="eyebrow">{tenant.domain}</div>
+        </header>
+        <div className="pane">
+          <Customer />
+          {seatError && (
+            <p className="muted" style={{ marginTop: 12 }}>
+              Staff seat lookup failed — showing customer view. {seatError}
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="shell">
@@ -70,27 +114,48 @@ function Desk() {
               {mark} <span style={{ color: "rgba(255,255,255,0.35)" }}>+</span> <span>{word}</span>
             </div>
             <div className="eyebrow">
-              My order portal · {tenant.sites?.[0] || "Main"}
+              My order portal · {siteLabel}
             </div>
           </div>
         </div>
         <div className="eyebrow" style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span>{tenant.domain}</span>
-          <select
-            value={seat?.email || ""}
-            onChange={(e) => {
-              setSeatEmail(e.target.value);
-              setView("staff");
-            }}
-            style={{ height: 32, fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase" }}
-          >
-            {seats.map((s) => (
-              <option key={s.email || s.role} value={s.email}>
-                {roleOf(s.role).label}
-                {s.site ? ` · ${s.site}` : ""}
-              </option>
-            ))}
-          </select>
+          {authMode === "preview" ? (
+            <select
+              value={seat?.email || ""}
+              onChange={(e) => {
+                setPreviewEmail(e.target.value);
+                setView("staff");
+              }}
+              title="Preview only — trial seats for local demos. Not used when Supabase auth is on."
+              style={{ height: 32, fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase" }}
+            >
+              {previewList.map((s) => (
+                <option key={s.email || s.role} value={s.email}>
+                  Preview · {roleOf(s.role).label}
+                  {s.site ? ` · ${s.site}` : ""}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <span
+              title={`Bound to ${seat?.email || ""} via ${seat?.source || "staff_users"}`}
+              style={{
+                height: 32,
+                display: "inline-flex",
+                alignItems: "center",
+                padding: "0 10px",
+                borderRadius: 8,
+                background: "rgba(255,255,255,0.08)",
+                fontSize: 11,
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+              }}
+            >
+              {pack.label}
+              {seat?.site ? ` · ${seat.site}` : ""}
+            </span>
+          )}
         </div>
       </header>
 
@@ -111,22 +176,22 @@ function Desk() {
         {view === "customer" ? (
           <Customer />
         ) : tab === "stock" ? (
-          <Stock canEdit={pack.edit} />
+          <Stock canEdit={pack.editStock} />
         ) : tab === "locator" ? (
-          <Locator canEdit={pack.edit} showGp={pack.gp} />
+          <Locator canEdit={pack.editDeals} showGp={pack.gp} />
         ) : tab === "pipeline" ? (
-          <Pipeline canEdit={pack.edit} />
+          <Pipeline canEdit={pack.editDeals} />
         ) : tab === "mind" ? (
           <Mind />
         ) : (
-          <Overview showGp={pack.gp} />
+          <Overview showGp={pack.gp} canEdit={pack.editDeals} />
         )}
       </div>
     </div>
   );
 }
 
-function Overview({ showGp = true }) {
+function Overview({ showGp = true, canEdit = true }) {
   const deals = useDesk((s) => s.deals);
   const selectDeal = useDesk((s) => s.selectDeal);
   const toggleMonthEnd = useDesk((s) => s.toggleMonthEnd);
@@ -137,7 +202,7 @@ function Overview({ showGp = true }) {
   if (!live.length) {
     return (
       <div className="glass empty">
-        No live deals yet. Add an order or ingest stock — this site starts empty on purpose.
+        No live deals yet. Add an order or ingest stock — this rooftop starts empty on purpose.
       </div>
     );
   }
@@ -171,7 +236,12 @@ function Overview({ showGp = true }) {
                 <td className="muted">{pipelineStages[d.stageIndex]}</td>
                 <td className={d.gp == null || d.gp < 0 ? "bad" : ""}>{showGp ? (d.gp == null ? "—" : gbp(d.gp)) : "—"}</td>
                 <td>
-                  <button className="ghost" type="button" onClick={() => toggleMonthEnd(d.id)}>
+                  <button
+                    className="ghost"
+                    type="button"
+                    disabled={!canEdit}
+                    onClick={() => canEdit && toggleMonthEnd(d.id)}
+                  >
                     {d.monthEnd ? "ME" : "—"}
                   </button>
                 </td>

@@ -1,13 +1,16 @@
 # Forecourt desk
 
-This is the **product** you ship when a site orders.
+> Mirror inside `forecourt`. **Ship from** [`mattgirvan/forecourt-desk`](https://github.com/mattgirvan/forecourt-desk) — keep this folder in step with desk `main`.
+
+
+This is the **product** you ship when a rooftop orders.
 
 It is **not** the Forecourt marketing site, and it is **not** a fork of `skoda-aberdeen-portal`. Aberdeen stays the live prototype. This template is the white-label that every new client is built from.
 
 ```
 forecourt                 marketing + fictional demo + checkout
 forecourt-desk            ← this repo — clone per order
-skoda-aberdeen-portal     live Aberdeen site. Do not copy App.jsx.
+skoda-aberdeen-portal     live Aberdeen rooftop. Do not copy App.jsx.
 ```
 
 ## What you edit for a client
