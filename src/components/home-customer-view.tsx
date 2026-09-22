@@ -26,7 +26,7 @@ const highlights = [
 
 /**
  * Marketing band: what the buyer sees. Frames the real CustomerPane in a phone bezel.
- * No invented product UI; same glass cards and labels as the demo desk Customer view.
+ * No invented product UI; same cards and labels as the demo desk Customer view.
  */
 export function HomeCustomerView({
   id = "customer-view",
@@ -135,7 +135,7 @@ function PhoneFrame({
   glow: string;
 }) {
   return (
-    <div className="relative w-full max-w-[320px] sm:max-w-[340px]">
+    <div className="relative w-full max-w-[300px] sm:max-w-[320px]">
       <div
         className="absolute -inset-6 rounded-[3rem] opacity-70 blur-3xl"
         style={{ background: glow }}
@@ -160,7 +160,7 @@ function PhoneFrame({
           }
         >
           <div className="desk-orb opacity-60" aria-hidden />
-          <div className="customer-phone-scroll relative z-10 h-full overflow-x-hidden overflow-y-auto overscroll-contain pt-8 [&_.mx-auto]:max-w-none [&_.px-5]:px-3.5 [&_.py-7]:py-4 [&_.pb-24]:pb-10 [&_.text-\[26px\]]:text-[18px] [&_.text-\[20px\]]:text-[18px]">
+          <div className="customer-phone-scroll relative z-10 h-full overflow-x-hidden overflow-y-auto overscroll-contain pt-8 [&_.mx-auto]:max-w-none [&_.px-5]:px-[14px] [&_.pb-24]:pb-10">
             {children}
           </div>
         </div>
