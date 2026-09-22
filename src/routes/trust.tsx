@@ -68,7 +68,7 @@ function TrustPage() {
             </div>
           </Section>
 
-          <Section title="Customer glass is invitation-only">
+          <Section title="Customer view is invitation-only">
             <p>
               Buyers get a magic link. They only see their own order, not your stock book, not someone
               else&apos;s deal.

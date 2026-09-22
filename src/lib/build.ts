@@ -376,7 +376,7 @@ export const GO_LIVE_STEPS = [
     id: "customer",
     label: "First customer link sent",
     waiting: "Optional — when you're ready.",
-    cta: "See customer glass",
+    cta: "See customer view",
   },
 ] as const;
 

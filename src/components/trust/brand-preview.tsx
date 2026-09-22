@@ -25,7 +25,7 @@ export function BrandPackPreview({
       <div>
         <h3 className="text-xl font-semibold tracking-tight">Brand pack preview</h3>
         <p className="mt-1 text-sm text-muted">
-          How the desk chrome will feel with your colours: still Forecourt glass, with your name on it.
+          How the desk chrome will feel with your colours: still Forecourt, with your name on it.
         </p>
       </div>
 

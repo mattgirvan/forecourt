@@ -25,7 +25,7 @@ export const DOORS = [
   },
   {
     id: "glass",
-    title: "Customer glass",
+    title: "Customer view",
     line: "\"Where's my car?\" Buyers only see their own order.",
     for: "Invited customers.",
     href: null,
@@ -84,7 +84,7 @@ export function DoorsMap({
 export function DoorsOneLiner() {
   return (
     <p className="text-sm leading-relaxed text-muted">
-      Five doors, not one login: this website, your account, your desk, customer glass, and our staff office.{" "}
+      Five doors, not one login: this website, your account, your desk, customer view, and our staff office.{" "}
       <Link to="/how" className="text-fg underline-offset-4 hover:underline">
         See the map
       </Link>

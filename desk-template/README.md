@@ -21,7 +21,7 @@ skoda-aberdeen-portal     live Aberdeen rooftop. Do not copy App.jsx.
 | `public/brand/logo.svg` | Their mark. If missing, the group letters are used |
 | `.env` | **Their** Supabase project. Never Aberdeen’s |
 
-You do **not** edit `src/App.jsx` to change the name on the glass.
+You do **not** edit `src/App.jsx` to change the name on the desk.
 
 ## Run locally
 

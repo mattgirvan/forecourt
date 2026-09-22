@@ -67,7 +67,7 @@ export function GoLiveChecklist({
                     else if (step.id === "stock")
                       setTip("Upload an Excel or CSV with a VIN column (same sheet your stock team already keeps).");
                     else if (step.id === "customer")
-                      setTip("From the desk, open a deal and send customer glass. They get a magic link for that order only.");
+                      setTip("From the desk, open a deal and send the customer view. They get a magic link for that order only.");
                   }}
                 >
                   {step.cta}

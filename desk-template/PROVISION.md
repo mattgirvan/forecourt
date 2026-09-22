@@ -112,10 +112,10 @@ Send the GM: magic-link login. Success metric stays: every live deal has a locat
 |---|---|
 | Extra site | Add to `tenant.json` `sites` |
 | Second franchise | `franchises[]` + franchise pack. Not a new role |
-| Turn off customer glass | `features.customer: false` |
+| Turn off customer view | `features.customer: false` |
 | Different locator labels | `src/config/locator.js` — franchise pack, not a fork |
 | Expenses / overtime / buy-in | Aberdeen-only extras. Port behind a feature flag if they ask. Not default. |
-| “Make it look like our website” | Brand pack only. The OS should still feel like Forecourt glass. |
+| “Make it look like our website” | Brand pack only. The OS should still feel like Forecourt. |
 
 If you are editing `App.jsx` to change the dealer name, you have left the product.
 

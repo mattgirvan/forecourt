@@ -27,7 +27,7 @@ function DpaPage() {
         <h2>Roles</h2>
         <p>
           You are the controller. {LEGAL.who} is the processor. That is UK GDPR Article 28. We only process
-          personal data on your desk to provide Forecourt (stock, deals, locator, customer glass, staff
+          personal data on your desk to provide Forecourt (stock, deals, locator, customer view, staff
           logins) and to keep it up.
         </p>
 
