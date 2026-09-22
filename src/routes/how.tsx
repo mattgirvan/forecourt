@@ -92,7 +92,7 @@ export function HowPage() {
           <p className="text-[13px] font-medium text-muted">Where you log in</p>
           <h2 className="mt-3 max-w-2xl text-3xl font-semibold tracking-tight">Five doors. Not one ambiguous Administrator.</h2>
           <p className="mt-3 max-w-xl text-sm text-muted">
-            This website, your account, your desk, customer glass, and our staff office. Administrator is a seat on your desk. The Forecourt team uses a separate door.
+            This website, your account, your desk, customer view, and our staff office. Administrator is a seat on your desk. The Forecourt team uses a separate door.
           </p>
           <div className="mt-8">
             <DoorsMap />
