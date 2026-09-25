@@ -913,7 +913,7 @@ function ChaseScene() {
       >
         <div aria-hidden className="desk-shell scene-card px-4 py-4 sm:px-5">
           <div className="text-[17px] font-medium">To-Do List</div>
-          <div className="mt-0.5 text-[12px] text-[var(--mist)]">Outstanding tasks and promises, earliest delivery first.</div>
+          <div className="scene-short-hide mt-0.5 text-[12px] text-[var(--mist)]">Outstanding tasks and promises, earliest delivery first.</div>
 
           <div className="shell-glass mt-3.5 rounded-[18px] px-4 py-3.5">
             <div className="mb-3 flex flex-wrap items-center gap-2">

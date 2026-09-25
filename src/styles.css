@@ -818,9 +818,9 @@
   }
 }
 @media (max-width: 767px) {
-  /* Mobile header carries a second nav row. */
+  /* Mobile header carries a second nav row (about 114px tall); keep eyebrows clear of it. */
   .scene-sticky {
-    padding-top: 7.5rem;
+    padding-top: 7.75rem;
   }
 }
 @media (max-width: 1023px) {
