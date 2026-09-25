@@ -130,6 +130,7 @@ export function PhoneFrame({
   accent,
   glow,
   screenClassName,
+  className,
   caption = "Real customer view layout. Sample order, dummy details.",
 }: {
   children: ReactNode;
@@ -137,10 +138,12 @@ export function PhoneFrame({
   glow: string;
   /** Override the screen height (default fits the homepage band). */
   screenClassName?: string;
+  /** Extra classes on the outer frame (e.g. a wider max width). */
+  className?: string;
   caption?: string;
 }) {
   return (
-    <div className="relative w-full max-w-[300px] sm:max-w-[320px]">
+    <div className={cn("relative w-full max-w-[300px] sm:max-w-[320px]", className)}>
       <div
         className="absolute -inset-6 rounded-[3rem] opacity-70 blur-3xl"
         style={{ background: glow }}

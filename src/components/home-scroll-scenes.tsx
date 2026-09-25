@@ -1,5 +1,23 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
-import { AlertTriangle, Calendar, Car, Check, CheckCircle2, ChevronDown, Circle, Key, Mail, MessageSquare, Plus, Truck, UserPlus } from "lucide-react";
+import {
+  AlertTriangle,
+  Anchor,
+  Calendar,
+  Car,
+  Check,
+  CheckCircle2,
+  ChevronDown,
+  ChevronRight,
+  Circle,
+  Key,
+  Mail,
+  MessageSquare,
+  Plus,
+  Ship,
+  Truck,
+  UserPlus,
+  type LucideProps,
+} from "lucide-react";
 import { PhoneFrame } from "@/components/home-customer-view";
 import { cn } from "@/lib/utils";
 
@@ -192,7 +210,7 @@ function TeamScene() {
   const optionRef = useRef<HTMLDivElement>(null);
 
   const trackRef = useScrollScene<HTMLElement>((p) => {
-    const next = p < 0.42 ? 0 : p < 0.48 ? 1 : p < 0.66 ? 2 : p < 0.74 ? 3 : 4;
+    const next = p < 0.3 ? 0 : p < 0.36 ? 1 : p < 0.5 ? 2 : p < 0.6 ? 3 : 4;
     setStage(next);
     const box = stageRef.current?.getBoundingClientRect();
     if (!box) return;
@@ -202,20 +220,20 @@ function TeamScene() {
     const rest = { x: pill.x + 26, y: pill.y + 34 };
     let x: number;
     let y: number;
-    if (p < 0.48) {
-      const t = ease(seg(p, 0.1, 0.4));
+    if (p < 0.36) {
+      const t = ease(seg(p, 0.05, 0.29));
       x = lerp(from.x, pill.x, t);
       y = lerp(from.y, pill.y, t);
-    } else if (p < 0.74) {
-      const t = ease(seg(p, 0.5, 0.64));
+    } else if (p < 0.6) {
+      const t = ease(seg(p, 0.38, 0.49));
       x = lerp(pill.x, opt.x, t);
       y = lerp(pill.y, opt.y, t);
     } else {
-      const t = ease(seg(p, 0.78, 0.92));
+      const t = ease(seg(p, 0.64, 0.78));
       x = lerp(opt.x, rest.x, t);
       y = lerp(opt.y, rest.y, t);
     }
-    placeCursor(cursorRef.current, x, y, seg(p, 0.04, 0.12));
+    placeCursor(cursorRef.current, x, y, seg(p, 0.01, 0.07));
   });
 
   const open = stage === 2 || stage === 3;
@@ -368,10 +386,10 @@ function StockScene() {
   const trackRef = useScrollScene<HTMLElement>((p) => {
     rowRefs.current.forEach((row, i) => {
       if (!row) return;
-      const a = 0.03 + i * 0.065;
-      row.style.setProperty("--t", ease(seg(p, a, a + 0.17)).toFixed(4));
+      const a = 0.02 + i * 0.045;
+      row.style.setProperty("--t", ease(seg(p, a, a + 0.12)).toFixed(4));
     });
-    const next = p < 0.52 ? 0 : p < 0.68 ? 1 : p < 0.73 ? 2 : p < 0.81 ? 3 : p < 0.87 ? 4 : 5;
+    const next = p < 0.36 ? 0 : p < 0.5 ? 1 : p < 0.54 ? 2 : p < 0.62 ? 3 : p < 0.68 ? 4 : 5;
     setStage(next);
     const box = stageRef.current?.getBoundingClientRect();
     if (!box) return;
@@ -381,20 +399,20 @@ function StockScene() {
     const rest = { x: pill.x + 30, y: pill.y + 36 };
     let x: number;
     let y: number;
-    if (p < 0.73) {
-      const t = ease(seg(p, 0.53, 0.67));
+    if (p < 0.54) {
+      const t = ease(seg(p, 0.36, 0.49));
       x = lerp(from.x, pill.x, t);
       y = lerp(from.y, pill.y, t);
-    } else if (p < 0.87) {
-      const t = ease(seg(p, 0.74, 0.8));
+    } else if (p < 0.68) {
+      const t = ease(seg(p, 0.55, 0.61));
       x = lerp(pill.x, opt.x, t);
       y = lerp(pill.y, opt.y, t);
     } else {
-      const t = ease(seg(p, 0.89, 0.97));
+      const t = ease(seg(p, 0.7, 0.8));
       x = lerp(opt.x, rest.x, t);
       y = lerp(opt.y, rest.y, t);
     }
-    placeCursor(cursorRef.current, x, y, seg(p, 0.5, 0.56));
+    placeCursor(cursorRef.current, x, y, seg(p, 0.33, 0.39));
   });
 
   const open = stage === 3 || stage === 4;
@@ -488,12 +506,29 @@ function StockScene() {
 /* Scene 3: customer view                                              */
 /* ------------------------------------------------------------------ */
 
-const STOPS = ["International Port", "On Boat", "UK Port"] as const;
+const LOCATOR_LABEL = ["At International Port", "On Boat to UK", "UK Port"] as const;
+
+/** Portal UnionJackIcon (App.jsx), same strokes. */
+function UnionJackIcon({ size = 14 }: LucideProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="5" width="20" height="14" rx="2" />
+      <line x1="2" y1="5" x2="22" y2="19" />
+      <line x1="22" y1="5" x2="2" y2="19" />
+      <line x1="12" y1="5" x2="12" y2="19" />
+      <line x1="2" y1="12" x2="22" y2="12" />
+    </svg>
+  );
+}
+
+/** Portal LOCATOR_ICON_MAP for the three sea legs. */
+const STOP_ICONS = [Anchor, Ship, UnionJackIcon] as const;
 
 /**
- * Portal locator rail, three stops. Same classes as the real Car Locator
- * (stage-disc, now-pill, rail-label); the current column sizes to its pill like the
- * portal, but widths are set in px so columns and the pill glide instead of jumping.
+ * Portal Car Locator rail, three stops. Same pieces as CarLocatorTrack
+ * (stage-disc with the stop icon when upcoming, a tick when done, arrived-pill for
+ * the current stop, rail-label is-arrived). The current column sizes to its pill
+ * like the portal, but widths are set in px so columns and the pill glide.
  */
 function GlideRail({ index }: { index: number }) {
   const railRef = useRef<HTMLDivElement>(null);
@@ -519,60 +554,67 @@ function GlideRail({ index }: { index: number }) {
   let basis: string[];
   let centre: string;
   if (layout) {
-    const cur = Math.min(layout.pills[index] + 10, layout.w * 0.62);
-    const other = (layout.w - cur) / (STOPS.length - 1);
-    basis = STOPS.map((_, i) => `${(i === index ? cur : other).toFixed(2)}px`);
+    const cur = Math.min(layout.pills[index] + 8, layout.w * 0.66);
+    const other = (layout.w - cur) / (LOCATOR_LABEL.length - 1);
+    basis = LOCATOR_LABEL.map((_, i) => `${(i === index ? cur : other).toFixed(2)}px`);
     centre = `${(other * index + cur / 2).toFixed(2)}px`;
   } else {
-    basis = STOPS.map((_, i) => (i === index ? "40%" : "30%"));
-    centre = `${30 * index + 20}%`;
+    basis = LOCATOR_LABEL.map((_, i) => (i === index ? "50%" : "25%"));
+    centre = `${25 * index + 25}%`;
   }
+  const PillIcon = STOP_ICONS[index];
 
   return (
     <div className="rail-scroll scene-rail-scroll">
-      <div className="progress-rail scene-rail" ref={railRef}>
-        <div className="progress-nodes">
-          <div className="progress-track shell-glass-inset scene-rail-track" aria-hidden />
-          {STOPS.map((stop, i) => {
+      <div className="locator-rail scene-rail" ref={railRef}>
+        <div className="locator-nodes">
+          <div className="locator-track shell-glass-inset scene-rail-track" aria-hidden />
+          {LOCATOR_LABEL.map((stop, i) => {
             const done = i < index;
             const current = i === index;
+            const Icon = STOP_ICONS[i];
             return (
-              <div key={stop} className="progress-node scene-rail-node" style={{ flex: `0 0 ${basis[i]}` }}>
+              <div key={stop} className="locator-node scene-rail-node" style={{ flex: `0 0 ${basis[i]}` }}>
                 <div className="rail-mark">
                   {current ? (
                     <span className="scene-rail-slot" />
+                  ) : done ? (
+                    <span key="done" className="stage-disc scene-disc">
+                      <Check size={14} strokeWidth={2.75} />
+                    </span>
                   ) : (
-                    <span key={done ? "done" : "todo"} className={cn("stage-disc scene-disc", !done && "is-faint")}>
-                      {done ? <Check size={13} strokeWidth={2.75} /> : null}
+                    <span key="todo" className="stage-disc is-faint scene-disc">
+                      <Icon size={14} strokeWidth={2.75} />
                     </span>
                   )}
                 </div>
-                <div className={cn("rail-label", done && "is-done", current && "is-now")}>{current ? " " : stop}</div>
+                <div className={cn("rail-label", done && "is-done", current && "is-arrived")}>{current ? "\u00a0" : stop}</div>
               </div>
             );
           })}
-          <span className="now-pill scene-rail-bubble" style={{ left: centre }}>
-            <Car size={13} /> {STOPS[index]}
+          <span className="arrived-pill shell-glass-float scene-rail-bubble" style={{ left: centre }}>
+            <PillIcon size={13} /> {LOCATOR_LABEL[index]}
           </span>
-          {STOPS.map((stop, i) => (
-            <span
-              key={stop}
-              ref={(el) => {
-                measureRefs.current[i] = el;
-              }}
-              className="now-pill scene-rail-measure"
-              aria-hidden
-            >
-              <Car size={13} /> {stop}
-            </span>
-          ))}
+          {LOCATOR_LABEL.map((stop, i) => {
+            const Icon = STOP_ICONS[i];
+            return (
+              <span
+                key={stop}
+                ref={(el) => {
+                  measureRefs.current[i] = el;
+                }}
+                className="arrived-pill shell-glass-float scene-rail-measure"
+                aria-hidden
+              >
+                <Icon size={13} /> {stop}
+              </span>
+            );
+          })}
         </div>
       </div>
     </div>
   );
 }
-
-const LOCATOR_LABEL = ["At International Port", "On Boat to UK", "UK Port"] as const;
 
 function CustomerScene() {
   const [index, setIndex] = useState(2);
@@ -600,7 +642,7 @@ function CustomerScene() {
         aria-label={`Customer view of a sample order. Car Locator shows ${LOCATOR_LABEL[index]}.`}
       >
         <div aria-hidden>
-          <PhoneFrame accent="#4ba82e" glow="rgba(75,168,46,0.38)" screenClassName="scene-phone-screen" caption="Customer view. Sample order, dummy details.">
+          <PhoneFrame accent="#4ba82e" glow="rgba(75,168,46,0.38)" screenClassName="scene-phone-screen" className="max-w-[340px] sm:max-w-[340px]" caption="Customer view. Sample order, dummy details.">
             <div className="mx-auto max-w-[1200px] px-5 py-7 pb-24">
               <div className="mb-3.5 text-lg font-medium">Welcome back, Jamie</div>
               <div className="shell-glass customer-header-card mb-5 rounded-[24px] p-7">
@@ -636,7 +678,7 @@ function CustomerScene() {
               </div>
 
               <div className="shell-glass mb-5 rounded-[24px] p-5">
-                <div className="flex w-full items-center justify-between">
+                <div className="flex w-full items-center justify-between gap-2">
                   <div className="flex min-w-0 items-center gap-2">
                     <Truck size={15} className="shrink-0" />
                     <div className="text-[13px] font-semibold whitespace-nowrap">Car Locator</div>
@@ -644,6 +686,7 @@ function CustomerScene() {
                       {LOCATOR_LABEL[index]}
                     </span>
                   </div>
+                  <ChevronRight size={13} color="var(--mist)" className="shrink-0" style={{ transform: "rotate(90deg)" }} />
                 </div>
                 <div className="mt-4">
                   <GlideRail index={index} />
@@ -671,7 +714,7 @@ function NudgeScene() {
   const ctaRef = useRef<HTMLSpanElement>(null);
 
   const trackRef = useScrollScene<HTMLElement>((p) => {
-    setStage(p < 0.12 ? 0 : p < 0.42 ? 1 : p < 0.47 ? 2 : p < 0.64 ? 3 : p < 0.8 ? 4 : 5);
+    setStage(p < 0.08 ? 0 : p < 0.32 ? 1 : p < 0.37 ? 2 : p < 0.52 ? 3 : p < 0.66 ? 4 : 5);
     const box = stageRef.current?.getBoundingClientRect();
     if (!box) return;
     const from = { x: box.width * 0.85, y: box.height * 0.98 };
@@ -679,16 +722,16 @@ function NudgeScene() {
     const rest = { x: cta.x - 40, y: cta.y + 70 };
     let x: number;
     let y: number;
-    if (p < 0.47) {
-      const t = ease(seg(p, 0.24, 0.4));
+    if (p < 0.37) {
+      const t = ease(seg(p, 0.14, 0.31));
       x = lerp(from.x, cta.x, t);
       y = lerp(from.y, cta.y, t);
     } else {
-      const t = ease(seg(p, 0.52, 0.66));
+      const t = ease(seg(p, 0.4, 0.52));
       x = lerp(cta.x, rest.x, t);
       y = lerp(cta.y, rest.y, t);
     }
-    placeCursor(cursorRef.current, x, y, seg(p, 0.18, 0.24) * (1 - seg(p, 0.8, 0.88)));
+    placeCursor(cursorRef.current, x, y, seg(p, 0.1, 0.16) * (1 - seg(p, 0.66, 0.74)));
   });
 
   const bannerIn = stage >= 1;
@@ -811,17 +854,17 @@ function ChaseScene() {
   const tickRefs = useRef<(HTMLSpanElement | null)[]>([]);
 
   const trackRef = useScrollScene<HTMLElement>((p) => {
-    const k = p < 0.27 ? 0 : p < 0.5 ? 1 : p < 0.72 ? 2 : 3;
+    const k = p < 0.21 ? 0 : p < 0.39 ? 1 : p < 0.57 ? 2 : 3;
     setTicked(k);
-    setPressed((p >= 0.23 && p < 0.27) || (p >= 0.46 && p < 0.5) || (p >= 0.68 && p < 0.72));
+    setPressed((p >= 0.17 && p < 0.21) || (p >= 0.35 && p < 0.39) || (p >= 0.53 && p < 0.57));
     const box = stageRef.current?.getBoundingClientRect();
     if (!box) return;
     const from = { x: box.width * 0.9, y: box.height * 0.95 };
     const pt = (n: number) => pointIn(box, tickRefs.current[V5_ORDER[n]], 0.55, 0.6);
     const legs: [number, number][] = [
-      [0.1, 0.21],
-      [0.31, 0.44],
-      [0.54, 0.66],
+      [0.06, 0.16],
+      [0.24, 0.34],
+      [0.42, 0.52],
     ];
     let x = from.x;
     let y = from.y;
@@ -835,7 +878,7 @@ function ChaseScene() {
       y = lerp(prev.y, target.y, t);
       prev = target;
     }
-    placeCursor(cursorRef.current, x, y, seg(p, 0.06, 0.12) * (1 - seg(p, 0.8, 0.9)));
+    placeCursor(cursorRef.current, x, y, seg(p, 0.02, 0.07) * (1 - seg(p, 0.62, 0.7)));
   });
 
   const isTicked = (row: number) => V5_ORDER.indexOf(row as 0 | 1 | 2) < ticked;
@@ -868,9 +911,7 @@ function ChaseScene() {
           <div className="shell-glass mt-3.5 rounded-[18px] px-4 py-3.5">
             <div className="mb-3 flex flex-wrap items-center gap-2">
               <div className="text-[13px] font-semibold">PX V5s to collect</div>
-              <span className={cn("scene-count", waiting === 0 && "is-clear")}>
-                {waiting === 0 ? "All in" : `${waiting} waiting`}
-              </span>
+              {waiting > 0 && <span className="scene-count">{waiting} waiting</span>}
             </div>
             <div className="scene-chase-list flex flex-col">
               {V5_CHASES.map((c, i) => {
@@ -888,8 +929,8 @@ function ChaseScene() {
                           {t ? <CheckCircle2 size={16} color="var(--emerald)" /> : <Circle size={16} color="var(--mist)" />}
                         </span>
                         <div className="min-w-0 flex-1">
-                          <div className="truncate text-[13px] font-semibold">{c.name}</div>
-                          <div className="truncate text-[11.5px] text-[var(--mist)]">
+                          <div className="text-[13px] font-semibold">{c.name}</div>
+                          <div className="text-[11.5px] leading-snug text-[var(--mist)]">
                             Chase PX V5 · PX {c.px} · {c.car}
                           </div>
                         </div>

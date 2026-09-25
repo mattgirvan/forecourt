@@ -276,7 +276,7 @@ export const BRANDS: Record<BrandId, Brand> = {
     accent: "#D9A24B",
     glow: "rgba(217, 162, 75, 0.36)",
     ink: "#20160A",
-    wants: ["Family SUV", "Small crossover, auto", "Fleet — 2 trucks"],
+    wants: ["Family SUV", "Small crossover, auto", "Fleet, 2 trucks"],
     fleet: [
       { vehicle: "Kuga ST-Line 1.5", colour: "Frozen White", vin: "WF0AXXWPMA123001", type: "Used", price: 22995, miles: 24120, keys: "Cabinet A", days: 4, reg: "ND26 KUG" },
       { vehicle: "RAV4 Design Hybrid", colour: "Silver Metallic", vin: "JTMW123400000218", type: "Used", price: 27450, miles: 18420, keys: "With PDI", days: 11, reg: "ND24 RAV" },
@@ -420,7 +420,7 @@ const DEAL_TEMPLATES: DealSeed[] = [
     agreedActions: [{ id: "a1", label: "PDI", done: true }, { id: "a2", label: "Apply Ceramic Protection", done: false }],
     handoverChecklist: [{ id: "h1", label: "Bank card for the balance" }],
     activityLog: [{ ts: "2026-09-16T10:11:00", text: "On H/O diary marked Yes" }],
-    photoSpecs: ["Panoramic roof"], notes: "We'll deliver to the house — please be in from 11.", hasPrivateReg: true,
+    photoSpecs: ["Panoramic roof"], notes: "We'll deliver to the house, please be in from 11.", hasPrivateReg: true,
   },
   {
     id: "ORD-1059", customer: "Sofia Berg", email: "sofia.berg@example.com", phone: "07700 900159", nickname: "",
@@ -443,7 +443,7 @@ const DEAL_TEMPLATES: DealSeed[] = [
     handover: "2026-09-25", handoverTime: "16:00", handoverMethod: "Pickup from Showroom", handoverConfirmed: true,
     estimatedStart: null, estimatedEnd: null, confirmed: true, missing: ["PX V5", "GP"], balance: 890,
     hasPartExchange: true, partExchangeReg: "SN17 OMK", financeSettle: "Yes", trackerRef: "",
-    wsReq: "", onHoDiary: false, internalNotes: "GP still leaking — extras not sold.", dealFileStatus: "No",
+    wsReq: "", onHoDiary: false, internalNotes: "GP still leaking, extras not sold.", dealFileStatus: "No",
     usedOnSite: "", financeCompany: "", financeType: "PCP", monthlyAmount: 276,
     ceramicProtection: false, bodyworkProtection: false, alloyTyreProtection: false, servicePlan: false, leaseServicing: "None",
     agreedActions: [], handoverChecklist: [],
@@ -527,7 +527,7 @@ export function mintBook(brandId: BrandId, site: string): {
       checklistState,
       todos,
       messages: [
-        { from: "staff", text: `Hi ${tpl.customer.split(" ")[0]} — your ${car.vehicle} is on the book. I’ll keep you posted.`, at: "Mon 09:12" },
+        { from: "staff", text: `Hi ${tpl.customer.split(" ")[0]}, your ${car.vehicle} is on the book. I’ll keep you posted.`, at: "Mon 09:12" },
         { from: "customer", text: "Thanks. Any update on handover?", at: "Mon 14:40" },
       ],
     };
