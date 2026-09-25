@@ -640,7 +640,7 @@ function CustomerScene() {
                   <div className="flex min-w-0 items-center gap-2">
                     <Truck size={15} className="shrink-0" />
                     <div className="text-[13px] font-semibold whitespace-nowrap">Car Locator</div>
-                    <span key={index} className="scene-locator-label truncate font-mono text-xs font-semibold" style={{ color: "var(--emerald)" }}>
+                    <span key={index} className="scene-locator-label min-w-0 font-mono text-xs leading-tight font-semibold" style={{ color: "var(--emerald)" }}>
                       {LOCATOR_LABEL[index]}
                     </span>
                   </div>
