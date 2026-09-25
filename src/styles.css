@@ -1560,3 +1560,57 @@
 .scene-chase-list {
   min-height: 80px;
 }
+
+/* Short or narrow phones: compact scenes 3 and 4 so the whole pinned card fits. */
+.scene-rail .rail-label {
+  overflow-wrap: normal;
+  word-break: normal;
+  -webkit-line-clamp: 3;
+}
+@media (max-width: 380px), (max-width: 767px) and (max-height: 820px) {
+  .scene-compact-hide {
+    display: none;
+  }
+  .customer-header-card.scene-compact-pad {
+    padding: 16px;
+  }
+  .scene-nudge-body {
+    padding: 12px 14px;
+  }
+  .scene-nudge {
+    margin-top: 10px;
+    padding: 10px 12px;
+  }
+  .scene-nudge-grid {
+    margin-top: 10px;
+    gap: 8px;
+  }
+  .scene-nudge-grid > .shell-glass {
+    padding: 10px 12px;
+  }
+  .scene-nudge-grid .shell-glass-row {
+    padding-top: 6px;
+    padding-bottom: 6px;
+  }
+  .scene-msg-list {
+    min-height: 0;
+  }
+  .scene-copy h2 {
+    font-size: 1.6rem;
+  }
+  .scene-copy p:last-child {
+    margin-top: 0.5rem;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+}
+/* Very short phones (SE class): drop the one-liner and secondary rows. */
+@media (max-width: 767px) and (max-height: 700px) {
+  .scene-copy p:last-child,
+  .scene-short-hide {
+    display: none;
+  }
+  .scene-nudge-grid > .shell-glass > div:first-child {
+    margin-bottom: 0;
+  }
+}

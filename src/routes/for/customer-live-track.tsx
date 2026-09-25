@@ -1,6 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight } from "lucide-react";
-import { HomeCustomerView } from "@/components/home-customer-view";
 import { Reveal } from "@/components/reveal";
 import { SiteShell } from "@/components/site-shell";
 import { Button } from "@/components/ui/button";
@@ -79,8 +78,6 @@ function CustomerLiveTrackPage() {
           </Reveal>
         ))}
       </ul>
-
-      <HomeCustomerView className="pt-16 sm:pt-20" showPhraseLink={false} />
 
       <section className="mx-auto max-w-3xl px-4 pb-20 text-center sm:px-6 sm:pb-28">
         <Reveal>

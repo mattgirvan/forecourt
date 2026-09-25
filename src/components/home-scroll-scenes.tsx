@@ -645,8 +645,8 @@ function CustomerScene() {
           <div className="desk-orb opacity-70" />
         </div>
         <div aria-hidden className="relative z-10 px-4 py-3.5 sm:px-5 sm:py-5">
-          <div className="mb-2.5 text-lg font-medium">Welcome back, Jamie</div>
-          <div className="shell-glass customer-header-card mb-3 rounded-[24px] p-5 sm:mb-4 sm:p-7">
+          <div className="scene-compact-hide mb-2.5 text-lg font-medium">Welcome back, Jamie</div>
+          <div className="shell-glass customer-header-card scene-compact-pad mb-3 rounded-[24px] p-5 sm:mb-4 sm:p-7">
             <div className="mb-1.5 flex flex-wrap items-start justify-between gap-2">
               <div className="shell-eyebrow font-mono text-xs tracking-widest">ORD-2071 · Finance · New</div>
               <div
@@ -662,10 +662,10 @@ function CustomerScene() {
               </span>
               <div className="text-[20px] leading-tight font-medium text-[#F6F5F1]">Elroq 85 Edition</div>
             </div>
-            <div className="mb-1.5 font-mono text-[11.5px] text-[#7C8F84]">VIN: TMBJR7NY0TF048213</div>
-            <div className="mb-4 text-sm text-[#9FB0A6]">Timiano Green</div>
+            <div className="scene-compact-hide mb-1.5 font-mono text-[11.5px] text-[#7C8F84]">VIN: TMBJR7NY0TF048213</div>
+            <div className="scene-compact-hide mb-4 text-sm text-[#9FB0A6]">Timiano Green</div>
             <div
-              className="flex items-center gap-3.5 rounded-[14px] px-4 py-2.5 sm:py-3"
+              className="scene-short-hide flex items-center gap-3.5 rounded-[14px] px-4 py-2.5 sm:py-3"
               style={{ background: "rgba(185,139,78,0.14)", border: "1px solid rgba(185,139,78,0.35)" }}
             >
               <Calendar size={22} color="var(--brass)" className="shrink-0" />
@@ -758,11 +758,11 @@ function NudgeScene() {
         role="img"
         aria-label="Order screen. A banner warns that handover is tomorrow with two tasks outstanding. A message is sent, the customer replies, and both tasks tick off."
       >
-        <div aria-hidden className="px-4 py-4 sm:px-5">
+        <div aria-hidden className="scene-nudge-body px-4 py-4 sm:px-5">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <div className="truncate text-[15px] font-semibold">Priya Shah</div>
-              <div className="truncate text-[12px] text-[var(--shell-text-faint)]">Enyaq 85 Edition · SY25 PSH</div>
+              <div className="text-[12px] text-[var(--shell-text-faint)]">Enyaq 85 Edition · SY25 PSH</div>
             </div>
             <span className="scene-chip shrink-0">Handover Sat 10:00</span>
           </div>
@@ -789,7 +789,7 @@ function NudgeScene() {
             </div>
           </div>
 
-          <div className="mt-3 grid gap-3 sm:grid-cols-[0.9fr_1.1fr]">
+          <div className="scene-nudge-grid mt-3 grid gap-3 sm:grid-cols-[0.9fr_1.1fr]">
             <div className="shell-glass rounded-[16px] p-3.5">
               <div className="mb-2.5 flex items-center justify-between text-[12.5px] font-semibold">
                 Outstanding tasks
@@ -797,7 +797,7 @@ function NudgeScene() {
                   {done ? "0 left" : "2 left"}
                 </span>
               </div>
-              <div className="flex flex-col gap-1.5">
+              <div className="scene-short-hide flex flex-col gap-1.5">
                 {NUDGE_TASKS.map((t) => (
                   <div key={t} className="shell-glass-row flex items-center gap-2 rounded-[12px] px-2.5 py-2 text-[12.5px]">
                     {done ? (
@@ -814,7 +814,7 @@ function NudgeScene() {
               <div className="mb-2.5 flex items-center gap-1.5 text-[12.5px] font-semibold">
                 <MessageSquare size={13} /> Messages
               </div>
-              <div className="flex min-h-[112px] flex-col justify-end gap-2">
+              <div className="scene-msg-list flex min-h-[96px] flex-col justify-end gap-2">
                 {!sent && <div className="text-[12px] text-[var(--shell-text-faint)]">Nothing new since Tuesday.</div>}
                 {sent && (
                   <div className="scene-bubble is-mine">
