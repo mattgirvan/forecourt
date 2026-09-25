@@ -12,8 +12,10 @@ import {
   Key,
   Mail,
   MessageSquare,
+  PartyPopper,
   Plus,
   Ship,
+  Sparkles,
   Truck,
   UserPlus,
   type LucideProps,
@@ -977,14 +979,520 @@ function ChaseScene() {
   );
 }
 
+/* ------------------------------------------------------------------ */
+/* Scene: quote from a brief (portal Quotes, Fill story from brief)    */
+/* ------------------------------------------------------------------ */
+
+const QUOTE_BRIEF =
+  "Family of four and a spaniel. Wants an SUV, around £350 a month. Likes the Kodiaq Edition X and Karoq Sportline.";
+const QUOTE_HEADLINE = "Room for four, the dog and the weekend bags.";
+
+/** Rows the fill seeds: two named in the brief, one picked from stock. Finance is never filled. */
+const QUOTE_CARS = [
+  {
+    name: "Škoda Kodiaq Edition X",
+    engine: "1.5 TSI e-TEC 150 PS DSG · 7 seats",
+    tagline: "Seven seats, room for the dog.",
+    monthly: "£367",
+  },
+  {
+    name: "Škoda Karoq Sportline Edition",
+    engine: "1.5 TSI 150 PS DSG",
+    tagline: "Same big boot, easier to park.",
+    monthly: "£338",
+  },
+  {
+    name: "Škoda Enyaq 85 SE L",
+    engine: "Electric · 286 PS · from stock",
+    tagline: "Electric, and charged at home.",
+    monthly: "£359",
+  },
+] as const;
+
+/** Staff typing the monthly figures, one car at a time, well after the fill. */
+const QUOTE_MOVE: [number, number][] = [
+  [0.63, 0.69],
+  [0.745, 0.785],
+  [0.83, 0.87],
+];
+const QUOTE_PRESS: [number, number][] = [
+  [0.69, 0.71],
+  [0.785, 0.805],
+  [0.87, 0.89],
+];
+const QUOTE_TYPE: [number, number][] = [
+  [0.71, 0.745],
+  [0.805, 0.83],
+  [0.89, 0.93],
+];
+
+const typedSlice = (text: string, t: number) => text.slice(0, Math.round(text.length * clamp01(t)));
+
+function Caret({ on }: { on: boolean }) {
+  return on ? <span className="scene-caret" aria-hidden /> : null;
+}
+
+function QuoteScene() {
+  const [brief, setBrief] = useState(1);
+  // 0 brief being typed / cursor to Fill story, 1 pressed, 2 filling, 3 filled
+  const [stage, setStage] = useState(3);
+  const [story, setStory] = useState(1);
+  const [prices, setPrices] = useState<number[]>([1, 1, 1]);
+  // -1 nothing, 0 the Fill story button, 1 to 3 a monthly box
+  const [press, setPress] = useState(-1);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const cursorRef = useRef<HTMLDivElement>(null);
+  const fillRef = useRef<HTMLSpanElement>(null);
+  const moneyRefs = useRef<(HTMLSpanElement | null)[]>([]);
+  const rowRefs = useRef<(HTMLDivElement | null)[]>([]);
+
+  const trackRef = useScrollScene<HTMLElement>((p) => {
+    setBrief(Math.round(seg(p, 0.03, 0.26) * 100) / 100);
+    setStage(p < 0.37 ? 0 : p < 0.4 ? 1 : p < 0.46 ? 2 : 3);
+    rowRefs.current.forEach((row, i) => {
+      if (!row) return;
+      const a = 0.46 + i * 0.045;
+      row.style.setProperty("--t", ease(seg(p, a, a + 0.1)).toFixed(4));
+    });
+    setStory(Math.round(seg(p, 0.5, 0.62) * 100) / 100);
+    const nextPrices = QUOTE_TYPE.map(([a, b]) => Math.round(seg(p, a, b) * 20) / 20);
+    setPrices((prev) => (prev.every((v, i) => v === nextPrices[i]) ? prev : nextPrices));
+    setPress(p >= 0.37 && p < 0.4 ? 0 : QUOTE_PRESS.findIndex(([a, b]) => p >= a && p < b) + 1 || -1);
+
+    const box = stageRef.current?.getBoundingClientRect();
+    if (!box) return;
+    const from = { x: box.width * 0.9, y: box.height * 0.97 };
+    const fill = pointIn(box, fillRef.current, 0.5, 0.6);
+    const money = (i: number) => pointIn(box, moneyRefs.current[i], 0.55, 0.6);
+    let x: number;
+    let y: number;
+    let opacity: number;
+    if (p < 0.55) {
+      // Before the fill: to the Fill story button, then out of the way while it fills.
+      const t = ease(seg(p, 0.29, 0.36));
+      x = lerp(from.x, fill.x, t);
+      y = lerp(from.y, fill.y, t);
+      opacity = seg(p, 0.26, 0.3) * (1 - seg(p, 0.43, 0.48));
+    } else {
+      // The staff step: back in for the figures, one monthly box after another.
+      let prev = from;
+      x = from.x;
+      y = from.y;
+      for (let i = 0; i < QUOTE_MOVE.length; i++) {
+        const [a, b] = QUOTE_MOVE[i];
+        if (p < a) break;
+        const target = money(i);
+        const t = ease(seg(p, a, b));
+        x = lerp(prev.x, target.x, t);
+        y = lerp(prev.y, target.y, t);
+        prev = target;
+      }
+      opacity = seg(p, 0.6, 0.64) * (1 - seg(p, 0.95, 0.99));
+    }
+    placeCursor(cursorRef.current, x, y, opacity);
+  });
+
+  const briefText = typedSlice(QUOTE_BRIEF, brief);
+  const typingBrief = brief > 0 && brief < 1;
+  const modalOpen = stage < 3;
+  const filled = stage >= 3;
+  const allPriced = prices.every((v) => v >= 1);
+  const headlineText = typedSlice(QUOTE_HEADLINE, story);
+
+  return (
+    <SceneTrack
+      trackRef={trackRef}
+      id="scene-quote"
+      length="long"
+      copy={
+        <SceneCopy
+          id="scene-quote-title"
+          eyebrow="Quotes"
+          title="Turn a quick brief into a proper proposal"
+          line="Type what the customer told you. The cars and the story fill themselves in. The figures are yours to type, same as always."
+        />
+      }
+    >
+      <div
+        ref={stageRef}
+        className="desk-shell scene-card relative w-full max-w-[540px]"
+        role="img"
+        aria-label="Proposal form. A short customer brief is typed and Fill story is pressed. Three Škoda vehicle rows and the proposal story fill in. A salesperson then types each monthly figure by hand."
+      >
+        <div aria-hidden className="scene-quote-body px-4 py-3.5 sm:px-5 sm:py-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-[15px] font-semibold">New proposal</div>
+              <div className="truncate font-mono text-[11px] text-[var(--shell-text-faint)]">Laura Bennett · PCP<span className="hidden sm:inline"> · Aisha Khan</span></div>
+            </div>
+            <span className="scene-quote-ghost shrink-0">
+              <Sparkles size={13} />
+              <span className="hidden sm:inline">Fill story from brief</span>
+              <span className="sm:hidden">From brief</span>
+            </span>
+          </div>
+
+          <div className="mt-3">
+            <div className="scene-quote-label">Hero headline</div>
+            <div className="scene-quote-field scene-quote-headline">
+              {headlineText}
+              <Caret on={story > 0 && story < 1} />
+            </div>
+          </div>
+
+          <div className="mt-3 flex items-center justify-between gap-2">
+            <div className="scene-quote-label !mb-0">Vehicles ({filled ? QUOTE_CARS.length : 0})</div>
+            <div className={cn("scene-quote-finance", allPriced && filled && "is-done")}>
+              {allPriced && filled ? (
+                <>
+                  <Check size={11} strokeWidth={3} /> Figures typed by Aisha
+                </>
+              ) : prices[0] > 0 ? (
+                "Aisha typing figures"
+              ) : (
+                "Finance: staff typed only"
+              )}
+            </div>
+          </div>
+
+          <div className="mt-2 flex flex-col gap-2">
+            {QUOTE_CARS.map((car, i) => {
+              const typed = typedSlice(car.monthly, prices[i]);
+              const typing = prices[i] > 0 && prices[i] < 1;
+              const done = prices[i] >= 1;
+              const isPressed = press === i + 1;
+              return (
+                <div
+                  key={car.name}
+                  ref={(el) => {
+                    rowRefs.current[i] = el;
+                  }}
+                  className="scene-quote-car"
+                >
+                  <div className="min-w-0">
+                    <div className="truncate text-[13px] font-semibold">{car.name}</div>
+                    <div className="truncate text-[11px] text-[var(--shell-text-faint)]">{car.engine}</div>
+                    <div className="scene-quote-tagline truncate text-[11.5px] text-[var(--shell-text-dim)]">
+                      {typedSlice(car.tagline, seg(story, 0.25 + i * 0.2, 0.55 + i * 0.15))}
+                      {"\u00a0"}
+                    </div>
+                  </div>
+                  <div className="shrink-0">
+                    <div className="scene-quote-label !mb-1 text-right">Monthly</div>
+                    <span
+                      ref={(el) => {
+                        moneyRefs.current[i] = el;
+                      }}
+                      className={cn(
+                        "scene-quote-money",
+                        isPressed && "is-pressed",
+                        (typing || isPressed) && "is-focus",
+                        done && "is-typed",
+                      )}
+                    >
+                      {typed ? typed : <span className="text-[var(--shell-text-faint)]">£</span>}
+                      <Caret on={typing} />
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div aria-hidden className={cn("scene-quote-modal", modalOpen && "is-open")}>
+          <div className="scene-quote-dialog">
+            <div className="text-[15px] font-bold">Fill story from brief</div>
+            <div className="scene-compact-hide mt-1 text-[12px] leading-snug text-[var(--shell-text-faint)]">
+              Stock cars seed the rows. The brief writes the story. Finance on the form is left alone.
+            </div>
+            <div className="mt-2.5">
+              <div className="scene-quote-label">Stock cars (optional)</div>
+              <span className="scene-quote-chip">
+                <Car size={12} /> Enyaq 85 SE L · SY25 KTE
+              </span>
+            </div>
+            <div className="mt-2.5">
+              <div className="scene-quote-label">Customer brief</div>
+              <div className="scene-quote-field scene-quote-brief">
+                {briefText ? (
+                  briefText
+                ) : (
+                  <span className="text-[var(--shell-text-faint)]">Customer situation, must-haves, rival quote, timeline</span>
+                )}
+                <Caret on={typingBrief} />
+              </div>
+            </div>
+            <div className="mt-3 flex items-center justify-end gap-2">
+              <span className="scene-quote-cancel">Cancel</span>
+              <span ref={fillRef} className={cn("scene-quote-go", stage === 1 && "is-pressed")}>
+                {stage === 2 ? "Filling…" : "Fill story"}
+              </span>
+            </div>
+          </div>
+        </div>
+        <FakeCursor innerRef={cursorRef} down={press >= 0} />
+      </div>
+    </SceneTrack>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Scene: sales overview (portal Overview, Delivered month)            */
+/* ------------------------------------------------------------------ */
+
+const UNITS_TARGET = 24;
+const REPS = ["Ross McLean", "Aisha Khan", "Niamh Scott", "Dev Patel"] as const;
+
+/** One entry per month, newest first. Each rep total sums to `total`. */
+const DELIVERED: { total: number; bev: number; reps: [number, number, number, number] }[] = [
+  { total: 26, bev: 7, reps: [9, 8, 5, 4] },
+  { total: 11, bev: 3, reps: [3, 4, 2, 2] },
+  { total: 18, bev: 5, reps: [6, 5, 4, 3] },
+  { total: 24, bev: 6, reps: [7, 6, 6, 5] },
+];
+const REP_MAX = Math.max(...DELIVERED.flatMap((m) => m.reps));
+/** Portal shows this month and the previous 11; the menu shows the first six. */
+const MONTH_MENU = 6;
+const MONTH_STEPS = 3;
+const MONTH_CYCLE = 0.19;
+const MONTH_START = 0.04;
+
+function monthLabel(base: Date, offset: number) {
+  const d = new Date(base.getFullYear(), base.getMonth() - offset, 1);
+  return d.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+}
+
+// Portal toneForPercent: red to 70%, amber to 99%, green at target.
+function toneFor(count: number) {
+  const pct = (count / UNITS_TARGET) * 100;
+  return pct >= 100 ? "green" : pct >= 71 ? "amber" : "red";
+}
+
+function useCountUp(target: number) {
+  const [shown, setShown] = useState(target);
+  const shownRef = useRef(target);
+  useEffect(() => {
+    const from = shownRef.current;
+    if (from === target) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      shownRef.current = target;
+      setShown(target);
+      return;
+    }
+    const start = performance.now();
+    let raf = requestAnimationFrame(function tick(now) {
+      const t = ease(clamp01((now - start) / 460));
+      const v = Math.round(lerp(from, target, t));
+      shownRef.current = v;
+      setShown(v);
+      if (t < 1) raf = requestAnimationFrame(tick);
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [target]);
+  return shown;
+}
+
+function CountUp({ value }: { value: number }) {
+  return <>{useCountUp(value)}</>;
+}
+
+function OverviewScene() {
+  // Month index into DELIVERED (0 = this month). End state steps back three months.
+  const [month, setMonth] = useState(MONTH_STEPS);
+  const [open, setOpen] = useState(false);
+  const [hover, setHover] = useState(-1);
+  const [pressed, setPressed] = useState(false);
+  // Labels follow the real calendar once mounted; the server renders this month.
+  const [base, setBase] = useState(() => new Date(2026, 8, 1));
+  const stageRef = useRef<HTMLDivElement>(null);
+  const cursorRef = useRef<HTMLDivElement>(null);
+  const selectRef = useRef<HTMLSpanElement>(null);
+  const optionRefs = useRef<(HTMLDivElement | null)[]>([]);
+
+  useEffect(() => {
+    const now = new Date();
+    setBase(new Date(now.getFullYear(), now.getMonth(), 1));
+  }, []);
+
+  const trackRef = useScrollScene<HTMLElement>((p) => {
+    // Three cycles: click the Delivered month select, hover the month before, pick it.
+    let m = 0;
+    let isOpen = false;
+    let hov = -1;
+    let down = false;
+    for (let k = 0; k < MONTH_STEPS; k++) {
+      const b = MONTH_START + k * MONTH_CYCLE;
+      if (p >= b + 0.16) m = k + 1;
+      if ((p >= b + 0.07 && p < b + 0.09) || (p >= b + 0.145 && p < b + 0.16)) down = true;
+      if (p >= b + 0.09 && p < b + 0.16) {
+        isOpen = true;
+        if (p >= b + 0.135) hov = k + 1;
+      }
+    }
+    setMonth(m);
+    setOpen(isOpen);
+    setHover(hov);
+    setPressed(down);
+
+    const box = stageRef.current?.getBoundingClientRect();
+    if (!box) return;
+    const from = { x: box.width * 0.88, y: box.height * 0.97 };
+    const sel = pointIn(box, selectRef.current, 0.55, 0.6);
+    const opt = (i: number) => pointIn(box, optionRefs.current[i], 0.45, 0.6);
+    let prev = from;
+    let x = from.x;
+    let y = from.y;
+    for (let k = 0; k < MONTH_STEPS; k++) {
+      const b = MONTH_START + k * MONTH_CYCLE;
+      if (p < b) break;
+      let t = ease(seg(p, b, b + 0.065));
+      x = lerp(prev.x, sel.x, t);
+      y = lerp(prev.y, sel.y, t);
+      if (p >= b + 0.1) {
+        const o = opt(k + 1);
+        t = ease(seg(p, b + 0.1, b + 0.135));
+        x = lerp(sel.x, o.x, t);
+        y = lerp(sel.y, o.y, t);
+        prev = o;
+      }
+    }
+    const lastPick = MONTH_START + (MONTH_STEPS - 1) * MONTH_CYCLE + 0.16;
+    if (p >= lastPick) {
+      const rest = { x: prev.x - 30, y: prev.y + 90 };
+      const t = ease(seg(p, lastPick + 0.02, lastPick + 0.12));
+      x = lerp(prev.x, rest.x, t);
+      y = lerp(prev.y, rest.y, t);
+    }
+    placeCursor(cursorRef.current, x, y, seg(p, 0.01, 0.05) * (1 - seg(p, 0.8, 0.88)));
+  });
+
+  const data = DELIVERED[month];
+  const label = monthLabel(base, month);
+  const tone = toneFor(data.total);
+
+  return (
+    <SceneTrack
+      trackRef={trackRef}
+      id="scene-overview"
+      length="long"
+      copy={
+        <SceneCopy
+          id="scene-overview-title"
+          eyebrow="Overview"
+          title="See how every month went, and who sold what"
+          line="Pick a month and the deliveries add themselves up, per salesperson. Commission night gets a lot shorter."
+        />
+      }
+    >
+      <div
+        ref={stageRef}
+        className="desk-shell scene-card relative w-full max-w-[520px]"
+        role="img"
+        aria-label={`Overview, Delivered tab. ${data.total} of ${UNITS_TARGET} cars delivered in ${label}, split by salesperson. The month picker steps back through recent months.`}
+      >
+        <div aria-hidden className="scene-overview-body px-4 py-3.5 sm:px-5 sm:py-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-[17px] font-medium">Overview</div>
+              <div className="scene-compact-hide hidden truncate text-[12px] text-[var(--mist)] sm:block">
+                For your commission figures.
+              </div>
+            </div>
+            <span className="scene-seg shell-glass-inset shrink-0">
+              <span>Table</span>
+              <span className="scene-hide-xs">Calendar</span>
+              <span className="is-on">Delivered</span>
+            </span>
+          </div>
+
+          <div className="mt-3 flex items-center justify-between gap-2">
+            <span className="scene-select scene-select-sm !w-auto">
+              <span className="truncate">All</span>
+              <ChevronDown size={13} className="shrink-0 opacity-70" />
+            </span>
+            <div className="relative">
+              <span
+                ref={selectRef}
+                className={cn("scene-select scene-select-sm scene-month-select", pressed && !open && "is-pressed", open && "is-open")}
+              >
+                <span key={label} className="scene-month-label truncate">
+                  {label}
+                </span>
+                <ChevronDown size={13} className="shrink-0 opacity-70" />
+              </span>
+              <div className={cn("scene-menu scene-menu-month", open && "is-open")}>
+                {Array.from({ length: MONTH_MENU }, (_, i) => (
+                  <div
+                    key={i}
+                    ref={(el) => {
+                      optionRefs.current[i] = el;
+                    }}
+                    className={cn("scene-menu-item", i === month && "is-current", i === hover && "is-hover")}
+                  >
+                    {monthLabel(base, i)}
+                    {i === month && hover !== i ? <Check size={12} /> : null}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className={cn("scene-tile mt-3", `is-${tone}`)}>
+            <span className="scene-tile-icon">
+              <PartyPopper size={16} />
+            </span>
+            <div className="min-w-0">
+              <div className="font-mono text-[19px] leading-none font-bold tabular-nums text-white">
+                <CountUp value={data.total} />/{UNITS_TARGET}
+              </div>
+              <div className="scene-tile-sub mt-0.5 truncate text-[11px]">Delivered in {label}</div>
+            </div>
+          </div>
+
+          <div className="mt-2.5 text-[12px] text-[var(--shell-text-dim)]">
+            <strong className="text-white tabular-nums">
+              <CountUp value={data.total} />
+            </strong>{" "}
+            deals counted · <strong className="text-white tabular-nums"><CountUp value={data.bev} /></strong> BEV
+          </div>
+
+          <div className="shell-glass mt-2.5 rounded-[16px] px-3.5 py-2.5">
+            <div className="scene-quote-label !mb-1.5">By salesperson</div>
+            <ul className="flex flex-col gap-1.5">
+              {REPS.map((rep, i) => (
+                <li key={rep} className="scene-rep">
+                  <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-white/10 text-[10px] font-semibold text-[var(--shell-text-dim)]">
+                    {initialsOf(rep)}
+                  </span>
+                  <span className="w-[84px] shrink-0 truncate text-[12.5px] sm:w-[100px]">{rep}</span>
+                  <span className="scene-bar">
+                    <span style={{ width: `${(data.reps[i] / REP_MAX) * 100}%` }} />
+                  </span>
+                  <span className="w-5 shrink-0 text-right font-mono text-[12.5px] font-bold tabular-nums">
+                    <CountUp value={data.reps[i]} />
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+        <FakeCursor innerRef={cursorRef} down={pressed} />
+      </div>
+    </SceneTrack>
+  );
+}
+
 export function HomeScrollScenes() {
   return (
     <div className="scroll-scenes" id="showcase">
       <TeamScene />
       <StockScene />
+      <QuoteScene />
       <CustomerScene />
       <NudgeScene />
       <ChaseScene />
+      <OverviewScene />
     </div>
   );
 }

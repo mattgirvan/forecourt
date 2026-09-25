@@ -1466,3 +1466,356 @@
     transform-origin: bottom right;
   }
 }
+
+/* Quote from a brief: portal Quotes editor + Fill story from brief modal
+ * (brand.js LABEL_STYLE / INPUT_STYLE, CarEditor card, emerald Fill story). */
+.scene-quote-label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: #8d9ba4;
+}
+.scene-quote-field {
+  padding: 7px 9px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.07);
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: #fff;
+}
+.scene-quote-headline {
+  min-height: calc(2.8em + 16px); /* two lines reserved so the card never grows */
+}
+.scene-quote-brief {
+  min-height: calc(4.2em + 16px);
+}
+.scene-caret {
+  display: inline-block;
+  width: 1.5px;
+  height: 1.05em;
+  margin-left: 1px;
+  vertical-align: -0.15em;
+  background: var(--shell-accent);
+  animation: scene-caret 0.9s steps(1) infinite;
+}
+@keyframes scene-caret {
+  50% {
+    opacity: 0;
+  }
+}
+.scene-quote-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.08);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.scene-quote-finance {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--shell-text-faint);
+  white-space: nowrap;
+  transition: color 260ms ease;
+}
+.scene-quote-finance.is-done {
+  color: #a8ec8c;
+}
+.scene-quote-car {
+  --t: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(0, 0, 0, 0.15);
+  transform: translate3d(0, calc((1 - var(--t)) * 22px), 0) scale(calc(0.97 + var(--t) * 0.03));
+  opacity: clamp(0, calc(var(--t) * 1.6), 1);
+  will-change: transform, opacity;
+}
+.scene-quote-tagline {
+  margin-top: 2px;
+}
+.scene-quote-money {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  width: 70px;
+  height: 30px;
+  padding: 0 9px;
+  border-radius: 10px;
+  border: 1px dashed rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.04);
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #fff;
+  transition:
+    border-color 200ms ease,
+    background 200ms ease,
+    transform 140ms ease;
+}
+.scene-quote-money.is-focus {
+  border-style: solid;
+  border-color: var(--shell-accent);
+  background: rgba(255, 255, 255, 0.08);
+}
+.scene-quote-money.is-pressed {
+  transform: scale(0.96);
+}
+.scene-quote-money.is-typed {
+  border-style: solid;
+  border-color: rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.07);
+}
+.scene-quote-modal {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 12px;
+  border-radius: inherit;
+  background: rgba(0, 0, 0, 0.55);
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 260ms ease,
+    visibility 0s linear 260ms;
+}
+.scene-quote-modal.is-open {
+  opacity: 1;
+  visibility: visible;
+  transition:
+    opacity 260ms ease,
+    visibility 0s;
+}
+.scene-quote-dialog {
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(20, 28, 34, 0.96);
+  box-shadow: var(--shell-float-shadow);
+  transform: translateY(6px) scale(0.98);
+  transition: transform 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.scene-quote-modal.is-open .scene-quote-dialog {
+  transform: none;
+}
+.scene-quote-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: var(--wash-emerald-bg);
+  border: 1px solid var(--wash-emerald-border);
+  color: #c5f0b0;
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.scene-quote-cancel,
+.scene-quote-go {
+  display: inline-flex;
+  align-items: center;
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 10px;
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.scene-quote-cancel {
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+.scene-quote-go {
+  min-width: 86px;
+  justify-content: center;
+  background: var(--emerald);
+  color: #fff;
+  transition: transform 140ms ease;
+}
+.scene-quote-go.is-pressed {
+  transform: scale(0.95);
+}
+
+/* Sales overview: portal Overview header, SegmentedControl, Delivered month
+ * select, StatTile with toneForPercent washes. */
+.scene-seg {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 999px;
+}
+.scene-seg > span {
+  padding: 5px 11px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--shell-text-faint);
+  white-space: nowrap;
+}
+.scene-seg > span.is-on {
+  background: var(--shell-accent);
+  color: var(--shell-accent-ink);
+}
+.scene-select-sm {
+  height: 30px;
+  gap: 8px;
+  padding: 0 9px 0 11px;
+  font-size: 12px;
+}
+.scene-month-select {
+  width: 168px;
+}
+.scene-month-label {
+  animation: scene-label-in 320ms ease both;
+}
+.scene-menu-month {
+  min-width: 100%;
+}
+.scene-menu-month .scene-menu-item {
+  padding: 6px 10px;
+}
+.scene-tile {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  overflow: hidden;
+  padding: 11px 16px 11px 19px;
+  border-radius: 16px;
+  border: 1px solid var(--tile-border);
+  background: var(--tile-bg);
+  transition:
+    background 360ms ease,
+    border-color 360ms ease;
+}
+.scene-tile::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--tile-fg);
+  transition: background 360ms ease;
+}
+.scene-tile.is-green {
+  --tile-bg: var(--wash-emerald-bg);
+  --tile-border: var(--wash-emerald-border);
+  --tile-fg: #c5f0b0;
+  --tile-icon: var(--emerald);
+}
+.scene-tile.is-amber {
+  --tile-bg: var(--wash-amber-bg);
+  --tile-border: var(--wash-amber-border);
+  --tile-fg: var(--shell-accent);
+  --tile-icon: var(--shell-accent);
+}
+.scene-tile.is-red {
+  --tile-bg: var(--wash-danger-bg);
+  --tile-border: var(--wash-danger-border);
+  --tile-fg: #f3b4a8;
+  --tile-icon: var(--danger);
+}
+.scene-tile-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border-radius: 13px;
+  background: var(--tile-icon);
+  color: #fff;
+  transition: background 360ms ease;
+}
+.scene-tile-sub {
+  color: var(--tile-fg);
+  transition: color 360ms ease;
+}
+.scene-rep {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.scene-bar {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+.scene-bar > span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: inherit;
+  background: var(--shell-accent);
+  transition: width 460ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+@media (max-width: 400px) {
+  .scene-hide-xs {
+    display: none;
+  }
+  .scene-month-select {
+    width: 150px;
+  }
+}
+@media (max-width: 380px), (max-width: 767px) and (max-height: 860px) {
+  .scene-quote-body,
+  .scene-overview-body {
+    padding: 12px 14px;
+  }
+  .scene-quote-dialog {
+    padding: 12px 14px;
+  }
+  .scene-quote-car {
+    padding: 7px 9px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .scene-quote-car {
+    transform: none !important;
+    opacity: 1 !important;
+  }
+  .scene-caret {
+    display: none;
+  }
+  .scene-quote-car,
+  .scene-quote-money,
+  .scene-quote-modal,
+  .scene-quote-dialog,
+  .scene-quote-go,
+  .scene-quote-finance,
+  .scene-month-label,
+  .scene-tile,
+  .scene-tile::before,
+  .scene-tile-icon,
+  .scene-tile-sub,
+  .scene-bar > span {
+    animation: none !important;
+    transition: none !important;
+  }
+}
