@@ -7,7 +7,6 @@ import { cn } from "@/lib/utils";
 
 const links = [
   { to: "/", label: "Product" },
-  { to: "/", hash: "showcase", label: "See it working" },
   { to: "/how", label: "How it works" },
   { to: "/pricing", label: "Pricing" },
   { to: "/contact", label: "Contact" },
@@ -57,7 +56,7 @@ export function SiteHeader() {
           </Link>
           <nav className="hidden items-center md:flex">
             {links.map((l) => (
-              <NavLink key={l.label} to={l.to} hash={"hash" in l ? l.hash : undefined} label={l.label} />
+              <NavLink key={l.label} to={l.to} label={l.label} />
             ))}
           </nav>
           <div className="flex items-center gap-1">
@@ -89,9 +88,15 @@ export function SiteHeader() {
             </SignedOut>
           </div>
         </div>
+        {/* Mobile row: tabs share the width evenly so all four fit at 360px without scrolling. */}
         <nav className="nav-glass mx-auto mt-2 flex max-w-5xl gap-1 overflow-x-auto rounded-full px-1 py-1 md:hidden">
           {links.map((l) => (
-            <NavLink key={l.label} to={l.to} hash={"hash" in l ? l.hash : undefined} label={l.label} className="shrink-0" />
+            <NavLink
+              key={l.label}
+              to={l.to}
+              label={l.label}
+              className="flex-1 whitespace-nowrap px-2.5 py-2 text-center"
+            />
           ))}
         </nav>
       </div>
