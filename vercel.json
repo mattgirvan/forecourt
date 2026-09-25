@@ -2,6 +2,23 @@
   "framework": null,
   "buildCommand": "npm run build",
   "installCommand": "npm install",
+  "redirects": [
+    {
+      "source": "/demo",
+      "destination": "/#showcase",
+      "statusCode": 301
+    },
+    {
+      "source": "/demo/",
+      "destination": "/#showcase",
+      "statusCode": 301
+    },
+    {
+      "source": "/demo/:path*",
+      "destination": "/#showcase",
+      "statusCode": 301
+    }
+  ],
   "headers": [
     {
       "source": "/robots.txt",

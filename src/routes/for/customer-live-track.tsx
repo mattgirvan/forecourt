@@ -1,10 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight } from "lucide-react";
-import { HomeCustomerView } from "@/components/home-customer-view";
 import { Reveal } from "@/components/reveal";
 import { SiteShell } from "@/components/site-shell";
 import { Button } from "@/components/ui/button";
-import { customerViewSearch } from "@/lib/brands";
 import { pageHead } from "@/lib/seo";
 
 const TITLE = "Customer live order tracking for car dealerships | Forecourt";
@@ -55,7 +53,7 @@ function CustomerLiveTrackPage() {
           </p>
           <div className="mt-8 flex flex-wrap justify-center gap-3">
             <Button className="cta-amber rounded-full" asChild>
-              <Link to="/demo" search={customerViewSearch()}>
+              <Link to="/" hash="scene-customer">
                 See the customer view <ArrowRight className="size-4" />
               </Link>
             </Button>
@@ -81,21 +79,19 @@ function CustomerLiveTrackPage() {
         ))}
       </ul>
 
-      <HomeCustomerView className="pt-16 sm:pt-20" showPhraseLink={false} />
-
-      <section className="mx-auto max-w-3xl px-4 pb-20 text-center sm:px-6 sm:pb-28">
+      <section className="mx-auto max-w-3xl px-4 pt-16 pb-20 text-center sm:px-6 sm:pt-20 sm:pb-28">
         <Reveal>
-          <p className="text-[13px] font-medium text-muted">Try it on a working desk</p>
+          <p className="text-[13px] font-medium text-muted">See it moving</p>
           <h2 className="mx-auto mt-3 max-w-xl text-3xl font-semibold tracking-tight sm:text-4xl">
-            Open the Customer view tab yourself.
+            Watch an order move from port to port.
           </h2>
           <p className="mx-auto mt-4 max-w-md text-[15px] leading-relaxed text-muted">
-            Same sample book as the product demo. Progress, to-dos, live status. Built for UK desks,
-            including Scotland.
+            The homepage shows the customer view updating as the car travels. Sample order, dummy
+            details. Built for UK desks, including Scotland.
           </p>
           <div className="mt-8 flex flex-wrap justify-center gap-3">
             <Button className="cta-amber rounded-full" asChild>
-              <Link to="/demo" search={customerViewSearch()}>
+              <Link to="/" hash="scene-customer">
                 See the customer view <ArrowRight className="size-4" />
               </Link>
             </Button>

@@ -1,10 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight } from "lucide-react";
-import { DealerBar } from "@/components/demo/dealer-bar";
 import { Reveal } from "@/components/reveal";
 import { ContactPromo } from "@/components/contact-promo";
 import { HomeCrmComparison } from "@/components/home-crm-comparison";
-import { HomeCustomerView } from "@/components/home-customer-view";
+import { HomeScrollScenes } from "@/components/home-scroll-scenes";
 import { SiteShell } from "@/components/site-shell";
 import { Button } from "@/components/ui/button";
 import { PLANS, gbpPence } from "@/lib/catalog";
@@ -78,9 +77,9 @@ const steps = [
   {
     n: "1",
     title: "See it",
-    body: "Put your dealership name on a working desk. Sample cars. Click around.",
-    href: "#try",
-    cta: "Try it",
+    body: "Scroll the showcase on this page. Team, stock, and the customer view, with sample cars.",
+    href: "#showcase",
+    cta: "See it working",
   },
   {
     n: "2",
@@ -119,8 +118,8 @@ function Home() {
         </p>
         <div className="rise mt-9 flex flex-wrap justify-center gap-3" style={{ animationDelay: "260ms" }}>
           <Button className="rounded-full" asChild>
-            <a href="#try">
-              Try it <ArrowRight className="size-4" />
+            <a href="#showcase">
+              See it working <ArrowRight className="size-4" />
             </a>
           </Button>
           <Button variant="secondary" className="rounded-full" asChild>
@@ -134,6 +133,8 @@ function Home() {
           <img src="/images/desk.jpg" alt="Forecourt on a sales iPad" className="hero-still w-full object-cover" />
         </div>
       </section>
+
+      <HomeScrollScenes />
 
       <section className="mx-auto max-w-5xl px-4 py-20 sm:px-6 sm:py-28">
         <Reveal className="text-center">
@@ -164,8 +165,6 @@ function Home() {
           ))}
         </div>
       </section>
-
-      <HomeCustomerView />
 
       <HomeCrmComparison />
 
@@ -239,20 +238,6 @@ function Home() {
         </ol>
       </section>
 
-      <section id="try" className="mx-auto max-w-5xl px-4 pb-24 sm:px-6">
-        <Reveal className="text-center">
-          <p className="text-[13px] font-medium text-muted">Step 1</p>
-          <h2 className="mt-3 text-4xl font-semibold tracking-tight sm:text-5xl">
-            Try it with your name.
-          </h2>
-          <p className="mx-auto mt-4 max-w-md text-[15px] leading-relaxed text-muted">
-            Type the group. Pick the brand. Open a real desk, not a slideshow.
-          </p>
-        </Reveal>
-        <div className="mt-10">
-          <DealerBar />
-        </div>
-      </section>
     </SiteShell>
   );
 }

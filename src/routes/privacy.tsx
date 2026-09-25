@@ -42,10 +42,10 @@ function PrivacyPage() {
         </ul>
         <p>We do not sell this. We do not run advertising cookies. Sign-in cookies are strictly necessary.</p>
 
-        <h2>The demo</h2>
+        <h2>The showcase</h2>
         <p>
-          The clickable demo is fiction (invented names, regs, and VINs) so you can see the desk. It is
-          not live stock and it is not affiliated with the manufacturer whose colours you pick.
+          The screens shown on this site are fiction (invented names, regs, and VINs) so you can see the
+          desk. They are not live stock and are not affiliated with any manufacturer.
         </p>
 
         <h2>Lawful basis</h2>

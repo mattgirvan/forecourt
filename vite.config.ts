@@ -181,6 +181,13 @@ export default defineConfig(({ command, isPreview }) => ({
       ? [
           nitro({
             preset: "vercel",
+            // The old /demo desk is retired; send every variant to the homepage
+            // showcase. Mirrors vercel.json redirects so both layers agree.
+            routeRules: {
+              "/demo": { redirect: { to: "/#showcase", status: 301 } },
+              "/demo/": { redirect: { to: "/#showcase", status: 301 } },
+              "/demo/**": { redirect: { to: "/#showcase", status: 301 } },
+            },
             // Auto-registers server/middleware/* (the PWA install page +
             // manifest + head-tag middleware). Nitro v3 defaults serverDir to
             // false, so removing this silently unwires /?install=1 on deploys.
