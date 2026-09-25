@@ -4,7 +4,7 @@ import { ArrowRight } from "lucide-react";
 import { CustomerPane } from "@/components/demo/desk";
 import { Reveal } from "@/components/reveal";
 import { Button } from "@/components/ui/button";
-import { BRANDS, customerViewSearch } from "@/lib/brands";
+import { BRANDS } from "@/lib/brands";
 import { useDemo } from "@/lib/demo-store";
 import { SHOWCASE_CUSTOMER_STAGES, SHOWCASE_CUSTOMER_STAGE_INDEX } from "@/lib/demo-data";
 import { cn } from "@/lib/utils";
@@ -26,7 +26,7 @@ const highlights = [
 
 /**
  * Marketing band: what the buyer sees. Frames the real CustomerPane in a phone bezel.
- * No invented product UI; same cards and labels as the demo desk Customer view.
+ * No invented product UI; same cards and labels as the portal customer view.
  */
 export function HomeCustomerView({
   id = "customer-view",
@@ -90,8 +90,8 @@ export function HomeCustomerView({
             </ul>
             <div className="mt-8 flex flex-wrap gap-3">
               <Button className="cta-amber rounded-full" asChild>
-                <Link to="/demo" search={customerViewSearch()}>
-                  See the customer view <ArrowRight className="size-4" />
+                <Link to="/" hash="scene-customer">
+                  Watch it update <ArrowRight className="size-4" />
                 </Link>
               </Button>
               {showPhraseLink ? (
@@ -125,14 +125,19 @@ export function HomeCustomerView({
   );
 }
 
-function PhoneFrame({
+export function PhoneFrame({
   children,
   accent,
   glow,
+  screenClassName,
+  caption = "Real customer view layout. Sample order, dummy details.",
 }: {
   children: ReactNode;
   accent: string;
   glow: string;
+  /** Override the screen height (default fits the homepage band). */
+  screenClassName?: string;
+  caption?: string;
 }) {
   return (
     <div className="relative w-full max-w-[300px] sm:max-w-[320px]">
@@ -150,7 +155,7 @@ function PhoneFrame({
       >
         <div className="absolute left-1/2 top-[14px] z-20 h-[22px] w-[96px] -translate-x-1/2 rounded-full bg-black/90" aria-hidden />
         <div
-          className="desk-shell relative h-[min(62vh,560px)] overflow-hidden rounded-[1.85rem] border-0"
+          className={cn("desk-shell relative h-[min(62vh,560px)] overflow-hidden rounded-[1.85rem] border-0", screenClassName)}
           style={
             {
               "--desk-accent": accent,
@@ -166,7 +171,7 @@ function PhoneFrame({
         </div>
       </div>
       <p className="mt-4 text-center text-[11px] text-subtle">
-        Real Customer view from the demo desk. Sample order.
+        {caption}
       </p>
     </div>
   );

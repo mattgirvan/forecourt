@@ -789,7 +789,7 @@
 }
 
 /* Marketing phone frame: compress CustomerPane for ~300px homepage bezel.
- * Portal SoT stays full-size on /demo; bezel ≈ portal × 0.80–0.85 (Atlas). */
+ * Portal SoT stays full-size in the product; bezel ≈ portal × 0.80–0.85 (Atlas). */
 .customer-phone-scroll > div {
   max-width: none !important;
   padding-left: 14px !important;
@@ -958,4 +958,583 @@
 .customer-phone-scroll .rail-label {
   font-size: 8.25px;
   line-height: 1.15;
+}
+
+/* ------------------------------------------------------------------
+ * Homepage scroll scenes (home-scroll-scenes.tsx)
+ * Tall track + sticky stage; JS writes scroll progress into state/vars.
+ * ------------------------------------------------------------------ */
+.scene-track {
+  position: relative;
+  height: 250vh;
+  overflow-x: clip;
+}
+.scene-track[data-len="mid"] {
+  height: 210vh;
+}
+.scene-sticky {
+  position: sticky;
+  top: 0;
+  display: flex;
+  align-items: center;
+  height: 100vh;
+  height: 100svh;
+  padding-top: 4.25rem;
+  padding-bottom: 1rem;
+  overflow: hidden;
+}
+@media (max-width: 1023px) {
+  .scene-sticky {
+    align-items: flex-start;
+    padding-top: 5rem;
+  }
+}
+@media (max-width: 767px) {
+  /* Mobile header carries a second nav row. */
+  .scene-sticky {
+    padding-top: 7.5rem;
+  }
+  .scene-phone .text-center.text-\[11px\] {
+    display: none;
+  }
+}
+@media (max-width: 1023px) {
+  .scene-copy {
+    text-align: center;
+  }
+  .scene-copy p:last-child {
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
+
+.scene-card {
+  border-radius: 22px;
+  overflow: visible;
+}
+
+.scene-cursor {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 40;
+  width: 22px;
+  height: 22px;
+  margin: -1.5px 0 0 -2px; /* arrow tip sits on the point */
+  pointer-events: none;
+  opacity: 0;
+  will-change: transform, opacity;
+  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.55));
+}
+.scene-cursor-arrow {
+  display: block;
+  transform-origin: 2px 2px;
+  transition: transform 140ms ease;
+}
+.scene-cursor[data-down="1"] .scene-cursor-arrow {
+  transform: scale(0.84);
+}
+.scene-cursor-ring {
+  position: absolute;
+  left: -12px;
+  top: -12px;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  border: 2px solid rgba(255, 255, 255, 0.75);
+  opacity: 0;
+  transform: scale(0.4);
+}
+.scene-cursor[data-down="1"] .scene-cursor-ring {
+  animation: scene-ring 520ms ease-out both;
+}
+@keyframes scene-ring {
+  from {
+    opacity: 0.9;
+    transform: scale(0.4);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.35);
+  }
+}
+
+/* Scene 1: role select + menu */
+.scene-select {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  width: 100%;
+  height: 32px;
+  padding: 0 10px 0 12px;
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--shell-text);
+  transition:
+    background 220ms ease,
+    border-color 220ms ease,
+    color 220ms ease,
+    transform 140ms ease;
+}
+.scene-select.is-mgmt {
+  background: color-mix(in srgb, var(--shell-accent) 20%, transparent);
+  border-color: color-mix(in srgb, var(--shell-accent) 55%, transparent);
+  color: #f3d9a8;
+}
+.scene-select.is-pressed {
+  transform: scale(0.97);
+  background: rgba(255, 255, 255, 0.12);
+}
+.scene-select.is-open {
+  border-color: rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.1);
+}
+.scene-team-target {
+  transition: background 400ms ease;
+}
+.scene-team-target.is-picked {
+  animation: scene-flash 1.1s ease-out both;
+}
+@keyframes scene-flash {
+  0% {
+    background: color-mix(in srgb, var(--shell-accent) 22%, transparent);
+  }
+  100% {
+    background: transparent;
+  }
+}
+
+.scene-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 30;
+  min-width: 100%;
+  padding: 5px;
+  border-radius: 14px;
+  background: #1a222c;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: var(--shell-float-shadow);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-4px) scale(0.97);
+  transform-origin: top right;
+  transition:
+    opacity 160ms ease,
+    transform 200ms cubic-bezier(0.22, 1, 0.36, 1),
+    visibility 0s linear 200ms;
+}
+.scene-menu.is-open {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+  transition:
+    opacity 160ms ease,
+    transform 200ms cubic-bezier(0.22, 1, 0.36, 1),
+    visibility 0s;
+}
+.scene-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: 9px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--shell-text-dim);
+  white-space: nowrap;
+  transition:
+    background 140ms ease,
+    color 140ms ease;
+}
+.scene-menu-item.is-current {
+  color: var(--shell-text);
+}
+.scene-menu-item.is-hover {
+  background: var(--shell-accent);
+  color: var(--shell-accent-ink);
+}
+
+/* Scene 2: stock rows */
+.scene-row {
+  --t: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.09);
+  transform-origin: 0% 100%;
+  transform: translate3d(calc((1 - var(--t)) * 48px), calc((1 - var(--t)) * 64px), 0)
+    rotate(calc((1 - var(--t)) * var(--fan, -8deg)));
+  opacity: clamp(0, calc(var(--t) * 1.8), 1);
+  will-change: transform, opacity;
+}
+.scene-row:last-child {
+  border-bottom: 0;
+}
+.scene-row.scene-stock-target {
+  position: relative;
+  z-index: 5;
+}
+.scene-loc {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 132px;
+  height: 28px;
+  padding: 0 10px 0 9px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 700;
+  white-space: nowrap;
+  transition:
+    background 260ms ease,
+    color 260ms ease,
+    transform 140ms ease,
+    box-shadow 260ms ease;
+}
+.scene-loc.is-pressed {
+  transform: scale(0.95);
+}
+.scene-loc.is-open {
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.35);
+}
+.scene-stock-target.is-set .scene-loc {
+  animation: scene-pop 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes scene-pop {
+  0% {
+    transform: scale(0.9);
+  }
+  60% {
+    transform: scale(1.06);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+.scene-loc-dot {
+  width: 6px;
+  height: 6px;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: currentColor;
+}
+.scene-keys {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 96px;
+  height: 28px;
+  padding: 0 9px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--shell-text-dim);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.scene-menu-loc {
+  right: auto;
+  left: 0;
+  min-width: 170px;
+  transform-origin: top left;
+}
+.scene-menu-loc .scene-menu-item {
+  justify-content: flex-start;
+}
+@media (max-width: 480px) {
+  .scene-row {
+    gap: 8px;
+    padding: 9px 2px;
+  }
+  .scene-loc {
+    max-width: none;
+    font-size: 11px;
+    padding: 0 8px 0 8px;
+    gap: 5px;
+  }
+  .scene-keys {
+    max-width: 78px;
+    padding: 0 7px;
+    font-size: 10.5px;
+  }
+}
+
+/* Scene 3: phone + gliding locator rail */
+.scene-phone {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+.scene-phone > div {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+.desk-shell.scene-phone-screen {
+  height: auto;
+}
+.customer-phone-scroll .scene-rail .scene-rail-track {
+  top: 18px; /* half the 36px rail-mark: discs and pill centre on the track */
+  left: 4px;
+  right: 4px;
+}
+.scene-rail .scene-rail-node {
+  transition: flex-basis 560ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.scene-rail-slot {
+  display: block;
+  width: 1px;
+  height: 1px;
+}
+.customer-phone-scroll .scene-rail .scene-rail-bubble {
+  position: absolute;
+  top: 18px;
+  z-index: 3;
+  transform: translate(-50%, -50%);
+  transition: left 560ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.customer-phone-scroll .scene-rail .scene-rail-measure {
+  position: absolute;
+  left: 0;
+  top: 0;
+  visibility: hidden;
+  pointer-events: none;
+  animation: none;
+}
+.scene-disc {
+  animation: scene-disc-in 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes scene-disc-in {
+  from {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+.scene-locator-label {
+  animation: scene-label-in 320ms ease both;
+}
+@keyframes scene-label-in {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scene-track,
+  .scene-track[data-len="mid"] {
+    height: auto;
+  }
+  .scene-sticky {
+    position: relative;
+    height: auto;
+    padding-top: 4rem;
+    padding-bottom: 4rem;
+  }
+  .scene-cursor {
+    display: none;
+  }
+  .scene-row {
+    transform: none !important;
+    opacity: 1 !important;
+  }
+  .scene-row,
+  .scene-loc,
+  .scene-select,
+  .scene-menu,
+  .scene-disc,
+  .scene-locator-label,
+  .scene-team-target,
+  .scene-rail .scene-rail-node,
+  .customer-phone-scroll .scene-rail .scene-rail-bubble {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* Scenes 4 + 5: nudge banner, messages, to-do chases, digest */
+.scene-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: var(--wash-amber-bg);
+  border: 1px solid var(--wash-amber-border);
+  color: #f3d9a8;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.scene-collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition:
+    grid-template-rows 380ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 260ms ease;
+}
+.scene-collapse > div {
+  min-height: 0;
+  overflow: hidden;
+}
+.scene-collapse.is-open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+/* Portal .dealer-nudge-banner, scaled for the card */
+.dealer-nudge-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--wash-danger-bg);
+  border: 1px solid var(--wash-danger-border);
+  border-radius: 16px;
+  padding: 12px 14px;
+}
+.dealer-nudge-banner__body {
+  flex: 1;
+  min-width: 0;
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--shell-text, #f6f5f1);
+}
+.dealer-nudge-banner__cta {
+  flex-shrink: 0;
+  background: color-mix(in srgb, var(--danger) 28%, transparent);
+  border: 1px solid var(--wash-danger-border);
+  color: #f6f5f1;
+  border-radius: 999px;
+  padding: 7px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: transform 140ms ease;
+}
+.dealer-nudge-banner__cta.is-pressed {
+  transform: scale(0.95);
+}
+.scene-nudge {
+  margin-top: 12px;
+  transition:
+    background 360ms ease,
+    border-color 360ms ease;
+}
+.scene-nudge.is-done {
+  background: var(--wash-emerald-bg);
+  border-color: var(--wash-emerald-border);
+}
+.scene-bubble {
+  max-width: 88%;
+  padding: 8px 11px;
+  border-radius: 14px;
+  font-size: 12px;
+  line-height: 1.35;
+  background: var(--shell-glass-row-bg);
+  border: 1px solid var(--shell-float-border);
+  animation: scene-bubble-in 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.scene-bubble.is-mine {
+  align-self: flex-end;
+  background: color-mix(in srgb, var(--shell-accent) 22%, transparent);
+  border-color: var(--wash-amber-border);
+}
+@keyframes scene-bubble-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.scene-pop-in {
+  animation: scene-pop 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.scene-count {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 20px;
+  padding: 3px 9px;
+  background: var(--wash-amber-bg);
+  color: var(--shell-accent);
+  transition:
+    background 260ms ease,
+    color 260ms ease;
+}
+.scene-count.is-clear {
+  background: var(--wash-emerald-bg);
+  color: #a8ec8c;
+}
+.scene-digest {
+  position: relative;
+  z-index: 2;
+  width: min(260px, 82%);
+  margin: -18px 12px 0 auto;
+  padding: 12px 14px;
+  border-radius: 16px;
+}
+.scene-digest-num {
+  font-family: var(--font-mono);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--shell-accent);
+  animation: scene-pop 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.scene-digest-num.is-clear {
+  color: #a8ec8c;
+}
+@media (max-width: 480px) {
+  .dealer-nudge-banner {
+    flex-wrap: wrap;
+  }
+  .dealer-nudge-banner__body {
+    flex-basis: calc(100% - 32px);
+  }
+  .dealer-nudge-banner__cta {
+    margin-left: 30px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .scene-collapse,
+  .scene-nudge,
+  .scene-bubble,
+  .scene-pop-in,
+  .scene-count,
+  .scene-digest-num,
+  .dealer-nudge-banner__cta {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+.scene-phone-screen .customer-phone-scroll > div {
+  padding-bottom: 0.75rem !important;
+}
+.customer-phone-scroll .scene-rail-scroll {
+  overflow: visible !important; /* bubble is clamped inside the rail; let its shadow breathe */
+}
+.scene-chase-list {
+  min-height: 150px;
 }

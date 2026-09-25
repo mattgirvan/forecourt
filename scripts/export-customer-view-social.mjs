@@ -217,7 +217,7 @@ async function main() {
         <span class="pill">Your Outstanding Tasks</span>
         <span class="pill">Live status</span>
       </div>
-      <div class="url">forecourt.me/demo?view=customer</div>
+      <div class="url">forecourt.me/#showcase</div>
     </div>
     <div class="right">
       <div class="phone-slot">

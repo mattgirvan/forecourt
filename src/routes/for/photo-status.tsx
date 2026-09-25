@@ -32,7 +32,7 @@ function PhotoStatusPage() {
           line: "Your stock book stays where it is. Photo progress sits on the desk next to it.",
         },
       ]}
-      ctaLabel="See it on a desk at forecourt.me"
+      ctaLabel="See it working on forecourt.me"
       links={[
         { to: "/for/beside-crm", label: "Beside your CRM" },
         { to: "/pricing", label: "Pricing" },

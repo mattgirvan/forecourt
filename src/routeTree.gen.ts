@@ -12,7 +12,6 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AccountRouteImport } from './routes/account'
 import { Route as ContactRouteImport } from './routes/contact'
-import { Route as DemoRouteImport } from './routes/demo'
 import { Route as DpaRouteImport } from './routes/dpa'
 import { Route as HowRouteImport } from './routes/how'
 import { Route as LoginRouteImport } from './routes/login'
@@ -46,11 +45,6 @@ const AccountRoute = AccountRouteImport.update({
 const ContactRoute = ContactRouteImport.update({
   id: '/contact',
   path: '/contact',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const DemoRoute = DemoRouteImport.update({
-  id: '/demo',
-  path: '/demo',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DpaRoute = DpaRouteImport.update({
@@ -153,7 +147,6 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/account': typeof AccountRoute
   '/contact': typeof ContactRoute
-  '/demo': typeof DemoRoute
   '/dpa': typeof DpaRoute
   '/how': typeof HowRoute
   '/login': typeof LoginRoute
@@ -178,7 +171,6 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/account': typeof AccountRoute
   '/contact': typeof ContactRoute
-  '/demo': typeof DemoRoute
   '/dpa': typeof DpaRoute
   '/how': typeof HowRoute
   '/login': typeof LoginRoute
@@ -204,7 +196,6 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/account': typeof AccountRoute
   '/contact': typeof ContactRoute
-  '/demo': typeof DemoRoute
   '/dpa': typeof DpaRoute
   '/how': typeof HowRoute
   '/login': typeof LoginRoute
@@ -231,7 +222,6 @@ export interface FileRouteTypes {
     | '/'
     | '/account'
     | '/contact'
-    | '/demo'
     | '/dpa'
     | '/how'
     | '/login'
@@ -256,7 +246,6 @@ export interface FileRouteTypes {
     | '/'
     | '/account'
     | '/contact'
-    | '/demo'
     | '/dpa'
     | '/how'
     | '/login'
@@ -281,7 +270,6 @@ export interface FileRouteTypes {
     | '/'
     | '/account'
     | '/contact'
-    | '/demo'
     | '/dpa'
     | '/how'
     | '/login'
@@ -307,7 +295,6 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AccountRoute: typeof AccountRoute
   ContactRoute: typeof ContactRoute
-  DemoRoute: typeof DemoRoute
   DpaRoute: typeof DpaRoute
   HowRoute: typeof HowRoute
   LoginRoute: typeof LoginRoute
@@ -350,13 +337,6 @@ declare module '@tanstack/react-router' {
       path: '/contact'
       fullPath: '/contact'
       preLoaderRoute: typeof ContactRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/demo': {
-      id: '/demo'
-      path: '/demo'
-      fullPath: '/demo'
-      preLoaderRoute: typeof DemoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dpa': {
@@ -499,7 +479,6 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AccountRoute: AccountRoute,
   ContactRoute: ContactRoute,
-  DemoRoute: DemoRoute,
   DpaRoute: DpaRoute,
   HowRoute: HowRoute,
   LoginRoute: LoginRoute,

@@ -2,7 +2,7 @@
 
 Do this after they have paid the pilot. Half a day once you have done it twice. **Never clone Aberdeen. Never share a database.**
 
-The sales demo they clicked (Forecourt `/demo`) is fictional. This template is what goes live.
+The sales showcase they saw (forecourt.me homepage, formerly `/demo`) is fictional. This template is what goes live.
 
 ## 0. From the order
 

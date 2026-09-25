@@ -1,15 +1,13 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { Mark } from "@/components/mark";
 import { Button } from "@/components/ui/button";
-import { deskSearch } from "@/lib/brands";
-import { useDemo } from "@/lib/demo-store";
 import { SignedIn, SignedOut, UserButton } from "@/lib/sb-session";
 import { useWhoAmI } from "@/lib/who-am-i";
 import { cn } from "@/lib/utils";
 
 const links = [
   { to: "/", label: "Product" },
-  { to: "/demo", label: "Try it", desk: true },
+  { to: "/", hash: "showcase", label: "See it working" },
   { to: "/how", label: "How it works" },
   { to: "/pricing", label: "Pricing" },
   { to: "/contact", label: "Contact" },
@@ -17,25 +15,22 @@ const links = [
 
 function NavLink({
   to,
+  hash,
   label,
-  desk,
   className,
 }: {
   to: string;
+  hash?: string;
   label: string;
-  desk?: boolean;
   className?: string;
 }) {
-  const company = useDemo((s) => s.company);
-  const brandId = useDemo((s) => s.brandId);
-  const site = useDemo((s) => s.site);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const on = pathname === to || (to === "/" && pathname === "/");
+  const on = !hash && pathname === to;
 
   return (
     <Link
       to={to}
-      search={desk ? deskSearch({ company, brandId, site }) : undefined}
+      hash={hash}
       className={cn(
         "rounded-full px-3.5 py-1.5 text-[13px] text-muted transition-colors hover:text-fg",
         on && "bg-elevated text-fg",
@@ -62,7 +57,7 @@ export function SiteHeader() {
           </Link>
           <nav className="hidden items-center md:flex">
             {links.map((l) => (
-              <NavLink key={l.to} to={l.to} label={l.label} desk={"desk" in l && l.desk} />
+              <NavLink key={l.label} to={l.to} hash={"hash" in l ? l.hash : undefined} label={l.label} />
             ))}
           </nav>
           <div className="flex items-center gap-1">
@@ -96,7 +91,7 @@ export function SiteHeader() {
         </div>
         <nav className="nav-glass mx-auto mt-2 flex max-w-5xl gap-1 overflow-x-auto rounded-full px-1 py-1 md:hidden">
           {links.map((l) => (
-            <NavLink key={l.to} to={l.to} label={l.label} desk={"desk" in l && l.desk} className="shrink-0" />
+            <NavLink key={l.label} to={l.to} hash={"hash" in l ? l.hash : undefined} label={l.label} className="shrink-0" />
           ))}
         </nav>
       </div>

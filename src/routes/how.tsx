@@ -1,6 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { DealerBar } from "@/components/demo/dealer-bar";
 import { ContactPromo } from "@/components/contact-promo";
 import { Reveal } from "@/components/reveal";
 import { SiteShell } from "@/components/site-shell";
@@ -219,12 +218,18 @@ export function HowPage() {
 
       <section className="mx-auto max-w-5xl px-4 pb-24 sm:px-6">
         <Reveal>
-          <h2 className="text-3xl font-semibold tracking-tight">See it with your name.</h2>
+          <h2 className="text-3xl font-semibold tracking-tight">See it working first.</h2>
+          <p className="mt-3 max-w-md text-[15px] leading-relaxed text-muted">
+            The homepage walks through team, stock, and the customer view with sample cars. Two
+            minutes of scrolling, no sign-up.
+          </p>
         </Reveal>
-        <div className="mt-8">
-          <DealerBar />
-        </div>
         <div className="mt-6 flex flex-wrap gap-2">
+          <Button variant="secondary" asChild>
+            <Link to="/" hash="showcase">
+              See it working
+            </Link>
+          </Button>
           <Button asChild>
             <Link to="/account" search={{ plan: "site", billing: "trial" }}>
               Start 60 days
