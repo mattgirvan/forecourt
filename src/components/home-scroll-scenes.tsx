@@ -18,7 +18,6 @@ import {
   UserPlus,
   type LucideProps,
 } from "lucide-react";
-import { PhoneFrame } from "@/components/home-customer-view";
 import { cn } from "@/lib/utils";
 
 /*
@@ -171,7 +170,7 @@ function SceneTrack({
   return (
     <section ref={trackRef} id={id} className="scene-track" data-len={length} aria-labelledby={`${id}-title`}>
       <div className="scene-sticky">
-        <div className="mx-auto grid w-full max-w-5xl items-center gap-6 px-4 sm:gap-10 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:gap-14">
+        <div className="mx-auto grid w-full max-w-5xl items-center gap-5 px-4 sm:gap-10 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:gap-14">
           {copy}
           <div className="relative flex min-w-0 justify-center lg:justify-end">{children}</div>
         </div>
@@ -566,8 +565,8 @@ function GlideRail({ index }: { index: number }) {
 
   return (
     <div className="rail-scroll scene-rail-scroll">
-      <div className="locator-rail scene-rail" ref={railRef}>
-        <div className="locator-nodes">
+      <div className="locator-rail scene-rail">
+        <div className="locator-nodes" ref={railRef}>
           <div className="locator-track shell-glass-inset scene-rail-track" aria-hidden />
           {LOCATOR_LABEL.map((stop, i) => {
             const done = i < index;
@@ -637,63 +636,63 @@ function CustomerScene() {
       }
     >
       <div
-        className="scene-phone"
+        className="desk-shell scene-card scene-customer-panel relative w-full max-w-[520px]"
         role="img"
         aria-label={`Customer view of a sample order. Car Locator shows ${LOCATOR_LABEL[index]}.`}
+        style={{ ["--desk-glow" as string]: "rgba(75,168,46,0.38)" }}
       >
-        <div aria-hidden>
-          <PhoneFrame accent="#4ba82e" glow="rgba(75,168,46,0.38)" screenClassName="scene-phone-screen" className="max-w-[340px] sm:max-w-[340px]" caption="Customer view. Sample order, dummy details.">
-            <div className="mx-auto max-w-[1200px] px-5 py-7 pb-24">
-              <div className="mb-3.5 text-lg font-medium">Welcome back, Jamie</div>
-              <div className="shell-glass customer-header-card mb-5 rounded-[24px] p-7">
-                <div className="mb-1.5 flex flex-wrap items-start justify-between gap-2">
-                  <div className="shell-eyebrow font-mono text-xs tracking-widest">ORD-2071 · Finance · New</div>
-                  <div
-                    className="rounded-[9px] px-2.5 py-0.5 font-mono text-xs font-bold tracking-widest"
-                    style={{ background: "var(--shell-accent)", color: "var(--shell-accent-ink)" }}
-                  >
-                    SV75 LRQ
-                  </div>
-                </div>
-                <div className="mb-1 flex items-center gap-3">
-                  <span className="flex size-11 items-center justify-center rounded-full" style={{ background: "rgba(255,255,255,0.08)" }}>
-                    <Car size={18} color="var(--shell-text-faint)" />
-                  </span>
-                  <div className="text-[20px] leading-tight font-medium text-[#F6F5F1]">Elroq 85 Edition</div>
-                </div>
-                <div className="mb-1.5 font-mono text-[11.5px] text-[#7C8F84]">VIN: TMBJR7NY0TF048213</div>
-                <div className="mb-4 text-sm text-[#9FB0A6]">Timiano Green</div>
-                <div
-                  className="flex items-center gap-3.5 rounded-[14px] px-4 py-3.5"
-                  style={{ background: "rgba(185,139,78,0.14)", border: "1px solid rgba(185,139,78,0.35)" }}
-                >
-                  <Calendar size={22} color="var(--brass)" className="shrink-0" />
-                  <div>
-                    <div className="text-[15px] font-semibold">9 Nov to 20 Nov</div>
-                    <div className="font-mono text-xs" style={{ color: "var(--brass)" }}>
-                      Estimated arrival: exact date to follow
-                    </div>
-                  </div>
-                </div>
+        <div className="scene-panel-glow" aria-hidden>
+          <div className="desk-orb opacity-70" />
+        </div>
+        <div aria-hidden className="relative z-10 px-4 py-3.5 sm:px-5 sm:py-5">
+          <div className="mb-2.5 text-lg font-medium">Welcome back, Jamie</div>
+          <div className="shell-glass customer-header-card mb-3 rounded-[24px] p-5 sm:mb-4 sm:p-7">
+            <div className="mb-1.5 flex flex-wrap items-start justify-between gap-2">
+              <div className="shell-eyebrow font-mono text-xs tracking-widest">ORD-2071 · Finance · New</div>
+              <div
+                className="rounded-[9px] px-2.5 py-0.5 font-mono text-xs font-bold tracking-widest"
+                style={{ background: "var(--shell-accent)", color: "var(--shell-accent-ink)" }}
+              >
+                SV75 LRQ
               </div>
-
-              <div className="shell-glass mb-5 rounded-[24px] p-5">
-                <div className="flex w-full items-center justify-between gap-2">
-                  <div className="flex min-w-0 items-center gap-2">
-                    <Truck size={15} className="shrink-0" />
-                    <div className="text-[13px] font-semibold whitespace-nowrap">Car Locator</div>
-                    <span key={index} className="scene-locator-label min-w-0 font-mono text-xs leading-tight font-semibold" style={{ color: "var(--emerald)" }}>
-                      {LOCATOR_LABEL[index]}
-                    </span>
-                  </div>
-                  <ChevronRight size={13} color="var(--mist)" className="shrink-0" style={{ transform: "rotate(90deg)" }} />
-                </div>
-                <div className="mt-4">
-                  <GlideRail index={index} />
+            </div>
+            <div className="mb-1 flex items-center gap-3">
+              <span className="flex size-11 shrink-0 items-center justify-center rounded-full" style={{ background: "rgba(255,255,255,0.08)" }}>
+                <Car size={18} color="var(--shell-text-faint)" />
+              </span>
+              <div className="text-[20px] leading-tight font-medium text-[#F6F5F1]">Elroq 85 Edition</div>
+            </div>
+            <div className="mb-1.5 font-mono text-[11.5px] text-[#7C8F84]">VIN: TMBJR7NY0TF048213</div>
+            <div className="mb-4 text-sm text-[#9FB0A6]">Timiano Green</div>
+            <div
+              className="flex items-center gap-3.5 rounded-[14px] px-4 py-2.5 sm:py-3"
+              style={{ background: "rgba(185,139,78,0.14)", border: "1px solid rgba(185,139,78,0.35)" }}
+            >
+              <Calendar size={22} color="var(--brass)" className="shrink-0" />
+              <div>
+                <div className="text-[15px] font-semibold">9 Nov to 20 Nov</div>
+                <div className="font-mono text-xs" style={{ color: "var(--brass)" }}>
+                  Estimated arrival: exact date to follow
                 </div>
               </div>
             </div>
-          </PhoneFrame>
+          </div>
+
+          <div className="shell-glass rounded-[24px] p-5">
+            <div className="flex w-full items-center justify-between gap-2">
+              <div className="flex min-w-0 items-center gap-2">
+                <Truck size={15} className="shrink-0" />
+                <div className="text-[13px] font-semibold whitespace-nowrap">Car Locator</div>
+                <span key={index} className="scene-locator-label min-w-0 font-mono text-xs font-semibold" style={{ color: "var(--emerald)" }}>
+                  {LOCATOR_LABEL[index]}
+                </span>
+              </div>
+              <ChevronRight size={13} color="var(--mist)" className="shrink-0" style={{ transform: "rotate(90deg)" }} />
+            </div>
+            <div className="mt-4">
+              <GlideRail index={index} />
+            </div>
+          </div>
         </div>
       </div>
     </SceneTrack>

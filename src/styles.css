@@ -992,10 +992,7 @@
 @media (max-width: 767px) {
   /* Mobile header carries a second nav row. */
   .scene-sticky {
-    padding-top: 6.75rem;
-  }
-  .scene-phone .text-center.text-\[11px\] {
-    display: none;
+    padding-top: 7.5rem;
   }
 }
 @media (max-width: 1023px) {
@@ -1274,22 +1271,23 @@
   }
 }
 
-/* Scene 3: phone + gliding locator rail */
-.scene-phone {
-  display: flex;
-  justify-content: center;
-  width: 100%;
+/* Scene 3: flat customer view panel + gliding locator rail (portal full size:
+ * 42px rail mark, 26px discs, 34px arrived-pill). */
+.scene-customer-panel {
+  overflow: hidden;
 }
-.scene-phone > div {
-  display: flex;
-  justify-content: center;
-  width: 100%;
+.scene-panel-glow {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
 }
-.desk-shell.scene-phone-screen {
-  height: auto;
+.scene-rail-scroll {
+  overflow: visible !important; /* bubble is clamped inside the rail */
 }
-.customer-phone-scroll .scene-rail .scene-rail-track {
-  top: 18px; /* half the 36px rail-mark: discs and pill centre on the track */
+.scene-rail .scene-rail-track {
+  top: 21px; /* half the 42px rail-mark: discs and pill centre on the track */
   left: 4px;
   right: 4px;
 }
@@ -1303,10 +1301,10 @@
 }
 /* Portal Car Locator current stop: .arrived-pill (emerald 72% into shell bg,
  * #f3fff0, 34px, 10.5px/700, gap 5, no pulse). */
-.customer-phone-scroll .scene-rail .scene-rail-bubble,
-.customer-phone-scroll .scene-rail .scene-rail-measure {
+.scene-rail .scene-rail-bubble,
+.scene-rail .scene-rail-measure {
   height: 34px;
-  padding: 0 11px;
+  padding: 0 12px;
   gap: 5px;
   font-size: 10.5px;
   font-weight: 700;
@@ -1314,30 +1312,31 @@
   color: #f3fff0;
   animation: none;
 }
-.customer-phone-scroll .scene-rail .scene-rail-bubble {
+.scene-rail .scene-rail-bubble {
   position: absolute;
-  top: 18px;
+  top: 21px;
   z-index: 3;
   transform: translate(-50%, -50%);
   transition: left 560ms cubic-bezier(0.22, 1, 0.36, 1);
 }
-.customer-phone-scroll .scene-rail .rail-label {
-  font-size: 9.5px;
-  line-height: 1.2;
-  width: calc(100% + 12px);
-  max-width: none;
-  -webkit-line-clamp: 3;
-}
-.customer-phone-scroll .scene-locator-label {
-  font-size: 10.5px !important;
-}
-.customer-phone-scroll .scene-rail .scene-rail-measure {
+.scene-rail .scene-rail-measure {
   position: absolute;
   left: 0;
   top: 0;
   visibility: hidden;
   pointer-events: none;
-  animation: none;
+}
+.scene-rail .rail-label {
+  font-size: 9.5px;
+  line-height: 1.2;
+  width: 100%;
+  max-width: 100%;
+  min-height: calc(2.4em + 4px); /* two lines + padding reserved so the card never jumps */
+}
+.scene-locator-label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .scene-disc {
   animation: scene-disc-in 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
@@ -1392,7 +1391,7 @@
   .scene-locator-label,
   .scene-team-target,
   .scene-rail .scene-rail-node,
-  .customer-phone-scroll .scene-rail .scene-rail-bubble {
+  .scene-rail .scene-rail-bubble {
     animation: none !important;
     transition: none !important;
   }
@@ -1558,12 +1557,6 @@
   }
 }
 
-.scene-phone-screen .customer-phone-scroll > div {
-  padding-bottom: 0.75rem !important;
-}
-.customer-phone-scroll .scene-rail-scroll {
-  overflow: visible !important; /* bubble is clamped inside the rail; let its shadow breathe */
-}
 .scene-chase-list {
-  min-height: 110px;
+  min-height: 80px;
 }

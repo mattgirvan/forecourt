@@ -125,25 +125,19 @@ export function HomeCustomerView({
   );
 }
 
-export function PhoneFrame({
+function PhoneFrame({
   children,
   accent,
   glow,
-  screenClassName,
-  className,
   caption = "Real customer view layout. Sample order, dummy details.",
 }: {
   children: ReactNode;
   accent: string;
   glow: string;
-  /** Override the screen height (default fits the homepage band). */
-  screenClassName?: string;
-  /** Extra classes on the outer frame (e.g. a wider max width). */
-  className?: string;
   caption?: string;
 }) {
   return (
-    <div className={cn("relative w-full max-w-[300px] sm:max-w-[320px]", className)}>
+    <div className="relative w-full max-w-[300px] sm:max-w-[320px]">
       <div
         className="absolute -inset-6 rounded-[3rem] opacity-70 blur-3xl"
         style={{ background: glow }}
@@ -158,7 +152,7 @@ export function PhoneFrame({
       >
         <div className="absolute left-1/2 top-[14px] z-20 h-[22px] w-[96px] -translate-x-1/2 rounded-full bg-black/90" aria-hidden />
         <div
-          className={cn("desk-shell relative h-[min(62vh,560px)] overflow-hidden rounded-[1.85rem] border-0", screenClassName)}
+          className="desk-shell relative h-[min(62vh,560px)] overflow-hidden rounded-[1.85rem] border-0"
           style={
             {
               "--desk-accent": accent,
