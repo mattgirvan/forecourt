@@ -142,7 +142,6 @@ function AccountInner() {
     setFeatures(defaultFeaturesFor(plan, effectiveBilling));
     if (plan === "franchise" || plan === "group") setIngest("manufacturer");
     if (plan === "site" && effectiveBilling === "trial") setIngest("excel");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [plan, effectiveBilling]);
 
   async function reload() {

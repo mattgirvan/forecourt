@@ -711,13 +711,17 @@ function NudgeScene() {
   const stageRef = useRef<HTMLDivElement>(null);
   const cursorRef = useRef<HTMLDivElement>(null);
   const ctaRef = useRef<HTMLSpanElement>(null);
+  // Last on-screen CTA point: compact phones hide the button once sent.
+  const ctaPoint = useRef<{ x: number; y: number } | null>(null);
 
   const trackRef = useScrollScene<HTMLElement>((p) => {
     setStage(p < 0.08 ? 0 : p < 0.32 ? 1 : p < 0.37 ? 2 : p < 0.52 ? 3 : p < 0.66 ? 4 : 5);
     const box = stageRef.current?.getBoundingClientRect();
     if (!box) return;
     const from = { x: box.width * 0.85, y: box.height * 0.98 };
-    const cta = pointIn(box, ctaRef.current, 0.5, 0.6);
+    const ctaVisible = (ctaRef.current?.getBoundingClientRect().width ?? 0) > 0;
+    if (ctaVisible) ctaPoint.current = pointIn(box, ctaRef.current, 0.5, 0.6);
+    const cta = ctaPoint.current ?? pointIn(box, null);
     const rest = { x: cta.x - 40, y: cta.y + 70 };
     let x: number;
     let y: number;
@@ -762,7 +766,9 @@ function NudgeScene() {
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <div className="truncate text-[15px] font-semibold">Priya Shah</div>
-              <div className="text-[12px] text-[var(--shell-text-faint)]">Enyaq 85 Edition · SY25 PSH</div>
+              <div className="text-[12px] text-[var(--shell-text-faint)]">
+                Enyaq 85 Edition · <span className="whitespace-nowrap">SY25 PSH</span>
+              </div>
             </div>
             <span className="scene-chip shrink-0">Handover Sat 10:00</span>
           </div>
@@ -781,7 +787,7 @@ function NudgeScene() {
                     : "Handover is in 18 hours and Priya still has 2 outstanding tasks. Worth a nudge."}
                 </div>
                 {!done && (
-                  <span ref={ctaRef} className={cn("dealer-nudge-banner__cta", stage === 2 && "is-pressed")}>
+                  <span ref={ctaRef} className={cn("dealer-nudge-banner__cta", stage === 2 && "is-pressed", sent && "is-sent")}>
                     Message customer
                   </span>
                 )}
@@ -791,13 +797,13 @@ function NudgeScene() {
 
           <div className="scene-nudge-grid mt-3 grid gap-3 sm:grid-cols-[0.9fr_1.1fr]">
             <div className="shell-glass rounded-[16px] p-3.5">
-              <div className="mb-2.5 flex items-center justify-between text-[12.5px] font-semibold">
+              <div className="scene-tasks-head mb-2.5 flex items-center justify-between text-[12.5px] font-semibold">
                 Outstanding tasks
                 <span className="font-mono text-[11px]" style={{ color: done ? "var(--emerald)" : "var(--mist)" }}>
                   {done ? "0 left" : "2 left"}
                 </span>
               </div>
-              <div className="scene-short-hide flex flex-col gap-1.5">
+              <div className="scene-short-hide scene-compact-hide flex flex-col gap-1.5">
                 {NUDGE_TASKS.map((t) => (
                   <div key={t} className="shell-glass-row flex items-center gap-2 rounded-[12px] px-2.5 py-2 text-[12.5px]">
                     {done ? (

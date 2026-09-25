@@ -79,7 +79,7 @@ function CustomerLiveTrackPage() {
         ))}
       </ul>
 
-      <section className="mx-auto max-w-3xl px-4 pb-20 text-center sm:px-6 sm:pb-28">
+      <section className="mx-auto max-w-3xl px-4 pt-16 pb-20 text-center sm:px-6 sm:pt-20 sm:pb-28">
         <Reveal>
           <p className="text-[13px] font-medium text-muted">See it moving</p>
           <h2 className="mx-auto mt-3 max-w-xl text-3xl font-semibold tracking-tight sm:text-4xl">
