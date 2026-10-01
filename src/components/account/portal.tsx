@@ -24,6 +24,7 @@ type Tenant = {
   principal_name?: string;
   group_name?: string;
   staff_json?: string;
+  stage?: string | null;
 };
 
 type Tab = "overview" | "build" | "billing" | "messages" | "notes" | "people";
@@ -225,7 +226,8 @@ function Billing({
         <div className="mt-6 rounded-2xl border border-line p-4">
           <div className="text-sm font-medium">Stay on Site</div>
           <p className="mt-1 text-sm text-muted">
-            Remaining setup {gbpPence(remaining)} + {gbpPence(PLANS.site.monthPence)}/month. The trial fee comes off.
+            Remaining setup {gbpPence(remaining)}, then {gbpPence(PLANS.site.monthPence)} a month
+            {tenant.stage === "live" || tenant.status === "live" ? " from today" : " from the day your desk goes live"}. The trial fee comes off.
           </p>
           <Button className="mt-4" onClick={onConvert} disabled={converting}>
             Convert trial

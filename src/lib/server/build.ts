@@ -12,6 +12,7 @@ import { SUPABASE_ANON, SUPABASE_URL } from "@/lib/sb";
 import { looksLikeTeam } from "@/lib/team";
 import { listStaffEnvKeyNames } from "@/lib/server/desk-scaffold";
 import { executeSendToBuild } from "@/lib/server/build-api";
+import { startMonthlyForTenant } from "@/lib/server/billing-go-live";
 
 function sbFor(token: string) {
   const key = SUPABASE_ANON || env("VITE_SUPABASE_ANON_KEY") || env("VITE_SUPABASE_PUBLISHABLE_KEY") || "";
@@ -193,8 +194,14 @@ export const setBuildStage = createServerFn({ method: "POST" })
     if (data.preview_url !== undefined) patch.preview_url = data.preview_url;
     if (data.repo_slug !== undefined) patch.repo_slug = data.repo_slug;
     if (data.stage === "live") patch.status = "live";
+    const { data: before } = await sb.from("tenants").select("stage").eq("id", data.tenantId).maybeSingle();
     const { error } = await sb.from("tenants").update(patch).eq("id", data.tenantId);
     if (error) throw new Error(error.message);
+    // Monthly billing starts the day the desk goes live.
+    let billingMessage: string | null = null;
+    if (data.stage === "live" && before?.stage !== "live") {
+      billingMessage = (await startMonthlyForTenant(sb, data.tenantId, email)).message;
+    }
     const meta = BUILD_STAGES.find((s) => s.id === data.stage)!;
     await sb.from("build_events").insert({
       tenant_id: data.tenantId,
@@ -205,7 +212,7 @@ export const setBuildStage = createServerFn({ method: "POST" })
       visibility: "customer",
       actor_email: email,
     });
-    return { ok: true };
+    return { ok: true, billingMessage };
   });
 
 export const addMeeting = createServerFn({ method: "POST" })

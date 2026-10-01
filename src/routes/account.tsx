@@ -21,6 +21,8 @@ import {
   normalizeBilling,
   normalizePlan,
   setupDuePence,
+  firstChargePence,
+  monthlyChargedAtCheckout,
   type BillingKind,
   type FeatureId,
   type PlanId,
@@ -140,6 +142,12 @@ function AccountInner() {
 
   const setup = setupDuePence(plan, effectiveBilling, converting);
   const monthly = monthTotalPence(plan, siteCount);
+  // Monthly billing starts at go live; only a site that is already live pays
+  // its first month at checkout (see MONTHLY_FROM_GO_LIVE in catalog.ts).
+  const activeTenant = tenants.find((x) => x.id === activeId);
+  const siteAlreadyLive = activeTenant?.stage === "live" || activeTenant?.status === "live";
+  const monthlyNow = monthlyChargedAtCheckout(effectiveBilling, Boolean(converting && siteAlreadyLive));
+  const dueToday = firstChargePence(plan, effectiveBilling, siteCount, converting, Boolean(converting && siteAlreadyLive));
   const needsContract = Boolean(chosen.contractMonths);
 
   useEffect(() => {
@@ -317,11 +325,9 @@ function AccountInner() {
   const payLabel = (() => {
     if (busy) return "Opening…";
     if (effectiveBilling === "trial") return `Start 60 days: ${gbpPence(setup)}`;
-    if (converting) return `Convert trial: ${gbpPence(setup)} + ${gbpPence(monthly)}/mo`;
-    if (chosen.perSite) {
-      return `Start contract: ${gbpPence(setup)} + ${gbpPence(monthly)}/mo`;
-    }
-    return `Start subscription: ${gbpPence(setup)} + ${gbpPence(monthly)}/mo`;
+    if (monthlyNow) return `Pay ${gbpPence(dueToday)} today: setup and first month`;
+    if (converting) return `Pay ${gbpPence(setup)} remaining setup today`;
+    return `Pay ${gbpPence(setup)} setup today`;
   })();
 
   const live = tenants.filter((t) => packageLive(t.status));
@@ -537,12 +543,17 @@ function AccountInner() {
           <div className="rounded-md border border-line bg-surface px-3 py-3 text-sm">
             <div className="font-medium">Before you pay</div>
             <ul className="mt-2 space-y-1 text-muted">
-              <li>Due now: {gbpPence(setup)}</li>
               <li>
-                Then {gbpPence(monthly)}
-                {chosen.perSite ? ` / month for ${siteCount} sites` : " / month"}
-                {chosen.contractMonths ? ` · ${chosen.contractMonths}-month contract` : " · month to month"}
+                Due today: {gbpPence(dueToday)}
+                {effectiveBilling === "trial" ? "" : monthlyNow ? " (setup and your first month)" : " (one-off setup)"}
               </li>
+              {effectiveBilling !== "trial" && (
+                <li>
+                  Then {gbpPence(monthly)} a month{chosen.perSite ? ` for ${siteCount} sites` : ""},{" "}
+                  {monthlyNow ? "from today" : "starting the day your desk goes live"}
+                  {chosen.contractMonths ? ` · ${chosen.contractMonths} month contract` : " · month to month"}
+                </li>
+              )}
               {effectiveBilling === "trial" && <li>60-day site trial. The £1,500 comes off setup if you stay.</li>}
               <li>
                 Full terms, including payment and sign-off:{" "}
@@ -658,8 +669,10 @@ function AccountInner() {
               </>
             ) : (
               <>
-                First invoice {gbpPence(setup + monthly)}
-                {chosen.perSite ? ` (${siteCount} sites)` : ""}. Then {gbpPence(monthly)} / month.
+                Today {gbpPence(dueToday)}
+                {monthlyNow ? " for setup and your first month" : " for the one-off setup"}. Then {gbpPence(monthly)} a month
+                {chosen.perSite ? ` for ${siteCount} sites` : ""}
+                {monthlyNow ? "." : ", starting the day your desk goes live."}
               </>
             )}
           </p>

@@ -5,6 +5,7 @@ import { env } from "@/lib/env.server";
 import { SUPABASE_ANON, SUPABASE_URL } from "@/lib/sb";
 import { SITE } from "@/lib/site";
 import { TEAM_EMAILS, looksLikeTeam, type StaffRole, type StaffStatus } from "@/lib/team";
+import { startMonthlyForTenant } from "@/lib/server/billing-go-live";
 
 function sbFor(token: string) {
   const key = SUPABASE_ANON || env("VITE_SUPABASE_ANON_KEY") || env("VITE_SUPABASE_PUBLISHABLE_KEY") || "";
@@ -555,7 +556,9 @@ export const runBillingAction = createServerFn({ method: "POST" })
         .eq("id", data.tenantId);
       if (up) await admin.from("tenants").update({ status: "live" }).eq("id", data.tenantId);
       await trail(`Signed off live by ${email}. Setup is not refundable.`);
-      return { ok: true, message: "Signed off live. Setup is not refundable from here." };
+      // Monthly billing starts at go live; a no-op if it is already running.
+      const { message: billingMessage } = await startMonthlyForTenant(admin, data.tenantId, email);
+      return { ok: true, message: `Signed off live. Setup is not refundable from here. ${billingMessage}` };
     }
 
     if (data.action === "refund" && signedOff) {

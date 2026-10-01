@@ -174,9 +174,37 @@ export function setupDuePence(plan: PlanId, billing: BillingKind, convertFromTri
   return p.setupPence;
 }
 
-export function firstChargePence(plan: PlanId, billing: BillingKind, siteCount = 1, convertFromTrial = false) {
+/**
+ * Monthly billing starts on the day the desk goes live, not at checkout.
+ * Checkout takes the one-off setup only; the subscription waits in Stripe
+ * (as a trial) until staff mark the site Live, which starts the monthly plan.
+ * A site that is already live when it subscribes (a trial converting) starts
+ * its monthly plan straight away.
+ */
+export const MONTHLY_FROM_GO_LIVE = true;
+
+/**
+ * Stripe needs an end date for the wait. Going live ends it early; this is
+ * only the latest the monthly plan could start if a site never goes live.
+ */
+export const MONTHLY_START_LATEST_DAYS = 180;
+
+/** True when the first month is charged at checkout (only for a site already live). */
+export function monthlyChargedAtCheckout(billing: BillingKind, siteAlreadyLive = false) {
+  if (billing === "trial") return false;
+  return !MONTHLY_FROM_GO_LIVE || siteAlreadyLive;
+}
+
+/** What the card is charged at checkout. */
+export function firstChargePence(
+  plan: PlanId,
+  billing: BillingKind,
+  siteCount = 1,
+  convertFromTrial = false,
+  siteAlreadyLive = false,
+) {
   const setup = setupDuePence(plan, billing, convertFromTrial);
-  if (billing === "trial") return setup;
+  if (!monthlyChargedAtCheckout(billing, siteAlreadyLive)) return setup;
   return setup + monthTotalPence(plan, siteCount);
 }
 

@@ -3,6 +3,8 @@ import { createServerFn } from "@tanstack/react-start";
 import {
   PLANS,
   firstChargePence,
+  MONTHLY_START_LATEST_DAYS,
+  monthlyChargedAtCheckout,
   isBillingKind,
   isPlanId,
   monthTotalPence,
@@ -73,7 +75,7 @@ export const listMyTenants = createServerFn({ method: "POST" })
     const { data: rows, error } = await sb
       .from("tenants")
       .select(
-        "id, slug, name, legal, phone, email, domain, sites, features, ingest, plan, status, billing, site_count, stripe_subscription_id, trial_ends_at, term_months, principal_name, group_name, staff_json, created_at",
+        "id, slug, name, legal, phone, email, domain, sites, features, ingest, plan, status, billing, site_count, stripe_subscription_id, trial_ends_at, term_months, principal_name, group_name, staff_json, created_at, stage",
       )
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
@@ -95,6 +97,7 @@ export const listMyTenants = createServerFn({ method: "POST" })
         group_name: "",
         staff_json: "[]",
         created_at: null as string | null,
+        stage: null as string | null,
       }));
     }
     return rows ?? [];
@@ -289,10 +292,14 @@ export const startCheckout = createServerFn({ method: "POST" })
     const { sb, userId } = await uid(data.token);
     const { data: owned } = await sb
       .from("tenants")
-      .select("id, email, name, status, billing")
+      .select("id, email, name, status, billing, stage")
       .eq("id", data.tenantId)
       .maybeSingle();
     if (!owned) return { url: null, message: "No site on this account." };
+    // Monthly billing starts at go live. A site that is already live (a trial
+    // converting) starts its monthly plan now; everyone else pays setup only.
+    const siteAlreadyLive = owned.stage === "live" || owned.status === "live";
+    const monthlyNow = monthlyChargedAtCheckout(data.billing, siteAlreadyLive);
 
     // The trial credit only applies to a site that really is on a paid trial.
     const onTrial = owned.billing === "trial" && (owned.status === "trial" || owned.status === "paid");
@@ -302,7 +309,7 @@ export const startCheckout = createServerFn({ method: "POST" })
     const convert = Boolean(data.convertFromTrial && data.plan === "site" && onTrial);
     const setup = setupDuePence(data.plan, data.billing, convert);
     const monthly = monthTotalPence(data.plan, siteCount);
-    const amount = firstChargePence(data.plan, data.billing, siteCount, convert);
+    const amount = firstChargePence(data.plan, data.billing, siteCount, convert, siteAlreadyLive);
     const kind = data.billing === "trial" ? "trial" : convert ? "convert" : "subscription";
 
     const orderInsert = {
@@ -364,7 +371,9 @@ export const startCheckout = createServerFn({ method: "POST" })
 
     const termsText = {
       submit: {
-        message: "Paying agrees to Forecourt terms at https://www.forecourt.me/terms, including when setup is not refundable.",
+        message: monthlyNow || data.billing === "trial"
+          ? "Paying agrees to Forecourt terms at https://www.forecourt.me/terms, including when setup is not refundable."
+          : "Today you pay the one-off setup only. Your monthly plan starts on the day your desk goes live, so the start date Stripe shows is the latest it could be. Paying agrees to Forecourt terms at https://www.forecourt.me/terms, including when setup is not refundable.",
       },
     };
 
@@ -407,10 +416,10 @@ export const startCheckout = createServerFn({ method: "POST" })
                   product_data: {
                     name: `${productName} (setup)`,
                     description: convert
-                      ? "Remaining setup after the 60-day trial."
+                      ? "Remaining setup after the 60-day trial. Paid once, today."
                       : plan.contractMonths
-                        ? `${plan.contractMonths}-month contract. Setup billed once.`
-                        : "One-time setup.",
+                        ? `One-off setup, paid today. ${plan.contractMonths} month contract from go live.`
+                        : "One-off setup, paid today.",
                   },
                 },
               },
@@ -422,16 +431,24 @@ export const startCheckout = createServerFn({ method: "POST" })
                   recurring: { interval: "month" },
                   product_data: {
                     name: plan.perSite ? `${productName} (per site)` : productName,
-                    description: plan.perSite
-                      ? `${gbp(monthly)} / month for ${siteCount} sites.`
-                      : `${gbp(monthly)} / month.`,
+                    description: `${plan.perSite ? `${gbp(monthly)} a month for ${siteCount} sites` : `${gbp(monthly)} a month`}${
+                      monthlyNow ? ", starting today." : ", starting the day your desk goes live."
+                    }`,
                   },
                 },
               },
             ],
-            metadata,
+            metadata: { ...metadata, monthly_from: monthlyNow ? "checkout" : "go_live" },
             subscription_data: {
-              metadata,
+              metadata: { ...metadata, monthly_from: monthlyNow ? "checkout" : "go_live" },
+              // Setup is charged now; the monthly price waits until go live.
+              // markLive ends this early with trial_end=now (see billing-start.ts).
+              ...(monthlyNow
+                ? {}
+                : {
+                    trial_period_days: MONTHLY_START_LATEST_DAYS,
+                    trial_settings: { end_behavior: { missing_payment_method: "cancel" as const } },
+                  }),
             },
             custom_text: termsText,
           });

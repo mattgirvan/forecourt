@@ -113,6 +113,7 @@ export function OrderBuild({
   const [build, setBuild] = useState<Build | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [staffNotice, setStaffNotice] = useState<string | null>(null);
 
   async function reload() {
     setBuild(await getBuild({ data: { token, tenantId } }));
@@ -148,11 +149,15 @@ export function OrderBuild({
         onPick={
           team
             ? (id) => {
-                void setBuildStage({ data: { token, tenantId, stage: id } }).then(() => reload());
+                void setBuildStage({ data: { token, tenantId, stage: id } }).then((r) => {
+                  setStaffNotice(r.billingMessage ?? null);
+                  return reload();
+                });
               }
             : undefined
         }
       />
+      {team && staffNotice ? <p className="text-sm text-muted">{staffNotice}</p> : null}
       {team ? (
         <StaffBuild
           token={token}
