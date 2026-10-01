@@ -2,14 +2,13 @@ import { createClient } from "@supabase/supabase-js";
 import { createServerFn } from "@tanstack/react-start";
 import {
   PLANS,
-  firstChargePence,
+  checkoutQuote,
   MONTHLY_START_LATEST_DAYS,
-  monthlyChargedAtCheckout,
+  monthlyStartSentence,
+  onPaidTrial,
   isBillingKind,
   isPlanId,
-  monthTotalPence,
   normalizePlan,
-  setupDuePence,
   type BillingKind,
   type PlanId,
 } from "@/lib/catalog";
@@ -292,24 +291,27 @@ export const startCheckout = createServerFn({ method: "POST" })
     const { sb, userId } = await uid(data.token);
     const { data: owned } = await sb
       .from("tenants")
-      .select("id, email, name, status, billing, stage")
+      .select("id, email, name, plan, status, billing, stage")
       .eq("id", data.tenantId)
       .maybeSingle();
     if (!owned) return { url: null, message: "No site on this account." };
-    // Monthly billing starts at go live. A site that is already live (a trial
-    // converting) starts its monthly plan now; everyone else pays setup only.
-    const siteAlreadyLive = owned.stage === "live" || owned.status === "live";
-    const monthlyNow = monthlyChargedAtCheckout(data.billing, siteAlreadyLive);
-
-    // The trial credit only applies to a site that really is on a paid trial.
-    const onTrial = owned.billing === "trial" && (owned.status === "trial" || owned.status === "paid");
-    if (data.convertFromTrial && !onTrial) {
+    // One shared rule (catalog checkoutQuote) decides the charge, so the Pay
+    // button on the account page always matches what Stripe takes. Monthly
+    // billing starts at go live; a site already live starts it now.
+    if (data.convertFromTrial && !onPaidTrial(owned)) {
       return { url: null, message: "The trial credit only applies to a site that is on the trial." };
     }
-    const convert = Boolean(data.convertFromTrial && data.plan === "site" && onTrial);
-    const setup = setupDuePence(data.plan, data.billing, convert);
-    const monthly = monthTotalPence(data.plan, siteCount);
-    const amount = firstChargePence(data.plan, data.billing, siteCount, convert, siteAlreadyLive);
+    const quote = checkoutQuote({
+      plan: data.plan,
+      billing: data.billing,
+      siteCount,
+      convertFromTrial: data.convertFromTrial,
+      tenant: owned,
+    });
+    const { convert, monthlyNow } = quote;
+    const setup = quote.setupPence;
+    const monthly = quote.monthlyPence;
+    const amount = quote.dueTodayPence;
     const kind = data.billing === "trial" ? "trial" : convert ? "convert" : "subscription";
 
     const orderInsert = {
@@ -373,7 +375,7 @@ export const startCheckout = createServerFn({ method: "POST" })
       submit: {
         message: monthlyNow || data.billing === "trial"
           ? "Paying agrees to Forecourt terms at https://www.forecourt.me/terms, including when setup is not refundable."
-          : "Today you pay the one-off setup only. Your monthly plan starts on the day your desk goes live, so the start date Stripe shows is the latest it could be. Paying agrees to Forecourt terms at https://www.forecourt.me/terms, including when setup is not refundable.",
+          : `Today you pay the one-off setup only. ${monthlyStartSentence(monthly)} The date Stripe shows is the latest it could start. Paying agrees to Forecourt terms at https://www.forecourt.me/terms, including when setup is not refundable.`,
       },
     };
 
@@ -432,7 +434,9 @@ export const startCheckout = createServerFn({ method: "POST" })
                   product_data: {
                     name: plan.perSite ? `${productName} (per site)` : productName,
                     description: `${plan.perSite ? `${gbp(monthly)} a month for ${siteCount} sites` : `${gbp(monthly)} a month`}${
-                      monthlyNow ? ", starting today." : ", starting the day your desk goes live."
+                      monthlyNow
+                        ? ", starting today."
+                        : `, starting on your go live day, or ${MONTHLY_START_LATEST_DAYS} days after payment if that comes first.`
                     }`,
                   },
                 },

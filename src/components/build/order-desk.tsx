@@ -17,7 +17,7 @@ import {
 } from "@/lib/build";
 import { INGEST, normalizeBilling, normalizePlan, type BillingKind, type PlanId } from "@/lib/catalog";
 import { ROLES } from "@/lib/roles";
-import { addMeeting, getBuild, savePack, setBuildStage } from "@/lib/server/build";
+import { addMeeting, getBuild, goLiveConfirm, savePack, setBuildStage } from "@/lib/server/build";
 import { BrandPackPreview } from "@/components/trust/brand-preview";
 import { GoLiveChecklist } from "@/components/trust/go-live-checklist";
 import { cn } from "@/lib/utils";
@@ -149,10 +149,18 @@ export function OrderBuild({
         onPick={
           team
             ? (id) => {
-                void setBuildStage({ data: { token, tenantId, stage: id } }).then((r) => {
+                void (async () => {
+                  if (id === "live" && build.stage !== "live") {
+                    // Going live can start the monthly plan in Stripe, so ask first.
+                    const { text } = await goLiveConfirm({ data: { token, tenantId } }).catch(() => ({
+                      text: "Mark live? This may start their monthly plan today.",
+                    }));
+                    if (typeof window !== "undefined" && !window.confirm(text)) return;
+                  }
+                  const r = await setBuildStage({ data: { token, tenantId, stage: id } });
                   setStaffNotice(r.billingMessage ?? null);
-                  return reload();
-                });
+                  await reload();
+                })().catch((e) => setErr(e instanceof Error ? e.message : "Could not move the build."));
               }
             : undefined
         }

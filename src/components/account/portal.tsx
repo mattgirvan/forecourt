@@ -3,7 +3,15 @@ import { Link } from "@tanstack/react-router";
 import { OrderBuild } from "@/components/build/order-desk";
 import { SeatMatrix } from "@/components/trust/seat-matrix";
 import { Button } from "@/components/ui/button";
-import { PLANS, gbpPence, monthTotalPence, normalizeBilling, normalizePlan, setupDuePence } from "@/lib/catalog";
+import {
+  PLANS,
+  gbpPence,
+  monthTotalPence,
+  monthlyStartSentence,
+  normalizeBilling,
+  normalizePlan,
+  setupDuePence,
+} from "@/lib/catalog";
 import { rolesForPlan } from "@/lib/roles";
 import { addNote, listMessages, listNotes, listReceipts, saveTenantFile, sendMessage } from "@/lib/server/portal";
 import { packageLive, statusLabel, trialDaysLeft } from "@/lib/team";
@@ -226,8 +234,11 @@ function Billing({
         <div className="mt-6 rounded-2xl border border-line p-4">
           <div className="text-sm font-medium">Stay on Site</div>
           <p className="mt-1 text-sm text-muted">
-            Remaining setup {gbpPence(remaining)}, then {gbpPence(PLANS.site.monthPence)} a month
-            {tenant.stage === "live" || tenant.status === "live" ? " from today" : " from the day your desk goes live"}. The trial fee comes off.
+            Remaining setup {gbpPence(remaining)}.{" "}
+            {tenant.stage === "live" || tenant.status === "live"
+              ? `Then ${gbpPence(PLANS.site.monthPence)} a month from today.`
+              : monthlyStartSentence(PLANS.site.monthPence)}{" "}
+            The trial fee comes off.
           </p>
           <Button className="mt-4" onClick={onConvert} disabled={converting}>
             Convert trial

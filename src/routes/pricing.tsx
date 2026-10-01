@@ -54,7 +54,7 @@ export function PricingPage() {
                 </div>
                 <div className="mt-1 text-sm text-muted">
                   then {gbpPence(t.monthPence)}
-                  {t.perSite ? " / site / month" : " / month"} from go live
+                  {t.perSite ? " / site / month" : " / month"} from go live (180 days after payment at the latest)
                   {t.contractMonths ? ` · ${t.contractMonths}-month contract` : " · month to month"}
                 </div>
                 <p className="mt-6 text-[15px] leading-relaxed text-muted">{t.body}</p>

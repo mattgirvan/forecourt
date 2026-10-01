@@ -1,6 +1,14 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { env } from "@/lib/env.server";
-import { monthlyStartMessage, startMonthlyAtGoLive, type MonthlyStartResult } from "@/lib/server/billing-start";
+import { gbpPence, monthTotalPence, normalizePlan } from "@/lib/catalog";
+import {
+  goLiveConfirmText,
+  monthlyStartMessage,
+  previewMonthlyStart,
+  startMonthlyAtGoLive,
+  type GoLiveBillingPreview,
+  type MonthlyStartResult,
+} from "@/lib/server/billing-start";
 
 function stripeSecret() {
   return env("GROK_STRIPE_SECRET_KEY") ?? env("STRIPE_SECRET_KEY");
@@ -57,4 +65,37 @@ export async function startMonthlyForTenant(
     /* timeline note is best effort */
   }
   return { result, message };
+}
+
+/**
+ * What staff should be asked before marking a site Live. Read only: it checks
+ * the Stripe subscription (trialing means going live starts the monthly plan)
+ * and never changes anything.
+ */
+export async function goLiveConfirmForTenant(
+  sb: SupabaseClient,
+  tenantId: number,
+): Promise<{ text: string; preview: GoLiveBillingPreview }> {
+  let preview: GoLiveBillingPreview = { kind: "unknown" };
+  let monthlyLabel: string | null = null;
+  try {
+    const { data: t, error } = await sb
+      .from("tenants")
+      .select("stripe_subscription_id, plan, site_count")
+      .eq("id", tenantId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (t?.plan) monthlyLabel = gbpPence(monthTotalPence(normalizePlan(t.plan as string), (t.site_count as number | null) ?? 1));
+    const secret = stripeSecret();
+    const Stripe = secret ? (await import("stripe")).default : null;
+    const stripe = Stripe && secret ? new Stripe(secret) : null;
+    preview = await previewMonthlyStart(
+      { subscriptions: stripe ? { retrieve: (id) => stripe.subscriptions.retrieve(id) } : null, log: console },
+      (t?.stripe_subscription_id as string | null | undefined) ?? null,
+    );
+  } catch (err) {
+    console.warn("[billing] go live confirm check failed for tenant", tenantId, err);
+    preview = { kind: "unknown" };
+  }
+  return { text: goLiveConfirmText(preview, monthlyLabel), preview };
 }
