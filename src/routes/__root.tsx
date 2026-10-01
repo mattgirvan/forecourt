@@ -2,7 +2,7 @@ import { createRootRoute, HeadContent, Outlet, Scripts } from "@tanstack/react-r
 import { AuthProvider } from "@/lib/auth/provider";
 import { AuthCatcher } from "@/components/auth-catcher";
 import { PreviewHostBridge } from "@/components/preview-host-bridge";
-import { SITE } from "@/lib/site";
+import { OG_IMAGE_META, SITE } from "@/lib/site";
 import appCss from "../styles.css?url";
 
 const DEFAULT_TITLE = "Dealership floor OS beside your CRM | Forecourt";
@@ -26,10 +26,9 @@ export const Route = createRootRoute({
       { property: "og:title", content: DEFAULT_TITLE },
       { property: "og:url", content: SITE.url },
       { property: "og:description", content: DEFAULT_OG_DESCRIPTION },
-      { property: "og:image", content: `${SITE.url}/og.jpg` },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:image", content: `${SITE.url}/og.jpg` },
+      ...OG_IMAGE_META,
     ],
     links: [
       { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
