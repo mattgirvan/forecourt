@@ -121,7 +121,7 @@ export async function signIn(
   });
 
   if (inLivePreview()) {
-    if (!popup) throw new Error("Pop-up blocked — allow pop-ups for sign-in");
+    if (!popup) throw new Error("Pop-up blocked. Allow pop-ups to sign in.");
     const token = await waitForPopupToken(popup);
     if (!token) throw new Error("Sign-in was cancelled or failed");
     setBearerToken(token);

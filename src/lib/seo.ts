@@ -7,10 +7,12 @@ export type PageSeo = {
   path?: string;
   /** Override og:description when it differs from meta description. */
   ogDescription?: string;
+  /** Keep the page out of search results (sign-in and account screens). */
+  noindex?: boolean;
 };
 
 /** Unique title, description, OG, Twitter, and canonical for a marketing route. */
-export function pageHead({ title, description, path = "/", ogDescription }: PageSeo) {
+export function pageHead({ title, description, path = "/", ogDescription, noindex }: PageSeo) {
   const url = path === "/" ? SITE.url : `${SITE.url}${path}`;
   const ogDesc = ogDescription ?? description;
   return {
@@ -26,6 +28,7 @@ export function pageHead({ title, description, path = "/", ogDescription }: Page
       { name: "twitter:title", content: title },
       { name: "twitter:description", content: ogDesc },
       { name: "twitter:image", content: `${SITE.url}/og.jpg` },
+      ...(noindex ? [{ name: "robots", content: "noindex, nofollow" }] : []),
     ],
     links: [{ rel: "canonical", href: url }],
   };

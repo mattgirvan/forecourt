@@ -319,12 +319,12 @@ export const startCheckout = createServerFn({ method: "POST" })
 
     const productName =
       data.billing === "trial"
-        ? "Forecourt — 60-day site trial"
-        : `Forecourt — ${plan.name}`;
+        ? "Forecourt 60-day site trial"
+        : `Forecourt ${plan.name}`;
 
     const termsText = {
       submit: {
-        message: "Paying agrees to Forecourt terms at https://www.forecourt.me/terms — including when setup is not refundable.",
+        message: "Paying agrees to Forecourt terms at https://www.forecourt.me/terms, including when setup is not refundable.",
       },
     };
 
@@ -365,7 +365,7 @@ export const startCheckout = createServerFn({ method: "POST" })
                   currency: "gbp",
                   unit_amount: setup,
                   product_data: {
-                    name: `${productName} — setup`,
+                    name: `${productName} (setup)`,
                     description: convert
                       ? "Remaining setup after the 60-day trial."
                       : plan.contractMonths
@@ -381,7 +381,7 @@ export const startCheckout = createServerFn({ method: "POST" })
                   unit_amount: plan.monthPence,
                   recurring: { interval: "month" },
                   product_data: {
-                    name: plan.perSite ? `${productName} — per site` : productName,
+                    name: plan.perSite ? `${productName} (per site)` : productName,
                     description: plan.perSite
                       ? `${gbp(monthly)} / month for ${siteCount} sites.`
                       : `${gbp(monthly)} / month.`,

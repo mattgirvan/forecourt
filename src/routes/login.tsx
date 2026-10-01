@@ -5,9 +5,19 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getSb, consumeAuthFromUrl, magicRedirect, supabaseReady } from "@/lib/sb";
 import { whoAmI } from "@/lib/server/portal";
+import { pageHead } from "@/lib/seo";
 import { SITE } from "@/lib/site";
 
-export const Route = createFileRoute("/login")({ component: Login });
+export const Route = createFileRoute("/login")({
+  head: () =>
+    pageHead({
+      title: "Sign in | Forecourt",
+      description: "Sign in to your Forecourt account with a one-time email code.",
+      path: "/login",
+      noindex: true,
+    }),
+  component: Login,
+});
 
 function Login() {
   const navigate = useNavigate();

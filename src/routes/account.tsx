@@ -36,6 +36,7 @@ import {
 } from "@/lib/server/commerce";
 import { whoAmI } from "@/lib/server/portal";
 import { packageLive } from "@/lib/team";
+import { pageHead } from "@/lib/seo";
 import { cn } from "@/lib/utils";
 import { useSbAccessToken } from "@/lib/sb-session";
 import { supabaseReady } from "@/lib/sb";
@@ -62,6 +63,13 @@ export const Route = createFileRoute("/account")({
     preview: typeof raw.preview === "string" ? raw.preview : undefined,
     order: typeof raw.order === "string" ? raw.order : undefined,
   }),
+  head: () =>
+    pageHead({
+      title: "Your account | Forecourt",
+      description: "Your Forecourt package, orders and setup checklist.",
+      path: "/account",
+      noindex: true,
+    }),
   component: AccountPage,
 });
 

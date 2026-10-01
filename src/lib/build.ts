@@ -266,7 +266,7 @@ export const PACK_GAP_TIPS = {
 
 export const PACK_GAPS_SUMMARY = "Add a web address and at least one staff seat before we can build.";
 export const PACK_LOCKED_HELPER = "We'll unlock this when the pack has everything needed to build your desk.";
-export const PACK_READY_HELPER = "Pack looks ready — send it when you want us to build.";
+export const PACK_READY_HELPER = "Pack looks ready. Send it when you want us to build.";
 
 const TRIAL_ROLE_IDS = new Set(["sales", "management", "host", "progressor"]);
 
@@ -369,13 +369,13 @@ export const GO_LIVE_STEPS = [
   {
     id: "stock",
     label: "First stock list uploaded",
-    waiting: "Excel by VIN — same sheet you already use.",
+    waiting: "Excel by VIN, the same sheet you already use.",
     cta: "How to upload",
   },
   {
     id: "customer",
     label: "First customer link sent",
-    waiting: "Optional — when you're ready.",
+    waiting: "Optional, when you're ready.",
     cta: "See customer view",
   },
 ] as const;
@@ -384,7 +384,7 @@ export type GoLiveStepId = (typeof GO_LIVE_STEPS)[number]["id"];
 export type GoLiveStatus = "done" | "current" | "upcoming";
 
 export const GO_LIVE_DNS_BLURB =
-  "Ask IT to CNAME your desk host (for example portal.yourdealer.co.uk) to the target we email after build. Keep their usual TTL. Tell us when the record is in — we finish the certificate and switch you over.";
+  "Ask IT to CNAME your desk host (for example portal.yourdealer.co.uk) to the target we email after build. Keep their usual TTL. Tell us when the record is in. We finish the certificate and switch you over.";
 
 export function goLiveFooter() {
   return `We'll email you when each step moves. Questions: ${SITE.email}`;
