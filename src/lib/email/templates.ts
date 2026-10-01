@@ -17,6 +17,7 @@ import {
   stepLabel,
   type CustomerStep,
 } from "../journey.ts";
+import { MONTHLY_START_LATEST_DAYS } from "../catalog.ts";
 
 const C = {
   bg: "#0a0b0a",
@@ -304,8 +305,8 @@ function paidLine(d: ThankYouData) {
   }
   const what = d.kind === "convert" ? "the remaining one-off setup" : "the one-off setup";
   return {
-    html: `Today you paid <span style="color:${C.fg};">${gbp(d.paidPence)}</span> for ${what}. Your monthly plan of ${gbp(d.monthlyPence)} starts on the day your desk goes live, not before.`,
-    text: `Today you paid ${gbp(d.paidPence)} for ${what}. Your monthly plan of ${gbp(d.monthlyPence)} starts on the day your desk goes live, not before.`,
+    html: `Today you paid <span style="color:${C.fg};">${gbp(d.paidPence)}</span> for ${what}. The ${gbp(d.monthlyPence)} a month starts on your go live day, or ${MONTHLY_START_LATEST_DAYS} days after payment if that comes first.`,
+    text: `Today you paid ${gbp(d.paidPence)} for ${what}. The ${gbp(d.monthlyPence)} a month starts on your go live day, or ${MONTHLY_START_LATEST_DAYS} days after payment if that comes first.`,
   };
 }
 
@@ -334,7 +335,7 @@ ${row(
   card(
     `${label("First step")}
   ${h2("First, pick a time for your kickoff call", 8)}
-  ${p("30 minutes, at a time that suits you.", { size: 14, top: 6 })}
+  ${p("30 minutes on a video call, at a time that suits you.", { size: 14, top: 6 })}
   <div style="height:16px;line-height:16px;font-size:0;">&nbsp;</div>
   ${primaryButton(d.bookUrl, "Book your kickoff call")}
   ${p("No time that works? Reply with a couple of options and we will send an invite.", { size: 14, color: C.subtle, top: 12 })}
@@ -371,7 +372,7 @@ ${footer(reason, true)}`;
     `We have your order for ${d.dealer}, and we will look after your setup from here.`,
     "",
     "FIRST STEP: pick a time for your kickoff call",
-    "30 minutes, at a time that suits you.",
+    "30 minutes on a video call, at a time that suits you.",
     `Book your kickoff call: ${d.bookUrl}`,
     "No time that works? Reply with a couple of options and we will send an invite.",
     "",
@@ -489,7 +490,7 @@ const PROGRESS: Record<number, StepCopy> = {
     preheader: "Your web address is live. Here is how your team signs in.",
     headline: "You're live.",
     intro: (first, dealer) => `${first ? `Congratulations, ${first}. ` : ""}The desk for ${dealer} is live, and your team can sign in today.`,
-    nowNote: "Your team signs in with their work email and a one-time code. No passwords to remember.",
+    nowNote: "The code goes to their work email, so there are no passwords to remember. If anyone gets stuck, reply to this email.",
     extra: (d) =>
       d.monthlyStartsToday
         ? {

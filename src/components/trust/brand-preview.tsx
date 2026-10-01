@@ -18,7 +18,7 @@ export function BrandPackPreview({
   const accent = pack.franchise.accent || "#D9A24B";
   const host = pack.domain?.trim()
     ? pack.domain.replace(/^https?:\/\//, "")
-    : "portal.yourdealer.co.uk";
+    : "desk.yourdealer.co.uk";
 
   return (
     <div className={cn("space-y-4", className)}>

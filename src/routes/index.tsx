@@ -92,7 +92,7 @@ const steps = [
   {
     n: "3",
     title: "Go live",
-    body: "We load your cars and staff. You get a website. The iPad on the desk is yours.",
+    body: "We load your cars and staff. You get a website, and your team signs in on the iPads, laptops and PCs you already use.",
     href: "/how",
     cta: "How it works",
   },
@@ -131,7 +131,7 @@ function Home() {
           className="rise mx-auto mt-14 max-w-5xl overflow-hidden rounded-[2rem] border border-line shadow-soft sm:rounded-[2.5rem]"
           style={{ animationDelay: "340ms" }}
         >
-          <img src="/images/desk.jpg" alt="Forecourt on a sales iPad" className="hero-still w-full object-cover" />
+          <img src="/images/desk.jpg" alt="Forecourt open on a tablet at a sales desk, beside car keys and a deal file" className="hero-still w-full object-cover" />
         </div>
       </section>
 
@@ -207,7 +207,7 @@ function Home() {
         <Reveal className="text-center">
           <p className="text-[13px] font-medium text-muted">How to get started</p>
           <h2 className="mx-auto mt-3 max-w-xl text-4xl font-semibold tracking-tight sm:text-5xl">
-            Three steps. That’s the whole path.
+            Three steps to get started.
           </h2>
         </Reveal>
         <ol className="mt-14 grid gap-4 lg:grid-cols-3">

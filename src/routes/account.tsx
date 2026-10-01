@@ -19,6 +19,7 @@ import {
   normalizeBilling,
   normalizePlan,
   checkoutQuote,
+  MONTHLY_START_LATEST_DAYS,
   monthlyStartSentence,
   onPaidTrial,
   type BillingKind,
@@ -318,7 +319,9 @@ function AccountInner() {
   const monthlyLine =
     effectiveBilling === "trial"
       ? "Only if you stay, from the day you convert"
-      : `${gbpPence(monthly)} a month${chosen.perSite ? ` for ${siteCount} sites` : ""}, ${monthlyNow ? "from today" : "from the day your desk goes live"}`;
+      : `${gbpPence(monthly)} a month${chosen.perSite ? ` for ${siteCount} sites` : ""}, ${
+          monthlyNow ? "from today" : `from your go live day, or ${MONTHLY_START_LATEST_DAYS} days after payment if that comes first`
+        }`;
 
   const payLabel = (() => {
     if (busy) return "Opening…";
@@ -606,7 +609,7 @@ function AccountInner() {
             </span>
           </label>
           <p className="text-sm text-muted lg:hidden">
-            After you pay: book your kickoff call, we set up your desk, you try a preview, then you go live.
+            After you pay: book your kickoff call, we set up your desk, you try a preview and test it, then you go live.
           </p>
           <div className="flex flex-wrap items-center gap-2 pt-2">
             <Button

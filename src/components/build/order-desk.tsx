@@ -24,6 +24,8 @@ import { cn } from "@/lib/utils";
 import { CUSTOMER_STEP_COUNT, customerStepFor, customerStepNumber } from "@/lib/journey";
 import { JourneyNow } from "@/components/journey/after-you-pay";
 
+const NOTIFY_KEY = "forecourt.staff.notifyCustomer";
+
 type Build = Awaited<ReturnType<typeof getBuild>>;
 
 type TokenStatus = {
@@ -121,7 +123,23 @@ export function OrderBuild({
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [staffNotice, setStaffNotice] = useState<string | null>(null);
-  const [notify, setNotify] = useState(false);
+  // Emailing the customer is the default; staff can untick it and the last
+  // choice is remembered on this browser.
+  const [notify, setNotifyState] = useState(true);
+  useEffect(() => {
+    try {
+      if (window.localStorage.getItem(NOTIFY_KEY) === "off") setNotifyState(false);
+    } catch {
+      /* storage blocked: keep the default */
+    }
+  }, []);
+  function setNotify(on: boolean) {
+    setNotifyState(on);
+    try {
+      window.localStorage.setItem(NOTIFY_KEY, on ? "on" : "off");
+    } catch {
+      /* storage blocked */
+    }
   }
 
   async function reload() {

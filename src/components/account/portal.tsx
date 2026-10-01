@@ -70,7 +70,7 @@ export function DealerPortal({
         {statusLabel(tenant.status)}
         {days != null ? ` · ${days} days left` : ""}
         {billing === "subscription"
-          ? ` · ${gbpPence(monthly)}/month${tenant.stage === "live" || tenant.status === "live" ? "" : " from go live"}`
+          ? ` · ${gbpPence(monthly)}/month${tenant.stage === "live" || tenant.status === "live" ? "" : " from go live (180 days after payment at the latest)"}`
           : ""}
         {chosen.contractMonths ? ` · ${chosen.contractMonths}-month contract` : ""}
       </p>
@@ -171,7 +171,7 @@ function Overview({
                 : "You’re on the 60-day trial."
               : tenant.stage === "live" || tenant.status === "live"
                 ? "You’re on a live subscription."
-                : "Setup is paid. Your monthly plan starts the day your desk goes live."
+                : "Setup is paid. Your monthly plan starts on your go live day, or 180 days after payment if that comes first."
             : "Saved, not paid yet."}
         </p>
         <ul className="mt-6 space-y-2 text-sm text-muted">

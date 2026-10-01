@@ -400,6 +400,6 @@ export function nextHumanSteps(slug: string, domain: string): string[] {
     `Create a new Supabase project named forecourt-${slug} (never reuse Aberdeen).`,
     `Paste desk migrations 0001 → 0004 in order, then insert staff_users from tenant.json.`,
     `Link Vercel to ${DESK_OWNER}/${repo}, set Supabase env, deploy.`,
-    `Point custom domain ${domain || "portal.…"} and paste the preview URL back on this order.`,
+    `Point custom domain ${domain || "desk.…"} and paste the preview URL back on this order.`,
   ];
 }

@@ -89,7 +89,7 @@ export const ROLES = [
     packages: ["group"] as PlanId[],
     trial: false,
     tabs: ["overview", "stock", "locator", "pipeline", "customer", "mind"],
-    matrixSees: "Account portal and full desk",
+    matrixSees: "Your account and full desk",
     seesGp: "Yes" as const,
   },
 ] as const;

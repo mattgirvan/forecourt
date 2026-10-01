@@ -27,7 +27,7 @@ export function GoLiveChecklist({
 
   return (
     <section className="rounded-[1.75rem] border border-line bg-surface p-6 sm:p-8">
-      <p className="text-[13px] font-medium text-muted">Around go live</p>
+      <p className="text-[13px] font-medium text-muted">Go live checklist</p>
       <h3 className="mt-1 text-2xl font-semibold tracking-tight">Getting your team going</h3>
       <p className="mt-2 max-w-xl text-sm text-muted">
         Five things to tick off as your desk goes live. Each one ticks when we can see it happen. No ticket numbers.

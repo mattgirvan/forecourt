@@ -58,7 +58,11 @@ test("thank you: book button first, setup today, monthly from go live", () => {
   assert.match(thanks.html, /mso-hide:all/);
   assert.match(thanks.html, /<!--\[if !mso\]><!--><link href="https:\/\/fonts\.googleapis\.com/);
   assert.match(thanks.html, /\[data-ogsc\] \.cta-a/);
-  assert.match(thanks.text, /Today you paid £4,500 for the one-off setup\. Your monthly plan of £399 starts on the day your desk goes live/);
+  assert.match(
+    thanks.text,
+    /Today you paid £4,500 for the one-off setup\. The £399 a month starts on your go live day, or 180 days after payment if that comes first\./,
+  );
+  assert.doesNotMatch(thanks.text, /not before/);
   assert.match(thanks.html, /kept separate from every other dealership/);
   assert.doesNotMatch(thanks.html, /tel:/);
 });

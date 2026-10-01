@@ -39,7 +39,7 @@ export const CUSTOMER_STEPS: readonly CustomerStep[] = [
     n: 2,
     title: "Kickoff call",
     short: "Kickoff",
-    line: "30 minutes to agree who uses it, your branding and how your stock comes in.",
+    line: "30 minutes on a video call to agree who uses it, your branding and how your stock comes in.",
     when: "Within 5 working days",
   },
   {

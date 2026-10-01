@@ -23,7 +23,7 @@ export const BUILD_STAGES = [
     id: "brief",
     label: "Brief",
     n: "02",
-    customer: "Your kickoff call: 30 minutes to agree who uses it, your branding and how your stock comes in.",
+    customer: "Your kickoff call: 30 minutes on a video call to agree who uses it, your branding and how your stock comes in.",
     staff: "Book the call. Colours, people, domain, ingest.",
   },
   {
@@ -356,7 +356,7 @@ Forecourt creates private \`mattgirvan/desk-${pack.slug}\` from the template and
 
 1. New Supabase \`forecourt-${pack.slug}\`. Paste migrations \`0001\` → \`0004\` in order.
 2. Insert staff_users from the pack. Magic link. Site URL = preview then their domain.
-3. Vercel → link \`mattgirvan/desk-${pack.slug}\`, custom domain \`${pack.domain || "portal.…"}\`.
+3. Vercel → link \`mattgirvan/desk-${pack.slug}\`, custom domain \`${pack.domain || "desk.…"}\`.
 4. Put the preview URL back on the order. Stage → Preview. They click around. Then Live.
 `;
 }
@@ -400,7 +400,7 @@ export type GoLiveStepId = (typeof GO_LIVE_STEPS)[number]["id"];
 export type GoLiveStatus = "done" | "current" | "upcoming";
 
 export const GO_LIVE_DNS_BLURB =
-  "Ask IT to CNAME your desk host (for example portal.yourdealer.co.uk) to the target we email after build. Keep their usual TTL. Tell us when the record is in. We finish the certificate and switch you over.";
+  "Ask IT to CNAME your desk host (for example desk.yourdealer.co.uk) to the target we email after build. Keep their usual TTL. Tell us when the record is in. We finish the certificate and switch you over.";
 
 export function goLiveFooter() {
   return `We email you as your desk moves on to each step. Questions: ${SITE.email}`;
