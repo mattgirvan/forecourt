@@ -3,7 +3,7 @@ import { pageHead } from "@/lib/seo";
 
 export const Route = createFileRoute("/pilot")({
   beforeLoad: () => {
-    throw redirect({ to: "/pricing" });
+    throw redirect({ to: "/pricing", statusCode: 301 });
   },
   head: () =>
     pageHead({

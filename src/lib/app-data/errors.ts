@@ -30,7 +30,7 @@ const MESSAGE_RULES: readonly MessageRule[] = [
   {
     needles: ["scope_denied"],
     kind: "scope_denied",
-    message: "This view isn't available — the app requested a tool outside its grant.",
+    message: "This view isn't available. The app asked for a tool outside its grant.",
   },
   {
     needles: ["access_denied"],

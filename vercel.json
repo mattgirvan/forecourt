@@ -17,6 +17,26 @@
       "source": "/demo/:path*",
       "destination": "/#showcase",
       "statusCode": 301
+    },
+    {
+      "source": "/pilot",
+      "destination": "/pricing",
+      "statusCode": 301
+    },
+    {
+      "source": "/pilot/",
+      "destination": "/pricing",
+      "statusCode": 301
+    },
+    {
+      "source": "/security",
+      "destination": "/trust",
+      "statusCode": 301
+    },
+    {
+      "source": "/security/",
+      "destination": "/trust",
+      "statusCode": 301
     }
   ],
   "headers": [
