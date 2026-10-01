@@ -16,12 +16,14 @@ const SHARE_META_KEYS = new Set([
   "og:image",
   "og:image:width",
   "og:image:height",
+  "og:image:alt",
   "og:type",
   "og:url",
   "og:site_name",
   "twitter:card",
   "twitter:title",
   "twitter:image",
+  "twitter:image:alt",
   "twitter:description",
   "x:game:image",
   "x:game:image:width",
@@ -252,15 +254,34 @@ export function readOgSite(cwd = process.cwd()) {
   }
 }
 
-/** Public path of an on-disk share card, or "" if neither file exists. */
-export function ogCardPublicPath(cwd = process.cwd()) {
+/** A plain root-level image file name, e.g. "/og-2026-10.jpg". */
+const SITE_CARD_PATH_RE = /^\/[A-Za-z0-9][A-Za-z0-9._-]*\.(?:jpe?g|png)$/i;
+
+/**
+ * site.json `image` (e.g. "/og-2026-10.jpg"), but only when that file is
+ * really in public/. Lets a site ship a new card under a fresh filename so
+ * link-preview caches refetch it, without deleting public/og.jpg.
+ */
+function siteCardPublicPath(cwd, site = {}) {
+  const image = String(site?.image ?? "").trim();
+  if (!SITE_CARD_PATH_RE.test(image)) return "";
+  return existsSync(join(cwd, "public", image.slice(1))) ? image : "";
+}
+
+/**
+ * Public path of an on-disk share card, or "" if none exists. A site.json
+ * `image` that exists in public/ wins, then public/og.jpg, then og.png.
+ */
+export function ogCardPublicPath(cwd = process.cwd(), site = readOgSite(cwd)) {
+  const fromSite = siteCardPublicPath(cwd, site);
+  if (fromSite) return fromSite;
   if (existsSync(join(cwd, "public/og.jpg"))) return "/og.jpg";
   if (existsSync(join(cwd, "public/og.png"))) return "/og.png";
   return "";
 }
 
 function detectCustomOgCard(cwd = process.cwd(), site = {}) {
-  if (ogCardPublicPath(cwd)) return true;
+  if (ogCardPublicPath(cwd, site)) return true;
   // Vercel runtime has no public/: trust a bake that already saw the file.
   return siteHasCustomCard(site) || Boolean(String(site.image ?? "").trim());
 }
@@ -268,7 +289,7 @@ function detectCustomOgCard(cwd = process.cwd(), site = {}) {
 /** Snapshot for Vite/Nitro to bake into the server bundle (Vercel has no workspace FS). */
 export function snapshotOgIdentity(cwd = process.cwd()) {
   const site = { ...readOgSite(cwd) };
-  const disk = ogCardPublicPath(cwd);
+  const disk = ogCardPublicPath(cwd, site);
   if (disk) {
     site.card = "custom";
     site.image = disk;
@@ -323,12 +344,12 @@ export function siteHasCustomCard(site = {}) {
  * Otherwise empty — caller emits the og.grok.me placeholder.
  */
 export function resolveOgCardAsset(site = {}, cwd = process.cwd()) {
-  return ogCardPublicPath(cwd) || (detectCustomOgCard(cwd, site) ? String(site.image ?? "").trim() || "/og.jpg" : "");
+  return ogCardPublicPath(cwd, site) || (detectCustomOgCard(cwd, site) ? String(site.image ?? "").trim() || "/og.jpg" : "");
 }
 
 /** Stamp `card=custom` when public/og.jpg or public/og.png is on disk. */
 function applyCustomCardFromFs(site, cwd) {
-  const disk = ogCardPublicPath(cwd);
+  const disk = ogCardPublicPath(cwd, site);
   if (!disk) return site;
   return { ...site, card: "custom", image: disk };
 }
@@ -364,6 +385,12 @@ export function grokOgHeadTags({
     tags.push(`<meta property="og:image" content="${escapeHtml(image)}">`);
     tags.push(`<meta property="og:image:width" content="1200">`);
     tags.push(`<meta property="og:image:height" content="630">`);
+    const imageAlt = String(site.imageAlt ?? "").trim();
+    if (imageAlt) tags.push(`<meta property="og:image:alt" content="${escapeHtml(imageAlt)}">`);
+    if (custom) {
+      tags.push(`<meta name="twitter:image" content="${escapeHtml(image)}">`);
+      if (imageAlt) tags.push(`<meta name="twitter:image:alt" content="${escapeHtml(imageAlt)}">`);
+    }
     const banner = String(site.banner ?? "").trim();
     if (banner) {
       const bannerUrl = `https://${publicHost}${banner.startsWith("/") ? banner : `/${banner}`}`;

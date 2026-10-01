@@ -504,3 +504,47 @@ test("vite plugin bakes og identity as a virtual module", () => {
   assert.match(plugin, /snapshotOgIdentity/);
 });
 
+
+test("site.json image wins over public/og.jpg when that file exists", () => {
+  // Shipping a new card under a fresh name (so link-preview caches refetch)
+  // without deleting the old public/og.jpg.
+  const root = mkdtempSync(join(tmpdir(), "grok-og-dated-"));
+  mkdirSync(join(root, "public"));
+  mkdirSync(join(root, "src/lib/og"), { recursive: true });
+  writeFileSync(join(root, "public/og.jpg"), "old");
+  writeFileSync(join(root, "public/og-2026-10.jpg"), "new");
+  writeFileSync(
+    join(root, "src/lib/og/site.json"),
+    JSON.stringify({ title: "Forecourt", card: "custom", image: "/og-2026-10.jpg", imageAlt: "Alt & text" }),
+  );
+  const { site } = snapshotOgIdentity(root);
+  assert.equal(site.image, "/og-2026-10.jpg");
+  assert.equal(site.imageAlt, "Alt & text");
+  assert.equal(resolveOgCardAsset(site, root), "/og-2026-10.jpg");
+
+  // The deployed function has no public/: the bake alone must carry it.
+  const empty = mkdtempSync(join(tmpdir(), "grok-og-dated-runtime-"));
+  const out = injectGrokPwaHead(
+    '<html><head><meta property="og:image" content="https://x/og.jpg"><meta property="og:image:alt" content="dupe"><meta name="twitter:image:alt" content="dupe"></head></html>',
+    { host: "www.forecourt.me", cwd: empty, site },
+  );
+  assert.match(out, /property="og:image" content="https:\/\/www\.forecourt\.me\/og-2026-10\.jpg"/);
+  assert.match(out, /property="og:image:width" content="1200"/);
+  assert.match(out, /property="og:image:height" content="630"/);
+  assert.match(out, /property="og:image:alt" content="Alt &amp; text"/);
+  assert.match(out, /name="twitter:image" content="https:\/\/www\.forecourt\.me\/og-2026-10\.jpg"/);
+  assert.match(out, /name="twitter:image:alt" content="Alt &amp; text"/);
+  assert.doesNotMatch(out, /\/og\.jpg"/);
+  assert.doesNotMatch(out, /dupe/);
+  assert.equal(out.split('property="og:image:alt"').length - 1, 1);
+});
+
+test("site.json image that is missing from public/ falls back to og.jpg", () => {
+  const root = mkdtempSync(join(tmpdir(), "grok-og-dated-missing-"));
+  mkdirSync(join(root, "public"));
+  writeFileSync(join(root, "public/og.jpg"), "x");
+  assert.equal(resolveOgCardAsset({ card: "custom", image: "/og-2026-10.jpg" }, root), "/og.jpg");
+  // Anything but a plain root-level jpg/png name is ignored.
+  writeFileSync(join(root, "public/evil.jpg"), "x");
+  assert.equal(resolveOgCardAsset({ card: "custom", image: "/../public/evil.jpg" }, root), "/og.jpg");
+});
