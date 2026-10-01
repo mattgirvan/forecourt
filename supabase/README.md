@@ -19,6 +19,7 @@ This is the **office** — sign-in, tenants, orders. Not Aberdeen. Not a custome
 10. SQL editor → paste `enquiries.sql` → run (contact form storage)
 11. Optional: SQL editor → paste `app-settings.sql` → run (GH_TEMPLATE_TOKEN fallback if Vercel env never reaches serverless)
 12. Redeploy Forecourt on Vercel (the next git push does this)
+13. Before taking live payments: set `SUPABASE_SERVICE_ROLE_KEY` on Vercel Production and redeploy, then SQL editor → paste `entitlement-guard.sql` → run (customers can no longer change status, plan once paid, Stripe ids, trial or billing fields). Check with `entitlement-guard.verify.sql` (rolls back, changes nothing). Undo: the drop lines at the end of `entitlement-guard.sql`.
 
 Stripe webhook (optional, return-URL confirm still works): `https://www.forecourt.me/api/stripe/webhook`
 Needs `STRIPE_WEBHOOK_SECRET` and `SUPABASE_SERVICE_ROLE_KEY` on Vercel. Do not put the service-role key in `VITE_` vars.

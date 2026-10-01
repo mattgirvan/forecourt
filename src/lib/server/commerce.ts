@@ -6,13 +6,13 @@ import {
   isBillingKind,
   isPlanId,
   monthTotalPence,
-  normalizeBilling,
   normalizePlan,
   setupDuePence,
   type BillingKind,
   type PlanId,
 } from "@/lib/catalog";
 import { seedPaidOrder } from "@/lib/server/build";
+import { confirmPaymentFlow, supabasePaymentStore, type SupabaseLike } from "@/lib/server/payments";
 import { env } from "@/lib/env.server";
 import { SUPABASE_ANON, SUPABASE_URL } from "@/lib/sb";
 
@@ -44,6 +44,26 @@ async function uid(token: string) {
 
 function stripeSecret() {
   return env("GROK_STRIPE_SECRET_KEY") ?? env("STRIPE_SECRET_KEY");
+}
+
+/** Service-role client, or null when SUPABASE_SERVICE_ROLE_KEY is not set. */
+function sbAdmin() {
+  const key = env("SUPABASE_SERVICE_ROLE_KEY") ?? env("GROK_SUPABASE_SERVICE_ROLE_KEY");
+  if (!key) return null;
+  return createClient(SUPABASE_URL, key, { auth: { persistSession: false, autoRefreshToken: false } });
+}
+
+/**
+ * Client for writes customers may not make themselves (payment status, Stripe
+ * ids). Service role when configured; otherwise the caller's own client, which
+ * stops working for these fields once supabase/entitlement-guard.sql is live.
+ */
+function moneyWriter(userSb: ReturnType<typeof sbFor>) {
+  const admin = sbAdmin();
+  if (!admin) {
+    console.warn("[payments] SUPABASE_SERVICE_ROLE_KEY is not set; payment writes use the customer session");
+  }
+  return admin ?? userSb;
 }
 
 export const listMyTenants = createServerFn({ method: "POST" })
@@ -160,8 +180,18 @@ export const upsertTenant = createServerFn({ method: "POST" })
       site_count: siteCount,
       term_months: PLANS[plan].contractMonths,
     };
-    const { data: existing } = await sb.from("tenants").select("id").eq("slug", slug).maybeSingle();
+    const { data: existing } = await sb.from("tenants").select("id, status").eq("slug", slug).maybeSingle();
     if (existing?.id) {
+      // Once a package is paid for, plan, billing, site count and term only
+      // change through a verified checkout (or staff), never from this form.
+      // Same rule as supabase/entitlement-guard.sql: only a briefing site
+      // (nothing paid yet) may change its package here.
+      if ((existing.status ?? "briefing") !== "briefing") {
+        const { plan: _p, billing: _b, site_count: _s, term_months: _t, ...profile } = patch;
+        const { error } = await sb.from("tenants").update(profile).eq("id", existing.id);
+        if (error) throw new Error(error.message);
+        return { id: existing.id as number, slug, plan, billing, siteCount };
+      }
       const { error } = await sb.from("tenants").update(patch).eq("id", existing.id);
       if (error) {
         const { billing: _b, site_count: _s, term_months: _t, ...legacy } = patch;
@@ -255,15 +285,25 @@ export const startCheckout = createServerFn({ method: "POST" })
     }
     const plan = PLANS[data.plan];
     const siteCount = Math.max(plan.minSites, data.siteCount ?? 1);
-    const convert = Boolean(data.convertFromTrial && data.plan === "site");
+
+    const { sb, userId } = await uid(data.token);
+    const { data: owned } = await sb
+      .from("tenants")
+      .select("id, email, name, status, billing")
+      .eq("id", data.tenantId)
+      .maybeSingle();
+    if (!owned) return { url: null, message: "No site on this account." };
+
+    // The trial credit only applies to a site that really is on a paid trial.
+    const onTrial = owned.billing === "trial" && (owned.status === "trial" || owned.status === "paid");
+    if (data.convertFromTrial && !onTrial) {
+      return { url: null, message: "The trial credit only applies to a site that is on the trial." };
+    }
+    const convert = Boolean(data.convertFromTrial && data.plan === "site" && onTrial);
     const setup = setupDuePence(data.plan, data.billing, convert);
     const monthly = monthTotalPence(data.plan, siteCount);
     const amount = firstChargePence(data.plan, data.billing, siteCount, convert);
     const kind = data.billing === "trial" ? "trial" : convert ? "convert" : "subscription";
-
-    const { sb, userId } = await uid(data.token);
-    const { data: owned } = await sb.from("tenants").select("id, email, name").eq("id", data.tenantId).maybeSingle();
-    if (!owned) return { url: null, message: "No site on this account." };
 
     const orderInsert = {
       user_id: userId,
@@ -396,7 +436,13 @@ export const startCheckout = createServerFn({ method: "POST" })
             custom_text: termsText,
           });
 
-    await sb.from("orders").update({ stripe_session_id: session.id }).eq("id", orderId);
+    // Recorded with the service role; confirmation also works without it,
+    // because the session carries order_id in its metadata.
+    const { error: linkError } = await moneyWriter(sb)
+      .from("orders")
+      .update({ stripe_session_id: session.id })
+      .eq("id", orderId);
+    if (linkError) console.error("[payments] could not record the checkout session on order", orderId, linkError.message);
     return { url: session.url, message: null as string | null };
   });
 
@@ -406,76 +452,33 @@ function gbp(pence: number) {
   );
 }
 
-async function markPaid(
-  sb: ReturnType<typeof sbFor>,
-  args: {
-    orderId?: number;
-    sessionId?: string;
-    subscriptionId?: string | null;
-    customerId?: string | null;
-    billing?: BillingKind;
-    plan?: PlanId;
-  },
-) {
-  if (args.orderId) {
-    await sb.from("orders").update({ status: "paid" }).eq("id", args.orderId);
-  }
-  if (args.sessionId) {
-    await sb.from("orders").update({ status: "paid" }).eq("stripe_session_id", args.sessionId);
-  }
-  const { data: row } = args.orderId
-    ? await sb.from("orders").select("tenant_id, plan").eq("id", args.orderId).maybeSingle()
-    : args.sessionId
-      ? await sb.from("orders").select("tenant_id, plan").eq("stripe_session_id", args.sessionId).maybeSingle()
-      : { data: null };
-  if (!row?.tenant_id) return;
-  const plan = normalizePlan(args.plan ?? row.plan);
-  const billing = args.billing ?? normalizeBilling(plan, row.plan);
-  const status = billing === "trial" ? "trial" : "subscribed";
-  const trialEnds =
-    billing === "trial" ? new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString() : null;
-  const patch: Record<string, unknown> = {
-    status,
-    plan,
-    billing,
-    trial_ends_at: trialEnds,
-  };
-  if (args.subscriptionId) patch.stripe_subscription_id = args.subscriptionId;
-  if (args.customerId) patch.stripe_customer_id = args.customerId;
-  const { error } = await sb.from("tenants").update(patch).eq("id", row.tenant_id);
-  if (error) {
-    await sb.from("tenants").update({ status: billing === "trial" ? "paid" : "paid", plan }).eq("id", row.tenant_id);
-  }
-  try {
-    await seedPaidOrder(sb, row.tenant_id as number, "checkout");
-  } catch {
-    /* build tables may not be live yet */
-  }
-}
-
 export const confirmPayment = createServerFn({ method: "POST" })
   .validator((d: { token: string; sessionId?: string; previewOrderId?: number }) => d)
   .handler(async ({ data }) => {
-    const { sb } = await uid(data.token);
-    if (data.previewOrderId) {
-      await markPaid(sb, { orderId: data.previewOrderId, billing: "trial", plan: "site" });
-      return { ok: true };
-    }
-    if (!data.sessionId) return { ok: false };
+    const { sb, userId } = await uid(data.token);
     const secret = stripeSecret();
-    if (!secret) return { ok: false };
-    const Stripe = (await import("stripe")).default;
-    const stripe = new Stripe(secret);
-    const session = await stripe.checkout.sessions.retrieve(data.sessionId);
-    if (session.payment_status !== "paid" && session.status !== "complete") return { ok: false };
-    const billing = isBillingKind(session.metadata?.billing) ? session.metadata.billing : session.mode === "subscription" ? "subscription" : "trial";
-    const plan = normalizePlan(session.metadata?.plan);
-    await markPaid(sb, {
-      sessionId: data.sessionId,
-      subscriptionId: typeof session.subscription === "string" ? session.subscription : session.subscription?.id ?? null,
-      customerId: typeof session.customer === "string" ? session.customer : session.customer?.id ?? null,
-      billing,
-      plan,
-    });
-    return { ok: true };
+    const writer = moneyWriter(sb);
+    const store = supabasePaymentStore(writer as unknown as SupabaseLike, (tenantId, actor) =>
+      seedPaidOrder(writer, tenantId, actor),
+    );
+    try {
+      const result = await confirmPaymentFlow(
+        {
+          stripeSecret: secret,
+          userId,
+          store,
+          log: console,
+          retrieveSession: async (id) => {
+            const Stripe = (await import("stripe")).default;
+            const stripe = new Stripe(secret as string);
+            return await stripe.checkout.sessions.retrieve(id);
+          },
+        },
+        { sessionId: data.sessionId, previewOrderId: data.previewOrderId },
+      );
+      return { ok: result.ok };
+    } catch (err) {
+      console.error("[payments] confirmPayment failed:", err);
+      return { ok: false };
+    }
   });

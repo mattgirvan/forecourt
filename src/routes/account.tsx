@@ -188,6 +188,7 @@ function AccountInner() {
         },
       }).then((r) => {
         if (r.ok) setNotice("Paid. We’ll set up your desk.");
+        else if (sessionId) setNotice("We could not confirm the payment yet. If Stripe took it, it will show here shortly.");
         void reload();
       });
     }
