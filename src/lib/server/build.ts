@@ -13,6 +13,8 @@ import { looksLikeTeam } from "@/lib/team";
 import { listStaffEnvKeyNames } from "@/lib/server/desk-scaffold";
 import { executeSendToBuild } from "@/lib/server/build-api";
 import { startMonthlyForTenant } from "@/lib/server/billing-go-live";
+import { emailOutcomeMessage, sendProgressEmail } from "@/lib/server/journey-email";
+import { customerStepFor, customerStepNumber, stepLabel } from "@/lib/journey";
 
 function sbFor(token: string) {
   const key = SUPABASE_ANON || env("VITE_SUPABASE_ANON_KEY") || env("VITE_SUPABASE_PUBLISHABLE_KEY") || "";
@@ -69,8 +71,8 @@ export async function seedPaidOrder(
       tenant_id: tenantId,
       kind: "stage",
       stage: "paid",
-      title: "Order received",
-      body: `${pack.name || "A dealership"} paid. The build is on the board.`,
+      title: "Payment received",
+      body: "We have your order. Next, book your kickoff call.",
       visibility: "customer",
       actor_email: actorEmail,
     });
@@ -81,7 +83,7 @@ export const getBuild = createServerFn({ method: "POST" })
   .validator((d: { token: string; tenantId: number }) => d)
   .handler(async ({ data }) => {
     const { sb, team, userId } = await actor(data.token);
-    let tq = sb
+    const tq = sb
       .from("tenants")
       .select(
         "id, slug, name, legal, phone, email, domain, sites, features, ingest, plan, billing, staff_json, principal_name, group_name, pack_json, stage, preview_url, repo_slug, user_id",
@@ -168,8 +170,8 @@ export const savePack = createServerFn({ method: "POST" })
     await sb.from("build_events").insert({
       tenant_id: data.tenantId,
       kind: "note",
-      title: team ? "Pack updated" : "You sent us details",
-      body: team ? "Staff saved the brand pack." : "Customer updated the brief.",
+      title: team ? "Details updated" : "You sent us details",
+      body: team ? "We updated your setup details." : "Thanks. We have your latest details.",
       visibility: "customer",
       actor_email: email,
     });
@@ -184,6 +186,8 @@ export const setBuildStage = createServerFn({ method: "POST" })
       stage: BuildStage;
       preview_url?: string;
       repo_slug?: string;
+      /** Staff ticked "Notify customer": send the progress email for this step. */
+      notify?: boolean;
     }) => d,
   )
   .handler(async ({ data }) => {
@@ -195,24 +199,43 @@ export const setBuildStage = createServerFn({ method: "POST" })
     if (data.repo_slug !== undefined) patch.repo_slug = data.repo_slug;
     if (data.stage === "live") patch.status = "live";
     const { data: before } = await sb.from("tenants").select("stage").eq("id", data.tenantId).maybeSingle();
+    const previousStage = (before?.stage as string | null | undefined) ?? null;
     const { error } = await sb.from("tenants").update(patch).eq("id", data.tenantId);
     if (error) throw new Error(error.message);
+    const stageChanged = previousStage !== data.stage;
     // Monthly billing starts the day the desk goes live.
     let billingMessage: string | null = null;
-    if (data.stage === "live" && before?.stage !== "live") {
-      billingMessage = (await startMonthlyForTenant(sb, data.tenantId, email)).message;
+    let monthlyStartsToday = false;
+    if (data.stage === "live" && previousStage !== "live") {
+      const started = await startMonthlyForTenant(sb, data.tenantId, email);
+      billingMessage = started.message;
+      monthlyStartsToday = started.result.started;
     }
-    const meta = BUILD_STAGES.find((s) => s.id === data.stage)!;
-    await sb.from("build_events").insert({
-      tenant_id: data.tenantId,
-      kind: "stage",
-      stage: data.stage,
-      title: meta.label,
-      body: meta.customer,
-      visibility: "customer",
-      actor_email: email,
-    });
-    return { ok: true, billingMessage };
+    if (stageChanged) {
+      const meta = BUILD_STAGES.find((s) => s.id === data.stage)!;
+      const step = customerStepFor(data.stage);
+      // Customers see their six steps only. Moves inside one customer step
+      // (pack to build) stay on the internal timeline.
+      const customerMoved = customerStepNumber(data.stage) !== customerStepNumber(previousStage);
+      await sb.from("build_events").insert({
+        tenant_id: data.tenantId,
+        kind: "stage",
+        stage: data.stage,
+        title: customerMoved && step ? `${stepLabel(step)}: ${step.title}` : `Stage: ${meta.label}`,
+        body: customerMoved ? meta.customer : meta.staff,
+        visibility: customerMoved ? "customer" : "internal",
+        actor_email: email,
+      });
+    }
+    let emailMessage: string | null = null;
+    if (data.notify) {
+      emailMessage = stageChanged
+        ? emailOutcomeMessage(
+            await sendProgressEmail({ tenantId: data.tenantId, stage: data.stage, previousStage, monthlyStartsToday }),
+          )
+        : "No email: the stage did not change.";
+    }
+    return { ok: true, billingMessage, emailMessage };
   });
 
 export const addMeeting = createServerFn({ method: "POST" })

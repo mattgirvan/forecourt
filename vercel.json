@@ -4,6 +4,16 @@
   "installCommand": "npm install",
   "redirects": [
     {
+      "source": "/book",
+      "destination": "https://cal.com/matthew-girvan-i3mfm7/30min",
+      "statusCode": 302
+    },
+    {
+      "source": "/book/",
+      "destination": "https://cal.com/matthew-girvan-i3mfm7/30min",
+      "statusCode": 302
+    },
+    {
       "source": "/demo",
       "destination": "/#showcase",
       "statusCode": 301

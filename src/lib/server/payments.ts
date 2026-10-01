@@ -223,7 +223,12 @@ export async function confirmPaymentFlow(
   return { ok: true };
 }
 
-export type WebhookEvent = { id?: string; type: string; data: { object: Record<string, unknown> } };
+export type WebhookEvent = {
+  id?: string;
+  type: string;
+  livemode?: boolean;
+  data: { object: Record<string, unknown> };
+};
 
 export type WebhookDeps = {
   stripeSecret: string | undefined;
@@ -233,6 +238,12 @@ export type WebhookDeps = {
   constructEvent: (raw: string, signature: string, secret: string) => WebhookEvent;
   log: Logger;
   now?: Date;
+  /**
+   * Runs after a paid session is applied (also when the return URL got there
+   * first), e.g. the thank-you email. Its failures are logged and never turn
+   * the webhook answer into an error; it must dedupe its own side effects.
+   */
+  onPaid?: (order: OrderRow, session: CheckoutSessionLike, event: WebhookEvent) => Promise<void>;
 };
 
 export type WebhookResult = { status: number; body: string };
@@ -298,6 +309,13 @@ export async function handleStripeWebhook(
       return { status: 422, body: `not applied: ${check.reason}` };
     }
     await applyPaidOrder(store, order as OrderRow, session, "stripe", log, deps.now);
+    if (deps.onPaid) {
+      try {
+        await deps.onPaid(order as OrderRow, session, event);
+      } catch (err) {
+        log.warn("[stripe-webhook] after-payment step failed (payment still applied):", err);
+      }
+    }
     return { status: 200, body: "ok" };
   } catch (err) {
     if (err instanceof PaymentRefused) {

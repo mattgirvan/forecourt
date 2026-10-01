@@ -6,6 +6,7 @@ import { HomeCrmComparison } from "@/components/home-crm-comparison";
 import { HomeScrollScenes } from "@/components/home-scroll-scenes";
 import { SiteShell } from "@/components/site-shell";
 import { Button } from "@/components/ui/button";
+import { AfterYouPayStrip } from "@/components/journey/after-you-pay";
 import { PLANS, gbpPence } from "@/lib/catalog";
 import { HOME_SEO, homeJsonLd, pageHead } from "@/lib/seo";
 
@@ -236,6 +237,17 @@ function Home() {
             </Reveal>
           ))}
         </ol>
+        <Reveal className="mt-6">
+          <AfterYouPayStrip
+            primary={
+              <Button className="cta-amber rounded-full" asChild>
+                <Link to="/pricing">
+                  See packages <ArrowRight className="size-4" />
+                </Link>
+              </Button>
+            }
+          />
+        </Reveal>
       </section>
 
     </SiteShell>

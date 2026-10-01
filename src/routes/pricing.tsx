@@ -3,6 +3,7 @@ import { ContactPromo } from "@/components/contact-promo";
 import { Reveal } from "@/components/reveal";
 import { SiteShell } from "@/components/site-shell";
 import { Button } from "@/components/ui/button";
+import { AfterYouPayStrip } from "@/components/journey/after-you-pay";
 import { PLAN_ORDER, PLANS, gbpPence } from "@/lib/catalog";
 import { DoorsOneLiner } from "@/components/trust/doors-map";
 import { SeatMatrix } from "@/components/trust/seat-matrix";
@@ -84,6 +85,10 @@ export function PricingPage() {
             );
           })}
         </div>
+
+        <Reveal className="mt-8">
+          <AfterYouPayStrip />
+        </Reveal>
       </div>
 
       <ContactPromo

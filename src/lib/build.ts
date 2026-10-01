@@ -2,48 +2,64 @@ import { BRANDS, type BrandId } from "@/lib/brands";
 import { SITE } from "@/lib/site";
 import { FEATURES, INGEST, defaultFeaturesFor, normalizeBilling, normalizePlan, type BillingKind, type PlanId } from "@/lib/catalog";
 
+/**
+ * Internal build stages, in order. Staff move a site through these on the
+ * order desk. Customers never see these labels: they see the six customer
+ * steps in `src/lib/journey.ts` ("Brief" and "Pack" both stay internal).
+ * `customer` is the customer-facing line, written to match the journey.
+ *
+ * "testing" sits between preview and live. tenants.stage is free text with no
+ * check constraint (supabase/build.sql), so adding a value needs no SQL.
+ */
 export const BUILD_STAGES = [
   {
     id: "paid",
     label: "Paid",
     n: "01",
-    customer: "We’ve got the order.",
+    customer: "We have your order. Next, book your kickoff call.",
     staff: "Money in. Open the file and start the pack.",
   },
   {
     id: "brief",
     label: "Brief",
     n: "02",
-    customer: "A few things we still need from you.",
+    customer: "Your kickoff call: 30 minutes to agree who uses it, your branding and how your stock comes in.",
     staff: "Book the call. Colours, people, domain, ingest.",
   },
   {
     id: "pack",
     label: "Pack",
     n: "03",
-    customer: "We’re putting your name on the desk.",
+    customer: "We are setting up your desk with your name, colours, staff and stock.",
     staff: "Fill tenant.json. This is the product, not App.jsx.",
   },
   {
     id: "build",
     label: "Build",
     n: "04",
-    customer: "Your desk is being stood up. New database, your colours.",
+    customer: "We are setting up your desk on a database kept separate from every other dealership.",
     staff: "Repo + tenant.json are automated. Still: new Supabase, Vercel. Never clone Aberdeen.",
   },
   {
     id: "preview",
     label: "Preview",
     n: "05",
-    customer: "Have a click. Tell us if it’s you.",
+    customer: "Your preview is ready. Try it with your team and tell us what to change.",
     staff: "Preview URL. Not on their domain yet.",
+  },
+  {
+    id: "testing",
+    label: "Testing",
+    n: "06",
+    customer: "Your team is using it on real days while we tidy up anything that needs it.",
+    staff: "Their team on it for real. Fix what they find. Get the DNS record in.",
   },
   {
     id: "live",
     label: "Live",
-    n: "06",
-    customer: "Your link. Staff sign in with a code.",
-    staff: "Domain live. Logins sent. Done.",
+    n: "07",
+    customer: "Your desk is live. Your team signs in with a code.",
+    staff: "Domain live. Logins sent. Monthly billing starts. Done.",
   },
 ] as const;
 
@@ -387,7 +403,7 @@ export const GO_LIVE_DNS_BLURB =
   "Ask IT to CNAME your desk host (for example portal.yourdealer.co.uk) to the target we email after build. Keep their usual TTL. Tell us when the record is in. We finish the certificate and switch you over.";
 
 export function goLiveFooter() {
-  return `We'll email you when each step moves. Questions: ${SITE.email}`;
+  return `We email you as your desk moves on to each step. Questions: ${SITE.email}`;
 }
 
 export function goLiveStatuses(

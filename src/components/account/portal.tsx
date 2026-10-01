@@ -8,6 +8,8 @@ import { rolesForPlan } from "@/lib/roles";
 import { addNote, listMessages, listNotes, listReceipts, saveTenantFile, sendMessage } from "@/lib/server/portal";
 import { packageLive, statusLabel, trialDaysLeft } from "@/lib/team";
 import { cn } from "@/lib/utils";
+import { customerStepNumber } from "@/lib/journey";
+import { JourneyNow } from "@/components/journey/after-you-pay";
 
 type Tenant = {
   id: number;
@@ -35,9 +37,11 @@ export function DealerPortal({
   converting,
   onConvert,
   onNewPackage,
+  notice,
 }: {
   token: string;
   tenant: Tenant;
+  notice?: string | null;
   converting?: boolean;
   onConvert?: () => void;
   onNewPackage?: () => void;
@@ -57,9 +61,15 @@ export function DealerPortal({
       <p className="mt-3 text-sm text-muted">
         {statusLabel(tenant.status)}
         {days != null ? ` · ${days} days left` : ""}
-        {billing === "subscription" ? ` · ${gbpPence(monthly)}/month` : ""}
+        {billing === "subscription"
+          ? ` · ${gbpPence(monthly)}/month${tenant.stage === "live" || tenant.status === "live" ? "" : " from go live"}`
+          : ""}
         {chosen.contractMonths ? ` · ${chosen.contractMonths}-month contract` : ""}
       </p>
+
+      {notice ? (
+        <p className="mt-4 rounded-md border border-line bg-elevated px-3 py-2 text-sm">{notice}</p>
+      ) : null}
 
       <div className="mt-8 flex flex-wrap gap-1.5">
         {(
@@ -138,8 +148,10 @@ function Overview({
   onConvert?: () => void;
   onNewPackage?: () => void;
 }) {
+  const step = packageLive(tenant.status) ? customerStepNumber(tenant.stage) : 0;
   return (
     <div className="grid gap-4 lg:grid-cols-2">
+      {step > 0 ? <JourneyNow current={step} className="lg:col-span-2" /> : null}
       <article className="rounded-[1.75rem] border border-line bg-surface p-6 sm:p-8">
         <div className="text-[13px] text-muted">Package</div>
         <h2 className="mt-2 text-3xl font-semibold tracking-tight">{planName}</h2>
@@ -149,7 +161,9 @@ function Overview({
               ? days != null
                 ? `${days} days left on the trial. If you stay, the £1,500 comes off setup.`
                 : "You’re on the 60-day trial."
-              : "You’re on a live subscription."
+              : tenant.stage === "live" || tenant.status === "live"
+                ? "You’re on a live subscription."
+                : "Setup is paid. Your monthly plan starts the day your desk goes live."
             : "Saved, not paid yet."}
         </p>
         <ul className="mt-6 space-y-2 text-sm text-muted">

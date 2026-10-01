@@ -12,7 +12,6 @@ import {
   INGEST,
   PLAN_ORDER,
   PLANS,
-  PROVISION,
   defaultFeaturesFor,
   gbpPence,
   isBillingKind,
@@ -31,9 +30,7 @@ import {
   confirmPayment,
   listMyOrders,
   listMyTenants,
-  listProvision,
   startCheckout,
-  toggleStep,
   upsertTenant,
 } from "@/lib/server/commerce";
 import { whoAmI } from "@/lib/server/portal";
@@ -42,6 +39,7 @@ import { pageHead } from "@/lib/seo";
 import { cn } from "@/lib/utils";
 import { useSbAccessToken } from "@/lib/sb-session";
 import { supabaseReady } from "@/lib/sb";
+import { BeforePayPanel } from "@/components/journey/after-you-pay";
 
 type Search = {
   plan?: PlanId;
@@ -77,7 +75,6 @@ export const Route = createFileRoute("/account")({
 
 type TenantRow = Awaited<ReturnType<typeof listMyTenants>>[number];
 type OrderRow = Awaited<ReturnType<typeof listMyOrders>>[number];
-type StepRow = Awaited<ReturnType<typeof listProvision>>[number];
 
 function AccountPage() {
   return (
@@ -106,7 +103,6 @@ function AccountInner() {
   const token = useSbAccessToken();
   const [tenants, setTenants] = useState<TenantRow[]>([]);
   const [orders, setOrders] = useState<OrderRow[]>([]);
-  const [steps, setSteps] = useState<StepRow[]>([]);
   const [activeId, setActiveId] = useState<number | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -171,10 +167,7 @@ function AccountInner() {
     setOrders(o);
     setTeam(me.team);
     const current = t.find((x) => x.id === activeId) ?? t[0];
-    if (current) {
-      setActiveId(current.id);
-      setSteps(await listProvision({ data: { token, tenantId: current.id } }));
-    }
+    if (current) setActiveId(current.id);
   }
 
   useEffect(() => {
@@ -195,7 +188,7 @@ function AccountInner() {
           previewOrderId: order ? Number(order) : undefined,
         },
       }).then((r) => {
-        if (r.ok) setNotice("Paid. We’ll set up your desk.");
+        if (r.ok) setNotice("Paid, thank you. Next, book your kickoff call.");
         else if (sessionId) setNotice("We could not confirm the payment yet. If Stripe took it, it will show here shortly.");
         void reload();
       });
@@ -203,11 +196,6 @@ function AccountInner() {
     if (search.canceled) setNotice("Checkout was cancelled. Nothing was taken.");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
-
-  useEffect(() => {
-    if (!activeId || !token) return;
-    void listProvision({ data: { token, tenantId: activeId } }).then(setSteps);
-  }, [activeId, token]);
 
   function loadTenant(t: TenantRow) {
     setActiveId(t.id);
@@ -322,6 +310,17 @@ function AccountInner() {
     }
   }
 
+  const todayLine =
+    effectiveBilling === "trial"
+      ? `${gbpPence(setup)} for the 60-day trial`
+      : monthlyNow
+        ? `${gbpPence(dueToday)}: setup and first month`
+        : `${gbpPence(dueToday)} one-off setup`;
+  const monthlyLine =
+    effectiveBilling === "trial"
+      ? "Only if you stay, from the day you convert"
+      : `${gbpPence(monthly)} a month${chosen.perSite ? ` for ${siteCount} sites` : ""}, ${monthlyNow ? "from today" : "from the day your desk goes live"}`;
+
   const payLabel = (() => {
     if (busy) return "Opening…";
     if (effectiveBilling === "trial") return `Start 60 days: ${gbpPence(setup)}`;
@@ -385,6 +384,7 @@ function AccountInner() {
       <DealerPortal
         token={token}
         tenant={current}
+        notice={notice}
         converting={busy}
         onConvert={normalizeBilling(normalizePlan(current.plan), current.billing) === "trial" ? () => void convert() : undefined}
         onNewPackage={() => setWantCheckout(true)}
@@ -605,6 +605,9 @@ function AccountInner() {
               addendum. This is a business purchase.
             </span>
           </label>
+          <p className="text-sm text-muted lg:hidden">
+            After you pay: book your kickoff call, we set up your desk, you try a preview, then you go live.
+          </p>
           <div className="flex flex-wrap items-center gap-2 pt-2">
             <Button
               type="button"
@@ -618,6 +621,7 @@ function AccountInner() {
               Save
             </Button>
           </div>
+          <BeforePayPanel className="lg:hidden" todayLine={todayLine} monthlyLine={monthlyLine} />
         </div>
 
         {tenants.length > 0 && (
@@ -649,9 +653,6 @@ function AccountInner() {
       </div>
 
       <aside className="space-y-6">
-        <div className="relative min-h-[220px] overflow-hidden rounded-lg border border-line">
-          <img src="/images/desk.jpg" alt="" className="absolute inset-0 size-full object-cover opacity-80" />
-        </div>
         <div className="rounded-lg border border-line p-5">
           <h2 className="font-display text-2xl tracking-tight">{chosen.name}</h2>
           <p className="mt-2 text-sm leading-relaxed text-muted">{chosen.body}</p>
@@ -677,40 +678,7 @@ function AccountInner() {
             )}
           </p>
         </div>
-        <div className="rounded-lg border border-line p-5">
-          <h2 className="font-display text-2xl tracking-tight">After you pay</h2>
-          <ol className="mt-3 space-y-2">
-            {PROVISION.map((p) => {
-              const row = steps.find((s) => s.step === p.id);
-              const done = row?.done ?? false;
-              return (
-                <li key={p.id} className="flex items-start justify-between gap-3 border-b border-line py-2">
-                  <div>
-                    <div className="text-sm">{p.title}</div>
-                    <div className="text-xs text-muted">{p.body}</div>
-                  </div>
-                  {activeId && (
-                    <button
-                      type="button"
-                      className={cn(
-                        "h-8 shrink-0 rounded-sm px-2 font-mono text-[10px] uppercase",
-                        done ? "bg-ok/15 text-ok" : "bg-elevated text-muted",
-                      )}
-                      onClick={() =>
-                        token &&
-                        void toggleStep({ data: { token, tenantId: activeId, step: p.id, done: !done } }).then(() =>
-                          listProvision({ data: { token, tenantId: activeId } }).then(setSteps),
-                        )
-                      }
-                    >
-                      {done ? "Done" : "Open"}
-                    </button>
-                  )}
-                </li>
-              );
-            })}
-          </ol>
-        </div>
+        <BeforePayPanel className="hidden lg:block" todayLine={todayLine} monthlyLine={monthlyLine} />
         <div className="rounded-lg border border-line p-5">
           <h2 className="font-medium">Orders</h2>
           {orders.length === 0 ? (
