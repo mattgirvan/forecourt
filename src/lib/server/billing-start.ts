@@ -71,3 +71,33 @@ export function monthlyStartMessage(r: MonthlyStartResult): string {
       return `Stripe refused to start monthly billing: ${r.detail ?? "unknown error"}. Start it in Stripe by hand.`;
   }
 }
+
+/** What marking a site Live would do to its monthly plan, for the staff confirm. */
+export type GoLiveBillingPreview =
+  | { kind: "will_start" }
+  /** A subscription exists but Stripe could not be asked. Assume it will start. */
+  | { kind: "unknown" }
+  | { kind: "no_change"; detail?: string };
+
+export async function previewMonthlyStart(
+  deps: { subscriptions: Pick<StripeSubscriptionsLike, "retrieve"> | null; log: Log },
+  subscriptionId: string | null | undefined,
+): Promise<GoLiveBillingPreview> {
+  if (!subscriptionId) return { kind: "no_change", detail: "no_subscription" };
+  if (!deps.subscriptions) return { kind: "unknown" };
+  try {
+    const sub = await deps.subscriptions.retrieve(subscriptionId);
+    if (sub.status === "trialing") return { kind: "will_start" };
+    return { kind: "no_change", detail: sub.status };
+  } catch (err) {
+    deps.log.warn("[billing] could not check the subscription before go live", subscriptionId, err);
+    return { kind: "unknown" };
+  }
+}
+
+/** The staff confirm before moving a site to Live. */
+export function goLiveConfirmText(preview: GoLiveBillingPreview, monthlyLabel: string | null): string {
+  if (preview.kind === "no_change") return "Mark live?";
+  const amount = monthlyLabel ? `${monthlyLabel} ` : "";
+  return `Mark live? This starts their ${amount}monthly plan today.`;
+}

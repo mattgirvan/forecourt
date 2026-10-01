@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import { DealerPortal } from "@/components/account/portal";
 import { SignInGate } from "@/lib/sb-session";
@@ -16,12 +16,11 @@ import {
   gbpPence,
   isBillingKind,
   isPlanId,
-  monthTotalPence,
   normalizeBilling,
   normalizePlan,
-  setupDuePence,
-  firstChargePence,
-  monthlyChargedAtCheckout,
+  checkoutQuote,
+  monthlyStartSentence,
+  onPaidTrial,
   type BillingKind,
   type FeatureId,
   type PlanId,
@@ -128,22 +127,22 @@ function AccountInner() {
   const chosen = PLANS[plan];
   const trialLocked = plan !== "site";
   const effectiveBilling: BillingKind = trialLocked ? "subscription" : billing;
-  const converting = useMemo(() => {
-    const t = tenants.find((x) => x.id === activeId);
-    if (!t) return false;
-    const p = normalizePlan(t.plan);
-    const b = normalizeBilling(p, t.billing);
-    return p === "site" && b === "trial" && (t.status === "trial" || t.status === "paid") && effectiveBilling === "subscription";
-  }, [tenants, activeId, effectiveBilling]);
-
-  const setup = setupDuePence(plan, effectiveBilling, converting);
-  const monthly = monthTotalPence(plan, siteCount);
-  // Monthly billing starts at go live; only a site that is already live pays
-  // its first month at checkout (see MONTHLY_FROM_GO_LIVE in catalog.ts).
   const activeTenant = tenants.find((x) => x.id === activeId);
-  const siteAlreadyLive = activeTenant?.stage === "live" || activeTenant?.status === "live";
-  const monthlyNow = monthlyChargedAtCheckout(effectiveBilling, Boolean(converting && siteAlreadyLive));
-  const dueToday = firstChargePence(plan, effectiveBilling, siteCount, converting, Boolean(converting && siteAlreadyLive));
+  // Same rule as startCheckout (catalog checkoutQuote), so the Pay button
+  // always shows what Stripe will charge. A trial whose desk is already live
+  // still converts with the trial credit.
+  const quote = checkoutQuote({
+    plan,
+    billing: effectiveBilling,
+    siteCount,
+    convertFromTrial: plan === "site" && effectiveBilling === "subscription" && onPaidTrial(activeTenant),
+    tenant: activeTenant,
+  });
+  const converting = quote.convert;
+  const setup = quote.setupPence;
+  const monthly = quote.monthlyPence;
+  const monthlyNow = quote.monthlyNow;
+  const dueToday = quote.dueTodayPence;
   const needsContract = Boolean(chosen.contractMonths);
 
   useEffect(() => {
@@ -549,9 +548,10 @@ function AccountInner() {
               </li>
               {effectiveBilling !== "trial" && (
                 <li>
-                  Then {gbpPence(monthly)} a month{chosen.perSite ? ` for ${siteCount} sites` : ""},{" "}
-                  {monthlyNow ? "from today" : "starting the day your desk goes live"}
-                  {chosen.contractMonths ? ` · ${chosen.contractMonths} month contract` : " · month to month"}
+                  {monthlyNow
+                    ? `Then ${gbpPence(monthly)} a month${chosen.perSite ? ` for ${siteCount} sites` : ""}, from today.`
+                    : monthlyStartSentence(monthly)}
+                  {chosen.contractMonths ? ` ${chosen.contractMonths} month contract.` : " Month to month."}
                 </li>
               )}
               {effectiveBilling === "trial" && <li>60-day site trial. The £1,500 comes off setup if you stay.</li>}
@@ -671,9 +671,10 @@ function AccountInner() {
             ) : (
               <>
                 Today {gbpPence(dueToday)}
-                {monthlyNow ? " for setup and your first month" : " for the one-off setup"}. Then {gbpPence(monthly)} a month
-                {chosen.perSite ? ` for ${siteCount} sites` : ""}
-                {monthlyNow ? "." : ", starting the day your desk goes live."}
+                {monthlyNow ? " for setup and your first month" : " for the one-off setup"}.{" "}
+                {monthlyNow
+                  ? `Then ${gbpPence(monthly)} a month${chosen.perSite ? ` for ${siteCount} sites` : ""}.`
+                  : monthlyStartSentence(monthly)}
               </>
             )}
           </p>

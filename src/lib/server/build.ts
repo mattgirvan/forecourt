@@ -12,7 +12,7 @@ import { SUPABASE_ANON, SUPABASE_URL } from "@/lib/sb";
 import { looksLikeTeam } from "@/lib/team";
 import { listStaffEnvKeyNames } from "@/lib/server/desk-scaffold";
 import { executeSendToBuild } from "@/lib/server/build-api";
-import { startMonthlyForTenant } from "@/lib/server/billing-go-live";
+import { goLiveConfirmForTenant, startMonthlyForTenant } from "@/lib/server/billing-go-live";
 import { emailOutcomeMessage, sendProgressEmail } from "@/lib/server/journey-email";
 import { customerStepFor, customerStepNumber, stepLabel } from "@/lib/journey";
 
@@ -236,6 +236,16 @@ export const setBuildStage = createServerFn({ method: "POST" })
         : "No email: the stage did not change.";
     }
     return { ok: true, billingMessage, emailMessage };
+  });
+
+/** Staff only: the confirm text before moving a site to Live (checks Stripe, changes nothing). */
+export const goLiveConfirm = createServerFn({ method: "POST" })
+  .validator((d: { token: string; tenantId: number }) => d)
+  .handler(async ({ data }) => {
+    const { sb, team } = await actor(data.token);
+    if (!team) throw new Error("Only staff move the build.");
+    const { text } = await goLiveConfirmForTenant(sb, data.tenantId);
+    return { text };
   });
 
 export const addMeeting = createServerFn({ method: "POST" })

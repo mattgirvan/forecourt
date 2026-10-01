@@ -17,7 +17,7 @@ import {
 } from "@/lib/build";
 import { INGEST, normalizeBilling, normalizePlan, type BillingKind, type PlanId } from "@/lib/catalog";
 import { ROLES } from "@/lib/roles";
-import { addMeeting, getBuild, savePack, setBuildStage } from "@/lib/server/build";
+import { addMeeting, getBuild, goLiveConfirm, savePack, setBuildStage } from "@/lib/server/build";
 import { BrandPackPreview } from "@/components/trust/brand-preview";
 import { GoLiveChecklist } from "@/components/trust/go-live-checklist";
 import { cn } from "@/lib/utils";
@@ -122,6 +122,7 @@ export function OrderBuild({
   const [busy, setBusy] = useState(false);
   const [staffNotice, setStaffNotice] = useState<string | null>(null);
   const [notify, setNotify] = useState(false);
+  }
 
   async function reload() {
     setBuild(await getBuild({ data: { token, tenantId } }));
@@ -170,10 +171,18 @@ export function OrderBuild({
           <StageRail
             stage={build.stage}
             onPick={(id) => {
-              void setBuildStage({ data: { token, tenantId, stage: id, notify } }).then((r) => {
+              void (async () => {
+                if (id === "live" && build.stage !== "live") {
+                  // Going live can start the monthly plan in Stripe, so ask first.
+                  const { text } = await goLiveConfirm({ data: { token, tenantId } }).catch(() => ({
+                    text: "Mark live? This may start their monthly plan today.",
+                  }));
+                  if (typeof window !== "undefined" && !window.confirm(text)) return;
+                }
+                const r = await setBuildStage({ data: { token, tenantId, stage: id, notify } });
                 setStaffNotice([r.billingMessage, r.emailMessage].filter(Boolean).join(" ") || null);
-                return reload();
-              });
+                await reload();
+              })().catch((e) => setErr(e instanceof Error ? e.message : "Could not move the build."));
             }}
           />
           <label className="flex items-center gap-2 text-sm text-muted">
