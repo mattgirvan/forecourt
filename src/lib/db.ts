@@ -1,7 +1,11 @@
 import { pendingMigrations } from "../../scripts/migration-plan.mjs";
 
-/** Which database backend is active. */
-export type DbSource = "neon" | "pglite";
+/**
+ * Which database backend is active. `"none"` means a deployed host with no
+ * `DATABASE_URL`: there is no database, and code that needs one gets a
+ * `DbNotConfiguredError` instead of a crash.
+ */
+export type DbSource = "neon" | "pglite" | "none";
 
 // An empty/whitespace DATABASE_URL (an easy misconfig in deploy UIs) must mean
 // "unset" — otherwise production would silently run on the PGLite fallback.
@@ -11,12 +15,75 @@ const databaseUrl =
   rawDatabaseUrl && rawDatabaseUrl.trim() ? rawDatabaseUrl : undefined;
 
 /**
+ * True on a deployed Vercel runtime. The serverless bundle does not ship
+ * PGLite's WASM data file (`pglite.data`), so the embedded fallback can never
+ * start there: opening it fails with ENOENT and, unhandled, the rejection
+ * kills the function after every cold start. Read through `globalThis` so no
+ * bundler `process.env` replacement can hide the runtime value.
+ */
+function onDeployedHost(): boolean {
+  const runtimeEnv = (
+    globalThis as { process?: { env?: Record<string, string | undefined> } }
+  ).process?.env;
+  if (!runtimeEnv) return false;
+  return Boolean(runtimeEnv.VERCEL?.trim() || runtimeEnv.VERCEL_ENV?.trim());
+}
+
+/** Thrown by `getSql()` / `getPglite()` when there is no database to use. */
+export class DbNotConfiguredError extends Error {
+  readonly code = "DB_NOT_CONFIGURED";
+  constructor() {
+    super(
+      "Database is not configured for this deployment (DATABASE_URL is not set).",
+    );
+    this.name = "DbNotConfiguredError";
+  }
+}
+
+/** True when `err` means "no database configured" (safe across module copies). */
+export function isDbNotConfigured(err: unknown): boolean {
+  return (
+    err instanceof DbNotConfiguredError ||
+    (typeof err === "object" &&
+      err !== null &&
+      (err as { code?: unknown }).code === "DB_NOT_CONFIGURED")
+  );
+}
+
+/**
+ * The answer for a request that needs the database when there is none: a
+ * plain 503 with a short, customer-safe message instead of a crash or a 500.
+ */
+export function dbUnavailableResponse(): Response {
+  return new Response(
+    JSON.stringify({
+      error: "Sign-in is not available on this site right now. Please try again later.",
+      code: "DB_NOT_CONFIGURED",
+    }),
+    {
+      status: 503,
+      headers: {
+        "content-type": "application/json; charset=utf-8",
+        "cache-control": "no-store",
+      },
+    },
+  );
+}
+
+/**
  * Active backend: real **Neon** when `DATABASE_URL` is set (deployed / configured
  * sandbox), otherwise a local embedded **PGLite** (Postgres compiled to WASM) so
  * the app has a working database even with nothing configured — the live preview
  * included. Swap in Neon later by just setting `DATABASE_URL`; no code changes.
  */
-export const dbSource: DbSource = databaseUrl ? "neon" : "pglite";
+export const dbSource: DbSource = databaseUrl
+  ? "neon"
+  : onDeployedHost()
+    ? "none"
+    : "pglite";
+
+/** False when there is no database at all (deployed without `DATABASE_URL`). */
+export const dbConfigured = dbSource !== "none";
 
 /**
  * Minimal shared SQL surface, satisfied by both Neon and PGLite. Both the
@@ -176,6 +243,7 @@ async function createSql(): Promise<Sql> {
         "or a server route loader, never from client code.",
     );
   }
+  if (dbSource === "none") throw new DbNotConfiguredError();
   return dbSource === "neon" ? createNeonSql() : createPgliteSql();
 }
 
@@ -200,6 +268,7 @@ export function getSql(): Promise<Sql> {
  * Kysely dialect). Throws when `DATABASE_URL` is set (that path uses Neon).
  */
 export async function getPglite(): Promise<import("@electric-sql/pglite").PGlite> {
+  if (dbSource === "none") throw new DbNotConfiguredError();
   if (dbSource !== "pglite") {
     throw new Error("getPglite() is only available on the PGLite fallback (no DATABASE_URL)");
   }
@@ -215,6 +284,8 @@ export async function getPglite(): Promise<import("@electric-sql/pglite").PGlite
  * - **PGLite** (preview / no `DATABASE_URL`): open the in-memory DB and apply
  *   `migrations/*.sql`. Idempotent — concurrent callers share one promise.
  * - **Neon**: no-op (pool is created lazily on first query).
+ * - **None** (deployed, no `DATABASE_URL`): no-op. There is nothing to start;
+ *   `getSql()` reports `DbNotConfiguredError` to code that needs the DB.
  *
  * Vite `configureServer` awaits this at dev startup; production imports of this
  * module kick it off immediately (see bottom of file).
@@ -226,13 +297,22 @@ export function ensureDbReady(): Promise<void> {
 
 // Server-only eager start: kick PGLite bootstrap as soon as this module loads in
 // Node. Client bundles never hit this path (`getSql` throws in the browser).
+// The kick is fire-and-forget, so it must never reject: a rejected promise that
+// nobody awaits is an unhandled rejection, which ends the serverless process.
+// Real callers still see the failure through `getSql()` (which retries).
 const globalBoot = globalThis as typeof globalThis & {
   __pgBootstrapPromise__?: Promise<void>;
+  __dbNotConfiguredLogged__?: boolean;
 };
 if (typeof window === "undefined" && dbSource === "pglite") {
   globalBoot.__pgBootstrapPromise__ ??= ensureDbReady().catch((err) => {
     globalBoot.__pgBootstrapPromise__ = undefined;
     console.error("[db] PGLite bootstrap failed:", err);
-    throw err;
   });
+}
+if (typeof window === "undefined" && dbSource === "none" && !globalBoot.__dbNotConfiguredLogged__) {
+  globalBoot.__dbNotConfiguredLogged__ = true;
+  console.warn(
+    "[db] DATABASE_URL is not configured on this deployment; database features are off (pages still render, /api/auth answers 503).",
+  );
 }
