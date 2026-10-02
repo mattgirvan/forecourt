@@ -15,6 +15,7 @@ import { executeSendToBuild } from "@/lib/server/build-api";
 import { goLiveConfirmForTenant, startMonthlyForTenant } from "@/lib/server/billing-go-live";
 import { emailOutcomeMessage, sendProgressEmail } from "@/lib/server/journey-email";
 import { customerStepFor, customerStepNumber, stepLabel } from "@/lib/journey";
+import { tenantEnded } from "@/lib/server/billing-start";
 
 function sbFor(token: string) {
   const key = SUPABASE_ANON || env("VITE_SUPABASE_ANON_KEY") || env("VITE_SUPABASE_PUBLISHABLE_KEY") || "";
@@ -197,9 +198,11 @@ export const setBuildStage = createServerFn({ method: "POST" })
     const patch: Record<string, string> = { stage: data.stage };
     if (data.preview_url !== undefined) patch.preview_url = data.preview_url;
     if (data.repo_slug !== undefined) patch.repo_slug = data.repo_slug;
-    if (data.stage === "live") patch.status = "live";
-    const { data: before } = await sb.from("tenants").select("stage").eq("id", data.tenantId).maybeSingle();
+    const { data: before } = await sb.from("tenants").select("stage, status").eq("id", data.tenantId).maybeSingle();
     const previousStage = (before?.stage as string | null | undefined) ?? null;
+    const priorStatus = (before?.status as string | null | undefined) ?? null;
+    // A cancelled or refunded file keeps that status; going live does not revive billing.
+    if (data.stage === "live" && !tenantEnded(priorStatus)) patch.status = "live";
     const { error } = await sb.from("tenants").update(patch).eq("id", data.tenantId);
     if (error) throw new Error(error.message);
     const stageChanged = previousStage !== data.stage;
@@ -207,7 +210,7 @@ export const setBuildStage = createServerFn({ method: "POST" })
     let billingMessage: string | null = null;
     let monthlyStartsToday = false;
     if (data.stage === "live" && previousStage !== "live") {
-      const started = await startMonthlyForTenant(sb, data.tenantId, email);
+      const started = await startMonthlyForTenant(sb, data.tenantId, email, { priorStatus });
       billingMessage = started.message;
       monthlyStartsToday = started.result.started;
     }

@@ -23,14 +23,17 @@ export async function startMonthlyForTenant(
   sb: SupabaseClient,
   tenantId: number,
   actorEmail: string,
+  opts: { priorStatus?: string | null } = {},
 ): Promise<{ result: MonthlyStartResult; message: string }> {
   let result: MonthlyStartResult;
   try {
     const { data: t } = await sb
       .from("tenants")
-      .select("stripe_subscription_id, billing")
+      .select("stripe_subscription_id, billing, status")
       .eq("id", tenantId)
       .maybeSingle();
+    // Callers pass the status from before they marked the site live.
+    const tenantStatus = opts.priorStatus !== undefined ? opts.priorStatus : ((t?.status as string | null) ?? null);
     const secret = stripeSecret();
     const Stripe = secret ? (await import("stripe")).default : null;
     const stripe = Stripe && secret ? new Stripe(secret) : null;
@@ -45,6 +48,7 @@ export async function startMonthlyForTenant(
         log: console,
       },
       (t?.stripe_subscription_id as string | null | undefined) ?? null,
+      { tenantStatus },
     );
   } catch (err) {
     console.error("[billing] go live billing check failed for tenant", tenantId, err);
@@ -56,7 +60,11 @@ export async function startMonthlyForTenant(
       tenant_id: tenantId,
       kind: "note",
       stage: "live",
-      title: result.started ? "Monthly billing started" : "Monthly billing not started",
+      title: result.started
+        ? "Monthly billing started"
+        : result.reason === "payment_failed"
+          ? "Monthly billing payment failed"
+          : "Monthly billing not started",
       body: message,
       visibility: "internal",
       actor_email: actorEmail,
@@ -81,7 +89,7 @@ export async function goLiveConfirmForTenant(
   try {
     const { data: t, error } = await sb
       .from("tenants")
-      .select("stripe_subscription_id, plan, site_count")
+      .select("stripe_subscription_id, plan, site_count, status")
       .eq("id", tenantId)
       .maybeSingle();
     if (error) throw new Error(error.message);
@@ -92,6 +100,7 @@ export async function goLiveConfirmForTenant(
     preview = await previewMonthlyStart(
       { subscriptions: stripe ? { retrieve: (id) => stripe.subscriptions.retrieve(id) } : null, log: console },
       (t?.stripe_subscription_id as string | null | undefined) ?? null,
+      { tenantStatus: (t?.status as string | null | undefined) ?? null },
     );
   } catch (err) {
     console.warn("[billing] go live confirm check failed for tenant", tenantId, err);

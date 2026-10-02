@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import {
   BUILD_STAGES,
@@ -72,9 +72,12 @@ async function postSendToBuild(token: string, tenantId: number) {
 export function StageRail({
   stage,
   onPick,
+  pending = false,
 }: {
   stage: string;
   onPick?: (id: BuildStage) => void;
+  /** A move is in flight: no second click until it lands. */
+  pending?: boolean;
 }) {
   const at = stageIndex(stage);
   return (
@@ -87,12 +90,14 @@ export function StageRail({
           <li key={s.id}>
             <button
               type="button"
-              disabled={!onPick}
+              disabled={!onPick || pending}
+              aria-busy={pending || undefined}
               onClick={() => onPick?.(s.id)}
               className={cn(
                 "w-full rounded-2xl border px-3 py-3 text-left",
                 on ? "border-line-strong bg-fg text-accent-fg" : done ? "border-line bg-elevated" : "border-line",
                 !onPick && "cursor-default",
+                pending && "cursor-wait opacity-60",
               )}
             >
               <div className={cn("text-[11px] uppercase tracking-[0.12em]", on ? "opacity-70" : "text-subtle")}>{s.n}</div>
@@ -141,6 +146,9 @@ export function OrderBuild({
       /* storage blocked */
     }
   }
+  // Guards the stage rail against a double click opening two confirms.
+  const [moving, setMoving] = useState(false);
+  const movingRef = useRef(false);
 
   async function reload() {
     setBuild(await getBuild({ data: { token, tenantId } }));
@@ -188,7 +196,11 @@ export function OrderBuild({
         <div className="space-y-3">
           <StageRail
             stage={build.stage}
+            pending={moving}
             onPick={(id) => {
+              if (movingRef.current) return;
+              movingRef.current = true;
+              setMoving(true);
               void (async () => {
                 if (id === "live" && build.stage !== "live") {
                   // Going live can start the monthly plan in Stripe, so ask first.
@@ -200,7 +212,12 @@ export function OrderBuild({
                 const r = await setBuildStage({ data: { token, tenantId, stage: id, notify } });
                 setStaffNotice([r.billingMessage, r.emailMessage].filter(Boolean).join(" ") || null);
                 await reload();
-              })().catch((e) => setErr(e instanceof Error ? e.message : "Could not move the build."));
+              })()
+                .catch((e) => setErr(e instanceof Error ? e.message : "Could not move the build."))
+                .finally(() => {
+                  movingRef.current = false;
+                  setMoving(false);
+                });
             }}
           />
           <label className="flex items-center gap-2 text-sm text-muted">
