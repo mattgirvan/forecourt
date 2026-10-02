@@ -86,3 +86,7 @@ Phase 1 does **not** create Supabase or Vercel projects. Those stay manual.
 
 Marketing: TanStack Start, Supabase, Stripe.  
 Desk template: Vite + React + Supabase + Vercel (same shape as Aberdeen).
+
+## Tests
+
+`npm test` needs Node 22.6 or later: it runs `node --test` with file globs and TypeScript type stripping. Older Node fails before any test runs.

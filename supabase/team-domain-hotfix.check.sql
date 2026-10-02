@@ -1,13 +1,23 @@
 -- Read only: who has office access, and who signed up on @forecourt.me.
 -- Paste into the SQL editor on https://hxodmtmrnpxzkfwhrsjg.supabase.co
--- Changes nothing. Run it before and after team-domain-hotfix.sql.
+-- Changes nothing. Run it before and after team-domain-hotfix.sql, and again
+-- after any clean-up. Save the output each time.
 --
--- Look for anyone you do not know. Before the hotfix the app made ANY
--- @forecourt.me sign-in an active owner, with an empty invited_by, so a row
--- with "auto_owner_suspect" = true and an address that is not yours is a
--- stranger. To lock one out (an owner change, not part of the hotfix):
---   update team_members set status = 'revoked' where email = 'stranger@forecourt.me';
---   delete from team_emails where email = 'stranger@forecourt.me';
+-- What to look for:
+-- * Section 1: revoke EVERY team_members row you do not personally
+--   recognise. "auto_owner_suspect" and "invited_by_unknown" are only hints:
+--   a stranger who got owner access could have invited others through the
+--   app, or written rows straight into the table with any invited_by.
+-- * Section 3: every @forecourt.me sign-in account you do not recognise must
+--   be deleted (Supabase, Authentication, Users), even with no team row.
+--   Otherwise whoever made it becomes staff the moment you invite that
+--   address (for example sales@ or ops@).
+-- * hello@forecourt.me must show an email_confirmed_at date. If it does not,
+--   stop and do not run the hotfix.
+--
+-- How to remove a stranger: see team-domain-hotfix.cleanup.sql. Only do it
+-- AFTER the #41 code is live: the code before #41 quietly turns a revoked
+-- row back into an active owner.
 
 -- 1. Every team_members row, with its sign-in account if there is one.
 select
@@ -20,7 +30,20 @@ select
   u.created_at as signed_up_at,
   u.email_confirmed_at,
   u.last_sign_in_at,
-  (t.role = 'owner' and t.invited_by = '' and t.email <> 'hello@forecourt.me') as auto_owner_suspect
+  -- Hint only: an owner row the old code made by itself for any @forecourt.me sign-in.
+  (t.role = 'owner' and t.invited_by = '' and t.email <> 'hello@forecourt.me') as auto_owner_suspect,
+  -- Hint only: invited by someone who is not on the team, or by a suspect owner.
+  (
+    t.invited_by <> ''
+    and (
+      not exists (select 1 from team_members i where i.email = lower(t.invited_by))
+      or exists (
+        select 1 from team_members i
+        where i.email = lower(t.invited_by)
+          and i.role = 'owner' and i.invited_by = '' and i.email <> 'hello@forecourt.me'
+      )
+    )
+  ) as invited_by_unknown
 from team_members t
 left join auth.users u on lower(u.email) = t.email
 order by t.created_at;

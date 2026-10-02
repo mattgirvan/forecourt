@@ -1,0 +1,36 @@
+-- Template: remove one stranger from the office. NOTHING HERE RUNS AS IS:
+-- every statement is commented out. Matt runs it by hand, one address at a
+-- time, after reading the results of team-domain-hotfix.check.sql.
+-- Paste into the SQL editor on https://hxodmtmrnpxzkfwhrsjg.supabase.co
+--
+-- Order matters:
+-- 1. Only do this AFTER #41 is merged and the Production deploy is Ready.
+--    The code before #41 turns a revoked row back into an active owner.
+-- 2. Set the team_members row to revoked. Do NOT delete it: while a
+--    team_emails row for the same address exists, re-running staff.sql
+--    would bring it back as an active operator.
+-- 3. Delete the team_emails row for the same address.
+-- 4. Delete the sign-in account (the SQL below, or Supabase, Authentication,
+--    Users, then the row's menu, Delete user). This stops anyone using that
+--    account if you ever invite the address again.
+-- 5. Run team-domain-hotfix.check.sql again: the address should show as
+--    revoked in section 1 and be gone from sections 2 and 3.
+--
+-- Never put hello@forecourt.me here.
+--
+-- To use: replace stranger@forecourt.me with the address (lower case) in all
+-- three places, remove the two dashes at the start of each line between
+-- "begin" and "commit", and run.
+
+-- begin;
+--
+-- update team_members set status = 'revoked'
+-- where email = 'stranger@forecourt.me' and email <> 'hello@forecourt.me';
+--
+-- delete from team_emails
+-- where email = 'stranger@forecourt.me' and email <> 'hello@forecourt.me';
+--
+-- delete from auth.users
+-- where lower(email) = 'stranger@forecourt.me' and lower(email) <> 'hello@forecourt.me';
+--
+-- commit;

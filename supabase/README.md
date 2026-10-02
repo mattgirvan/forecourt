@@ -23,13 +23,21 @@ This is the **office** — sign-in, tenants, orders. Not Aberdeen. Not a custome
 
 14. Before turning on journey emails: SQL editor → paste `email-log.sql` → run. Then set `EMAIL_MODE` on Vercel Production (`team` first, then `live`). Unset or `off` sends nothing.
 
-15. Security hotfix (staff never by email domain), once:
-    - SQL editor: paste `team-domain-hotfix.check.sql`, run it, and keep the results. It is read only.
-    - SQL editor: paste `team-domain-hotfix.sql` and run it. It is safe to run more than once and changes no rows.
-    - Run `team-domain-hotfix.check.sql` again. Section 4 should show no `like '%@forecourt.me'`.
-    - Revoke anyone in the results you do not know, especially rows with `auto_owner_suspect` = true (the app used to make any @forecourt.me sign-in an owner). Use the two lines at the top of the check file. Revoke rather than delete: re-running `staff.sql` copies `team_emails` back into `team_members`.
-    - Authentication: turn Confirm email on.
-    - Undo: `team-domain-hotfix.rollback.sql`. It puts the domain rule back, so only use it if real staff are locked out.
+15. Security hotfix (#41: staff are never let in just for having an @forecourt.me address). Do these steps in this exact order:
+    1. Supabase, Authentication, Sign In / Providers, Email: turn **Confirm email** ON and **Secure email change** ON. Check that **Google** is off. Until Confirm email is on, every new sign-up counts as confirmed, so the checks below prove nothing.
+    2. SQL editor: paste `team-domain-hotfix.check.sql`, run it, and save the output (it changes nothing). In section 1 or 3, check that hello@forecourt.me has a date under `email_confirmed_at`. If it does not, stop here and ask.
+    3. SQL editor: paste `team-domain-hotfix.sql` and run it. Then run the check again and save the output. Section 4 should no longer contain `like '%@forecourt.me'`.
+    4. Merge #41 and wait until the Production deploy on Vercel shows Ready. Sign in as hello@forecourt.me and check that /office loads.
+    5. Clean up, only now that #41 is live (the old code lets a removed person straight back in):
+       - In section 1 of the check, remove EVERY person you do not personally recognise, not only rows marked `auto_owner_suspect` or `invited_by_unknown`. Those marks are only hints: a stranger with owner access could have invited others or added rows directly.
+       - In section 3, delete EVERY @forecourt.me sign-in account you do not recognise, even if it has no team row. Otherwise whoever made it becomes staff the moment you invite that address.
+       - Use `team-domain-hotfix.cleanup.sql` (a template, nothing runs until you edit it). It sets the person to revoked, deletes their `team_emails` row and deletes their sign-in account. Never delete a `team_members` row while its `team_emails` row is still there: re-running `staff.sql` would bring them back.
+       - Run the check again and save the output.
+    6. If any stranger had owner access, look at what they did: notes and build events they wrote, any refunds or Resume actions, and any payment links made while they were in.
+    - Locked out of the office after step 3? Do not use the rollback. Run this one line instead: `update team_members set status = 'active' where email = 'hello@forecourt.me';`
+    - `team-domain-hotfix.rollback.sql` is a last resort only. It puts the domain rule back and reopens the hole.
+
+Running the tests needs Node 22.6 or later (`npm test` uses `node --test` with file globs and TypeScript type stripping).
 
 Stripe webhook (optional, return-URL confirm still works): `https://www.forecourt.me/api/stripe/webhook`
 Needs `STRIPE_WEBHOOK_SECRET` and `SUPABASE_SERVICE_ROLE_KEY` on Vercel. Do not put the service-role key in `VITE_` vars.
