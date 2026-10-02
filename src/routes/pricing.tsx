@@ -54,7 +54,7 @@ export function PricingPage() {
                 </div>
                 <div className="mt-1 text-sm text-muted">
                   then {gbpPence(t.monthPence)}
-                  {t.perSite ? " / site / month" : " / month"}
+                  {t.perSite ? " / site / month" : " / month"} from go live (180 days after payment at the latest)
                   {t.contractMonths ? ` · ${t.contractMonths}-month contract` : " · month to month"}
                 </div>
                 <p className="mt-6 text-[15px] leading-relaxed text-muted">{t.body}</p>
@@ -109,7 +109,7 @@ export function PricingPage() {
         </div>
 
         <p className="mx-auto mt-12 max-w-lg text-center text-sm text-muted">
-          Trial credit: the £1,500 comes off site setup if you stay, so converting is £3,000 remaining + £399/month.
+          Trial credit: the £1,500 comes off site setup if you stay, so converting is £3,000 remaining, then £399 a month.
           Manufacturer ingest on a site is quoted, not bundled.
         </p>
         <p className="mx-auto mt-4 max-w-lg text-center text-xs text-subtle">{LEGAL.vat}</p>

@@ -64,7 +64,8 @@ function TermsPage() {
         <h2>Payment</h2>
         <p>
           Setup (and the 60-day trial fee, if that is what you chose) is due <strong>up front</strong>, on
-          the card, before we start the build. Monthly fees follow on the subscription. You see the amount,
+          the card, before we start the build. Monthly fees start on your go live day, or 180 days after
+          payment if that comes first, or straight away if your desk is already live when you subscribe. You see the amount,
           the package, and these terms on the checkout screen before you pay. We do not start work on an
           unpaid order.
         </p>

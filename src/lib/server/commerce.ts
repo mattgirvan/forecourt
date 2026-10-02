@@ -2,16 +2,18 @@ import { createClient } from "@supabase/supabase-js";
 import { createServerFn } from "@tanstack/react-start";
 import {
   PLANS,
-  firstChargePence,
+  checkoutQuote,
+  MONTHLY_START_LATEST_DAYS,
+  monthlyStartSentence,
+  onPaidTrial,
   isBillingKind,
   isPlanId,
-  monthTotalPence,
   normalizePlan,
-  setupDuePence,
   type BillingKind,
   type PlanId,
 } from "@/lib/catalog";
 import { seedPaidOrder } from "@/lib/server/build";
+import { checkoutRefusal, type GuardTenant, type StoredSubscription } from "@/lib/server/checkout-guard";
 import { confirmPaymentFlow, supabasePaymentStore, type SupabaseLike } from "@/lib/server/payments";
 import { env } from "@/lib/env.server";
 import { SUPABASE_ANON, SUPABASE_URL } from "@/lib/sb";
@@ -73,7 +75,7 @@ export const listMyTenants = createServerFn({ method: "POST" })
     const { data: rows, error } = await sb
       .from("tenants")
       .select(
-        "id, slug, name, legal, phone, email, domain, sites, features, ingest, plan, status, billing, site_count, stripe_subscription_id, trial_ends_at, term_months, principal_name, group_name, staff_json, created_at",
+        "id, slug, name, legal, phone, email, domain, sites, features, ingest, plan, status, billing, site_count, stripe_subscription_id, trial_ends_at, term_months, principal_name, group_name, staff_json, created_at, stage",
       )
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
@@ -95,6 +97,7 @@ export const listMyTenants = createServerFn({ method: "POST" })
         group_name: "",
         staff_json: "[]",
         created_at: null as string | null,
+        stage: null as string | null,
       }));
     }
     return rows ?? [];
@@ -287,22 +290,63 @@ export const startCheckout = createServerFn({ method: "POST" })
     const siteCount = Math.max(plan.minSites, data.siteCount ?? 1);
 
     const { sb, userId } = await uid(data.token);
-    const { data: owned } = await sb
+    const full = await sb
       .from("tenants")
-      .select("id, email, name, status, billing")
+      .select("id, email, name, plan, status, billing, stage, stripe_subscription_id")
       .eq("id", data.tenantId)
       .maybeSingle();
+    const owned = (full.error
+      ? (
+          await sb
+            .from("tenants")
+            .select("id, email, name, plan, status, billing, stage")
+            .eq("id", data.tenantId)
+            .maybeSingle()
+        ).data
+      : full.data) as (GuardTenant & { email?: string | null }) | null;
     if (!owned) return { url: null, message: "No site on this account." };
 
-    // The trial credit only applies to a site that really is on a paid trial.
-    const onTrial = owned.billing === "trial" && (owned.status === "trial" || owned.status === "paid");
-    if (data.convertFromTrial && !onTrial) {
+    // Never sell the same desk twice (see checkout-guard.ts). This runs before
+    // any order or Stripe session exists.
+    const secret = stripeSecret();
+    const Stripe = secret ? (await import("stripe")).default : null;
+    const stripe = Stripe && secret ? new Stripe(secret) : null;
+    let storedSubscription: StoredSubscription = null;
+    if (owned.stripe_subscription_id && stripe) {
+      try {
+        const sub = await stripe.subscriptions.retrieve(owned.stripe_subscription_id);
+        storedSubscription = { status: sub.status, cancel_at_period_end: sub.cancel_at_period_end, cancel_at: sub.cancel_at };
+      } catch (err) {
+        const code = (err as { code?: string; statusCode?: number } | null) ?? null;
+        storedSubscription = code?.code === "resource_missing" || code?.statusCode === 404 ? "missing" : "unknown";
+      }
+    }
+    const { data: mine } = await sb.from("tenants").select("id, name, plan, status, billing, stage").eq("user_id", userId);
+    const refusal = checkoutRefusal({
+      tenant: owned,
+      billing: data.billing,
+      convertFromTrial: data.convertFromTrial,
+      storedSubscription,
+      otherTenants: (mine ?? []) as GuardTenant[],
+    });
+    if (refusal) return { url: null, message: refusal };
+    // One shared rule (catalog checkoutQuote) decides the charge, so the Pay
+    // button on the account page always matches what Stripe takes. Monthly
+    // billing starts at go live; a site already live starts it now.
+    if (data.convertFromTrial && !onPaidTrial(owned)) {
       return { url: null, message: "The trial credit only applies to a site that is on the trial." };
     }
-    const convert = Boolean(data.convertFromTrial && data.plan === "site" && onTrial);
-    const setup = setupDuePence(data.plan, data.billing, convert);
-    const monthly = monthTotalPence(data.plan, siteCount);
-    const amount = firstChargePence(data.plan, data.billing, siteCount, convert);
+    const quote = checkoutQuote({
+      plan: data.plan,
+      billing: data.billing,
+      siteCount,
+      convertFromTrial: data.convertFromTrial,
+      tenant: owned,
+    });
+    const { convert, monthlyNow } = quote;
+    const setup = quote.setupPence;
+    const monthly = quote.monthlyPence;
+    const amount = quote.dueTodayPence;
     const kind = data.billing === "trial" ? "trial" : convert ? "convert" : "subscription";
 
     const orderInsert = {
@@ -336,17 +380,13 @@ export const startCheckout = createServerFn({ method: "POST" })
 
     const success = `${data.origin.replace(/\/$/, "")}/account?paid=1`;
     const cancel = `${data.origin.replace(/\/$/, "")}/account?canceled=1`;
-    const secret = stripeSecret();
-
-    if (!secret) {
+    if (!secret || !stripe) {
       return {
         url: `/account?preview=1&order=${orderId}`,
         message: "Checkout is wired. Live card charges need STRIPE_SECRET_KEY on Vercel.",
       };
     }
 
-    const Stripe = (await import("stripe")).default;
-    const stripe = new Stripe(secret);
     const metadata = {
       user_id: userId,
       tenant_id: String(data.tenantId),
@@ -364,7 +404,9 @@ export const startCheckout = createServerFn({ method: "POST" })
 
     const termsText = {
       submit: {
-        message: "Paying agrees to Forecourt terms at https://www.forecourt.me/terms, including when setup is not refundable.",
+        message: monthlyNow || data.billing === "trial"
+          ? "Paying agrees to Forecourt terms at https://www.forecourt.me/terms, including when setup is not refundable."
+          : `Today you pay the one-off setup only. ${monthlyStartSentence(monthly)} The date Stripe shows is the latest it could start. Paying agrees to Forecourt terms at https://www.forecourt.me/terms, including when setup is not refundable.`,
       },
     };
 
@@ -407,10 +449,10 @@ export const startCheckout = createServerFn({ method: "POST" })
                   product_data: {
                     name: `${productName} (setup)`,
                     description: convert
-                      ? "Remaining setup after the 60-day trial."
+                      ? "Remaining setup after the 60-day trial. Paid once, today."
                       : plan.contractMonths
-                        ? `${plan.contractMonths}-month contract. Setup billed once.`
-                        : "One-time setup.",
+                        ? `One-off setup, paid today. ${plan.contractMonths} month contract from go live.`
+                        : "One-off setup, paid today.",
                   },
                 },
               },
@@ -422,16 +464,26 @@ export const startCheckout = createServerFn({ method: "POST" })
                   recurring: { interval: "month" },
                   product_data: {
                     name: plan.perSite ? `${productName} (per site)` : productName,
-                    description: plan.perSite
-                      ? `${gbp(monthly)} / month for ${siteCount} sites.`
-                      : `${gbp(monthly)} / month.`,
+                    description: `${plan.perSite ? `${gbp(monthly)} a month for ${siteCount} sites` : `${gbp(monthly)} a month`}${
+                      monthlyNow
+                        ? ", starting today."
+                        : `, starting on your go live day, or ${MONTHLY_START_LATEST_DAYS} days after payment if that comes first.`
+                    }`,
                   },
                 },
               },
             ],
-            metadata,
+            metadata: { ...metadata, monthly_from: monthlyNow ? "checkout" : "go_live" },
             subscription_data: {
-              metadata,
+              metadata: { ...metadata, monthly_from: monthlyNow ? "checkout" : "go_live" },
+              // Setup is charged now; the monthly price waits until go live.
+              // markLive ends this early with trial_end=now (see billing-start.ts).
+              ...(monthlyNow
+                ? {}
+                : {
+                    trial_period_days: MONTHLY_START_LATEST_DAYS,
+                    trial_settings: { end_behavior: { missing_payment_method: "cancel" as const } },
+                  }),
             },
             custom_text: termsText,
           });

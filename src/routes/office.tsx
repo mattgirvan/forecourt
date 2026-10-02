@@ -8,11 +8,13 @@ import { SiteShell } from "@/components/site-shell";
 import { Button } from "@/components/ui/button";
 import { SignInGate, useSbAccessToken } from "@/lib/sb-session";
 import { normalizeBilling, normalizePlan } from "@/lib/catalog";
+import { goLiveConfirm } from "@/lib/server/build";
 import {
   getTenantFile,
   listOfficeBoard,
   listReceipts,
   listStaff,
+  refundPreview,
   runBillingAction,
   saveTenantFile,
   setTenantArchived,
@@ -267,17 +269,32 @@ function TenantFile({ token, tenantId, onSaved }: { token: string; tenantId: num
   }
 
   async function billingAction(action: "cancel" | "refund" | "sign-off") {
-    const ask =
-      action === "refund"
-        ? "Refund the last card payment through Stripe and end this package?"
-        : action === "cancel"
-          ? "End this package? If they are on a monthly Stripe, it stops at the period end. A 60-day trial has no monthly — this just marks it cancelled."
-          : "Sign this desk off as live? Setup is then not refundable.";
-    if (typeof window !== "undefined" && !window.confirm(ask)) return;
+    // Busy from the first click, so a double click cannot open two confirms.
+    if (busy) return;
     setBusy(true);
     setNotice(null);
     try {
-      const res = await runBillingAction({ data: { token, tenantId, action } });
+      let question =
+        "End this package? If they are on a monthly Stripe, it stops at the period end. A 60-day trial has no monthly, so this just marks it cancelled.";
+      let expectPaymentIntent: string | undefined;
+      if (action === "sign-off") {
+        // Signing off can start the monthly plan in Stripe, so say so.
+        const { text } = await goLiveConfirm({ data: { token, tenantId } }).catch(() => ({
+          text: "Mark live? This may start their monthly plan today.",
+        }));
+        question = `${text} Setup is then not refundable.`;
+      } else if (action === "refund") {
+        // Name the exact payment and amount before anything is sent back.
+        const preview = await refundPreview({ data: { token, tenantId } });
+        if (!preview.paymentIntent) {
+          setNotice(preview.text);
+          return;
+        }
+        question = preview.text;
+        expectPaymentIntent = preview.paymentIntent;
+      }
+      if (typeof window !== "undefined" && !window.confirm(question)) return;
+      const res = await runBillingAction({ data: { token, tenantId, action, expectPaymentIntent } });
       setNotice(res.message);
       const [row, rec] = await Promise.all([
         getTenantFile({ data: { token, tenantId } }),
@@ -443,7 +460,7 @@ function TenantFile({ token, tenantId, onSaved }: { token: string; tenantId: num
               <p className="mt-1 text-sm text-muted">
                 {file.signed_off_at
                   ? "Signed off live. Setup is not refundable from here."
-                  : "Refund sends the last card payment back. End subscription stops monthly Stripe, or marks a trial cancelled — trials have no monthly."}
+                  : "Refund sends the last card payment back. End subscription stops monthly Stripe, or marks a trial cancelled. Trials have no monthly."}
               </p>
               {notice && (
                 <p className="mt-3 rounded-xl border border-line-strong bg-elevated px-3 py-2 text-sm">{notice}</p>

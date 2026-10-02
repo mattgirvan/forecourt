@@ -1,10 +1,13 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { createServerFn } from "@tanstack/react-start";
 import { gbpPence, normalizeBilling, normalizePlan } from "@/lib/catalog";
 import { env } from "@/lib/env.server";
 import { SUPABASE_ANON, SUPABASE_URL } from "@/lib/sb";
 import { SITE } from "@/lib/site";
 import { TEAM_EMAILS, looksLikeTeam, type StaffRole, type StaffStatus } from "@/lib/team";
+import { startMonthlyForTenant } from "@/lib/server/billing-go-live";
+import { tenantEnded } from "@/lib/server/billing-start";
+import { findSetupPayment, refundConfirmText, type SessionLike } from "@/lib/server/refund-target";
 
 function sbFor(token: string) {
   const key = SUPABASE_ANON || env("VITE_SUPABASE_ANON_KEY") || env("VITE_SUPABASE_PUBLISHABLE_KEY") || "";
@@ -502,8 +505,102 @@ export const addTeamEmail = createServerFn({ method: "POST" })
     return inviteStaff({ data: { token: data.token, email: data.email, role: "operator" } });
   });
 
+type StripeClient = InstanceType<typeof import("stripe").default>;
+
+/** Customer, subscription and the setup payment for a file (read only). */
+async function locateStripeFile(
+  admin: SupabaseClient,
+  stripe: StripeClient,
+  tenantId: number,
+  tenant: { stripe_customer_id?: unknown; stripe_subscription_id?: unknown },
+) {
+  const { data: orders } = await admin
+    .from("orders")
+    .select("id, stripe_session_id, stripe_subscription_id, status")
+    .eq("tenant_id", tenantId)
+    .order("created_at", { ascending: false })
+    .limit(8);
+
+  let subId = (tenant.stripe_subscription_id as string | null) || null;
+  let customerId = (tenant.stripe_customer_id as string | null) || null;
+  const sessions: SessionLike[] = [];
+  for (const o of (orders ?? []) as Array<{ stripe_session_id?: string | null; stripe_subscription_id?: string | null }>) {
+    if (o.stripe_subscription_id && !subId) subId = o.stripe_subscription_id;
+    const sid = o.stripe_session_id;
+    if (!sid || !sid.startsWith("cs_")) continue;
+    try {
+      const session = await stripe.checkout.sessions.retrieve(sid);
+      if (!customerId && typeof session.customer === "string") customerId = session.customer;
+      if (!subId && typeof session.subscription === "string") subId = session.subscription;
+      sessions.push({
+        id: session.id,
+        mode: session.mode,
+        payment_status: session.payment_status,
+        payment_intent: typeof session.payment_intent === "string" ? session.payment_intent : null,
+        invoice: typeof session.invoice === "string" ? session.invoice : null,
+        subscription: typeof session.subscription === "string" ? session.subscription : null,
+        amount_total: session.amount_total,
+      });
+    } catch {
+      /* next order */
+    }
+  }
+
+  const setup = await findSetupPayment({
+    sessions,
+    subscriptionId: subId,
+    listInvoices: async (sub) =>
+      (await stripe.invoices.list({ subscription: sub, limit: 20 })).data.map((i) => ({
+        id: i.id ?? "",
+        billing_reason: i.billing_reason,
+        amount_paid: i.amount_paid,
+      })),
+    listInvoicePayments: async (invoice) =>
+      (await stripe.invoicePayments.list({ invoice, limit: 10 })).data.map((p) => ({
+        status: p.status,
+        amount_paid: p.amount_paid,
+        payment: {
+          type: p.payment?.type,
+          payment_intent:
+            typeof p.payment?.payment_intent === "string" ? p.payment.payment_intent : (p.payment?.payment_intent?.id ?? null),
+        },
+      })),
+  }).catch(() => null);
+
+  return { subId, customerId, setup };
+}
+
+/** Staff only: what Refund would send back, for the confirm. Changes nothing. */
+export const refundPreview = createServerFn({ method: "POST" })
+  .validator((d: { token: string; tenantId: number }) => d)
+  .handler(async ({ data }) => {
+    const { sb, team, role } = await actor(data.token);
+    if (!team) throw new Error("Office is for the Forecourt team.");
+    if (role !== "owner") throw new Error("Only an owner can change billing.");
+    const admin = sbAdmin() ?? sb;
+    const { data: tenant } = await admin
+      .from("tenants")
+      .select("id, stripe_customer_id, stripe_subscription_id")
+      .eq("id", data.tenantId)
+      .maybeSingle();
+    if (!tenant) throw new Error("No dealership on this file.");
+    const secret = stripeSecret();
+    if (!secret) return { text: "Stripe is not connected on the server, so nothing can be refunded from here.", paymentIntent: null };
+    const Stripe = (await import("stripe")).default;
+    const { setup } = await locateStripeFile(admin, new Stripe(secret), data.tenantId, tenant);
+    return { text: refundConfirmText(setup, gbpPence), paymentIntent: setup?.paymentIntent ?? null };
+  });
+
 export const runBillingAction = createServerFn({ method: "POST" })
-  .validator((d: { token: string; tenantId: number; action: "cancel" | "refund" | "sign-off" }) => d)
+  .validator(
+    (d: {
+      token: string;
+      tenantId: number;
+      action: "cancel" | "refund" | "sign-off";
+      /** Refund only: the payment staff confirmed, so a changed file refunds nothing. */
+      expectPaymentIntent?: string;
+    }) => d,
+  )
   .handler(async ({ data }) => {
     const { sb, team, role, email } = await actor(data.token);
     if (!team) throw new Error("Office is for the Forecourt team.");
@@ -545,67 +642,35 @@ export const runBillingAction = createServerFn({ method: "POST" })
     }
 
     if (data.action === "sign-off") {
+      const priorStatus = (tenant.status as string | null) ?? null;
+      // A cancelled or refunded file keeps that status and is never billed.
+      const ended = tenantEnded(priorStatus);
       const { error: up } = await admin
         .from("tenants")
         .update({
           signed_off_at: new Date().toISOString(),
-          status: "live",
+          ...(ended ? {} : { status: "live" }),
           stage: "live",
         })
         .eq("id", data.tenantId);
-      if (up) await admin.from("tenants").update({ status: "live" }).eq("id", data.tenantId);
+      if (up && !ended) await admin.from("tenants").update({ status: "live" }).eq("id", data.tenantId);
       await trail(`Signed off live by ${email}. Setup is not refundable.`);
-      return { ok: true, message: "Signed off live. Setup is not refundable from here." };
+      // Monthly billing starts at go live; a no-op if it is already running.
+      const { message: billingMessage } = await startMonthlyForTenant(admin, data.tenantId, email, { priorStatus });
+      return { ok: true, message: `Signed off live. Setup is not refundable from here. ${billingMessage}` };
     }
 
     if (data.action === "refund" && signedOff) {
-      throw new Error("Live and signed off — terms say no refund of setup. Exception only in Stripe by hand.");
+      throw new Error("Live and signed off, so the terms say no refund of setup. Any exception is done in Stripe by hand.");
     }
 
     if (!stripe) {
       throw new Error("Stripe is not connected on the server, so nothing was sent to the card.");
     }
 
-    const { data: orders } = await admin
-      .from("orders")
-      .select("id, stripe_session_id, stripe_subscription_id, status")
-      .eq("tenant_id", data.tenantId)
-      .order("created_at", { ascending: false })
-      .limit(8);
-
-    let subId = (tenant.stripe_subscription_id as string | null) || null;
-    let customerId = (tenant.stripe_customer_id as string | null) || null;
-    let paymentIntent: string | null = null;
-    let sessionId: string | null = null;
-
-    for (const o of orders ?? []) {
-      if (o.stripe_subscription_id && !subId) subId = o.stripe_subscription_id as string;
-      const sid = o.stripe_session_id as string | null;
-      if (!sid || !sid.startsWith("cs_")) continue;
-      try {
-        const session = await stripe.checkout.sessions.retrieve(sid);
-        if (!customerId && typeof session.customer === "string") customerId = session.customer;
-        if (!subId && typeof session.subscription === "string") subId = session.subscription;
-        if (!paymentIntent && typeof session.payment_intent === "string") {
-          paymentIntent = session.payment_intent;
-          sessionId = sid;
-        }
-        if (session.mode === "payment" && session.payment_status === "paid" && !paymentIntent) {
-          paymentIntent = typeof session.payment_intent === "string" ? session.payment_intent : null;
-          sessionId = sid;
-        }
-      } catch {
-        /* next order */
-      }
-      if (paymentIntent && subId) break;
-    }
-
-    if (customerId && !paymentIntent) {
-      const pis = await stripe.paymentIntents.list({ customer: customerId, limit: 8 });
-      const paid = pis.data.find((p) => p.status === "succeeded" && (p.amount_received ?? 0) > 0);
-      if (paid) paymentIntent = paid.id;
-    }
-
+    const located = await locateStripeFile(admin, stripe, data.tenantId, tenant);
+    const subId = located.subId;
+    const customerId = located.customerId;
     const bits: string[] = [];
 
     if (data.action === "cancel") {
@@ -618,6 +683,16 @@ export const runBillingAction = createServerFn({ method: "POST" })
     }
 
     if (data.action === "refund") {
+      // Check the setup payment before touching the subscription.
+      const target = located.setup;
+      if (!target) {
+        throw new Error(
+          "No setup payment found on this file, so nothing was refunded. If they paid, refund in Stripe by hand.",
+        );
+      }
+      if (data.expectPaymentIntent && data.expectPaymentIntent !== target.paymentIntent) {
+        throw new Error("The payment on this file changed since you confirmed. Nothing was refunded. Try again.");
+      }
       if (subId) {
         try {
           await stripe.subscriptions.cancel(subId);
@@ -626,21 +701,19 @@ export const runBillingAction = createServerFn({ method: "POST" })
           bits.push(e instanceof Error ? e.message : "Could not cancel the subscription.");
         }
       }
-      if (!paymentIntent) {
-        throw new Error(
-          "No card payment on this file to refund. If they paid, the checkout session never landed — refund in Stripe by hand.",
-        );
-      }
       try {
-        await stripe.refunds.create({ payment_intent: paymentIntent });
-        bits.push("Last card payment refunded.");
+        await stripe.refunds.create(
+          { payment_intent: target.paymentIntent },
+          { idempotencyKey: `forecourt-refund-${target.paymentIntent}` },
+        );
+        bits.push(`Refunded ${gbpPence(target.amountPence)}, ${target.label}.`);
       } catch (e) {
         const msg = e instanceof Error ? e.message : "Stripe refused the refund.";
         if (!/already been refunded/i.test(msg)) throw new Error(msg);
-        bits.push("Stripe says that payment was already refunded.");
+        bits.push(`Stripe says ${target.label} (${gbpPence(target.amountPence)}) was already refunded.`);
       }
-      if (sessionId) {
-        await admin.from("orders").update({ status: "refunded" }).eq("stripe_session_id", sessionId);
+      if (target.sessionId) {
+        await admin.from("orders").update({ status: "refunded" }).eq("stripe_session_id", target.sessionId);
       } else {
         await admin.from("orders").update({ status: "refunded" }).eq("tenant_id", data.tenantId);
       }

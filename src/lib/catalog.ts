@@ -174,10 +174,109 @@ export function setupDuePence(plan: PlanId, billing: BillingKind, convertFromTri
   return p.setupPence;
 }
 
-export function firstChargePence(plan: PlanId, billing: BillingKind, siteCount = 1, convertFromTrial = false) {
+/**
+ * Monthly billing starts on the day the desk goes live, not at checkout.
+ * Checkout takes the one-off setup only; the subscription waits in Stripe
+ * (as a trial) until staff mark the site Live, which starts the monthly plan.
+ * A site that is already live when it subscribes (a trial converting) starts
+ * its monthly plan straight away.
+ */
+export const MONTHLY_FROM_GO_LIVE = true;
+
+/**
+ * Stripe needs an end date for the wait. Going live ends it early; this is
+ * only the latest the monthly plan could start if a site never goes live.
+ */
+export const MONTHLY_START_LATEST_DAYS = 180;
+
+/** True when the first month is charged at checkout (only for a site already live). */
+export function monthlyChargedAtCheckout(billing: BillingKind, siteAlreadyLive = false) {
+  if (billing === "trial") return false;
+  return !MONTHLY_FROM_GO_LIVE || siteAlreadyLive;
+}
+
+/** What the card is charged at checkout. */
+export function firstChargePence(
+  plan: PlanId,
+  billing: BillingKind,
+  siteCount = 1,
+  convertFromTrial = false,
+  siteAlreadyLive = false,
+) {
   const setup = setupDuePence(plan, billing, convertFromTrial);
-  if (billing === "trial") return setup;
+  if (!monthlyChargedAtCheckout(billing, siteAlreadyLive)) return setup;
   return setup + monthTotalPence(plan, siteCount);
+}
+
+/** The stored facts about a site that decide what checkout charges. */
+export type QuoteTenant = {
+  plan?: string | null;
+  billing?: string | null;
+  status?: string | null;
+  stage?: string | null;
+} | null | undefined;
+
+/** The desk is live (either the build stage or the account status says so). */
+export function siteIsLive(t: QuoteTenant) {
+  return Boolean(t && (t.stage === "live" || t.status === "live"));
+}
+
+/**
+ * A site on the paid 60-day trial, which can convert with the trial credit.
+ * Includes a trial whose desk has already gone live.
+ */
+export function onPaidTrial(t: QuoteTenant) {
+  if (!t) return false;
+  if (t.plan && normalizePlan(t.plan) !== "site") return false;
+  if (t.billing !== "trial" && t.billing !== "pilot") return false;
+  return t.status === "trial" || t.status === "paid" || t.status === "live";
+}
+
+export type CheckoutQuote = {
+  /** True when the trial credit comes off the setup. */
+  convert: boolean;
+  siteAlreadyLive: boolean;
+  setupPence: number;
+  monthlyPence: number;
+  /** True when the first month is charged today as well as the setup. */
+  monthlyNow: boolean;
+  dueTodayPence: number;
+};
+
+/**
+ * The single rule for what a checkout charges today. The account page uses it
+ * for the Pay button and startCheckout uses it for the Stripe session, so the
+ * two always agree.
+ */
+export function checkoutQuote(input: {
+  plan: PlanId;
+  billing: BillingKind;
+  siteCount?: number;
+  convertFromTrial?: boolean;
+  tenant?: QuoteTenant;
+}): CheckoutQuote {
+  const { plan, billing } = input;
+  const siteCount = Math.max(PLANS[plan].minSites, input.siteCount ?? 1);
+  const convert = Boolean(
+    input.convertFromTrial && plan === "site" && billing === "subscription" && onPaidTrial(input.tenant),
+  );
+  const live = siteIsLive(input.tenant);
+  const setupPence = setupDuePence(plan, billing, convert);
+  const monthlyPence = monthTotalPence(plan, siteCount);
+  const monthlyNow = monthlyChargedAtCheckout(billing, live);
+  return {
+    convert,
+    siteAlreadyLive: live,
+    setupPence,
+    monthlyPence,
+    monthlyNow,
+    dueTodayPence: setupPence + (monthlyNow ? monthlyPence : 0),
+  };
+}
+
+/** Customer wording for when the monthly plan starts. Keeps the 180-day cap explicit. */
+export function monthlyStartSentence(monthlyPence: number) {
+  return `The ${gbpPence(monthlyPence)} a month starts on your go live day, or ${MONTHLY_START_LATEST_DAYS} days after payment if that comes first.`;
 }
 
 export function defaultFeaturesFor(plan: PlanId, billing: BillingKind): Record<FeatureId, boolean> {

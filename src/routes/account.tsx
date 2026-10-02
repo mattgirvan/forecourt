@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import { DealerPortal } from "@/components/account/portal";
 import { SignInGate } from "@/lib/sb-session";
@@ -17,10 +17,11 @@ import {
   gbpPence,
   isBillingKind,
   isPlanId,
-  monthTotalPence,
   normalizeBilling,
   normalizePlan,
-  setupDuePence,
+  checkoutQuote,
+  monthlyStartSentence,
+  onPaidTrial,
   type BillingKind,
   type FeatureId,
   type PlanId,
@@ -130,16 +131,22 @@ function AccountInner() {
   const chosen = PLANS[plan];
   const trialLocked = plan !== "site";
   const effectiveBilling: BillingKind = trialLocked ? "subscription" : billing;
-  const converting = useMemo(() => {
-    const t = tenants.find((x) => x.id === activeId);
-    if (!t) return false;
-    const p = normalizePlan(t.plan);
-    const b = normalizeBilling(p, t.billing);
-    return p === "site" && b === "trial" && (t.status === "trial" || t.status === "paid") && effectiveBilling === "subscription";
-  }, [tenants, activeId, effectiveBilling]);
-
-  const setup = setupDuePence(plan, effectiveBilling, converting);
-  const monthly = monthTotalPence(plan, siteCount);
+  const activeTenant = tenants.find((x) => x.id === activeId);
+  // Same rule as startCheckout (catalog checkoutQuote), so the Pay button
+  // always shows what Stripe will charge. A trial whose desk is already live
+  // still converts with the trial credit.
+  const quote = checkoutQuote({
+    plan,
+    billing: effectiveBilling,
+    siteCount,
+    convertFromTrial: plan === "site" && effectiveBilling === "subscription" && onPaidTrial(activeTenant),
+    tenant: activeTenant,
+  });
+  const converting = quote.convert;
+  const setup = quote.setupPence;
+  const monthly = quote.monthlyPence;
+  const monthlyNow = quote.monthlyNow;
+  const dueToday = quote.dueTodayPence;
   const needsContract = Boolean(chosen.contractMonths);
 
   useEffect(() => {
@@ -317,11 +324,9 @@ function AccountInner() {
   const payLabel = (() => {
     if (busy) return "Opening…";
     if (effectiveBilling === "trial") return `Start 60 days: ${gbpPence(setup)}`;
-    if (converting) return `Convert trial: ${gbpPence(setup)} + ${gbpPence(monthly)}/mo`;
-    if (chosen.perSite) {
-      return `Start contract: ${gbpPence(setup)} + ${gbpPence(monthly)}/mo`;
-    }
-    return `Start subscription: ${gbpPence(setup)} + ${gbpPence(monthly)}/mo`;
+    if (monthlyNow) return `Pay ${gbpPence(dueToday)} today: setup and first month`;
+    if (converting) return `Pay ${gbpPence(setup)} remaining setup today`;
+    return `Pay ${gbpPence(setup)} setup today`;
   })();
 
   const live = tenants.filter((t) => packageLive(t.status));
@@ -537,12 +542,18 @@ function AccountInner() {
           <div className="rounded-md border border-line bg-surface px-3 py-3 text-sm">
             <div className="font-medium">Before you pay</div>
             <ul className="mt-2 space-y-1 text-muted">
-              <li>Due now: {gbpPence(setup)}</li>
               <li>
-                Then {gbpPence(monthly)}
-                {chosen.perSite ? ` / month for ${siteCount} sites` : " / month"}
-                {chosen.contractMonths ? ` · ${chosen.contractMonths}-month contract` : " · month to month"}
+                Due today: {gbpPence(dueToday)}
+                {effectiveBilling === "trial" ? "" : monthlyNow ? " (setup and your first month)" : " (one-off setup)"}
               </li>
+              {effectiveBilling !== "trial" && (
+                <li>
+                  {monthlyNow
+                    ? `Then ${gbpPence(monthly)} a month${chosen.perSite ? ` for ${siteCount} sites` : ""}, from today.`
+                    : monthlyStartSentence(monthly)}
+                  {chosen.contractMonths ? ` ${chosen.contractMonths} month contract.` : " Month to month."}
+                </li>
+              )}
               {effectiveBilling === "trial" && <li>60-day site trial. The £1,500 comes off setup if you stay.</li>}
               <li>
                 Full terms, including payment and sign-off:{" "}
@@ -658,8 +669,11 @@ function AccountInner() {
               </>
             ) : (
               <>
-                First invoice {gbpPence(setup + monthly)}
-                {chosen.perSite ? ` (${siteCount} sites)` : ""}. Then {gbpPence(monthly)} / month.
+                Today {gbpPence(dueToday)}
+                {monthlyNow ? " for setup and your first month" : " for the one-off setup"}.{" "}
+                {monthlyNow
+                  ? `Then ${gbpPence(monthly)} a month${chosen.perSite ? ` for ${siteCount} sites` : ""}.`
+                  : monthlyStartSentence(monthly)}
               </>
             )}
           </p>
