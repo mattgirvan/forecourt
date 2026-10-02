@@ -1,8 +1,9 @@
 /**
  * supabase/team-domain-hotfix.sql, run for real in PGlite on top of the repo's
- * Supabase SQL. is_team() must never trust the @forecourt.me domain: only a
- * team_members row (active or invited, never revoked), a confirmed
- * hello@forecourt.me, or the exact-address first-run fallback.
+ * Supabase SQL. is_team() must never trust the @forecourt.me domain: only an
+ * active team_members row (never revoked; since team-owner-only.sql an invite
+ * counts only once accepted), a confirmed hello@forecourt.me, or the
+ * exact-address first-run fallback.
  */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -38,7 +39,7 @@ const U = {
 async function db({ hotfix = true, helloConfirmed = true } = {}) {
   const d = new PGlite();
   await d.exec(STUB);
-  for (const f of ["control-plane.sql", "billing.sql", "portal.sql", "staff.sql", "build.sql", "archive.sql"]) await d.exec(read(f));
+  for (const f of ["control-plane.sql", "billing.sql", "team-owner-only.sql", "portal.sql", "staff.sql", "build.sql", "archive.sql"]) await d.exec(read(f));
   if (hotfix) {
     // Safe to run more than once.
     await d.exec(read("team-domain-hotfix.sql"));
@@ -72,10 +73,10 @@ async function isTeam(d, who) {
   }
 }
 
-test("hotfix: a fresh @forecourt.me signup is not staff; invited is, revoked is not", async () => {
+test("hotfix: a fresh @forecourt.me signup is not staff; nor is an unaccepted invite or a revoked row", async () => {
   const d = await db();
   assert.equal(await isTeam(d, U.stranger), false);
-  assert.equal(await isTeam(d, U.invited), true);
+  assert.equal(await isTeam(d, U.invited), false, "an invite counts only once accepted (team-owner-only.sql)");
   assert.equal(await isTeam(d, U.revoked), false);
   assert.equal(await isTeam(d, U.dealer), false);
   assert.equal(await isTeam(d, U.hello), true);

@@ -41,7 +41,7 @@ grant all on all sequences in schema public to anon, authenticated, service_role
 async function freshDb() {
   const db = new PGlite();
   await db.exec(SUPABASE_STUB);
-  for (const f of ["control-plane.sql", "billing.sql", "portal.sql", "staff.sql", "build.sql", "archive.sql"]) {
+  for (const f of ["control-plane.sql", "billing.sql", "team-owner-only.sql", "portal.sql", "staff.sql", "build.sql", "archive.sql"]) {
     await db.exec(read(f));
   }
   // Applied twice: the file says it is safe to run more than once.
@@ -277,7 +277,7 @@ test("entitlement-guard.verify.sql passes with the guard and fails without it, c
 
   const bare = new PGlite();
   await bare.exec(SUPABASE_STUB);
-  for (const f of ["control-plane.sql", "billing.sql", "portal.sql", "staff.sql", "build.sql", "archive.sql"]) {
+  for (const f of ["control-plane.sql", "billing.sql", "team-owner-only.sql", "portal.sql", "staff.sql", "build.sql", "archive.sql"]) {
     await bare.exec(read(f));
   }
   await bare.exec(GRANTS);

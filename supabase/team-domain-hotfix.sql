@@ -5,20 +5,24 @@
 -- Before: any signed-in address ending @forecourt.me could pass is_team()
 -- (and the app made it an owner). Anyone can sign up with such an address.
 -- After, a caller is staff only if:
---   * they have a team_members row that is active or invited, or
+--   * they have a team_members row that is active, or
 --   * they are hello@forecourt.me, or
 --   * no one on team_members is active yet and their exact address is in
---     team_emails (the old first-run fallback, without the domain).
+--     team_emails and no row of their own (the old first-run fallback,
+--     without the domain).
+-- Since team-owner-only.sql (the follow-up), an invite no longer counts until
+-- it is accepted. This file carries the exact same is_team() as
+-- team-owner-only.sql, so running it again later cannot weaken anything.
 -- hello@forecourt.me only counts when that auth user's email is confirmed
 -- (in every case above), and a revoked team_members row is never staff.
 -- Undo: team-domain-hotfix.rollback.sql (puts the domain rule back).
 
-create or replace function is_team()
+create or replace function public.is_team()
 returns boolean
 language sql
 stable
 security definer
-set search_path = public
+set search_path = ''
 as $$
   with me as (
     select lower(coalesce(auth.jwt() ->> 'email', '')) as email
@@ -27,7 +31,7 @@ as $$
     (select email from me) <> ''
     -- Revoked is never staff.
     and not exists (
-      select 1 from team_members t
+      select 1 from public.team_members t
       where t.email = (select email from me) and t.status = 'revoked'
     )
     -- hello@forecourt.me only counts once that auth user's email is confirmed.
@@ -41,14 +45,18 @@ as $$
       )
     )
     and (
+      -- Active only: an invite grants nothing until it is accepted.
       exists (
-        select 1 from team_members t
-        where t.email = (select email from me) and t.status in ('active', 'invited')
+        select 1 from public.team_members t
+        where t.email = (select email from me) and t.status = 'active'
       )
       or (select email from me) = 'hello@forecourt.me'
+      -- First-run fallback: nobody active yet, the exact address is listed,
+      -- and it has no team_members row of its own (invited or revoked).
       or (
-        not exists (select 1 from team_members where status = 'active')
-        and exists (select 1 from team_emails te where te.email = (select email from me))
+        not exists (select 1 from public.team_members where status = 'active')
+        and not exists (select 1 from public.team_members t where t.email = (select email from me))
+        and exists (select 1 from public.team_emails te where te.email = (select email from me))
       )
     );
 $$;

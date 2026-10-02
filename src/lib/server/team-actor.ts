@@ -12,23 +12,49 @@ export type ActorDeps = {
   getUser: () => Promise<ActorUser | null>;
   /** The team_members row for this email, or null. */
   getMember: (email: string) => Promise<(TeamMemberRow & { name?: string | null }) | null>;
-  /** Mark a member seen; an invited member becomes active. Best effort. */
-  touchMember: (email: string, activate: boolean) => void;
-  /** Create the owner row for a confirmed hello@forecourt.me. Only ever called for that address. */
+  /** Mark an active member seen. Best effort. Never changes status. */
+  touchMember: (email: string) => void;
+  /** Create the owner row for a confirmed hello@forecourt.me. Must never overwrite an existing row. */
   seedOwner: (email: string) => Promise<void>;
+  /**
+   * Accept the caller's own invite (accept_team_invite in team-owner-only.sql).
+   * True only when the database saw mailbox proof dated after the invite.
+   */
+  acceptInvite: () => Promise<boolean>;
 };
 
-export type ResolvedActor = { userId: string; email: string; team: boolean; role: StaffRole | null; name: string };
+export type ResolvedActor = {
+  userId: string;
+  email: string;
+  team: boolean;
+  role: StaffRole | null;
+  name: string;
+  /** Invited but not accepted yet: sign in from the invite email to accept. */
+  pendingInvite: boolean;
+};
 
 export async function resolveActor(deps: ActorDeps): Promise<ResolvedActor> {
   const user = await deps.getUser();
   if (!user) throw new Error("Sign in again.");
   const email = (user.email ?? "").trim().toLowerCase();
-  const member = email ? await deps.getMember(email) : null;
-  const access = teamAccess({ email, emailConfirmed: Boolean(user.email_confirmed_at), member });
+  const emailConfirmed = Boolean(user.email_confirmed_at);
+  let member = email ? await deps.getMember(email) : null;
+  let access = teamAccess({ email, emailConfirmed, member });
+  if (member && access.pendingInvite) {
+    let accepted = false;
+    try {
+      accepted = await deps.acceptInvite();
+    } catch {
+      accepted = false;
+    }
+    if (accepted) {
+      member = await deps.getMember(email);
+      access = teamAccess({ email, emailConfirmed, member });
+    }
+  }
   if (member) {
-    if (access.team) deps.touchMember(email, member.status === "invited");
-    return { userId: user.id, email, team: access.team, role: access.role, name: member.name ?? "" };
+    if (access.team) deps.touchMember(email);
+    return { userId: user.id, email, team: access.team, role: access.role, name: member.name ?? "", pendingInvite: access.pendingInvite };
   }
   if (access.seedOwner && email === OWNER_EMAIL) {
     try {
@@ -36,7 +62,19 @@ export async function resolveActor(deps: ActorDeps): Promise<ResolvedActor> {
     } catch {
       /* the owner still gets in; the row is made next time */
     }
-    return { userId: user.id, email, team: true, role: "owner", name: "Matt Girvan" };
+    // seedOwner never overwrites. If a row turned up (for example a revoked
+    // hello@ the first read could not see), that row decides.
+    let after: Awaited<ReturnType<ActorDeps["getMember"]>> = null;
+    try {
+      after = await deps.getMember(email);
+    } catch {
+      after = null;
+    }
+    if (after) {
+      const a = teamAccess({ email, emailConfirmed, member: after });
+      return { userId: user.id, email, team: a.team, role: a.role, name: after.name ?? "", pendingInvite: a.pendingInvite };
+    }
+    return { userId: user.id, email, team: true, role: "owner", name: "Matt Girvan", pendingInvite: false };
   }
-  return { userId: user.id, email, team: false, role: null, name: "" };
+  return { userId: user.id, email, team: false, role: null, name: "", pendingInvite: false };
 }

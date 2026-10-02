@@ -13,6 +13,7 @@ This is the **office** — sign-in, tenants, orders. Not Aberdeen. Not a custome
    - Redirects: `https://www.forecourt.me/**` and `https://forecourt.me/**`
 4. Authentication → Providers → Email on (magic link)
 5. Settings → API → anon key is already in the app (public by design; RLS holds the line)
+6. SQL editor → paste `team-owner-only.sql` → run (who is staff and who is owner; portal.sql and staff.sql need it first)
 7. SQL editor → paste `portal.sql` → run (dealer notes, support messages, team office)
 8. SQL editor → paste `staff.sql` → run (staff roles, invite, revoke)
 9. SQL editor → paste `build.sql` → run (order timeline, pack, meetings)
@@ -36,6 +37,18 @@ This is the **office** — sign-in, tenants, orders. Not Aberdeen. Not a custome
     6. If any stranger had owner access, look at what they did: notes and build events they wrote, any refunds or Resume actions, and any payment links made while they were in.
     - Locked out of the office after step 3? Do not use the rollback. Run this one line instead: `update team_members set status = 'active' where email = 'hello@forecourt.me';`
     - `team-domain-hotfix.rollback.sql` is a last resort only. It puts the domain rule back and reopens the hole.
+
+16. Team safety follow-up (only owners can change the team). Do this after step 15 is finished and #41 is live:
+    1. SQL editor: paste `team-owner-only.check.sql`, run it, and save the output (it changes nothing).
+    2. SQL editor: paste `team-owner-only.sql` and run it. Run the check again and save the output. Section 3 should list four functions, section 4 should show one row, and section 6 should show no rows.
+    3. Merge the follow-up PR and wait until the Production deploy on Vercel shows Ready. Sign in as hello@forecourt.me and check that /office loads and the staff list shows.
+    - Why this order: either order is safe (nobody gets extra access in between), but until both are done, people you invite cannot get in yet.
+    - What changes for you:
+      - Only owners can add, remove or change staff. Operators cannot, and neither can someone who has been invited but not signed in yet.
+      - Someone you invite gets no access until they sign in with the code from the invite email. A password, or a code from before the invite, does not count.
+      - Restoring a revoked person sends them a fresh invite. They get access again once they sign in from that email.
+      - hello@forecourt.me can only be changed here in the SQL editor, never from the office. Locked out? The same one line as in step 15 still works.
+    - `team-owner-only.rollback.sql` is a last resort only. It lets any staff member change the team again.
 
 Running the tests needs Node 22.6 or later (`npm test` uses `node --test` with file globs and TypeScript type stripping).
 

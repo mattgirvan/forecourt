@@ -66,7 +66,7 @@ create policy "dealer write events" on build_events
   );
 drop policy if exists "team events" on build_events;
 create policy "team events" on build_events
-  for all using (is_team()) with check (is_team());
+  for all using ((select public.is_team())) with check ((select public.is_team()));
 
 drop policy if exists "dealer meetings" on meetings;
 create policy "dealer meetings" on meetings
@@ -75,11 +75,11 @@ create policy "dealer meetings" on meetings
   );
 drop policy if exists "team meetings" on meetings;
 create policy "team meetings" on meetings
-  for all using (is_team()) with check (is_team());
+  for all using ((select public.is_team())) with check ((select public.is_team()));
 
 drop policy if exists "team jobs" on build_jobs;
 create policy "team jobs" on build_jobs
-  for all using (is_team()) with check (is_team());
+  for all using ((select public.is_team())) with check ((select public.is_team()));
 
 update tenants
 set stage = 'paid'

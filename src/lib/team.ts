@@ -29,27 +29,54 @@ export type TeamAccess = {
   role: StaffRole | null;
   /** True only for a confirmed hello@forecourt.me with no team_members row yet: the server may create its owner row. */
   seedOwner: boolean;
+  /** An invite that has not been accepted yet. It grants nothing until the person accepts from their own email. */
+  pendingInvite: boolean;
 };
 
 /**
  * Who is staff. The email domain is never trusted:
  * - hello@forecourt.me counts only once its email is confirmed;
- * - a team_members row decides (invited or active is staff, revoked is not);
+ * - a team_members row decides: active is staff; invited is not, until it is
+ *   accepted with mailbox proof (accept_team_invite in team-owner-only.sql);
+ *   revoked is not;
  * - with no row, only hello@forecourt.me is owner;
  * - anyone else is not staff.
  */
 export function teamAccess(input: { email: string | null | undefined; emailConfirmed: boolean; member: TeamMemberRow | null | undefined }): TeamAccess {
   const email = (input.email ?? "").trim().toLowerCase();
   const m = input.member;
-  if (email === OWNER_EMAIL && !input.emailConfirmed) return { team: false, role: null, seedOwner: false };
+  const none: TeamAccess = { team: false, role: null, seedOwner: false, pendingInvite: false };
+  if (email === OWNER_EMAIL && !input.emailConfirmed) return none;
   if (m) {
-    if (m.status === "active" || m.status === "invited") {
-      return { team: true, role: m.role === "owner" ? "owner" : "operator", seedOwner: false };
+    if (m.status === "active") {
+      return { team: true, role: m.role === "owner" ? "owner" : "operator", seedOwner: false, pendingInvite: false };
     }
-    return { team: false, role: null, seedOwner: false };
+    if (m.status === "invited") return { ...none, pendingInvite: true };
+    return none;
   }
-  if (email === OWNER_EMAIL) return { team: true, role: "owner", seedOwner: true };
-  return { team: false, role: null, seedOwner: false };
+  if (email === OWNER_EMAIL) return { team: true, role: "owner", seedOwner: true, pendingInvite: false };
+  return none;
+}
+
+/**
+ * Why an owner's team change is refused, or null when it may go ahead. The
+ * database enforces the same rules (team-owner-only.sql); this gives a clear
+ * message first.
+ */
+export function teamChangeRefusal(input: {
+  actorRole: StaffRole | null;
+  actorEmail: string;
+  target: string;
+  change: "invite" | "role" | "revoke" | "restore";
+  targetStatus?: string | null;
+}): string | null {
+  const target = input.target.trim().toLowerCase();
+  if (input.actorRole !== "owner") return "Only an owner can change the team.";
+  if (!target.includes("@")) return "Need an email.";
+  if (target === OWNER_EMAIL) return "hello@forecourt.me can only be changed in the Supabase SQL editor.";
+  if (input.change === "invite" && input.targetStatus === "active") return "They already have access.";
+  if (input.change === "revoke" && target === input.actorEmail) return "You cannot revoke yourself.";
+  return null;
 }
 
 export function packageLive(status: string | null | undefined) {

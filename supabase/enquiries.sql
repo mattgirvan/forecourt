@@ -31,4 +31,4 @@ alter table enquiries enable row level security;
 -- No anon / public write or read. Service role bypasses RLS for inserts from /api/contact.
 drop policy if exists "team read enquiries" on enquiries;
 create policy "team read enquiries" on enquiries
-  for select using (is_team());
+  for select using ((select public.is_team()));

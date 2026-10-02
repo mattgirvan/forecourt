@@ -1,4 +1,4 @@
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServerFn } from "@tanstack/react-start";
 import {
   BUILD_STAGES,
@@ -7,9 +7,8 @@ import {
   type BuildStage,
   type TenantPack,
 } from "@/lib/build";
-import { env } from "@/lib/env.server";
-import { SUPABASE_ANON, SUPABASE_URL } from "@/lib/sb";
-import { teamAccess } from "@/lib/team";
+// The one staff lookup (active member or confirmed hello@, never the domain).
+import { actor } from "@/lib/server/staff-actor";
 import { listStaffEnvKeyNames } from "@/lib/server/desk-scaffold";
 import { executeSendToBuild } from "@/lib/server/build-api";
 import { goLiveConfirmForTenant, startMonthlyForTenant } from "@/lib/server/billing-go-live";
@@ -17,28 +16,6 @@ import { emailOutcomeMessage, sendProgressEmail } from "@/lib/server/journey-ema
 import { customerStepFor, customerStepNumber, stepLabel } from "@/lib/journey";
 import { progressEmailHold, tenantEnded, type MonthlyStartResult } from "@/lib/server/billing-start";
 
-function sbFor(token: string) {
-  const key = SUPABASE_ANON || env("VITE_SUPABASE_ANON_KEY") || env("VITE_SUPABASE_PUBLISHABLE_KEY") || "";
-  return createClient(SUPABASE_URL, key, {
-    global: { headers: { Authorization: `Bearer ${token}` } },
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-}
-
-async function actor(token: string) {
-  const sb = sbFor(token);
-  const { data, error } = await sb.auth.getUser(token);
-  if (error || !data.user) throw new Error("Sign in again.");
-  const email = (data.user.email ?? "").toLowerCase();
-  const { data: member } = await sb
-    .from("team_members")
-    .select("status, role")
-    .eq("email", email)
-    .maybeSingle();
-  // Never by email domain: a team_members row, or a confirmed hello@forecourt.me.
-  const { team } = teamAccess({ email, emailConfirmed: Boolean(data.user.email_confirmed_at), member });
-  return { sb, userId: data.user.id, email, team };
-}
 
 export async function seedPaidOrder(
   sb: SupabaseClient,
