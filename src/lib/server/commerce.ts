@@ -13,6 +13,7 @@ import {
   type PlanId,
 } from "@/lib/catalog";
 import { seedPaidOrder } from "@/lib/server/build";
+import { checkoutRefusal, type GuardTenant, type StoredSubscription } from "@/lib/server/checkout-guard";
 import { confirmPaymentFlow, supabasePaymentStore, type SupabaseLike } from "@/lib/server/payments";
 import { env } from "@/lib/env.server";
 import { SUPABASE_ANON, SUPABASE_URL } from "@/lib/sb";
@@ -289,12 +290,46 @@ export const startCheckout = createServerFn({ method: "POST" })
     const siteCount = Math.max(plan.minSites, data.siteCount ?? 1);
 
     const { sb, userId } = await uid(data.token);
-    const { data: owned } = await sb
+    const full = await sb
       .from("tenants")
-      .select("id, email, name, plan, status, billing, stage")
+      .select("id, email, name, plan, status, billing, stage, stripe_subscription_id")
       .eq("id", data.tenantId)
       .maybeSingle();
+    const owned = (full.error
+      ? (
+          await sb
+            .from("tenants")
+            .select("id, email, name, plan, status, billing, stage")
+            .eq("id", data.tenantId)
+            .maybeSingle()
+        ).data
+      : full.data) as (GuardTenant & { email?: string | null }) | null;
     if (!owned) return { url: null, message: "No site on this account." };
+
+    // Never sell the same desk twice (see checkout-guard.ts). This runs before
+    // any order or Stripe session exists.
+    const secret = stripeSecret();
+    const Stripe = secret ? (await import("stripe")).default : null;
+    const stripe = Stripe && secret ? new Stripe(secret) : null;
+    let storedSubscription: StoredSubscription = null;
+    if (owned.stripe_subscription_id && stripe) {
+      try {
+        const sub = await stripe.subscriptions.retrieve(owned.stripe_subscription_id);
+        storedSubscription = { status: sub.status, cancel_at_period_end: sub.cancel_at_period_end, cancel_at: sub.cancel_at };
+      } catch (err) {
+        const code = (err as { code?: string; statusCode?: number } | null) ?? null;
+        storedSubscription = code?.code === "resource_missing" || code?.statusCode === 404 ? "missing" : "unknown";
+      }
+    }
+    const { data: mine } = await sb.from("tenants").select("id, name, plan, status, billing, stage").eq("user_id", userId);
+    const refusal = checkoutRefusal({
+      tenant: owned,
+      billing: data.billing,
+      convertFromTrial: data.convertFromTrial,
+      storedSubscription,
+      otherTenants: (mine ?? []) as GuardTenant[],
+    });
+    if (refusal) return { url: null, message: refusal };
     // One shared rule (catalog checkoutQuote) decides the charge, so the Pay
     // button on the account page always matches what Stripe takes. Monthly
     // billing starts at go live; a site already live starts it now.
@@ -345,17 +380,13 @@ export const startCheckout = createServerFn({ method: "POST" })
 
     const success = `${data.origin.replace(/\/$/, "")}/account?paid=1`;
     const cancel = `${data.origin.replace(/\/$/, "")}/account?canceled=1`;
-    const secret = stripeSecret();
-
-    if (!secret) {
+    if (!secret || !stripe) {
       return {
         url: `/account?preview=1&order=${orderId}`,
         message: "Checkout is wired. Live card charges need STRIPE_SECRET_KEY on Vercel.",
       };
     }
 
-    const Stripe = (await import("stripe")).default;
-    const stripe = new Stripe(secret);
     const metadata = {
       user_id: userId,
       tenant_id: String(data.tenantId),

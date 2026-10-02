@@ -32,7 +32,10 @@ test("a site already live (trial converting) pays setup and its first month now"
   assert.equal(firstChargePence("site", "subscription", 1, true, false), 300_000);
 });
 
-function fakeSubs(status: string, opts: { fail?: boolean } = {}) {
+function fakeSubs(
+  status: string,
+  opts: { fail?: boolean; extra?: Partial<SubscriptionLike>; afterStatus?: string } = {},
+) {
   const calls: unknown[][] = [];
   return {
     calls,
@@ -40,11 +43,11 @@ function fakeSubs(status: string, opts: { fail?: boolean } = {}) {
       async retrieve(id: string): Promise<SubscriptionLike> {
         calls.push(["retrieve", id]);
         if (opts.fail) throw new Error("No such subscription");
-        return { id, status };
+        return { id, status, ...opts.extra };
       },
       async update(id: string, params: unknown, options?: unknown): Promise<SubscriptionLike> {
         calls.push(["update", id, params, options]);
-        return { id, status: "active" };
+        return { id, status: opts.afterStatus ?? "active" };
       },
     },
   };
@@ -167,4 +170,46 @@ test("go live confirm: says the plan starts only when it will", async () => {
   assert.equal(goLiveConfirmText(noStripe, "£399"), "Mark live? This starts their £399 monthly plan today.");
   const failed = await previewMonthlyStart({ subscriptions: fakeSubs("trialing", { fail: true }).subs, log }, "sub_1");
   assert.equal(failed.kind, "unknown");
+});
+
+test("a subscription set to cancel never starts billing at go live", async () => {
+  for (const extra of [{ cancel_at_period_end: true }, { cancel_at: 1_900_000_000 }]) {
+    const f = fakeSubs("trialing", { extra });
+    const r = await startMonthlyAtGoLive({ subscriptions: f.subs, log }, "sub_1");
+    assert.deepEqual(r, { started: false, reason: "set_to_cancel", detail: "trialing" });
+    assert.equal(f.calls.length, 1, "no update call");
+    assert.match(monthlyStartMessage(r), /set to cancel/);
+    const p = await previewMonthlyStart({ subscriptions: f.subs, log }, "sub_1");
+    assert.equal(
+      goLiveConfirmText(p, "£399"),
+      "Mark live? Their subscription is set to cancel, so this will not start the monthly plan.",
+    );
+  }
+});
+
+test("a cancelled or refunded file never starts billing, even with a waiting subscription", async () => {
+  for (const tenantStatus of ["cancelled", "refunded"]) {
+    const f = fakeSubs("trialing");
+    const r = await startMonthlyAtGoLive({ subscriptions: f.subs, log }, "sub_1", { tenantStatus });
+    assert.deepEqual(r, { started: false, reason: "tenant_ended", detail: tenantStatus });
+    assert.equal(f.calls.length, 0, "Stripe is not even asked");
+    assert.equal(monthlyStartMessage(r), `This file is ${tenantStatus}, so monthly billing was not started.`);
+    const p = await previewMonthlyStart({ subscriptions: f.subs, log }, "sub_1", { tenantStatus });
+    assert.equal(goLiveConfirmText(p, "£399"), `Mark live? This file is ${tenantStatus}, so this will not start the monthly plan.`);
+  }
+  // A live or subscribed file still starts.
+  const ok = await startMonthlyAtGoLive({ subscriptions: fakeSubs("trialing").subs, log }, "sub_1", { tenantStatus: "subscribed" });
+  assert.equal(ok.started, true);
+});
+
+test("a declined card at go live is reported as a failed payment, not as started", async () => {
+  for (const afterStatus of ["past_due", "incomplete", "unpaid"]) {
+    const f = fakeSubs("trialing", { afterStatus });
+    const r = await startMonthlyAtGoLive({ subscriptions: f.subs, log }, "sub_1");
+    assert.deepEqual(r, { started: false, reason: "payment_failed", detail: afterStatus });
+    assert.doesNotMatch(monthlyStartMessage(r), /^Monthly billing started/);
+    assert.match(monthlyStartMessage(r), /first payment failed/);
+  }
+  const pastDue = await startMonthlyAtGoLive({ subscriptions: fakeSubs("past_due").subs, log }, "sub_1");
+  assert.match(monthlyStartMessage(pastDue), /last payment failed/);
 });
