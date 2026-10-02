@@ -58,7 +58,7 @@ export type TenantRow = {
 /** Something staff must look at. Recorded on the file and, when email is on, sent to the team. */
 export type StaffFlag = {
   tenantId: number;
-  kind: "duplicate_payment" | "similar_dealer";
+  kind: "duplicate_payment" | "similar_dealer" | "balance_paid";
   title: string;
   body: string;
   /** One flag per order and kind, so retries never repeat it. */
@@ -323,6 +323,22 @@ export async function confirmPaymentFlow(
   return { ok: true };
 }
 
+/** A paid balance link (Resume order) as a staff note, or null for any other session. */
+export function balancePaidFlag(session: CheckoutSessionLike): StaffFlag | null {
+  if (session.metadata?.kind !== "balance") return null;
+  const tenantId = Number(session.metadata?.tenant_id);
+  if (!Number.isInteger(tenantId) || tenantId <= 0) return null;
+  const pounds = (session.amount_total ?? 0) / 100;
+  const amount = `£${pounds.toLocaleString("en-GB", { minimumFractionDigits: pounds % 1 ? 2 : 0, maximumFractionDigits: 2 })}`;
+  return {
+    tenantId,
+    kind: "balance_paid",
+    title: "Balance paid",
+    body: `${amount} paid on the balance payment link (Stripe ${session.id}). Nothing else changed on the file.`,
+    dedupeKey: `balance-paid:${session.id}`,
+  };
+}
+
 export type WebhookEvent = {
   id?: string;
   type: string;
@@ -400,6 +416,13 @@ export async function handleStripeWebhook(
       // Delayed payment methods complete first and pay later; the
       // async_payment_succeeded event will carry the paid session.
       return { status: 200, body: "not paid yet" };
+    }
+    // A balance link staff sent from Resume order: no order row, nothing to
+    // apply. Note it on the file so staff see it, and answer 200 so Stripe stops.
+    const balance = balancePaidFlag(session);
+    if (balance) {
+      await store.flagForStaff(balance);
+      return { status: 200, body: "balance payment noted" };
     }
     const orderId = Number(session.metadata?.order_id);
     const order = Number.isInteger(orderId) && orderId > 0 ? await store.loadOrder(orderId) : null;

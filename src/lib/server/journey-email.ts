@@ -7,7 +7,7 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { PLANS, monthTotalPence, normalizePlan } from "@/lib/catalog";
-import { EMAIL_FROM, EMAIL_REPLY_TO, progressEmail, thankYouEmail, type PaymentKind } from "@/lib/email/templates";
+import { EMAIL_FROM, EMAIL_REPLY_TO, balanceLinkEmail, progressEmail, thankYouEmail, type PaymentKind } from "@/lib/email/templates";
 import { env } from "@/lib/env.server";
 import { BOOK_URL, customerStepNumber } from "@/lib/journey";
 import { SITE } from "@/lib/site";
@@ -213,6 +213,57 @@ export async function sendProgressEmail(input: {
     );
   } catch (err) {
     console.error("[email] progress failed", err);
+    return null;
+  }
+}
+
+/**
+ * Balance payment link, only when staff press Send on Resume order. Goes
+ * through the same engine (EMAIL_MODE, team copies, email_log dedupe), one
+ * email per Stripe link.
+ */
+export async function sendBalanceLinkEmail(input: {
+  tenantId: number;
+  url: string;
+  amountPence: number;
+  sessionId: string;
+}): Promise<DeliverResult | null> {
+  try {
+    const config = gateConfig();
+    if (config.mode === "off") return { sent: false, reason: "mode_off" };
+    const sb = serviceClient();
+    if (!sb) return null;
+    const t = await loadTenant(sb, input.tenantId);
+    if (!t) return null;
+    const mail = balanceLinkEmail({
+      firstName: t.principal_name,
+      dealer: t.name || "your dealership",
+      amountPence: input.amountPence,
+      payUrl: input.url,
+      accountUrl: ACCOUNT_URL,
+    });
+    const { login, to } = await recipientFor(sb, t.user_id, t.email);
+    const staff = (await isStaffEmail(sb, login)) || (await isStaffEmail(sb, to));
+    return await deliverJourneyEmail(
+      { config, log: supabaseEmailLog(sb as unknown as EmailLogDb), send: resendSender(), logger: console },
+      {
+        dedupeKey: `balance-link:tenant:${t.id}:session:${input.sessionId}`,
+        tenantId: t.id,
+        kind: "balance_link",
+        step: null,
+        recipient: to,
+        from: EMAIL_FROM,
+        replyTo: EMAIL_REPLY_TO,
+        subject: mail.subject,
+        html: mail.html,
+        text: mail.text,
+        recipientIsStaff: staff,
+        stripeLivemode: null,
+        archived: Boolean(t.archived_at),
+      },
+    );
+  } catch (err) {
+    console.error("[email] balance link failed", err);
     return null;
   }
 }

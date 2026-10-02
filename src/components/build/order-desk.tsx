@@ -176,6 +176,12 @@ export function OrderBuild({
           </p>
           <h2 className="mt-2 text-3xl font-semibold tracking-tight">The build</h2>
           <p className="mt-2 max-w-xl text-sm text-muted">{meta.staff}</p>
+          {build.status === "refunded" || build.status === "cancelled" ? (
+            <p className="mt-3 max-w-xl rounded-xl border border-line-strong bg-elevated px-3 py-2 text-sm">
+              This order is {build.status}, so journey emails are held and going live will not start billing. Use Resume
+              order at the top of this file to put it back on the desk.
+            </p>
+          ) : null}
         </div>
       ) : customerStep ? (
         <JourneyNow current={customerStep.n} />

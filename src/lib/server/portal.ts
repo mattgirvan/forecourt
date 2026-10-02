@@ -1,106 +1,13 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { createServerFn } from "@tanstack/react-start";
 import { gbpPence, normalizeBilling, normalizePlan } from "@/lib/catalog";
-import { env } from "@/lib/env.server";
 import { SUPABASE_ANON, SUPABASE_URL } from "@/lib/sb";
 import { SITE } from "@/lib/site";
 import { TEAM_EMAILS, looksLikeTeam, type StaffRole, type StaffStatus } from "@/lib/team";
+import { actor, sbAdmin, stripeSecret } from "@/lib/server/staff-actor";
 import { startMonthlyForTenant } from "@/lib/server/billing-go-live";
 import { tenantEnded } from "@/lib/server/billing-start";
 import { findSetupPayment, refundConfirmText, type SessionLike } from "@/lib/server/refund-target";
-
-function sbFor(token: string) {
-  const key = SUPABASE_ANON || env("VITE_SUPABASE_ANON_KEY") || env("VITE_SUPABASE_PUBLISHABLE_KEY") || "";
-  return createClient(SUPABASE_URL, key, {
-    global: { headers: { Authorization: `Bearer ${token}` } },
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-}
-
-function sbAdmin() {
-  const key = env("SUPABASE_SERVICE_ROLE_KEY") ?? env("GROK_SUPABASE_SERVICE_ROLE_KEY");
-  if (!key) return null;
-  return createClient(SUPABASE_URL, key, { auth: { persistSession: false, autoRefreshToken: false } });
-}
-
-async function actor(token: string) {
-  const sb = sbFor(token);
-  const { data, error } = await sb.auth.getUser(token);
-  if (error || !data.user) throw new Error("Sign in again.");
-  const email = (data.user.email ?? "").toLowerCase();
-
-  const { data: member } = await sb
-    .from("team_members")
-    .select("email, role, status, name")
-    .eq("email", email)
-    .maybeSingle();
-
-  if (member) {
-    if (member.status === "revoked") {
-      return {
-        sb,
-        userId: data.user.id,
-        email,
-        team: false,
-        role: null as StaffRole | null,
-        name: member.name as string,
-      };
-    }
-    if (member.status === "invited") {
-      void sb.from("team_members").update({ status: "active", last_seen_at: new Date().toISOString() }).eq("email", email);
-    } else {
-      void sb.from("team_members").update({ last_seen_at: new Date().toISOString() }).eq("email", email);
-    }
-    return {
-      sb,
-      userId: data.user.id,
-      email,
-      team: true,
-      role: (member.role as StaffRole) ?? "operator",
-      name: member.name as string,
-    };
-  }
-
-  if (looksLikeTeam(email)) {
-    const admin = sbAdmin();
-    if (admin) {
-      await admin.from("team_members").upsert(
-        {
-          email,
-          name: email === "hello@forecourt.me" ? "Matt Girvan" : "",
-          role: "owner",
-          status: "active",
-          last_seen_at: new Date().toISOString(),
-        },
-        { onConflict: "email" },
-      );
-      await admin.from("team_emails").upsert({ email });
-    }
-    return {
-      sb,
-      userId: data.user.id,
-      email,
-      team: true,
-      role: "owner" as StaffRole,
-      name: email === "hello@forecourt.me" ? "Matt Girvan" : "",
-    };
-  }
-
-  const { data: row } = await sb.from("team_emails").select("email").eq("email", email).maybeSingle();
-  const team = Boolean(row) || looksLikeTeam(email);
-  return {
-    sb,
-    userId: data.user.id,
-    email,
-    team,
-    role: (team ? "owner" : null) as StaffRole | null,
-    name: "",
-  };
-}
-
-function stripeSecret() {
-  return env("GROK_STRIPE_SECRET_KEY") ?? env("STRIPE_SECRET_KEY");
-}
 
 export const whoAmI = createServerFn({ method: "POST" })
   .validator((d: { token: string }) => d)
@@ -610,7 +517,7 @@ export const runBillingAction = createServerFn({ method: "POST" })
     const admin = sbAdmin() ?? sb;
     const loaded = await admin
       .from("tenants")
-      .select("id, status, billing, stripe_customer_id, stripe_subscription_id, signed_off_at")
+      .select("id, status, stage, billing, stripe_customer_id, stripe_subscription_id, signed_off_at")
       .eq("id", data.tenantId)
       .maybeSingle();
     const tenant = loaded.data
@@ -737,5 +644,19 @@ export const runBillingAction = createServerFn({ method: "POST" })
 
     const message = bits.join(" ");
     await trail(`${data.action} by ${email}. ${message}`);
+    // Record the stage it was ended at, so Resume order can put it back there.
+    try {
+      await admin.from("build_events").insert({
+        tenant_id: data.tenantId,
+        kind: "billing",
+        stage: ((tenant as { stage?: string | null }).stage as string | null) ?? null,
+        title: data.action === "refund" ? "Package refunded" : "Package ended",
+        body: `${data.action === "refund" ? "Refunded" : "Ended"} by ${email}. ${message}`.trim(),
+        visibility: "internal",
+        actor_email: email,
+      });
+    } catch {
+      /* timeline is best effort */
+    }
     return { ok: true, message };
   });

@@ -662,3 +662,54 @@ ${footer(reason, false)}`;
 
   return { subject, preheader, html: shell({ title: subject, preheader, rows }), text };
 }
+
+// ---------------------------------------------------------------- balance link
+
+export type BalanceLinkData = {
+  firstName: string | null | undefined;
+  dealer: string;
+  amountPence: number;
+  payUrl: string;
+  accountUrl: string;
+};
+
+/** Staff chose to send a payment link for a balance owed. Sent only when staff click Send. */
+export function balanceLinkEmail(d: BalanceLinkData): RenderedEmail {
+  const first = (d.firstName ?? "").trim().split(/\s+/)[0] ?? "";
+  const amount = gbp(d.amountPence);
+  const subject = `Your Forecourt balance: ${amount}`;
+  const preheader = `A secure Stripe link to pay the ${amount} balance on ${d.dealer}.`;
+  const hello = first ? `Hi ${first},` : "Hi,";
+  const intro = `Your order for ${d.dealer} is back on track. There is a balance of ${amount} to pay. The link below takes you to Stripe to pay it securely. It works for 23 hours; reply if you need a new one.`;
+  const pay = safeUrl(d.payUrl) ?? d.accountUrl;
+  const reason = `You are getting this because ${d.dealer} has a Forecourt desk in progress.`;
+  const rows = `
+${header(`${d.dealer} · Balance`)}
+${row(`${h1(`${amount} to pay`)}
+  ${p(esc(hello))}
+  ${p(esc(intro))}`, 0)}
+${row(card(`${label("Balance", C.amber)}
+  ${h2(amount, 6)}
+  ${p("Paid once, by card through Stripe. Nothing is taken until you pay.", { size: 14, top: 8 })}
+  <div style="height:20px;line-height:20px;font-size:0;">&nbsp;</div>
+  ${buttonsRow(primaryButton(pay, `Pay ${amount}`), ghostButton(d.accountUrl, "Open your account"))}`), 24)}
+${row(contactCard(), 16)}
+${signoff("Thanks,")}
+${footer(reason, true)}`;
+  const text = [
+    `${amount} to pay`,
+    "",
+    hello,
+    "",
+    intro,
+    "",
+    `Pay ${amount}: ${pay}`,
+    `Open your account: ${d.accountUrl}`,
+    "",
+    "Thanks,",
+    "Matt Girvan",
+    "Founder, Forecourt",
+    ...textFooter(reason, true),
+  ].join("\n");
+  return { subject, preheader, html: shell({ title: subject, preheader, rows }), text };
+}

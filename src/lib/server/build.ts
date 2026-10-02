@@ -87,7 +87,7 @@ export const getBuild = createServerFn({ method: "POST" })
     const tq = sb
       .from("tenants")
       .select(
-        "id, slug, name, legal, phone, email, domain, sites, features, ingest, plan, billing, staff_json, principal_name, group_name, pack_json, stage, preview_url, repo_slug, user_id",
+        "id, slug, name, legal, phone, email, domain, sites, features, ingest, plan, billing, staff_json, principal_name, group_name, pack_json, stage, preview_url, repo_slug, user_id, status",
       )
       .eq("id", data.tenantId)
       .maybeSingle();
@@ -139,6 +139,8 @@ export const getBuild = createServerFn({ method: "POST" })
       jobs: jobs ?? [],
       plan: t.plan as string,
       billing: t.billing as string,
+      /** Staff only: refunded or cancelled files show the Resume order hint. */
+      status: team ? ((t.status as string | null) ?? null) : null,
       serverFnEnvKeys,
     };
   });
