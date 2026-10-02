@@ -14,8 +14,12 @@ select set_config(
 )
 from tenants t
 join auth.users u on u.id = t.user_id
-where lower(coalesce(u.email, '')) not like '%@forecourt.me'
-  and lower(coalesce(u.email, '')) not in (select email from team_members)
+-- Skip anyone with a team_members row (any status): staff pass the guard, so
+-- testing as one of them would prove nothing. Also skip hello@forecourt.me,
+-- which is staff even without a row. Other @forecourt.me sign-ups are NOT
+-- skipped: the domain grants nothing, so they are customers like any other.
+where lower(coalesce(u.email, '')) not in (select email from team_members)
+  and lower(coalesce(u.email, '')) <> 'hello@forecourt.me'
 order by t.id
 limit 1;
 

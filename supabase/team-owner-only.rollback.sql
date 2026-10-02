@@ -1,0 +1,108 @@
+-- Undo team-owner-only.sql: back to how #41 left the team rules.
+-- Paste into the SQL editor on https://hxodmtmrnpxzkfwhrsjg.supabase.co
+-- Changes no rows. Safe to run more than once.
+--
+-- This REOPENS the problems team-owner-only.sql fixed: any staff member
+-- (operators and unaccepted invites too) can again add owners, promote
+-- themselves or revoke others. Only use it if the office is broken, and
+-- revert the code of the follow-up PR at the same time.
+--
+-- If hello@ sees an empty office, sign out and back in first; then ask Forge.
+-- Do not use this file for that unless Forge says so. (Forge may find the
+-- session check is the cause, and this file removes it; or that hello@'s row
+-- was revoked, which needs only this line instead:
+--   update team_members set status = 'active' where email = 'hello@forecourt.me';)
+--
+-- Kept: the invited_at and accepted_at columns (harmless), the
+-- (select public.is_team()) wrapping on other tables (same meaning), and
+-- auth_email_verified(). This file never drops or replaces that function:
+-- it is either the stand-in (always yes) or the sign-in work's real check,
+-- and is_team() below still calls it, so the real check stays on.
+-- Removed: the "session must still exist" check, so this file is also the
+-- way back if that check ever causes trouble.
+
+drop policy if exists "owner add members" on public.team_members;
+drop policy if exists "owner change members" on public.team_members;
+drop policy if exists "owner remove members" on public.team_members;
+drop policy if exists "team read members" on public.team_members;
+drop policy if exists "team write members" on public.team_members;
+drop policy if exists "owner add team_emails" on public.team_emails;
+drop policy if exists "owner change team_emails" on public.team_emails;
+drop policy if exists "owner remove team_emails" on public.team_emails;
+drop policy if exists "team read team_emails" on public.team_emails;
+drop policy if exists "team write team_emails" on public.team_emails;
+
+drop trigger if exists team_members_guard on public.team_members;
+drop function if exists public.team_members_guard();
+drop function if exists public.accept_team_invite();
+drop function if exists public.is_team_owner();
+
+-- The stand-in, only if it is missing (same block as team-owner-only.sql).
+do $$
+begin
+  if to_regprocedure('public.auth_email_verified()') is null then
+    execute $create$
+      create function public.auth_email_verified()
+      returns boolean
+      language sql
+      stable
+      security definer
+      set search_path = ''
+      as $body$ select true /* forecourt placeholder: signin-verified-guard.sql replaces this */ $body$
+    $create$;
+    execute 'grant execute on function public.auth_email_verified() to anon, authenticated';
+  end if;
+end;
+$$;
+
+-- is_team() as #41's team-domain-hotfix.sql had it (invited counts), still
+-- behind auth_email_verified().
+create or replace function is_team()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  with me as (
+    select lower(coalesce(auth.jwt() ->> 'email', '')) as email
+  )
+  select
+    public.auth_email_verified()
+    and (select email from me) <> ''
+    -- Revoked is never staff.
+    and not exists (
+      select 1 from team_members t
+      where t.email = (select email from me) and t.status = 'revoked'
+    )
+    -- hello@forecourt.me only counts once that auth user's email is confirmed.
+    and (
+      (select email from me) <> 'hello@forecourt.me'
+      or exists (
+        select 1 from auth.users u
+        where u.id = auth.uid()
+          and lower(u.email) = 'hello@forecourt.me'
+          and u.email_confirmed_at is not null
+      )
+    )
+    and (
+      exists (
+        select 1 from team_members t
+        where t.email = (select email from me) and t.status in ('active', 'invited')
+      )
+      or (select email from me) = 'hello@forecourt.me'
+      or (
+        not exists (select 1 from team_members where status = 'active')
+        and exists (select 1 from team_emails te where te.email = (select email from me))
+      )
+    );
+$$;
+
+create policy "team read members" on public.team_members
+  for select using (is_team());
+create policy "team write members" on public.team_members
+  for all using (is_team()) with check (is_team());
+create policy "team read team_emails" on public.team_emails
+  for select using (is_team());
+create policy "team write team_emails" on public.team_emails
+  for all using (is_team()) with check (is_team());

@@ -12,7 +12,10 @@ This is the **office** — sign-in, tenants, orders. Not Aberdeen. Not a custome
    - Site URL: `https://www.forecourt.me`
    - Redirects: `https://www.forecourt.me/**` and `https://forecourt.me/**`
 4. Authentication → Providers → Email on (magic link)
+   - Authentication → Emails: set **Magic link** to `magic-link.html` and **Confirm signup** to `confirm-signup.html`. Both show the code and a sign-in link. With Confirm email on, a brand-new person (for example a new staff invite) gets the Confirm signup email, so it needs the same code and link (its link uses `type=signup`; the app handles both).
+   - Keep **Phone** sign-in off. An SMS code would look like an email code to the staff invite check (accounts with a phone number cannot accept a staff invite anyway).
 5. Settings → API → anon key is already in the app (public by design; RLS holds the line)
+6. SQL editor → paste `team-owner-only.sql` → run (who is staff and who is owner; portal.sql and staff.sql need it first)
 7. SQL editor → paste `portal.sql` → run (dealer notes, support messages, team office)
 8. SQL editor → paste `staff.sql` → run (staff roles, invite, revoke)
 9. SQL editor → paste `build.sql` → run (order timeline, pack, meetings)
@@ -42,6 +45,28 @@ This is the **office** — sign-in, tenants, orders. Not Aberdeen. Not a custome
     6. If any stranger had owner access, look at what they did: notes and build events they wrote, any refunds or Resume actions, and any payment links made while they were in.
     - If hello@ sees an empty office, sign out and back in first; then ask Forge. Do not use the rollback for that. (If Forge finds hello@'s team row was revoked, the fix is one line: `update team_members set status = 'active' where email = 'hello@forecourt.me';`)
     - `team-domain-hotfix.rollback.sql` is a last resort only. It puts the domain rule back and reopens the hole.
+    - After #42 is merged, only ever re-run the copy of `team-domain-hotfix.sql` on main. The original #41 copy would let unaccepted invites count as staff again.
+
+16. Team safety follow-up (only owners can change the team). Do this after step 15 is finished and #41 is live:
+    1. SQL editor: paste `team-owner-only.check.sql`, run it, and save the output (it changes nothing).
+    2. SQL editor: paste `team-owner-only.sql` and run it. Run the check again and save the output. Section 3 should list four functions, section 4 should show one row, section 6 should show no rows, and section 7 should show `placeholder (always yes)` and `calls the guard, checks the session` twice.
+    3. Merge the follow-up PR and wait until the Production deploy on Vercel shows Ready. Sign in as hello@forecourt.me and check that /office loads and the staff list shows.
+    - Why this order: either order is safe (nobody gets extra access in between), but until both are done, people you invite cannot get in yet.
+    - Before you start: in Supabase, Authentication, Emails, check the **Confirm signup** template is `confirm-signup.html` (see step 4), and that **Phone** sign-in is off.
+    - Accepting an invite needs `SUPABASE_SERVICE_ROLE_KEY` on Vercel Production (the same key as step 13). Without it, invites stay pending and nobody new can get in.
+    - What changes for you:
+      - Only owners can add, remove or change staff. Operators cannot, and neither can someone who has been invited but not signed in yet.
+      - Before inviting, check the address has no account you don't recognise: in Supabase, Authentication, Users, search for the address. If an account is there that you or the new person did not make, do not invite yet: ask Forge.
+      - Someone you invite gets no access until they sign in with the code from the invite email. A password, Google, a passkey, or a code from before the invite does not count. If they are already signed in some other way, the office tells them to sign out and get an email code.
+      - When they accept, the app gives their account a new random password and signs out every other session on it, so nobody else who knew an old password can get in. They keep signing in with email codes.
+      - Signing out ends database access at once: staff access needs the sign-in session to still exist, so a signed-out token stops working straight away instead of an hour later.
+      - An invite cannot be accepted while the account has another way to sign in: Google or a phone number linked to it, a passkey, or an authenticator app. If the app cannot check for passkeys, it refuses too. The office tells the person to tell you. Do not remove these yourself: ask Forge first, because it can mean someone else set the account up.
+      - If accepting goes wrong part way, the invite is put back and the office says "Sorry, we couldn't finish accepting your invite. Please try again, or tell Matt." If the Vercel logs ever show `SECURITY: team row ... is ACTIVE`, revoke that person in the office Staff list straight away and tell Forge.
+      - A staff email address cannot be changed. To move someone to a new address, revoke the old one and invite the new one.
+      - Restoring a revoked person sends them a fresh invite. They get access again once they sign in from that email.
+      - hello@forecourt.me can only be changed here in the SQL editor, never from the office. If hello@ sees an empty office, sign out and back in first; then ask Forge. The step 15 line only fixes a revoked hello@ row, not a sign-in session problem.
+    - Only ever re-run the copies of `team-owner-only.sql` and `team-domain-hotfix.sql` on main. Section 7 of the check shows whether the sign-in guard is still on.
+    - `team-owner-only.rollback.sql` is a last resort only. It lets any staff member change the team again. It keeps the sign-in guard and drops the session check.
 
 Running the tests needs Node 22.6 or later (`npm test` uses `node --test` with file globs and TypeScript type stripping).
 

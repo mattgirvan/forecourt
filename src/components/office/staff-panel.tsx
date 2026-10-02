@@ -64,7 +64,7 @@ export function StaffPanel({
               await inviteStaff({ data: { token, email, name, role } });
               setEmail("");
               setName("");
-            }, "Invite sent. They get a sign-in code.");
+            }, "Invite sent. They get access once they sign in with the code from that email.");
           }}
         >
           <div className="text-sm font-medium">Add someone</div>
@@ -166,7 +166,7 @@ export function StaffPanel({
                     onClick={() =>
                       void run(
                         () => setStaffStatus({ data: { token, email: m.email, status: "active" } }),
-                        "Access restored.",
+                        "Invite sent again. They get access once they sign in from that email.",
                       )
                     }
                   >

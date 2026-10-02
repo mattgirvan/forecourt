@@ -31,4 +31,4 @@ alter table email_log enable row level security;
 
 drop policy if exists "team read email log" on email_log;
 create policy "team read email log" on email_log
-  for select using (is_team());
+  for select using ((select public.is_team()));

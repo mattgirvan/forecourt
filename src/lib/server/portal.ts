@@ -3,7 +3,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { gbpPence, normalizeBilling, normalizePlan } from "@/lib/catalog";
 import { SUPABASE_ANON, SUPABASE_URL } from "@/lib/sb";
 import { SITE } from "@/lib/site";
-import { TEAM_EMAILS, type StaffRole, type StaffStatus } from "@/lib/team";
+import { TEAM_EMAILS, teamChangeRefusal, type StaffRole, type StaffStatus } from "@/lib/team";
 import { actor, sbAdmin, stripeSecret } from "@/lib/server/staff-actor";
 import { startMonthlyForTenant } from "@/lib/server/billing-go-live";
 import { tenantEnded } from "@/lib/server/billing-start";
@@ -23,8 +23,8 @@ import { FLAG_HANDLED_TITLE, FLAG_TITLES, boardFlags, handledNote, type FlagKind
 export const whoAmI = createServerFn({ method: "POST" })
   .validator((d: { token: string }) => d)
   .handler(async ({ data }) => {
-    const { email, team, role, name } = await actor(data.token);
-    return { email, team, role, name };
+    const { email, team, role, name, pendingInvite, acceptProblem } = await actor(data.token);
+    return { email, team, role, name, pendingInvite, acceptProblem };
   });
 
 export const listAllTenants = createServerFn({ method: "POST" })
@@ -359,10 +359,13 @@ export const inviteStaff = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { sb, team, role, email: by } = await actor(data.token);
     if (!team) throw new Error("Office is for the Forecourt team.");
-    if (role !== "owner") throw new Error("Only an owner can add staff.");
     const email = data.email.trim().toLowerCase();
-    if (!email.includes("@")) throw new Error("Need an email.");
+    const { data: existing } = await sb.from("team_members").select("status").eq("email", email).maybeSingle();
+    const refusal = teamChangeRefusal({ actorRole: role, actorEmail: by, target: email, change: "invite", targetStatus: existing?.status });
+    if (refusal) throw new Error(refusal);
     const staffRole: StaffRole = data.role === "owner" ? "owner" : "operator";
+    // Always "invited": the database stamps invited_at, and the person only
+    // gets access once they sign in from this email (accept_team_invite).
     const { error } = await sb.from("team_members").upsert(
       {
         email,
@@ -383,13 +386,15 @@ export const setStaffRole = createServerFn({ method: "POST" })
   .validator((d: { token: string; email: string; role: StaffRole }) => d)
   .handler(async ({ data }) => {
     const { sb, team, role, email } = await actor(data.token);
-    if (!team || role !== "owner") throw new Error("Only an owner can change roles.");
+    if (!team) throw new Error("Only an owner can change roles.");
     const target = data.email.trim().toLowerCase();
+    const refusal = teamChangeRefusal({ actorRole: role, actorEmail: email, target, change: "role" });
+    if (refusal) throw new Error(refusal);
     if (target === email && data.role !== "owner") {
       const { data: owners } = await sb.from("team_members").select("email").eq("role", "owner").eq("status", "active");
       if ((owners ?? []).length <= 1) throw new Error("Keep at least one owner.");
     }
-    const { error } = await sb.from("team_members").update({ role: data.role }).eq("email", target);
+    const { error } = await sb.from("team_members").update({ role: data.role === "owner" ? "owner" : "operator" }).eq("email", target);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -398,10 +403,12 @@ export const setStaffStatus = createServerFn({ method: "POST" })
   .validator((d: { token: string; email: string; status: StaffStatus }) => d)
   .handler(async ({ data }) => {
     const { sb, team, role, email } = await actor(data.token);
-    if (!team || role !== "owner") throw new Error("Only an owner can change access.");
+    if (!team) throw new Error("Only an owner can change access.");
     const target = data.email.trim().toLowerCase();
-    if (target === email && data.status === "revoked") throw new Error("You cannot revoke yourself.");
-    if (data.status === "revoked") {
+    const restoring = data.status !== "revoked";
+    const refusal = teamChangeRefusal({ actorRole: role, actorEmail: email, target, change: restoring ? "restore" : "revoke" });
+    if (refusal) throw new Error(refusal);
+    if (!restoring) {
       const { data: row } = await sb.from("team_members").select("role").eq("email", target).maybeSingle();
       if (row?.role === "owner") {
         const { data: owners } = await sb.from("team_members").select("email").eq("role", "owner").eq("status", "active");
@@ -409,12 +416,21 @@ export const setStaffStatus = createServerFn({ method: "POST" })
           throw new Error("Keep at least one owner.");
         }
       }
+      // Revoke first, then drop the team_emails row: never leave a team_emails
+      // row behind without its revoked team_members row.
+      const { error } = await sb.from("team_members").update({ status: "revoked" }).eq("email", target);
+      if (error) throw new Error(error.message);
       await sb.from("team_emails").delete().eq("email", target);
-    } else {
-      await sb.from("team_emails").upsert({ email: target });
+      return { ok: true };
     }
-    const { error } = await sb.from("team_members").update({ status: data.status }).eq("email", target);
+    // Restoring someone is a fresh invite: they get access again once they
+    // sign in from their own email. Nobody can switch access straight on.
+    const { data: row } = await sb.from("team_members").select("status").eq("email", target).maybeSingle();
+    if (row?.status === "active") return { ok: true };
+    const { error } = await sb.from("team_members").update({ status: "invited" }).eq("email", target);
     if (error) throw new Error(error.message);
+    await sb.from("team_emails").upsert({ email: target });
+    await sendSignIn(target, true);
     return { ok: true };
   });
 

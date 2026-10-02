@@ -5,7 +5,7 @@
  * while createFileRoute server.handlers (same path as Stripe webhook) see real env.
  * Desk scaffold and the staff Token chip must share THIS path.
  */
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   buildBriefMarkdown,
   packFromTenant,
@@ -13,9 +13,8 @@ import {
   tenantJson,
 } from "@/lib/build";
 import { normalizeBilling, normalizePlan } from "@/lib/catalog";
-import { env } from "@/lib/env.server";
-import { SUPABASE_ANON, SUPABASE_URL } from "@/lib/sb";
-import { teamAccess } from "@/lib/team";
+// The one staff lookup (active member or confirmed hello@, never the domain).
+import { actor } from "@/lib/server/staff-actor";
 import {
   deskHtmlUrl,
   deskRepoName,
@@ -27,28 +26,6 @@ import {
   type GhTokenSource,
 } from "@/lib/server/desk-scaffold";
 
-function sbFor(token: string) {
-  const key = SUPABASE_ANON || env("VITE_SUPABASE_ANON_KEY") || env("VITE_SUPABASE_PUBLISHABLE_KEY") || "";
-  return createClient(SUPABASE_URL, key, {
-    global: { headers: { Authorization: `Bearer ${token}` } },
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-}
-
-async function actor(token: string) {
-  const sb = sbFor(token);
-  const { data, error } = await sb.auth.getUser(token);
-  if (error || !data.user) throw new Error("Sign in again.");
-  const email = (data.user.email ?? "").toLowerCase();
-  const { data: member } = await sb
-    .from("team_members")
-    .select("status, role")
-    .eq("email", email)
-    .maybeSingle();
-  // Never by email domain: a team_members row, or a confirmed hello@forecourt.me.
-  const { team } = teamAccess({ email, emailConfirmed: Boolean(data.user.email_confirmed_at), member });
-  return { sb, userId: data.user.id, email, team };
-}
 
 export type TokenStatusPayload = {
   configured: boolean;
