@@ -1,4 +1,4 @@
-import { SITE } from "./site";
+import { OG_IMAGE_META, SITE } from "./site";
 
 export type PageSeo = {
   title: string;
@@ -23,11 +23,10 @@ export function pageHead({ title, description, path = "/", ogDescription, noinde
       { property: "og:description", content: ogDesc },
       { property: "og:url", content: url },
       { property: "og:type", content: "website" },
-      { property: "og:image", content: `${SITE.url}/og.jpg` },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:title", content: title },
       { name: "twitter:description", content: ogDesc },
-      { name: "twitter:image", content: `${SITE.url}/og.jpg` },
+      ...OG_IMAGE_META,
       ...(noindex ? [{ name: "robots", content: "noindex, nofollow" }] : []),
     ],
     links: [{ rel: "canonical", href: url }],
