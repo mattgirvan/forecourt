@@ -662,3 +662,104 @@ ${footer(reason, false)}`;
 
   return { subject, preheader, html: shell({ title: subject, preheader, rows }), text };
 }
+
+// ---------------------------------------------------------------- balance link
+
+export type BalanceLinkData = {
+  firstName: string | null | undefined;
+  dealer: string;
+  amountPence: number;
+  payUrl: string;
+  accountUrl: string;
+};
+
+/** Staff chose to send a payment link for a balance owed. Sent only when staff click Send. */
+export function balanceLinkEmail(d: BalanceLinkData): RenderedEmail {
+  const first = (d.firstName ?? "").trim().split(/\s+/)[0] ?? "";
+  const amount = gbp(d.amountPence);
+  const subject = `Your Forecourt balance: ${amount}`;
+  const preheader = `A secure Stripe link to pay the ${amount} balance on ${d.dealer}.`;
+  const hello = first ? `Hi ${first},` : "Hi,";
+  const intro = `There is a balance of ${amount} to pay on your order for ${d.dealer}. The link below takes you to Stripe to pay it securely. It works for 23 hours. Reply if you need a new one.`;
+  const pay = safeUrl(d.payUrl) ?? d.accountUrl;
+  const reason = `You are getting this because ${d.dealer} has a Forecourt desk in progress.`;
+  const rows = `
+${header(`${d.dealer} · Balance`)}
+${row(`${h1(`${amount} to pay`)}
+  ${p(esc(hello))}
+  ${p(esc(intro))}`, 0)}
+${row(card(`${label("Balance", C.amber)}
+  ${h2(amount, 6)}
+  ${p("Paid once, by card through Stripe. Nothing is taken until you pay.", { size: 14, top: 8 })}
+  <div style="height:20px;line-height:20px;font-size:0;">&nbsp;</div>
+  ${buttonsRow(primaryButton(pay, `Pay ${amount}`), ghostButton(d.accountUrl, "Open your account"))}`), 24)}
+${row(contactCard(), 16)}
+${signoff("Thanks,")}
+${footer(reason, true)}`;
+  const text = [
+    `${amount} to pay`,
+    "",
+    hello,
+    "",
+    intro,
+    "",
+    `Pay ${amount}: ${pay}`,
+    `Open your account: ${d.accountUrl}`,
+    "",
+    "Thanks,",
+    "Matt Girvan",
+    "Founder, Forecourt",
+    ...textFooter(reason, true),
+  ].join("\n");
+  return { subject, preheader, html: shell({ title: subject, preheader, rows }), text };
+}
+
+export type MonthlyRestartData = {
+  firstName?: string | null;
+  dealer: string;
+  monthlyPence: number;
+  /** Day it was charged, e.g. "2 Oct 2026" (UK). */
+  chargedOn: string;
+  accountUrl: string;
+};
+
+/** Staff resumed the order and, with the customer's agreement, restarted the monthly: the first month was charged today. */
+export function monthlyRestartEmail(d: MonthlyRestartData): RenderedEmail {
+  const first = (d.firstName ?? "").trim().split(/\s+/)[0] ?? "";
+  const amount = gbp(d.monthlyPence);
+  const subject = `Your Forecourt monthly has restarted: ${amount} charged`;
+  const preheader = `We charged ${amount} for the first month on ${d.chargedOn}, as agreed.`;
+  const hello = first ? `Hi ${first},` : "Hi,";
+  const intro = `As agreed, your ${amount} a month Forecourt plan for ${d.dealer} has restarted. We charged ${amount} for the first month to the card on file on ${d.chargedOn}. After that it is ${amount} each month. Your receipt is in your account.`;
+  const reason = `You are getting this because ${d.dealer} has a Forecourt plan.`;
+  const rows = `
+${header(`${d.dealer} · Monthly plan`)}
+${row(`${h1(`${amount} charged`)}
+  ${p(esc(hello))}
+  ${p(esc(intro))}`, 0)}
+${row(card(`${label("Monthly plan", C.amber)}
+  ${h2(`${amount} a month`, 6)}
+  ${p(`First month charged on ${esc(d.chargedOn)}. If this is not what you agreed, write back and we will put it right.`, { size: 14, top: 8 })}
+  <div style="height:20px;line-height:20px;font-size:0;">&nbsp;</div>
+  ${buttonsRow(primaryButton(d.accountUrl, "Open your account"))}`), 24)}
+${row(contactCard(), 16)}
+${signoff("Thanks,")}
+${footer(reason, true)}`;
+  const text = [
+    `${amount} charged`,
+    "",
+    hello,
+    "",
+    intro,
+    "",
+    "If this is not what you agreed, write back and we will put it right.",
+    "",
+    `Open your account: ${d.accountUrl}`,
+    "",
+    "Thanks,",
+    "Matt Girvan",
+    "Founder, Forecourt",
+    ...textFooter(reason, true),
+  ].join("\n");
+  return { subject, preheader, html: shell({ title: subject, preheader, rows }), text };
+}

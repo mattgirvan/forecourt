@@ -14,8 +14,14 @@ import {
 } from "@/lib/catalog";
 import { seedPaidOrder } from "@/lib/server/build";
 import { sendStaffAlert } from "@/lib/server/journey-email";
-import { expireOpenSessions } from "@/lib/server/checkout-sessions";
-import { checkoutRefusal, type GuardTenant, type StoredSubscription } from "@/lib/server/checkout-guard";
+import { OPEN_SESSION_MAX, expireOpenSessions, recentPendingCutoff } from "@/lib/server/checkout-sessions";
+import {
+  PLAN_CHECK_FAILED_MESSAGE,
+  checkoutRefusal,
+  trialAlreadyUsed,
+  type GuardTenant,
+  type StoredSubscription,
+} from "@/lib/server/checkout-guard";
 import { confirmPaymentFlow, supabasePaymentStore, type SupabaseLike } from "@/lib/server/payments";
 import { env } from "@/lib/env.server";
 import { looksLikeTeam } from "@/lib/team";
@@ -112,13 +118,13 @@ export const listMyOrders = createServerFn({ method: "POST" })
     const { sb, userId } = await uid(data.token);
     const { data: rows, error } = await sb
       .from("orders")
-      .select("id, plan, amount_pence, status, stripe_session_id, kind, site_count")
+      .select("id, plan, amount_pence, status, stripe_session_id, kind, site_count, tenant_id")
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
     if (error) {
       const { data: fallback, error: err2 } = await sb
         .from("orders")
-        .select("id, plan, amount_pence, status, stripe_session_id")
+        .select("id, plan, amount_pence, status, stripe_session_id, tenant_id")
         .eq("user_id", userId)
         .order("created_at", { ascending: false });
       if (err2) throw new Error(err2.message);
@@ -331,12 +337,23 @@ export const startCheckout = createServerFn({ method: "POST" })
       }
     }
     const { data: mine } = await sb.from("tenants").select("id, name, plan, status, billing, stage").eq("user_id", userId);
+    // One trial per site: a refunded or cancelled trial cannot buy another trial.
+    let trialUsed = false;
+    if (data.billing === "trial") {
+      const { data: past, error: pastErr } = await moneyWriter(sb)
+        .from("orders")
+        .select("kind, plan, status")
+        .eq("tenant_id", data.tenantId);
+      if (pastErr) return { url: null, message: PLAN_CHECK_FAILED_MESSAGE };
+      trialUsed = trialAlreadyUsed((past ?? []) as { kind?: string | null; plan?: string | null; status?: string | null }[]);
+    }
     const refusal = checkoutRefusal({
       tenant: owned,
       billing: data.billing,
       convertFromTrial: data.convertFromTrial,
       storedSubscription,
       otherTenants: (mine ?? []) as GuardTenant[],
+      trialUsed,
     });
     if (refusal) return { url: null, message: refusal };
 
@@ -347,7 +364,10 @@ export const startCheckout = createServerFn({ method: "POST" })
         .from("orders")
         .select("stripe_session_id")
         .eq("tenant_id", data.tenantId)
-        .eq("status", "pending");
+        .eq("status", "pending")
+        .gte("created_at", recentPendingCutoff())
+        .order("created_at", { ascending: false })
+        .limit(OPEN_SESSION_MAX);
       await expireOpenSessions(
         {
           retrieve: (id) => stripe.checkout.sessions.retrieve(id),

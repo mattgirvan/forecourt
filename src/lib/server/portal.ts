@@ -1,106 +1,24 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { createServerFn } from "@tanstack/react-start";
 import { gbpPence, normalizeBilling, normalizePlan } from "@/lib/catalog";
-import { env } from "@/lib/env.server";
 import { SUPABASE_ANON, SUPABASE_URL } from "@/lib/sb";
 import { SITE } from "@/lib/site";
 import { TEAM_EMAILS, looksLikeTeam, type StaffRole, type StaffStatus } from "@/lib/team";
+import { actor, sbAdmin, stripeSecret } from "@/lib/server/staff-actor";
 import { startMonthlyForTenant } from "@/lib/server/billing-go-live";
 import { tenantEnded } from "@/lib/server/billing-start";
-import { findSetupPayment, refundConfirmText, type SessionLike } from "@/lib/server/refund-target";
-
-function sbFor(token: string) {
-  const key = SUPABASE_ANON || env("VITE_SUPABASE_ANON_KEY") || env("VITE_SUPABASE_PUBLISHABLE_KEY") || "";
-  return createClient(SUPABASE_URL, key, {
-    global: { headers: { Authorization: `Bearer ${token}` } },
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-}
-
-function sbAdmin() {
-  const key = env("SUPABASE_SERVICE_ROLE_KEY") ?? env("GROK_SUPABASE_SERVICE_ROLE_KEY");
-  if (!key) return null;
-  return createClient(SUPABASE_URL, key, { auth: { persistSession: false, autoRefreshToken: false } });
-}
-
-async function actor(token: string) {
-  const sb = sbFor(token);
-  const { data, error } = await sb.auth.getUser(token);
-  if (error || !data.user) throw new Error("Sign in again.");
-  const email = (data.user.email ?? "").toLowerCase();
-
-  const { data: member } = await sb
-    .from("team_members")
-    .select("email, role, status, name")
-    .eq("email", email)
-    .maybeSingle();
-
-  if (member) {
-    if (member.status === "revoked") {
-      return {
-        sb,
-        userId: data.user.id,
-        email,
-        team: false,
-        role: null as StaffRole | null,
-        name: member.name as string,
-      };
-    }
-    if (member.status === "invited") {
-      void sb.from("team_members").update({ status: "active", last_seen_at: new Date().toISOString() }).eq("email", email);
-    } else {
-      void sb.from("team_members").update({ last_seen_at: new Date().toISOString() }).eq("email", email);
-    }
-    return {
-      sb,
-      userId: data.user.id,
-      email,
-      team: true,
-      role: (member.role as StaffRole) ?? "operator",
-      name: member.name as string,
-    };
-  }
-
-  if (looksLikeTeam(email)) {
-    const admin = sbAdmin();
-    if (admin) {
-      await admin.from("team_members").upsert(
-        {
-          email,
-          name: email === "hello@forecourt.me" ? "Matt Girvan" : "",
-          role: "owner",
-          status: "active",
-          last_seen_at: new Date().toISOString(),
-        },
-        { onConflict: "email" },
-      );
-      await admin.from("team_emails").upsert({ email });
-    }
-    return {
-      sb,
-      userId: data.user.id,
-      email,
-      team: true,
-      role: "owner" as StaffRole,
-      name: email === "hello@forecourt.me" ? "Matt Girvan" : "",
-    };
-  }
-
-  const { data: row } = await sb.from("team_emails").select("email").eq("email", email).maybeSingle();
-  const team = Boolean(row) || looksLikeTeam(email);
-  return {
-    sb,
-    userId: data.user.id,
-    email,
-    team,
-    role: (team ? "owner" : null) as StaffRole | null,
-    name: "",
-  };
-}
-
-function stripeSecret() {
-  return env("GROK_STRIPE_SECRET_KEY") ?? env("STRIPE_SECRET_KEY");
-}
+import {
+  ALL_REFUNDED_TEXT,
+  findRefundTarget,
+  duplicateHandledProblem,
+  flaggedDuplicateSessions,
+  flaggedDuplicateSubscriptions,
+  refundConfirmText,
+  sessionIdsIn,
+  type SessionLike,
+} from "@/lib/server/refund-target";
+import { BALANCE_LINK_TITLE, ENDED_EVENT_TITLES } from "@/lib/server/resume-order";
+import { FLAG_HANDLED_TITLE, FLAG_TITLES, boardFlags, handledNote, type FlagKind } from "@/lib/server/payments";
 
 export const whoAmI = createServerFn({ method: "POST" })
   .validator((d: { token: string }) => d)
@@ -189,8 +107,20 @@ export const listOfficeBoard = createServerFn({ method: "POST" })
         lastBy[id] = { at: m.created_at as string, from_team: Boolean(m.from_team) };
       }
     }
+    // Duplicate and look-alike flags as badges, so staff see them without opening the file.
+    let flags: ReturnType<typeof boardFlags> = {};
+    if (ids.length) {
+      const { data: flagged } = await sb
+        .from("build_events")
+        .select("tenant_id, title, body, created_at")
+        .in("tenant_id", ids)
+        .in("title", [FLAG_TITLES.duplicate_payment, FLAG_TITLES.similar_dealer, FLAG_HANDLED_TITLE])
+        .order("created_at", { ascending: true });
+      flags = boardFlags((flagged ?? []) as { tenant_id: number; title: string | null; body: string | null; created_at: string }[]);
+    }
     return tenants.map((t) => ({
       ...t,
+      flags: flags[t.id] ?? null,
       last_message_at: lastBy[t.id]?.at ?? null,
       waiting: lastBy[t.id] ? !lastBy[t.id].from_team : t.stage === "paid" || t.stage === "brief",
     }));
@@ -512,7 +442,7 @@ async function locateStripeFile(
   admin: SupabaseClient,
   stripe: StripeClient,
   tenantId: number,
-  tenant: { stripe_customer_id?: unknown; stripe_subscription_id?: unknown },
+  tenant: { stripe_customer_id?: unknown; stripe_subscription_id?: unknown; cancelled_at?: unknown },
 ) {
   const { data: orders } = await admin
     .from("orders")
@@ -520,14 +450,38 @@ async function locateStripeFile(
     .eq("tenant_id", tenantId)
     .order("created_at", { ascending: false })
     .limit(8);
+  // Flags, end marks and balance links on the timeline decide which payments
+  // are the site's own for its current package (same rule as Resume order).
+  const { data: eventRows } = await admin
+    .from("build_events")
+    .select("kind, title, body, created_at")
+    .eq("tenant_id", tenantId)
+    .order("created_at", { ascending: true });
+  const events = (eventRows ?? []) as { kind: string | null; title: string | null; body: string | null; created_at: string }[];
+  const endedAt = events
+    .filter((e) => e.kind === "billing" && (ENDED_EVENT_TITLES as readonly string[]).includes(e.title ?? ""))
+    .map((e) => Math.floor(Date.parse(e.created_at) / 1000));
+  if (typeof tenant.cancelled_at === "string") endedAt.push(Math.floor(Date.parse(tenant.cancelled_at) / 1000));
+  const duplicateSessionIds = flaggedDuplicateSessions(
+    events,
+    ((orders ?? []) as Array<{ id: number; stripe_session_id?: string | null }>).map((o) => ({ id: o.id, stripe_session_id: o.stripe_session_id })),
+  );
+  const ids: string[] = [];
+  for (const o of (orders ?? []) as Array<{ stripe_session_id?: string | null }>) {
+    if (o.stripe_session_id?.startsWith("cs_") && !ids.includes(o.stripe_session_id)) ids.push(o.stripe_session_id);
+  }
+  for (const e of events) {
+    if (e.kind !== "billing" || e.title !== BALANCE_LINK_TITLE) continue;
+    for (const sid of sessionIdsIn(e.body)) if (!ids.includes(sid)) ids.push(sid);
+  }
 
   let subId = (tenant.stripe_subscription_id as string | null) || null;
   let customerId = (tenant.stripe_customer_id as string | null) || null;
   const sessions: SessionLike[] = [];
-  for (const o of (orders ?? []) as Array<{ stripe_session_id?: string | null; stripe_subscription_id?: string | null }>) {
+  for (const o of (orders ?? []) as Array<{ stripe_subscription_id?: string | null }>) {
     if (o.stripe_subscription_id && !subId) subId = o.stripe_subscription_id;
-    const sid = o.stripe_session_id;
-    if (!sid || !sid.startsWith("cs_")) continue;
+  }
+  for (const sid of ids) {
     try {
       const session = await stripe.checkout.sessions.retrieve(sid);
       if (!customerId && typeof session.customer === "string") customerId = session.customer;
@@ -540,16 +494,27 @@ async function locateStripeFile(
         invoice: typeof session.invoice === "string" ? session.invoice : null,
         subscription: typeof session.subscription === "string" ? session.subscription : null,
         amount_total: session.amount_total,
+        created: session.created,
         metadata: { kind: session.metadata?.kind ?? null, monthly_from: session.metadata?.monthly_from ?? null },
       });
     } catch {
-      /* next order */
+      /* next session */
     }
   }
+  // Newest first, as findSetupPayment's callers always passed them.
+  sessions.sort((a, b) => (b.created ?? 0) - (a.created ?? 0));
 
-  const setup = await findSetupPayment({
+  const storedSubId = (tenant.stripe_subscription_id as string | null) || null;
+  const found = await findRefundTarget({
     sessions,
     subscriptionId: subId,
+    duplicateSessionIds,
+    endedAt,
+    refundedPence: async (pi) => {
+      const intent = await stripe.paymentIntents.retrieve(pi, { expand: ["latest_charge"] });
+      const charge = intent.latest_charge && typeof intent.latest_charge !== "string" ? intent.latest_charge : null;
+      return charge?.amount_refunded ?? 0;
+    },
     listInvoices: async (sub) =>
       (await stripe.invoices.list({ subscription: sub, limit: 20 })).data.map((i) => ({
         id: i.id ?? "",
@@ -566,9 +531,14 @@ async function locateStripeFile(
             typeof p.payment?.payment_intent === "string" ? p.payment.payment_intent : (p.payment?.payment_intent?.id ?? null),
         },
       })),
-  }).catch(() => null);
+  }).catch(() => ({ target: null, allRefunded: false }));
+  const setup = found.target;
 
-  return { subId, customerId, setup };
+  // The subscription Refund may cancel: the site's own, or the one on the setup checkout it refunds.
+  // Never a duplicate's: that would leave the real package running unbilled or end the wrong one.
+  const setupSub = setup?.sessionId ? (sessions.find((x) => x.id === setup.sessionId)?.subscription ?? null) : null;
+  const refundSubId = storedSubId || setupSub || (setup && !setup.sessionId ? subId : null);
+  return { subId, customerId, setup, refundSubId, allRefunded: found.allRefunded };
 }
 
 /** Staff only: what Refund would send back, for the confirm. Changes nothing. */
@@ -581,15 +551,15 @@ export const refundPreview = createServerFn({ method: "POST" })
     const admin = sbAdmin() ?? sb;
     const { data: tenant } = await admin
       .from("tenants")
-      .select("id, stripe_customer_id, stripe_subscription_id")
+      .select("id, stripe_customer_id, stripe_subscription_id, cancelled_at")
       .eq("id", data.tenantId)
       .maybeSingle();
     if (!tenant) throw new Error("No dealership on this file.");
     const secret = stripeSecret();
     if (!secret) return { text: "Stripe is not connected on the server, so nothing can be refunded from here.", paymentIntent: null };
     const Stripe = (await import("stripe")).default;
-    const { setup } = await locateStripeFile(admin, new Stripe(secret), data.tenantId, tenant);
-    return { text: refundConfirmText(setup, gbpPence), paymentIntent: setup?.paymentIntent ?? null };
+    const { setup, allRefunded } = await locateStripeFile(admin, new Stripe(secret), data.tenantId, tenant);
+    return { text: allRefunded ? ALL_REFUNDED_TEXT : refundConfirmText(setup, gbpPence), paymentIntent: setup?.paymentIntent ?? null };
   });
 
 export const runBillingAction = createServerFn({ method: "POST" })
@@ -610,7 +580,7 @@ export const runBillingAction = createServerFn({ method: "POST" })
     const admin = sbAdmin() ?? sb;
     const loaded = await admin
       .from("tenants")
-      .select("id, status, billing, stripe_customer_id, stripe_subscription_id, signed_off_at")
+      .select("id, status, stage, billing, stripe_customer_id, stripe_subscription_id, signed_off_at, cancelled_at")
       .eq("id", data.tenantId)
       .maybeSingle();
     const tenant = loaded.data
@@ -687,6 +657,7 @@ export const runBillingAction = createServerFn({ method: "POST" })
       // Check the setup payment before touching the subscription.
       const target = located.setup;
       if (!target) {
+        if (located.allRefunded) throw new Error(`${ALL_REFUNDED_TEXT} Nothing was changed.`);
         throw new Error(
           "No setup payment found on this file, so nothing was refunded. If they paid, refund in Stripe by hand.",
         );
@@ -694,14 +665,7 @@ export const runBillingAction = createServerFn({ method: "POST" })
       if (data.expectPaymentIntent && data.expectPaymentIntent !== target.paymentIntent) {
         throw new Error("The payment on this file changed since you confirmed. Nothing was refunded. Try again.");
       }
-      if (subId) {
-        try {
-          await stripe.subscriptions.cancel(subId);
-          bits.push("Monthly Stripe subscription cancelled now.");
-        } catch (e) {
-          bits.push(e instanceof Error ? e.message : "Could not cancel the subscription.");
-        }
-      }
+      // Refund first: if Stripe refuses, the subscription is left alone.
       try {
         await stripe.refunds.create(
           { payment_intent: target.paymentIntent },
@@ -718,6 +682,15 @@ export const runBillingAction = createServerFn({ method: "POST" })
         if (!/already been refunded/i.test(msg)) throw new Error(msg);
         bits.push(`Stripe says ${target.label} (${gbpPence(target.amountPence)}) was already refunded.`);
       }
+      const ownSub = located.refundSubId;
+      if (ownSub) {
+        try {
+          await stripe.subscriptions.cancel(ownSub);
+          bits.push("Monthly Stripe subscription cancelled now.");
+        } catch (e) {
+          bits.push(e instanceof Error ? e.message : "Could not cancel the subscription.");
+        }
+      }
       if (target.sessionId) {
         await admin.from("orders").update({ status: "refunded" }).eq("stripe_session_id", target.sessionId);
       } else {
@@ -731,11 +704,135 @@ export const runBillingAction = createServerFn({ method: "POST" })
       cancelled_at: new Date().toISOString(),
     };
     if (customerId) patch.stripe_customer_id = customerId;
-    if (subId) patch.stripe_subscription_id = subId;
+    // Keep the site's own subscription on the file, never a duplicate's.
+    const keepSub = located.refundSubId ?? subId;
+    if (keepSub) patch.stripe_subscription_id = keepSub;
     const { error: up } = await admin.from("tenants").update(patch).eq("id", data.tenantId);
     if (up) await admin.from("tenants").update({ status }).eq("id", data.tenantId);
 
     const message = bits.join(" ");
     await trail(`${data.action} by ${email}. ${message}`);
+    // Record the stage it was ended at, so Resume order can put it back there.
+    try {
+      await admin.from("build_events").insert({
+        tenant_id: data.tenantId,
+        kind: "billing",
+        stage: ((tenant as { stage?: string | null }).stage as string | null) ?? null,
+        title: data.action === "refund" ? "Package refunded" : "Package ended",
+        body: `${data.action === "refund" ? "Refunded" : "Ended"} by ${email}. ${message}`.trim(),
+        visibility: "internal",
+        actor_email: email,
+      });
+    } catch {
+      /* timeline is best effort */
+    }
     return { ok: true, message };
+  });
+
+/** Staff: the payment flags still open on one file, for the Mark handled buttons. */
+export const fileFlags = createServerFn({ method: "POST" })
+  .validator((d: { token: string; tenantId: number }) => d)
+  .handler(async ({ data }) => {
+    const { sb, team } = await actor(data.token);
+    if (!team) throw new Error("Office is for the Forecourt team.");
+    const admin = sbAdmin() ?? sb;
+    const { data: rows } = await admin
+      .from("build_events")
+      .select("tenant_id, title, body, created_at")
+      .eq("tenant_id", data.tenantId)
+      .in("title", [FLAG_TITLES.duplicate_payment, FLAG_TITLES.similar_dealer, FLAG_HANDLED_TITLE])
+      .order("created_at", { ascending: true });
+    const events = (rows ?? []) as { tenant_id: number; title: string | null; body: string | null; created_at: string }[];
+    const open = boardFlags(events)[data.tenantId] ?? { duplicate: false, lookalike: false };
+    return { ...open, duplicateSessions: [...flaggedDuplicateSessions(events)] };
+  });
+
+/** How much of a flagged duplicate checkout has gone back in Stripe. GET calls only. */
+async function duplicateRefunded(stripe: StripeClient, sessionId: string): Promise<{ paid: number; refunded: number; subscription: string | null }> {
+  const session = await stripe.checkout.sessions.retrieve(sessionId);
+  const subscription = typeof session.subscription === "string" ? session.subscription : (session.subscription?.id ?? null);
+  let pi = typeof session.payment_intent === "string" ? session.payment_intent : null;
+  if (!pi && typeof session.invoice === "string") {
+    const payments = (await stripe.invoicePayments.list({ invoice: session.invoice, limit: 10 })).data;
+    const paid = payments.find((p) => p.status === "paid" && p.payment?.payment_intent);
+    const ref = paid?.payment?.payment_intent;
+    pi = typeof ref === "string" ? ref : (ref?.id ?? null);
+  }
+  if (!pi) return { paid: 0, refunded: 0, subscription };
+  const intent = await stripe.paymentIntents.retrieve(pi, { expand: ["latest_charge"] });
+  const charge = intent.latest_charge && typeof intent.latest_charge !== "string" ? intent.latest_charge : null;
+  return { paid: charge?.amount_captured ?? intent.amount_received ?? 0, refunded: charge?.amount_refunded ?? 0, subscription };
+}
+
+/**
+ * Owner only: mark a duplicate payment or look-alike flag as dealt with, so
+ * its badge clears. "Refunded" is checked against Stripe first: the
+ * duplicate payment fully refunded and its subscription cancelled. Writes an
+ * internal timeline mark and a note. Nothing in Stripe is changed.
+ */
+export const markFlagHandled = createServerFn({ method: "POST" })
+  .validator((d: { token: string; tenantId: number; kind: FlagKind; how: "refunded" | "checked" }) => d)
+  .handler(async ({ data }) => {
+    const { sb, team, role, email } = await actor(data.token);
+    if (!team) throw new Error("Office is for the Forecourt team.");
+    if (role !== "owner") throw new Error("Only an owner can mark a payment flag handled.");
+    if (data.kind !== "duplicate_payment" && data.kind !== "similar_dealer") throw new Error("Unknown flag.");
+    const admin = sbAdmin() ?? sb;
+    let stripeLine: string | null = null;
+    if (data.kind === "duplicate_payment" && data.how === "refunded") {
+      const { data: rows } = await admin
+        .from("build_events")
+        .select("title, body")
+        .eq("tenant_id", data.tenantId)
+        .eq("title", FLAG_TITLES.duplicate_payment);
+      const { data: orderRows } = await admin.from("orders").select("id, stripe_session_id").eq("tenant_id", data.tenantId);
+      const { data: tenantRow } = await admin.from("tenants").select("stripe_subscription_id").eq("id", data.tenantId).maybeSingle();
+      const flags = (rows ?? []) as { title: string | null; body: string | null }[];
+      const sessions = [...flaggedDuplicateSessions(flags, (orderRows ?? []) as { id: number; stripe_session_id: string | null }[])];
+      const keep = ((tenantRow as { stripe_subscription_id?: string | null } | null)?.stripe_subscription_id ?? null) || null;
+      const secret = stripeSecret();
+      if (!secret) throw new Error("Stripe is not connected on the server, so the refund cannot be checked. Mark it checked instead.");
+      if (!sessions.length) throw new Error("The flag does not name a Stripe checkout, so the refund cannot be checked. Mark it checked instead.");
+      const Stripe = (await import("stripe")).default;
+      const stripe = new Stripe(secret);
+      const payments: { sessionId: string; paidPence: number; refundedPence: number; paid: string; refunded: string }[] = [];
+      // The duplicate's own subscription: named in the flag, or on its checkout.
+      const subIds = flaggedDuplicateSubscriptions(flags, keep);
+      for (const sid of sessions) {
+        const r = await duplicateRefunded(stripe, sid);
+        payments.push({ sessionId: sid, paidPence: r.paid, refundedPence: r.refunded, paid: gbpPence(r.paid), refunded: gbpPence(r.refunded) });
+        if (r.subscription && r.subscription !== keep) subIds.add(r.subscription);
+      }
+      const subscriptions: { id: string; status: string | null }[] = [];
+      for (const id of subIds) {
+        const sub = await stripe.subscriptions.retrieve(id).catch((err: unknown) => {
+          if ((err as { code?: string })?.code === "resource_missing") return null;
+          throw err;
+        });
+        subscriptions.push({ id, status: sub ? sub.status : "canceled" });
+      }
+      const problem = duplicateHandledProblem({ payments, subscriptions });
+      if (problem) throw new Error(problem);
+      stripeLine = [
+        ...payments.map((p) => `Stripe shows ${p.refunded} of ${p.paid} refunded on ${p.sessionId}.`),
+        ...subscriptions.map((s) => `Duplicate subscription ${s.id} is ${s.status === "incomplete_expired" ? "expired" : "cancelled"}.`),
+      ].join(" ");
+    }
+    const body = handledNote({ kind: data.kind, by: email, how: data.how, stripe: stripeLine });
+    const { error } = await admin.from("build_events").insert({
+      tenant_id: data.tenantId,
+      kind: "note",
+      stage: null,
+      title: FLAG_HANDLED_TITLE,
+      body,
+      visibility: "internal",
+      actor_email: email,
+    });
+    if (error) throw new Error(error.message);
+    try {
+      await admin.from("notes").insert({ tenant_id: data.tenantId, author_email: email, visibility: "internal", body });
+    } catch {
+      /* best effort */
+    }
+    return { ok: true, message: body.replace(/\s*\[handled:[a-z_]+\]$/, "") };
   });

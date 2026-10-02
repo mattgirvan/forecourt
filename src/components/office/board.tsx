@@ -1,6 +1,7 @@
 import { gbpPence, monthTotalPence, normalizeBilling, normalizePlan } from "@/lib/catalog";
 import { stageMeta } from "@/lib/build";
 import { packageLive, statusLabel, trialDaysLeft } from "@/lib/team";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 export type BoardRow = {
@@ -21,7 +22,42 @@ export type BoardRow = {
   waiting?: boolean;
   stage?: string | null;
   archived_at?: string | null;
+  /** Payment flags staff should look at (duplicate payment, look-alike dealership). */
+  flags?: { duplicate: boolean; lookalike: boolean } | null;
 };
+
+/** What each badge means, shown as text so it reads on touch screens too. */
+export const FLAG_EXPLAINERS = {
+  duplicate: "A second payment came in for this site. See the note on the file.",
+  lookalike: "This paid order looks like another dealership. See the note on the file.",
+} as const;
+
+/** Small badges for payment flags. Shown on the list so they are seen even with emails off. */
+export function FlagBadges({ flags }: { flags?: BoardRow["flags"] }) {
+  if (!flags || (!flags.duplicate && !flags.lookalike)) return null;
+  const lines = [flags.duplicate ? FLAG_EXPLAINERS.duplicate : null, flags.lookalike ? FLAG_EXPLAINERS.lookalike : null].filter(Boolean);
+  return (
+    <span className="mt-1.5 block">
+      <span className="flex flex-wrap gap-1">
+        {flags.duplicate ? (
+          <Badge tone="warn" className="text-[11px]">
+            Duplicate payment
+          </Badge>
+        ) : null}
+        {flags.lookalike ? (
+          <Badge tone="neutral" className="text-[11px]">
+            Looks like another dealer
+          </Badge>
+        ) : null}
+      </span>
+      {lines.map((l) => (
+        <span key={l} className="mt-1 block max-w-xs text-xs text-muted">
+          {l}
+        </span>
+      ))}
+    </span>
+  );
+}
 
 export function BoardStats({ rows }: { rows: BoardRow[] }) {
   const live = rows.filter((r) => packageLive(r.status)).length;
@@ -98,6 +134,7 @@ export function CustomerTable({
                     <div className="text-xs text-muted">
                       {r.group_name || r.principal_name || r.email || "—"}
                     </div>
+                    <FlagBadges flags={r.flags} />
                   </td>
                   <td className="px-4 py-3">
                     {plan}
@@ -152,6 +189,7 @@ export function CustomerTable({
               )}
             >
               <div className="font-medium">{r.name}</div>
+              <FlagBadges flags={r.flags} />
               <div className="mt-1 text-xs text-muted">
                 {statusLabel(r.status)} · {normalizePlan(r.plan)} · {stageMeta(r.stage).label}
                 {r.waiting ? " · they wrote" : ""}

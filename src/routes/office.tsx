@@ -3,6 +3,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Notes, Thread } from "@/components/account/portal";
 import { OrderBuild } from "@/components/build/order-desk";
 import { BoardStats, CustomerTable, type BoardRow } from "@/components/office/board";
+import { FileFlags } from "@/components/office/file-flags";
+import { ResumeOrder } from "@/components/office/resume-order";
 import { StaffPanel } from "@/components/office/staff-panel";
 import { SiteShell } from "@/components/site-shell";
 import { Button } from "@/components/ui/button";
@@ -349,6 +351,21 @@ function TenantFile({ token, tenantId, onSaved }: { token: string; tenantId: num
           {busy ? "Working…" : file.archived_at ? "Unarchive" : "Archive"}
         </Button>
       </div>
+      {owner ? (
+        <div className="mt-4">
+        <ResumeOrder
+          key={`${tenantId}-${file.status ?? ""}`}
+          token={token}
+          tenantId={tenantId}
+          status={file.status}
+          onDone={() => {
+            void getTenantFile({ data: { token, tenantId } }).then(setFile);
+            onSaved();
+          }}
+        />
+        </div>
+      ) : null}
+      <FileFlags key={`flags-${tenantId}`} token={token} tenantId={tenantId} owner={owner} onChanged={onSaved} />
 
       <div className="mt-6 flex flex-wrap gap-1.5">
         {(

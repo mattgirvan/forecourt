@@ -8,9 +8,12 @@
 const DROP_WORDS = new Set(["ltd", "limited", "plc", "llp"]);
 const SAME_WORDS: Record<string, string> = { street: "st" };
 
-/** "St. John's Motors Ltd" and "st johns motors" give the same key. */
+/** "St. John's Motors Ltd" and "st johns motors" give the same key; so do "Café" and "Cafe". */
 export function dealerNameKey(name: string | null | undefined): string {
   const words = (name ?? "")
+    // Café and Cafe match: split accents off their letters, then drop the accents.
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .replace(/&/g, " and ")
     .replace(/['\u2019]/g, "")
