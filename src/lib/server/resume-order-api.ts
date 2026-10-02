@@ -21,6 +21,7 @@ import {
   ENDED_EVENT_TITLES,
   OWNER_ONLY_MESSAGE,
   balanceOwed,
+  STRIPE_MAYBE_SET_UP,
   chargeErrorMessage,
   executeResume,
   monthlyStartOnResume,
@@ -477,10 +478,17 @@ export const resumeOrder = createServerFn({ method: "POST" })
             { idempotencyKey },
             );
           } catch (err) {
-            throw new Error(chargeErrorMessage(err as { code?: string; decline_code?: string; message?: string; type?: string }));
+            throw new Error(chargeErrorMessage(err as { code?: string; decline_code?: string; message?: string; type?: string; statusCode?: number }));
           }
           // Read it back: never store a subscription that is not live now.
-          const sub = await stripe.subscriptions.retrieve(created.id);
+          let sub;
+          try {
+            sub = await stripe.subscriptions.retrieve(created.id);
+          } catch (err) {
+            throw new Error(
+              `Stripe created subscription ${created.id} but it could not be read back (${err instanceof Error ? err.message : "error"}), so the desk was not changed. ${STRIPE_MAYBE_SET_UP}`,
+            );
+          }
           if (sub.status !== "active" && sub.status !== "trialing") {
             // Not live: make sure it can never bill (an ended one needs nothing).
             if (!subscriptionEnded(sub.status)) await stripe.subscriptions.cancel(sub.id).catch(() => null);
@@ -527,6 +535,11 @@ export const resumeOrder = createServerFn({ method: "POST" })
             /^Customer emailed\.$/,
             "Customer emailed about the first month charge.",
           ),
+        storedSubscription: async () => {
+          const { data: row, error } = await admin.from("tenants").select("stripe_subscription_id").eq("id", data.tenantId).maybeSingle();
+          if (error) throw new Error(error.message);
+          return ((row as { stripe_subscription_id?: string | null } | null)?.stripe_subscription_id ?? null) || null;
+        },
         claim: async (patch) => {
           const { data: won, error } = await admin
             .from("tenants")

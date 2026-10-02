@@ -25,6 +25,7 @@ import {
   OWNER_ONLY_MESSAGE,
   CUSTOMER_AGREED_LABEL,
   chargeErrorMessage,
+  STRIPE_MAYBE_SET_UP,
   needsCustomerAgreement,
   resumeSubscriptionKey,
   sessionsThatCount,
@@ -573,7 +574,7 @@ test("a new subscription is only made when ticked, and its id is stored on the f
   assert.deepEqual(blocked.calls, []);
 });
 
-test("MF2: a new subscription is cancelled again if the desk write throws, but not if another request won", async () => {
+test("MF2: a new subscription is rolled back if the desk write throws; after a lost claim only a different stored subscription rolls ours back", async () => {
   const plan = { kind: "ended" as const, text: "", canCreate: true, start: future, monthlyPence: 39_900 };
   const choice = { undoCancel: false, newSubscription: true };
   const broken = harness("refunded", true);
@@ -581,10 +582,23 @@ test("MF2: a new subscription is cancelled again if the desk write throws, but n
   assert.ok(broken.calls.includes("cancel sub_new"));
   // Refund first, then cancel.
   assert.ok(broken.calls.indexOf("refund sub_new") < broken.calls.indexOf("cancel sub_new"));
-  const lost = harness("subscribed");
-  const r = await executeResume(lost.deps, input({ plan, choice }));
+  // Lost to a resume that kept the file's own subscription: ours is ours, so it stays.
+  const same = harness("subscribed");
+  same.deps.storedSubscription = async () => "sub_new";
+  const r = await executeResume(same.deps, input({ plan, choice }));
   assert.equal(r.noop, true);
-  assert.ok(!lost.calls.some((c) => c.startsWith("cancel")));
+  assert.ok(!same.calls.some((c) => c.startsWith("cancel") || c.startsWith("refund")));
+  assert.match(r.message, /already resumed with subscription sub_new\. Nothing more to do\./);
+  // Lost to a resume with a different subscription: ours is cancelled (nothing was charged, it waits for go live).
+  const other = harness("subscribed");
+  other.deps.storedSubscription = async () => "sub_other";
+  const o = await executeResume(other.deps, input({ plan, choice }));
+  assert.ok(other.calls.includes("cancel sub_new"));
+  assert.equal(o.message, "Someone else resumed this order at the same time. We cancelled the extra subscription sub_new. Nothing was charged.");
+  // No subscription made by this call: nothing to undo.
+  const plain = harness("subscribed");
+  const p = await executeResume(plain.deps, input());
+  assert.equal(p.message, "This order was already resumed. Nothing changed.");
 });
 
 test("should-fix: a fully refunded order is not set back to paid on resume", async () => {
@@ -627,8 +641,11 @@ function replayingStripe() {
 }
 
 /** Deps wired like the server: catch Stripe errors plainly, read the subscription back, refund then cancel. */
-function stripeHarness(stripe: ReturnType<typeof replayingStripe>, opts: { claimFailsOnce?: boolean } = {}) {
-  let status = "refunded";
+type Desk = { status: string; subscription: string | null };
+
+function stripeHarness(stripe: ReturnType<typeof replayingStripe>, opts: { claimFailsOnce?: boolean; desk?: Desk; refundFails?: boolean } = {}) {
+  // The tenant row. Two harnesses can share one to act as two requests at once.
+  const desk: Desk = opts.desk ?? { status: "refunded", subscription: "sub_old" };
   let claimFails = Boolean(opts.claimFailsOnce);
   const calls: string[] = [];
   const keys: string[] = [];
@@ -639,6 +656,7 @@ function stripeHarness(stripe: ReturnType<typeof replayingStripe>, opts: { claim
       keys.push(key);
     },
     createSubscription: async (key) => {
+      await new Promise((r) => setTimeout(r, 5)); // a Stripe round trip
       let id: string;
       try {
         id = stripe.create(key);
@@ -651,6 +669,7 @@ function stripeHarness(stripe: ReturnType<typeof replayingStripe>, opts: { claim
       return { id, line: `New subscription ${id}.` };
     },
     refundFirstMonth: async (id) => {
+      if (opts.refundFails) throw new Error("Stripe refused the refund");
       stripe.state.refunds.push(id);
       calls.push(`refund ${id}`);
       return `The £399 first month on ${id} was refunded.`;
@@ -668,17 +687,19 @@ function stripeHarness(stripe: ReturnType<typeof replayingStripe>, opts: { claim
         claimFails = false;
         throw new Error("db down");
       }
-      if (status !== "refunded") return false;
-      status = String(patch.status);
+      if (desk.status !== "refunded") return false;
+      desk.status = String(patch.status);
+      if (patch.stripe_subscription_id) desk.subscription = String(patch.stripe_subscription_id);
       calls.push(`claim ${JSON.stringify(patch)}`);
       return true;
     },
+    storedSubscription: async () => desk.subscription,
     setOrderStatus: async () => {},
     timeline: async () => {},
     note: async () => {},
     log: () => {},
   };
-  return { deps, calls, keys, status: () => status };
+  return { deps, calls, keys, status: () => desk.status };
 }
 
 const nowStart = { kind: "now" as const, text: "Monthly £399 starts today." };
@@ -727,6 +748,86 @@ test("must-fix 1: a decline then a fixed card works on the next try; the same ke
   assert.equal(h.status(), "subscribed");
   assert.deepEqual(stripe.state.charges, ["sub_1"]);
   assert.match(r.message, /Customer emailed about the first month charge\./);
+});
+
+test("round 8 must-fix: two resumes at once with different tries; the loser refunds and cancels its extra £399", async () => {
+  const stripe = replayingStripe();
+  const desk: Desk = { status: "refunded", subscription: "sub_old" };
+  const tabA = stripeHarness(stripe, { desk });
+  const tabB = stripeHarness(stripe, { desk });
+  const [a, b] = await Promise.all([
+    executeResume(tabA.deps, input({ plan: chargePlan, choice: agreed, attemptId: "tab-aaaa-0001" })),
+    executeResume(tabB.deps, input({ plan: chargePlan, choice: agreed, attemptId: "tab-bbbb-0002" })),
+  ]);
+  // Both reached Stripe before either wrote the desk: two charges, as Atlas probed.
+  assert.deepEqual(stripe.state.charges, ["sub_1", "sub_2"]);
+  const [winner, loser] = a.noop ? [b, a] : [a, b];
+  const [winTab, loseTab] = a.noop ? [tabB, tabA] : [tabA, tabB];
+  assert.equal(winner.noop, false);
+  assert.equal(loser.noop, true);
+  const kept = desk.subscription!;
+  const extra = kept === "sub_1" ? "sub_2" : "sub_1";
+  assert.ok(winTab.calls.includes(`create ${kept}`));
+  // The loser undid its own subscription only: refund first, then cancel.
+  assert.deepEqual(loseTab.calls.filter((c) => c.startsWith("refund") || c.startsWith("cancel")), [`refund ${extra}`, `cancel ${extra}`]);
+  assert.deepEqual(stripe.state.refunds, [extra]);
+  assert.equal(stripe.subs.get(kept), "active");
+  assert.equal(stripe.subs.get(extra), "canceled");
+  assert.equal(
+    loser.message,
+    `Someone else resumed this order at the same time. We refunded and cancelled the extra £399 charge. The extra subscription was ${extra}.`,
+  );
+  assert.doesNotMatch(loser.message, /Nothing changed/);
+});
+
+test("round 8 must-fix: if undoing the extra subscription fails, staff are told to finish it in Stripe", async () => {
+  const stripe = replayingStripe();
+  const desk: Desk = { status: "refunded", subscription: "sub_old" };
+  const ok = stripeHarness(stripe, { desk });
+  const broken = stripeHarness(stripe, { desk, refundFails: true });
+  // The first try wins outright; the second set up its own subscription before seeing the desk.
+  const first = executeResume(ok.deps, input({ plan: chargePlan, choice: agreed, attemptId: "tab-aaaa-0001" }));
+  const second = executeResume(broken.deps, input({ plan: chargePlan, choice: agreed, attemptId: "tab-bbbb-0002" }));
+  const [r1, r2] = await Promise.all([first, second]);
+  // Same Stripe latency, so the first started wins (timers fire in order).
+  assert.equal(r1.noop, false);
+  assert.equal(r2.noop, true);
+  {
+    assert.match(
+      r2.message,
+      /^Someone else resumed this order at the same time, so the extra subscription sub_2 this try set up must go, and it could not all be undone\. The first month charged on subscription sub_2 could NOT be refunded \(Stripe refused the refund\)\. Refund it in Stripe now\. Subscription sub_2 was cancelled\. Finish it in Stripe now\.$/,
+    );
+  }
+  assert.equal(stripe.subs.get("sub_2"), "canceled");
+  assert.deepEqual(stripe.state.refunds, []);
+});
+
+test("round 8 must-fix: a double submit of the same try is left alone and reported as done", async () => {
+  const stripe = replayingStripe();
+  const desk: Desk = { status: "refunded", subscription: "sub_old" };
+  // Two requests with the same attempt id that both got past the saved-key check.
+  const one = stripeHarness(stripe, { desk });
+  const two = stripeHarness(stripe, { desk });
+  const same = input({ plan: chargePlan, choice: agreed, attemptId: "tab-same-0001" });
+  const [a, b] = await Promise.all([executeResume(one.deps, same), executeResume(two.deps, same)]);
+  // Stripe replayed the same subscription to both: one charge.
+  assert.deepEqual(stripe.state.charges, ["sub_1"]);
+  assert.equal(desk.subscription, "sub_1");
+  const loser = a.noop ? a : b;
+  assert.equal(loser.message, "This order was already resumed with subscription sub_1. Nothing more to do.");
+  assert.deepEqual(stripe.state.refunds, []);
+  assert.equal(stripe.subs.get("sub_1"), "active");
+  assert.ok(![...one.calls, ...two.calls].some((c) => c.startsWith("refund") || c.startsWith("cancel")));
+});
+
+test("round 8 must-fix: if the file cannot be read after a lost claim, nothing is undone blindly", async () => {
+  const h = harness("subscribed");
+  h.deps.storedSubscription = async () => {
+    throw new Error("db down");
+  };
+  const r = await executeResume(h.deps, input({ plan: chargePlan, choice: agreed }));
+  assert.ok(!h.calls.some((c) => c.startsWith("refund") || c.startsWith("cancel")));
+  assert.match(r.message, /could not be read back \(db down\)\. Check subscription sub_new in Stripe: if the file does not use it, refund and cancel it there\./);
 });
 
 test("must-fix 1: the server refuses a key it has already sent, so a reused id cannot replay", async () => {
@@ -821,26 +922,46 @@ test("should-fix: charging today needs the customer-agreed tick, and then emails
   assert.match(q.message, /The customer was not emailed about the charge\. Tell them yourself\./);
 });
 
-test("should-fix: Stripe charge errors are plain, and each says nothing changed", () => {
+test("should-fix: Stripe charge errors are plain; only a definite no says nothing changed", () => {
   const auth = chargeErrorMessage({ type: "StripeCardError", code: "authentication_required" });
-  assert.match(auth, /approve this payment themselves/);
-  assert.match(auth, /send the customer a payment link instead/);
-  assert.match(auth, /Nothing changed/);
+  assert.equal(
+    auth,
+    "The bank wants the customer to approve this payment themselves, so it cannot be charged now. Nothing changed. Set the monthly up in Stripe so they can approve it.",
+  );
+  assert.doesNotMatch(auth, /payment link/);
+  // Stripe's real code for a first invoice needing 3D Secure.
+  assert.equal(chargeErrorMessage({ type: "StripeInvalidRequestError", code: "invoice_payment_intent_requires_action" }), auth);
   assert.equal(chargeErrorMessage({ type: "StripeCardError", code: "card_declined", decline_code: "authentication_required" }), auth);
-  assert.equal(chargeErrorMessage({ type: "StripeInvalidRequestError", code: "subscription_payment_intent_requires_action" }), auth);
   assert.equal(
     chargeErrorMessage({ type: "StripeCardError", code: "card_declined", decline_code: "expired_card" }),
-    "The card on file was declined (expired card). Nothing changed. Ask the customer to update their card, or send them a payment link.",
+    "The card on file was declined (expired card). Nothing changed. Ask the customer to update their card, or set the monthly up in Stripe once they have.",
   );
-  assert.equal(chargeErrorMessage({ message: "Rate limited" }), "Stripe did not set up the monthly (Rate limited). Nothing changed.");
-  for (const m of [auth, chargeErrorMessage({ code: "card_declined" }), chargeErrorMessage({})]) assert.ok(!DASHES.test(m));
+  assert.equal(chargeErrorMessage({ type: "StripeInvalidRequestError", message: "No such price", statusCode: 400 }), "Stripe did not set up the monthly (No such price). Nothing changed.");
+  assert.equal(chargeErrorMessage({ type: "StripeRateLimitError", message: "Too many requests", statusCode: 429 }), "Stripe did not set up the monthly (Too many requests). Nothing changed.");
+  // Timeouts, 5xx, idempotency clashes and anything unknown may have created it.
+  for (const err of [
+    { type: "StripeConnectionError", message: "Request timed out" },
+    { type: "StripeAPIError", message: "Internal error", statusCode: 500 },
+    { type: "StripeInvalidRequestError", message: "Bad gateway", statusCode: 502 },
+    { type: "StripeIdempotencyError", message: "Keys for idempotent requests can only be used once at a time", statusCode: 409 },
+    { message: "socket hang up" },
+  ]) {
+    const m = chargeErrorMessage(err);
+    assert.ok(m.endsWith(`(${err.message}). ${STRIPE_MAYBE_SET_UP}`), m);
+    assert.doesNotMatch(m, /Nothing changed/);
+  }
+  assert.equal(STRIPE_MAYBE_SET_UP, "Stripe may have set this up. Check the customer in Stripe before trying again.");
+  for (const m of [auth, chargeErrorMessage({ code: "card_declined" }), chargeErrorMessage({}), STRIPE_MAYBE_SET_UP]) {
+    assert.ok(!DASHES.test(m));
+    assert.ok(!/glass/i.test(m));
+  }
 });
 
 test("should-fix: authentication required on the charge changes nothing on the desk", async () => {
   const stripe = replayingStripe();
   stripe.state.card = "needs_auth";
   const h = stripeHarness(stripe);
-  await assert.rejects(executeResume(h.deps, input({ plan: chargePlan, choice: agreed, attemptId: "try-auth-0001" })), /pay by link|payment link instead/);
+  await assert.rejects(executeResume(h.deps, input({ plan: chargePlan, choice: agreed, attemptId: "try-auth-0001" })), /Set the monthly up in Stripe so they can approve it\./);
   assert.equal(h.status(), "refunded");
   assert.deepEqual(h.calls, []);
 });

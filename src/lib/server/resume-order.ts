@@ -423,17 +423,46 @@ export function needsCustomerAgreement(plan: SubscriptionPlan, choice: ResumeCho
   return chargeNowPence(plan, choice) > 0 && !choice.customerAgreed;
 }
 
-/** A Stripe error from charging the first month, in words staff can act on. Nothing changed in every case. */
-export function chargeErrorMessage(err: { code?: string | null; decline_code?: string | null; message?: string | null; type?: string | null }): string {
+/** Said whenever Stripe may have acted even though the call failed. */
+export const STRIPE_MAYBE_SET_UP = "Stripe may have set this up. Check the customer in Stripe before trying again.";
+
+/**
+ * Stripe codes meaning the bank wants the customer to approve the payment.
+ * invoice_payment_intent_requires_action is Stripe's code for a subscription
+ * whose first invoice needs 3D Secure; decline_code authentication_required
+ * is the card form. The last one is not a documented code and is kept only
+ * as a harmless extra.
+ */
+const AUTH_CODES = new Set(["authentication_required", "invoice_payment_intent_requires_action", "subscription_payment_intent_requires_action"]);
+
+/**
+ * A Stripe error from setting up the monthly, in words staff can act on.
+ * "Nothing changed" is only said when Stripe definitely did not act: a card
+ * decline or 3D Secure (error_if_incomplete fails the create), a bad request,
+ * rate limit or key problem. A timeout, a 5xx or anything unknown may have
+ * created the subscription, so staff are told to check Stripe first.
+ */
+export function chargeErrorMessage(err: {
+  code?: string | null;
+  decline_code?: string | null;
+  message?: string | null;
+  type?: string | null;
+  statusCode?: number | null;
+}): string {
   const code = err.code ?? "";
   const decline = err.decline_code ?? "";
-  if (code === "authentication_required" || decline === "authentication_required" || code === "subscription_payment_intent_requires_action") {
-    return "The bank wants the customer to approve this payment themselves, so it cannot be charged now. Nothing changed. Untick the monthly, resume, and send the customer a payment link instead.";
+  if (AUTH_CODES.has(code) || decline === "authentication_required") {
+    return "The bank wants the customer to approve this payment themselves, so it cannot be charged now. Nothing changed. Set the monthly up in Stripe so they can approve it.";
   }
   if (code === "card_declined" || err.type === "StripeCardError") {
-    return `The card on file was declined${decline ? ` (${decline.replace(/_/g, " ")})` : ""}. Nothing changed. Ask the customer to update their card, or send them a payment link.`;
+    return `The card on file was declined${decline ? ` (${decline.replace(/_/g, " ")})` : ""}. Nothing changed. Ask the customer to update their card, or set the monthly up in Stripe once they have.`;
   }
-  return `Stripe did not set up the monthly (${err.message ?? "unknown error"}). Nothing changed.`;
+  const status = err.statusCode ?? 0;
+  const definitelyNot =
+    status < 500 &&
+    (err.type === "StripeInvalidRequestError" || err.type === "StripeRateLimitError" || err.type === "StripeAuthenticationError" || err.type === "StripePermissionError");
+  if (definitelyNot) return `Stripe did not set up the monthly (${err.message ?? "unknown error"}). Nothing changed.`;
+  return `Stripe did not answer cleanly (${err.message ?? "unknown error"}). ${STRIPE_MAYBE_SET_UP}`;
 }
 
 /** The plain list of what Resume will do, shown before staff confirm. */
@@ -536,6 +565,12 @@ export type ResumeDeps = {
   notifyCharge?: (subscriptionId: string) => Promise<string>;
   /** Conditional write: only a file still refunded or cancelled is changed. True if this call changed it. */
   claim: (patch: Record<string, unknown>) => Promise<boolean>;
+  /**
+   * After a lost claim: the subscription id the file holds now. Tells a
+   * second resume at the same time (a different subscription: roll ours
+   * back) from a double submit of the same attempt (ours: leave it).
+   */
+  storedSubscription?: () => Promise<string | null>;
   setOrderStatus: (orderId: number, status: string) => Promise<void>;
   timeline: (body: string, stage: string) => Promise<void>;
   note: (body: string) => Promise<void>;
@@ -570,7 +605,8 @@ export type ResumeResult = { ok: true; noop: boolean; message: string };
  * Resume, in the safe order: refuse a stale panel, do any Stripe change (a
  * fresh key per attempt for a new subscription), then a conditional write
  * so only one request resumes the file, then the orders, timeline and note.
- * If the desk write fails, the new subscription is rolled back: refund
+ * If the desk write fails, or another resume won at the same time with a
+ * different subscription, the new subscription is rolled back: refund
  * first, then cancel.
  */
 export const OWNER_ONLY_MESSAGE = "Only an owner can resume an order. Nothing was changed.";
@@ -620,14 +656,23 @@ export async function executeResume(deps: ResumeDeps, input: ResumeInput): Promi
   } catch (e) {
     // The desk write failed, so nothing points at the new subscription. Roll
     // it back rather than leave a second live one behind: refund first, then
-    // cancel. A false claim is different: another request resumed the file,
-    // so it is left alone.
+    // cancel. A false claim is handled below (settleLostClaim).
     if (newSubscriptionId) throw new Error(await rollBack(deps, input.tenantId, newSubscriptionId, e, chargesNow));
     throw e;
   }
   if (!claimed) {
-    deps.log("[resume] no-op, resumed by another request", { tenantId: input.tenantId, by: input.actor });
-    return { ok: true, noop: true, message: "This order was already resumed. Nothing changed." };
+    deps.log("[resume] no-op, resumed by another request", { tenantId: input.tenantId, by: input.actor, subscription: newSubscriptionId });
+    if (!newSubscriptionId) return { ok: true, noop: true, message: "This order was already resumed. Nothing changed." };
+    // Another request resumed the file while this one was in Stripe. With a
+    // fresh key per attempt, its subscription may not be ours.
+    const message = await settleLostClaim(deps, input.tenantId, newSubscriptionId, chargesNow && input.plan.kind === "ended" ? input.plan.monthlyPence : 0);
+    try {
+      // Internal note so the file shows what happened to the extra subscription.
+      await deps.note(`Resume by ${input.actor} ran at the same time as another resume. ${message}`);
+    } catch {
+      /* best effort */
+    }
+    return { ok: true, noop: true, message };
   }
   for (const o of input.orders) {
     const next = orderStatusAfterResume(o.status, o.sessionPaid, o.fullyRefunded);
@@ -683,9 +728,10 @@ export function resumeSubscriptionKey(tenantId: number, endKey: number, attemptI
   return `forecourt-resume-sub-${tenantId}-${endKey}-${attemptId}`;
 }
 
-/** Undo a subscription set up by a resume whose desk write failed. Returns the message to show. */
-async function rollBack(deps: ResumeDeps, tenantId: number, subscriptionId: string, cause: unknown, charged: boolean): Promise<string> {
-  const why = cause instanceof Error ? cause.message : String(cause);
+type Undo = { refundLine: string | null; refundError: string | null; cancelError: string | null; clean: boolean };
+
+/** Refund first, then cancel, a subscription this call set up. Each step's failure is kept apart. */
+async function undoSubscription(deps: ResumeDeps, subscriptionId: string, charged: boolean): Promise<Undo> {
   let refundLine: string | null = null;
   let refundError: string | null = null;
   if (deps.refundFirstMonth) {
@@ -705,18 +751,57 @@ async function rollBack(deps: ResumeDeps, tenantId: number, subscriptionId: stri
   } else {
     cancelError = "no cancel step";
   }
-  deps.log("[resume] desk write failed, rolled back", { tenantId, subscription: subscriptionId, refundError, cancelError, refunded: Boolean(refundLine) });
-  const head = `Resume failed (${why}), so nothing changed on the desk.`;
-  const refund = refundError
-    ? ` The first month charged on subscription ${subscriptionId} could NOT be refunded (${refundError}). Refund it in Stripe now.`
-    : refundLine
-      ? ` ${refundLine}`
+  return { refundLine, refundError, cancelError, clean: !refundError && !cancelError && !(charged && !refundLine) };
+}
+
+/** The refund and cancel lines for a message, each failure said plainly. */
+function undoLines(u: Undo, subscriptionId: string, charged: boolean): string {
+  const refund = u.refundError
+    ? ` The first month charged on subscription ${subscriptionId} could NOT be refunded (${u.refundError}). Refund it in Stripe now.`
+    : u.refundLine
+      ? ` ${u.refundLine}`
       : charged
         ? ` No first month payment was found on subscription ${subscriptionId} to refund. Check it in Stripe now.`
         : "";
-  const cancel = cancelError
-    ? ` Subscription ${subscriptionId} could NOT be cancelled (${cancelError}). Cancel it in Stripe now.`
+  const cancel = u.cancelError
+    ? ` Subscription ${subscriptionId} could NOT be cancelled (${u.cancelError}). Cancel it in Stripe now.`
     : ` Subscription ${subscriptionId} was cancelled.`;
-  const next = refundError || cancelError || (charged && !refundLine) ? "" : " Nothing is left in Stripe. You can try again.";
-  return `${head}${refund}${cancel}${next}`;
+  return `${refund}${cancel}`;
+}
+
+/**
+ * The claim was lost after this call set up a subscription. If the file now
+ * holds ours, it was a double submit of the same attempt: leave it. If not,
+ * someone else resumed at the same time: refund and cancel ours.
+ */
+async function settleLostClaim(deps: ResumeDeps, tenantId: number, subscriptionId: string, chargedPence: number): Promise<string> {
+  const charged = chargedPence > 0;
+  let stored: string | null = null;
+  try {
+    stored = deps.storedSubscription ? await deps.storedSubscription() : null;
+  } catch (err) {
+    deps.log("[resume] lost claim, could not read the file", { tenantId, subscription: subscriptionId });
+    return `This order was resumed by another request at the same time, and the file could not be read back (${err instanceof Error ? err.message : String(err)}). Check subscription ${subscriptionId} in Stripe: if the file does not use it, refund and cancel it there.`;
+  }
+  if (stored === subscriptionId) {
+    deps.log("[resume] lost claim, same subscription (double submit)", { tenantId, subscription: subscriptionId });
+    return `This order was already resumed with subscription ${subscriptionId}. Nothing more to do.`;
+  }
+  const u = await undoSubscription(deps, subscriptionId, charged);
+  deps.log("[resume] lost claim to another resume, rolled back", { tenantId, subscription: subscriptionId, kept: stored, ...u });
+  if (u.clean) {
+    return charged
+      ? `Someone else resumed this order at the same time. We refunded and cancelled the extra ${gbp(chargedPence)} charge. The extra subscription was ${subscriptionId}.`
+      : `Someone else resumed this order at the same time. We cancelled the extra subscription ${subscriptionId}. Nothing was charged.`;
+  }
+  return `Someone else resumed this order at the same time, so the extra subscription ${subscriptionId} this try set up must go, and it could not all be undone.${undoLines(u, subscriptionId, charged)} Finish it in Stripe now.`;
+}
+
+/** Undo a subscription set up by a resume whose desk write failed. Returns the message to show. */
+async function rollBack(deps: ResumeDeps, tenantId: number, subscriptionId: string, cause: unknown, charged: boolean): Promise<string> {
+  const why = cause instanceof Error ? cause.message : String(cause);
+  const u = await undoSubscription(deps, subscriptionId, charged);
+  deps.log("[resume] desk write failed, rolled back", { tenantId, subscription: subscriptionId, ...u });
+  const next = u.clean ? " Nothing is left in Stripe. You can try again." : "";
+  return `Resume failed (${why}), so nothing changed on the desk.${undoLines(u, subscriptionId, charged)}${next}`;
 }
