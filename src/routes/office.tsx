@@ -6,6 +6,7 @@ import { BoardStats, CustomerTable, type BoardRow } from "@/components/office/bo
 import { FileFlags } from "@/components/office/file-flags";
 import { ResumeOrder } from "@/components/office/resume-order";
 import { StaffPanel } from "@/components/office/staff-panel";
+import { SignInMethods } from "@/components/account/sign-in-methods";
 import { SiteShell } from "@/components/site-shell";
 import { Button } from "@/components/ui/button";
 import { SignInGate, useSbAccessToken } from "@/lib/sb-session";
@@ -26,12 +27,20 @@ import { packageLive, statusLabel, trialDaysLeft } from "@/lib/team";
 import { useWhoAmI } from "@/lib/who-am-i";
 import { cn } from "@/lib/utils";
 
-type OfficeSearch = { id?: number; tab?: "customers" | "staff" };
+type OfficeTab = "customers" | "staff" | "security";
+type OfficeSearch = { id?: number; tab?: OfficeTab };
+
+const TAB_LABEL: Record<OfficeTab, string> = {
+  customers: "Customers",
+  staff: "Staff",
+  security: "Sign-in & security",
+};
 
 export const Route = createFileRoute("/office")({
   validateSearch: (raw: Record<string, unknown>): OfficeSearch => {
     const n = typeof raw.id === "string" ? Number(raw.id) : typeof raw.id === "number" ? raw.id : undefined;
-    const tab = raw.tab === "staff" ? "staff" : raw.tab === "customers" ? "customers" : undefined;
+    const tab: OfficeTab | undefined =
+      raw.tab === "staff" || raw.tab === "customers" || raw.tab === "security" ? raw.tab : undefined;
     const out: OfficeSearch = {};
     if (typeof n === "number" && Number.isFinite(n)) out.id = n;
     if (tab) out.tab = tab;
@@ -70,7 +79,7 @@ function OfficeInner() {
   const [err, setErr] = useState<string | null>(null);
   const [q, setQ] = useState("");
   const [showArchived, setShowArchived] = useState(false);
-  const tab = search.tab === "staff" ? "staff" : "customers";
+  const tab: OfficeTab = search.tab ?? "customers";
 
   async function reload() {
     if (!token) return;
@@ -188,8 +197,8 @@ function OfficeInner() {
           <p className="text-[13px] font-medium text-muted">Forecourt staff</p>
           <h1 className="mt-2 text-4xl font-semibold tracking-tight">Office</h1>
         </div>
-        <div className="flex gap-1.5">
-          {(["customers", "staff"] as const).map((id) => (
+        <div className="flex flex-wrap gap-1.5">
+          {(["customers", "staff", "security"] as const).map((id) => (
             <button
               key={id}
               type="button"
@@ -199,7 +208,7 @@ function OfficeInner() {
                 tab === id && !search.id ? "bg-fg text-accent-fg" : "bg-elevated text-muted",
               )}
             >
-              {id === "customers" ? "Customers" : "Staff"}
+              {TAB_LABEL[id]}
             </button>
           ))}
         </div>
@@ -218,7 +227,19 @@ function OfficeInner() {
         </div>
       )}
 
-      {tab !== "staff" && !search.id && (
+      {tab === "security" && !search.id && (
+        <div className="mt-10 max-w-2xl space-y-4" data-testid="office-security">
+          <div>
+            <h2 className="text-lg font-medium">Sign-in & security</h2>
+            <p className="mt-1 text-sm text-muted">
+              You can always sign in with an email code. A passkey lets you skip the code.
+            </p>
+          </div>
+          <SignInMethods embedded />
+        </div>
+      )}
+
+      {tab === "customers" && !search.id && (
         <div className="mt-10 space-y-6">
           <BoardStats rows={rows} />
           <div className="flex flex-wrap items-center gap-3">
