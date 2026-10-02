@@ -35,8 +35,13 @@
 -- address, so it can never revoke one person and ban another. If no sign-in
 -- account has that address, or more than one does, or it is hello@, the run
 -- stops with an error and changes nothing. The whole run is one transaction.
+--
+-- ALWAYS RUN THE WHOLE FILE. Never highlight one part and run only that:
+-- the address check would be skipped. The address only lasts for one run
+-- (set_config with true), so a highlighted Part 2 on its own matches nobody
+-- and changes nothing, but it does not do the job either.
 
-select set_config('cleanup.email', lower(trim('stranger@forecourt.me')), false);
+select set_config('cleanup.email', lower(trim('stranger@forecourt.me')), true);
 
 do $$
 declare
