@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { gbp, owedSentence, resumeButtonLabel, resumeSteps } from "@/lib/server/resume-order";
+import { chargeNowPence, gbp, owedSentence, resumeButtonLabel, resumeSteps } from "@/lib/server/resume-order";
 import { resumeOrder, resumePreview, sendBalanceLink, type ResumePreview } from "@/lib/server/resume-order-api";
 import { cn } from "@/lib/utils";
 
@@ -63,6 +63,7 @@ export function ResumeOrderPanel({
     plan,
     choice,
   });
+  const chargeNow = chargeNowPence(plan, choice);
   const amount = (pence: number) => (b.unknown ? "Unknown" : gbp(pence));
   return (
     <div className="rounded-[1.75rem] border border-line-strong bg-surface p-6" role="dialog" aria-label="Resume order">
@@ -71,7 +72,9 @@ export function ResumeOrderPanel({
       </div>
       <h3 className="mt-2 text-2xl font-semibold tracking-tight">Resume this order?</h3>
       <p className="mt-2 max-w-2xl text-sm text-muted">
-        This puts {preview.dealer} back on the desk. It never charges a card.
+        {chargeNow > 0
+          ? `This puts ${preview.dealer} back on the desk and charges the first ${gbp(chargeNow)} month to the card on file, because you ticked the monthly below.`
+          : `This puts ${preview.dealer} back on the desk. It never charges a card.`}
       </p>
 
       <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -119,8 +122,8 @@ export function ResumeOrderPanel({
                 onChange={(e) => onChoice({ ...choice, newSubscription: e.target.checked })}
               />
               <span>
-                Set up a new monthly subscription that waits for go live
-                <span className="block text-xs text-subtle">Starts when you mark the site Live, or on {plan.latestStart} at the latest.</span>
+                {plan.start.kind === "now" ? "Set up a new monthly subscription that starts today" : "Set up a new monthly subscription that waits for go live"}
+                <span className={cn("block text-xs", plan.start.kind === "now" ? "text-fg" : "text-subtle")}>{plan.start.text}</span>
               </span>
             </label>
           ) : (
@@ -189,7 +192,7 @@ export function ResumeOrderPanel({
 
       <div className="mt-6 flex flex-wrap gap-2">
         <Button type="button" disabled={busy || !preview.ended} onClick={onConfirm}>
-          {busy ? "Working…" : resumeButtonLabel(b)}
+          {busy ? "Working…" : resumeButtonLabel(b, chargeNow)}
         </Button>
         <Button type="button" variant="secondary" disabled={busy} onClick={onClose}>
           Not now

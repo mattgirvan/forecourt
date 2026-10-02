@@ -17,6 +17,8 @@ import {
   resumeStatus,
   resumeSteps,
   latestStartFrom,
+  monthlyStartOnResume,
+  chargeNowPence,
   owedSentence,
   resumeButtonLabel,
   backOnPhrase,
@@ -283,7 +285,8 @@ test("order rows go back to paid only if Stripe shows them paid, and a fully ref
 
 // ------------------------------------------------------------------ subscription
 
-const base = { billing: "subscription", hadSubscription: true, stage: "build", customerId: "cus_1", monthlyLabel: "£399", productId: "prod_1", latestStart: "31 Mar 2027" };
+const future = { kind: "future" as const, trialEnd: Date.parse("2027-03-14T12:00:00Z") / 1000, date: "14 Mar 2027", text: "Monthly £399 starts on 14 Mar 2027 (180 days from their first payment), or at go live if that is sooner." };
+const base = { billing: "subscription", hadSubscription: true, stage: "build", customerId: "cus_1", monthlyLabel: "£399", productId: "prod_1", start: future, monthlyPence: 39_900, hasCard: true };
 
 test("subscription set to cancel: offer to undo it", () => {
   const p = subscriptionPlan({ ...base, subscription: { id: "sub_1", status: "trialing", cancel_at_period_end: true } });
@@ -296,7 +299,7 @@ test("fully cancelled: explain plainly, a new one waits for go live, or nothing"
   assert.equal(p.kind, "ended");
   assert.ok(p.kind === "ended" && p.canCreate);
   assert.match(p.text, /cannot be restarted/);
-  assert.match(p.text, /starts when you mark the site Live, or on 31 Mar 2027 at the latest/);
+  assert.match(p.text, /starts when you mark the site Live, or on 14 Mar 2027 at the latest \(180 days from their first payment\)/);
   assert.match(p.text, /nothing is billed until you choose/i);
 });
 
@@ -332,15 +335,62 @@ test("MF2: any other live subscription on the customer blocks a new one; a faile
   assert.ok(clear.kind === "ended" && clear.canCreate);
 });
 
-test("should-fix: the 180-day cap counts from the resume date and the date is shown", () => {
-  const l = latestStartFrom(new Date("2026-10-02T01:00:00Z"), 180);
-  assert.equal(l.label, "31 Mar 2027");
-  assert.equal(l.unix, Date.parse("2027-03-31T00:00:00Z") / 1000);
-  const p = subscriptionPlan({ ...base, subscription: null, latestStart: l.label });
-  assert.ok(p.kind === "ended" && p.latestStart === "31 Mar 2027");
+// Matt's rule: the 180 days count from the ORIGINAL first payment, not the resume date.
+
+const firstPaid = Date.parse("2026-09-15T10:00:00Z") / 1000; // first payment 15 Sep 2026, 11:00 UK
+const startOf = (now: string) => monthlyStartOnResume({ firstPaidUnix: firstPaid, now: new Date(now), days: 180, monthlyLabel: "£399" });
+
+test("180 days: still ahead, the monthly waits until 180 days from the first payment", () => {
+  const s = startOf("2026-10-02T01:00:00Z");
+  assert.equal(s.kind, "future");
+  assert.ok(s.kind === "future" && s.trialEnd === firstPaid + 180 * 86_400);
+  assert.equal(s.kind === "future" && s.date, "14 Mar 2027");
+  assert.equal(s.text, "Monthly £399 starts on 14 Mar 2027 (180 days from their first payment), or at go live if that is sooner.");
   const pick = resumeStage({ currentStage: "build", endedAt: null, events: [], validStages: STAGES, anyPaid: true });
-  const steps = resumeSteps({ status: "refunded", stage: pick, stageLabel: "Build", newStatus: "subscribed", balance: owed(0), plan: p, choice: { undoCancel: false, newSubscription: true } });
-  assert.ok(steps.some((s) => /starts at go live, or on 31 Mar 2027 at the latest/.test(s)));
+  const plan = subscriptionPlan({ ...base, subscription: null, start: s });
+  const steps = resumeSteps({ status: "refunded", stage: pick, stageLabel: "Build", newStatus: "subscribed", balance: owed(0), plan, choice: { undoCancel: false, newSubscription: true } });
+  assert.ok(steps.some((t) => /starts at go live, or on 14 Mar 2027 at the latest \(180 days from their first payment\)\. Nothing is charged today\./.test(t)));
+  assert.equal(chargeNowPence(plan, { undoCancel: false, newSubscription: true }), 0);
+  assert.equal(resumeButtonLabel(owed(450_000), 0), "Resume with £4,500 owed");
+});
+
+test("180 days: passed, the monthly starts today and the first month is on the button", () => {
+  const s = startOf("2027-04-01T09:00:00Z");
+  assert.equal(s.kind, "now");
+  assert.equal(s.text, "Monthly £399 starts today, because 180 days from their first payment has passed. The first month is charged when you resume.");
+  const plan = subscriptionPlan({ ...base, subscription: { id: "sub_1", status: "canceled" }, start: s });
+  assert.ok(plan.kind === "ended" && plan.canCreate);
+  assert.match(plan.text, /starts today and charges the first month now/);
+  // Only when the owner ticks it; never silently.
+  assert.equal(chargeNowPence(plan, { undoCancel: false, newSubscription: false }), 0);
+  const ticked = chargeNowPence(plan, { undoCancel: false, newSubscription: true });
+  assert.equal(ticked, 39_900);
+  assert.equal(resumeButtonLabel(owed(450_000), ticked), "Resume with £4,899 owed (£4,500 balance plus £399 first month, charged today)");
+  assert.equal(resumeButtonLabel(owed(0), ticked), "Resume with £399 owed (first month, charged today)");
+  assert.equal(resumeButtonLabel({ ...owed(0), unknown: true }, ticked), "Resume and charge £399 first month today (balance unknown)");
+  const pick = resumeStage({ currentStage: "build", endedAt: null, events: [], validStages: STAGES, anyPaid: true });
+  const steps = resumeSteps({ status: "refunded", stage: pick, stageLabel: "Build", newStatus: "subscribed", balance: owed(0), plan, choice: { undoCancel: false, newSubscription: true } });
+  assert.ok(steps.some((t) => /starts today\. The first £399 month is charged to the card on file now/.test(t)));
+  // No card from the old subscription: cannot charge, so it is not offered.
+  const noCard = subscriptionPlan({ ...base, subscription: null, start: s, hasCard: false });
+  assert.ok(noCard.kind === "ended" && !noCard.canCreate);
+  assert.match(noCard.kind === "ended" ? (noCard.createBlocked ?? "") : "", /no card on file/);
+});
+
+test("180 days: the boundary day itself starts today; the day before still waits", () => {
+  // first + 180 days = 14 Mar 2027, 10:00 UTC (10:00 UK, before the clocks change).
+  assert.equal(startOf("2027-03-14T00:30:00Z").kind, "now", "on the day, even before the exact hour");
+  assert.equal(startOf("2027-03-14T23:00:00Z").kind, "now");
+  const before = startOf("2027-03-13T23:30:00Z");
+  assert.equal(before.kind, "future", "the evening before (UK time) still waits");
+  assert.equal(before.kind === "future" && before.date, "14 Mar 2027");
+});
+
+test("180 days: with no payment on record they count from today", () => {
+  const s = monthlyStartOnResume({ firstPaidUnix: null, now: new Date("2026-10-02T01:00:00Z"), days: 180, monthlyLabel: "£399" });
+  assert.equal(s.kind, "future");
+  assert.equal(s.kind === "future" && s.date, latestStartFrom(new Date("2026-10-02T01:00:00Z"), 180).label);
+  assert.match(s.text, /180 days from today, as no first payment is on record/);
 });
 
 test("should-fix: step 1 says where the package goes in plain words", () => {
@@ -479,7 +529,7 @@ test("undo cancel uses a fixed key so a retry reuses the same Stripe call; it is
 });
 
 test("a new subscription is only made when ticked, and its id is stored on the file", async () => {
-  const plan = { kind: "ended" as const, text: "", canCreate: true, latestStart: "31 Mar 2027" };
+  const plan = { kind: "ended" as const, text: "", canCreate: true, start: future, monthlyPence: 39_900 };
   const off = harness("refunded");
   await executeResume(off.deps, input({ plan }));
   assert.ok(!off.calls.some((c) => c.startsWith("create")));
@@ -496,7 +546,7 @@ test("a new subscription is only made when ticked, and its id is stored on the f
 });
 
 test("MF2: a new subscription is cancelled again if the desk write throws, but not if another request won", async () => {
-  const plan = { kind: "ended" as const, text: "", canCreate: true, latestStart: "31 Mar 2027" };
+  const plan = { kind: "ended" as const, text: "", canCreate: true, start: future, monthlyPence: 39_900 };
   const choice = { undoCancel: false, newSubscription: true };
   const broken = harness("refunded", true);
   await assert.rejects(executeResume(broken.deps, input({ plan, choice })), /db down/);
@@ -579,6 +629,10 @@ test("copy: plain English, no em or en dashes, never glass", () => {
     owedSentence(balanceOwed({ counted: [], facts: {}, orderAmountPence: 150_000 })),
     resumeButtonLabel(owed(1)),
     subscriptionPlan({ ...base, subscription: { id: "sub_1", status: "unpaid" } }).text,
+    startOf("2027-04-01T09:00:00Z").text,
+    startOf("2026-10-02T01:00:00Z").text,
+    subscriptionPlan({ ...base, subscription: null, start: startOf("2027-04-01T09:00:00Z") }).text,
+    resumeButtonLabel(owed(450_000), 39_900),
     OWNER_ONLY_MESSAGE,
     TRIAL_USED_MESSAGE,
   ];

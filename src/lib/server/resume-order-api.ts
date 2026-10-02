@@ -22,7 +22,7 @@ import {
   OWNER_ONLY_MESSAGE,
   balanceOwed,
   executeResume,
-  latestStartFrom,
+  monthlyStartOnResume,
   gbp,
   resumeDecision,
   resumeStage,
@@ -35,6 +35,7 @@ import {
   type SkippedSession,
   type StagePick,
   type SubscriptionNow,
+  type MonthlyStart,
   type SubscriptionPlan,
 } from "@/lib/server/resume-order";
 
@@ -90,8 +91,8 @@ export type ResumeFacts = {
   /** The old subscription's product and card, reused by a new subscription. */
   productId: string | null;
   paymentMethod: string | null;
-  /** Latest start for a new subscription, if one is set up now. */
-  latestStart: { unix: number; label: string };
+  /** When a new subscription would start: 180 days from the first payment. */
+  start: MonthlyStart;
   warnings: string[];
 };
 
@@ -267,7 +268,10 @@ async function loadResumeFacts(admin: SupabaseClient, stripe: StripeClient | nul
       warnings.push(`Could not list the customer's subscriptions in Stripe (${err instanceof Error ? err.message : "error"}).`);
     }
   }
-  const latestStart = latestStartFrom(new Date(), MONTHLY_START_LATEST_DAYS);
+  // 180 days count from the ORIGINAL first payment of this package (Matt's rule), not the resume date.
+  const firstPaid = counted.filter((s) => s.kind !== "balance").reduce<number | null>((m, s) => (m === null || s.created < m ? s.created : m), null);
+  const monthlyPence = monthTotalPence(plan, tenant.site_count ?? 1);
+  const start = monthlyStartOnResume({ firstPaidUnix: firstPaid, now: new Date(), days: MONTHLY_START_LATEST_DAYS, monthlyLabel });
 
   const stagePick = resumeStage({
     currentStage: tenant.stage,
@@ -289,7 +293,9 @@ async function loadResumeFacts(admin: SupabaseClient, stripe: StripeClient | nul
     productId,
     otherLive,
     listFailed,
-    latestStart: latestStart.label,
+    start,
+    monthlyPence,
+    hasCard: Boolean(paymentMethod),
   });
   return {
     tenant,
@@ -309,7 +315,7 @@ async function loadResumeFacts(admin: SupabaseClient, stripe: StripeClient | nul
     subscription,
     productId,
     paymentMethod,
-    latestStart,
+    start,
     warnings,
   };
 }
@@ -418,20 +424,24 @@ export const resumeOrder = createServerFn({ method: "POST" })
               `This customer already has a live subscription in Stripe (${live.map((l) => `${l.id}, ${l.status}`).join("; ")}). No new one was set up and nothing changed.`,
             );
           }
-          // Latest start, like checkout: go live ends this wait early (startMonthlyAtGoLive).
-          // The 180 days count from today, the day it is resumed.
-          const latest = latestStartFrom(new Date(), MONTHLY_START_LATEST_DAYS).unix;
+          // 180 days from the first payment: still ahead, the monthly waits until
+          // then (go live ends the wait early, startMonthlyAtGoLive); passed, it
+          // starts now and the first month is charged to the card on file. A
+          // declined card fails the call, so nothing changes.
+          const start = f.start;
+          if (start.kind === "now" && !f.paymentMethod) throw new Error("There is no card on file to charge the first month. Nothing changed.");
           const sub = await stripe.subscriptions.create(
             {
               customer: f.customerId,
               items: [
                 { quantity: 1, price_data: { currency: "gbp", unit_amount: total, recurring: { interval: "month" }, product: f.productId } },
               ],
-              trial_end: latest,
-              trial_settings: { end_behavior: { missing_payment_method: "cancel" } },
+              ...(start.kind === "future"
+                ? { trial_end: start.trialEnd, trial_settings: { end_behavior: { missing_payment_method: "cancel" as const } } }
+                : { payment_behavior: "error_if_incomplete" as const }),
               ...(f.paymentMethod ? { default_payment_method: f.paymentMethod } : {}),
               proration_behavior: "none",
-              metadata: { tenant_id: String(f.tenant.id), kind: "resume", monthly_from: "go_live" },
+              metadata: { tenant_id: String(f.tenant.id), kind: "resume", monthly_from: start.kind === "now" ? "resume" : "go_live" },
             },
             { idempotencyKey },
           );
@@ -440,12 +450,27 @@ export const resumeOrder = createServerFn({ method: "POST" })
           }
           return {
             id: sub.id,
-            line: `New ${gbp(total)} a month subscription ${sub.id} set up, starting at go live or ${latestStartFrom(new Date(), MONTHLY_START_LATEST_DAYS).label} at the latest. Nothing charged today.`,
+            line:
+              start.kind === "now"
+                ? `New ${gbp(total)} a month subscription ${sub.id} set up, starting today because 180 days from their first payment has passed. The first ${gbp(total)} month was charged to the card on file.`
+                : `New ${gbp(total)} a month subscription ${sub.id} set up, starting at go live or ${start.date} at the latest (180 days from their first payment). Nothing charged today.`,
           };
         },
         cancelSubscription: async (id) => {
           if (!stripe) return;
           await stripe.subscriptions.cancel(id);
+          // A monthly that started today charged its first month: give it back.
+          if (f.start.kind === "now") {
+            const invoices = (await stripe.invoices.list({ subscription: id, limit: 3 })).data;
+            for (const inv of invoices) {
+              if (!inv.id || (inv.amount_paid ?? 0) <= 0) continue;
+              const payments = (await stripe.invoicePayments.list({ invoice: inv.id, limit: 10 })).data;
+              const paid = payments.find((p) => p.status === "paid" && p.payment?.payment_intent);
+              const ref = paid?.payment?.payment_intent;
+              const pi = typeof ref === "string" ? ref : (ref?.id ?? null);
+              if (pi) await stripe.refunds.create({ payment_intent: pi }, { idempotencyKey: `forecourt-resume-undo-charge-${pi}` });
+            }
+          }
         },
         claim: async (patch) => {
           const { data: won, error } = await admin

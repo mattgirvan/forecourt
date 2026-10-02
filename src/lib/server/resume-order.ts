@@ -228,7 +228,7 @@ export type SubscriptionPlan =
   | { kind: "set_to_cancel"; text: string; subscriptionId: string }
   /** Still live in Stripe (unpaid, paused, incomplete): not ended, so nothing new is set up. */
   | { kind: "alive_other"; text: string }
-  | { kind: "ended"; text: string; canCreate: boolean; createBlocked?: string; latestStart: string }
+  | { kind: "ended"; text: string; canCreate: boolean; createBlocked?: string; start: MonthlyStart; monthlyPence: number }
   | { kind: "unknown"; text: string };
 
 function day(unix: number | null | undefined) {
@@ -240,6 +240,55 @@ function day(unix: number | null | undefined) {
 export function latestStartFrom(now: Date, days: number): { unix: number; label: string } {
   const unix = Math.floor(now.getTime() / 86_400_000) * 86_400 + days * 86_400;
   return { unix, label: day(unix)! };
+}
+
+/** A London calendar day, YYYY-MM-DD, for comparing days. */
+function londonDayKey(unix: number) {
+  return new Date(unix * 1000).toLocaleDateString("en-CA", { timeZone: "Europe/London" });
+}
+
+/**
+ * When a monthly set up on Resume starts. The 180 days count from the
+ * site's ORIGINAL first payment, never from the resume date.
+ * - first payment + 180 days still ahead: the monthly waits until then (or go live if sooner);
+ * - that day is today or has passed: the monthly starts now and the first month is charged on resume.
+ * With no payment on record the 180 days count from today.
+ */
+export type MonthlyStart =
+  | { kind: "future"; trialEnd: number; date: string; text: string }
+  | { kind: "now"; text: string };
+
+export function monthlyStartOnResume(input: {
+  /** Unix seconds of the first payment in the current package, or null if none. */
+  firstPaidUnix: number | null | undefined;
+  now: Date;
+  days: number;
+  monthlyLabel: string;
+}): MonthlyStart {
+  const nowUnix = Math.floor(input.now.getTime() / 1000);
+  if (!input.firstPaidUnix) {
+    const l = latestStartFrom(input.now, input.days);
+    return {
+      kind: "future",
+      trialEnd: l.unix,
+      date: l.label,
+      text: `Monthly ${input.monthlyLabel} starts on ${l.label} (${input.days} days from today, as no first payment is on record), or at go live if that is sooner.`,
+    };
+  }
+  const startUnix = input.firstPaidUnix + input.days * 86_400;
+  if (londonDayKey(startUnix) <= londonDayKey(nowUnix)) {
+    return {
+      kind: "now",
+      text: `Monthly ${input.monthlyLabel} starts today, because ${input.days} days from their first payment has passed. The first month is charged when you resume.`,
+    };
+  }
+  const date = day(startUnix)!;
+  return {
+    kind: "future",
+    trialEnd: startUnix,
+    date,
+    text: `Monthly ${input.monthlyLabel} starts on ${date} (${input.days} days from their first payment), or at go live if that is sooner.`,
+  };
 }
 
 /** What Resume can do about the monthly plan, in words staff can act on. */
@@ -258,8 +307,11 @@ export function subscriptionPlan(input: {
   otherLive?: { id: string; status: string }[];
   /** True when the customer's subscriptions could not be listed. */
   listFailed?: boolean;
-  /** Latest start date for a new subscription, e.g. "31 Mar 2027". */
-  latestStart: string;
+  /** When a new subscription would start (monthlyStartOnResume). */
+  start: MonthlyStart;
+  monthlyPence: number;
+  /** A card on file (the old subscription's), needed to charge the first month now. */
+  hasCard?: boolean;
 }): SubscriptionPlan {
   const sub = input.subscription;
   if (input.lookupFailed) {
@@ -298,13 +350,20 @@ export function subscriptionPlan(input: {
           ? "The site is already live, so a subscription waiting for go live would never start. Set the monthly up in Stripe by hand."
           : !input.productId
             ? "There is no earlier subscription to copy the monthly price from, so set it up in Stripe by hand."
-            : undefined;
+            : input.start.kind === "now" && !input.hasCard
+              ? "The first month would be charged today, but there is no card on file from the old subscription. Set the monthly up in Stripe by hand."
+              : undefined;
+  const when =
+    input.start.kind === "now"
+      ? `that starts today and charges the first month now, because 180 days from their first payment has passed`
+      : `that starts when you mark the site Live, or on ${input.start.date} at the latest (180 days from their first payment)`;
   return {
     kind: "ended",
     canCreate: !blocked,
     createBlocked: blocked,
-    latestStart: input.latestStart,
-    text: `The ${input.monthlyLabel} a month subscription ${gone}. A cancelled subscription cannot be restarted. You can set up a new ${input.monthlyLabel} a month subscription that starts when you mark the site Live, or on ${input.latestStart} at the latest, through the normal go live billing. Or leave it and nothing is billed until you choose.`,
+    start: input.start,
+    monthlyPence: input.monthlyPence,
+    text: `The ${input.monthlyLabel} a month subscription ${gone}. A cancelled subscription cannot be restarted. You can tick below to set up a new ${input.monthlyLabel} a month subscription ${when}. Or leave it and nothing is billed until you choose.`,
   };
 }
 
@@ -335,9 +394,21 @@ export function owedSentence(b: Balance): string {
   return `Nothing was refunded in Stripe, so they still have ${gbp(b.netPaidPence)} with us and nothing is owed.`;
 }
 
-/** The main button: the money is on it when something is owed. */
-export function resumeButtonLabel(b: Balance): string {
-  if (b.unknown) return "Resume (amount owed unknown)";
+/** Pence charged on confirm: the first month, only when the owner ticked a monthly that starts today. */
+export function chargeNowPence(plan: SubscriptionPlan, choice: ResumeChoice): number {
+  return plan.kind === "ended" && plan.canCreate && choice.newSubscription && plan.start.kind === "now" ? plan.monthlyPence : 0;
+}
+
+/** The main button: the money is on it when something is owed or charged now. */
+export function resumeButtonLabel(b: Balance, firstMonthNowPence = 0): string {
+  const month = firstMonthNowPence > 0 ? gbp(firstMonthNowPence) : null;
+  if (b.unknown) return month ? `Resume and charge ${month} first month today (balance unknown)` : "Resume (amount owed unknown)";
+  if (month) {
+    const total = b.owedPence + firstMonthNowPence;
+    return b.owedPence > 0
+      ? `Resume with ${gbp(total)} owed (${gbp(b.owedPence)} balance plus ${month} first month, charged today)`
+      : `Resume with ${month} owed (first month, charged today)`;
+  }
   return b.owedPence > 0 ? `Resume with ${gbp(b.owedPence)} owed` : "Resume order";
 }
 
@@ -360,15 +431,18 @@ export function resumeSteps(input: {
   if (input.plan.kind === "set_to_cancel") {
     steps.push(input.choice.undoCancel ? "Undo the cancel on the monthly subscription in Stripe. No charge." : "Leave the monthly subscription set to cancel.");
   } else if (input.plan.kind === "ended") {
+    const p = input.plan;
     steps.push(
-      input.choice.newSubscription && input.plan.canCreate
-        ? `Set up a new monthly subscription in Stripe that starts at go live, or on ${input.plan.latestStart} at the latest. Nothing is charged today.`
+      input.choice.newSubscription && p.canCreate
+        ? p.start.kind === "now"
+          ? `Set up a new ${gbp(p.monthlyPence)} monthly subscription in Stripe that starts today. The first ${gbp(p.monthlyPence)} month is charged to the card on file now, because 180 days from their first payment has passed.`
+          : `Set up a new monthly subscription in Stripe that starts at go live, or on ${p.start.date} at the latest (180 days from their first payment). Nothing is charged today.`
         : "No monthly subscription is set up. Nothing is billed until you choose.",
     );
   }
   steps.push(
     input.balance.unknown
-      ? "The amount owed could not be checked in Stripe. Resuming does not charge anything. Check Stripe before collecting."
+      ? "The amount owed could not be checked in Stripe. Resuming does not charge the balance. Check Stripe before collecting."
       : input.balance.owedPence > 0
         ? `${gbp(input.balance.owedPence)} is still owed. Resuming does not charge it. Send the payment link above if you want it collected.`
         : "Nothing is owed, so no payment is needed.",
