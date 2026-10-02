@@ -111,7 +111,7 @@ export function stepLabel(step: CustomerStep) {
 }
 
 /** Booking. /book is a Forecourt-owned redirect so already-sent links can move later. */
-export const BOOKING_URL = "https://cal.com/matthew-girvan-i3mfm7/30min";
+export const BOOKING_URL = "https://cal.com/matthew-girvan-i3mfm7/forecourtkickoff";
 export const BOOK_PATH = "/book";
 export const BOOK_URL = "https://www.forecourt.me/book";
 export const CONTACT_EMAIL = "hello@forecourt.me";

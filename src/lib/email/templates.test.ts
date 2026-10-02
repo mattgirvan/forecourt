@@ -85,3 +85,65 @@ test("dynamic values are escaped", () => {
   assert.doesNotMatch(e.html, /<script>x/);
   assert.doesNotMatch(e.html, /javascript:/);
 });
+
+// Trial conversions get a short "you're staying" email, not the new-customer one.
+const convert = (stage: string, monthlyChargedToday: boolean, paidPence: number) =>
+  thankYouEmail({
+    ...base,
+    firstName: "Sam Taylor",
+    dealer: "Northbridge Motors",
+    planName: "Site",
+    kind: "convert",
+    paidPence,
+    monthlyPence: 39900,
+    monthlyChargedToday,
+    stage,
+  });
+
+test("a trial converting gets the 'you're staying' email", () => {
+  const building = convert("build", false, 300000);
+  assert.equal(building.subject, "You're staying. Thank you, Sam");
+  assert.match(building.text, /^You're staying\. Thank you, Sam\./);
+  assert.match(building.text, /Today you paid £3,000 for the remaining setup\. The £399 a month starts on your go live day, or 180 days after payment if that comes first\./);
+  assert.doesNotMatch(building.text, /one-off setup|Handy to have for the call|Book your kickoff call/);
+  assert.match(building.text, /Nothing changes on your build/);
+  assert.match(building.text, /3\. We set up your desk: next/);
+});
+
+test("a live trial converting says the remaining setup and that the plan carries on today", () => {
+  const live = convert("live", true, 339900);
+  assert.match(live.text, /Today you paid £3,399: the remaining setup and your first month\./);
+  assert.doesNotMatch(live.text, /one-off setup|kickoff|WHERE YOUR DESK IS/);
+  assert.match(live.text, /Your desk stays live/);
+});
+
+test("a trial converting before its kickoff still gets the booking prompt", () => {
+  for (const stage of ["paid", "brief"]) {
+    const early = convert(stage, false, 300000);
+    assert.match(early.text, /Book your kickoff call: https:\/\/www\.forecourt\.me\/book/);
+    assert.match(early.html, /Book your kickoff call/);
+  }
+});
+
+test("convert email house style: no dashes, no 'glass', no 'portal'", () => {
+  for (const m of [convert("build", false, 300000), convert("live", true, 339900), convert("paid", false, 300000)]) {
+    for (const body of [m.text, m.html, m.subject, m.preheader]) {
+      assert.doesNotMatch(body, /[\u2013\u2014]|glass|portal/i);
+    }
+  }
+});
+
+test("/book redirects to the Forecourt kickoff event everywhere", async () => {
+  const { readFileSync } = await import("node:fs");
+  const { BOOKING_URL } = await import("../journey.ts");
+  assert.equal(BOOKING_URL, "https://cal.com/matthew-girvan-i3mfm7/forecourtkickoff");
+  const vercel = JSON.parse(readFileSync(new URL("../../../vercel.json", import.meta.url), "utf8")) as {
+    redirects?: Array<{ source: string; destination: string }>;
+  };
+  const book = (vercel.redirects ?? []).filter((r) => r.source === "/book" || r.source === "/book/");
+  assert.equal(book.length, 2);
+  for (const r of book) assert.equal(r.destination, BOOKING_URL);
+  const vite = readFileSync(new URL("../../../vite.config.ts", import.meta.url), "utf8");
+  assert.equal((vite.match(/forecourtkickoff/g) ?? []).length, 2);
+  assert.doesNotMatch(vite, /\/30min/);
+});

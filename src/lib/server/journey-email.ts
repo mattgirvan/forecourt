@@ -89,11 +89,12 @@ type TenantForEmail = {
   plan: string | null;
   site_count: number | null;
   user_id: string | null;
+  stage?: string | null;
   archived_at?: string | null;
 };
 
 async function loadTenant(sb: SupabaseClient, tenantId: number): Promise<TenantForEmail | null> {
-  const cols = "id, name, principal_name, email, domain, preview_url, plan, site_count, user_id";
+  const cols = "id, name, principal_name, email, domain, preview_url, plan, site_count, user_id, stage";
   const withArchive = await sb.from("tenants").select(`${cols}, archived_at`).eq("id", tenantId).maybeSingle();
   if (!withArchive.error) return (withArchive.data as TenantForEmail | null) ?? null;
   // archive.sql may not be applied yet.
@@ -131,6 +132,7 @@ export async function sendThankYouEmail(input: {
       monthlyChargedToday: input.monthlyFrom === "checkout",
       bookUrl: BOOK_URL,
       accountUrl: ACCOUNT_URL,
+      stage: t.stage ?? null,
     });
     return await deliverJourneyEmail(
       { config, log: supabaseEmailLog(sb as unknown as EmailLogDb), send: resendSender(), logger: console },

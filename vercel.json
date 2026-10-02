@@ -5,12 +5,12 @@
   "redirects": [
     {
       "source": "/book",
-      "destination": "https://cal.com/matthew-girvan-i3mfm7/30min",
+      "destination": "https://cal.com/matthew-girvan-i3mfm7/forecourtkickoff",
       "statusCode": 302
     },
     {
       "source": "/book/",
-      "destination": "https://cal.com/matthew-girvan-i3mfm7/30min",
+      "destination": "https://cal.com/matthew-girvan-i3mfm7/forecourtkickoff",
       "statusCode": 302
     },
     {

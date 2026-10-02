@@ -288,6 +288,8 @@ export type ThankYouData = {
   monthlyChargedToday: boolean;
   bookUrl: string;
   accountUrl: string;
+  /** Internal tenants.stage at payment. Shapes the trial conversion email. */
+  stage?: string | null;
 };
 
 function paidLine(d: ThankYouData) {
@@ -310,7 +312,86 @@ function paidLine(d: ThankYouData) {
   };
 }
 
+/** A paid trial staying on: short, no new-customer onboarding. */
+function convertThankYouEmail(d: ThankYouData): RenderedEmail {
+  const first = (d.firstName ?? "").trim().split(/\s+/)[0] ?? "";
+  const subject = first ? `You're staying. Thank you, ${first}` : "You're staying. Thank you";
+  const preheader = "Your trial is now a full plan. Here is what you paid and when the monthly plan starts.";
+  const step = customerStepNumber(d.stage);
+  const isLive = step >= CUSTOMER_STEP_COUNT;
+  // Kickoff is step 2: before it is done, the call is still the next thing.
+  const needsKickoff = step <= 2;
+  const paid = d.monthlyChargedToday
+    ? {
+        html: `Today you paid <span style="color:${C.fg};">${gbp(d.paidPence)}</span>: the remaining setup and your first month. Your monthly plan of ${gbp(d.monthlyPence)} carries on from today, on the same date each month.`,
+        text: `Today you paid ${gbp(d.paidPence)}: the remaining setup and your first month. Your monthly plan of ${gbp(d.monthlyPence)} carries on from today, on the same date each month.`,
+      }
+    : {
+        html: `Today you paid <span style="color:${C.fg};">${gbp(d.paidPence)}</span> for the remaining setup. The ${gbp(d.monthlyPence)} a month starts on your go live day, or ${MONTHLY_START_LATEST_DAYS} days after payment if that comes first.`,
+        text: `Today you paid ${gbp(d.paidPence)} for the remaining setup. The ${gbp(d.monthlyPence)} a month starts on your go live day, or ${MONTHLY_START_LATEST_DAYS} days after payment if that comes first.`,
+      };
+  const intro = `Your 60-day trial for ${d.dealer} is now a full ${d.planName} plan. The trial fee came off the setup.`;
+  const nextLine = isLive
+    ? "Your desk stays live and nothing changes for your team. Same web address, same sign in."
+    : needsKickoff
+      ? "Next, pick a time for your kickoff call: 30 minutes on a video call, at a time that suits you."
+      : "Nothing changes on your build. We carry on from where you are, and email you as each step moves.";
+  const reason = `You are getting this because ${d.dealer} moved from the trial to a Forecourt plan.`;
+  const rows = `
+${header(d.planName)}
+${row(`${h1(first ? `You're staying. Thank you, ${first}.` : "You're staying. Thank you.")}
+  ${p(esc(intro))}`, 0)}
+${row(
+  `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="padding:14px 16px;border:1px solid ${C.line};border-radius:14px;">
+  ${label("Paid today", C.subtle)}
+  ${p(paid.html, { size: 14, top: 4 })}
+  </td></tr></table>`,
+  20,
+)}
+${row(
+  card(
+    `${label(isLive ? "Your desk" : "What happens next")}
+  ${p(esc(nextLine), { size: 14, top: 6 })}
+  ${needsKickoff ? `<div style="height:16px;line-height:16px;font-size:0;">&nbsp;</div>${primaryButton(d.bookUrl, "Book your kickoff call")}` : ""}`,
+  ),
+  16,
+)}
+${!isLive && step > 0 ? row(`${h2("Where your desk is")}
+  <div style="height:16px;line-height:16px;font-size:0;">&nbsp;</div>
+  ${timeline(step)}`, 28) : ""}
+${row(contactCard(), 16)}
+${row(ghostButton(d.accountUrl, "Open your account"), 20)}
+${signoff("Thanks for staying,")}
+${footer(reason, true)}`;
+
+  const text = [
+    first ? `You're staying. Thank you, ${first}.` : "You're staying. Thank you.",
+    "",
+    intro,
+    "",
+    "PAID TODAY",
+    paid.text,
+    "",
+    isLive ? "YOUR DESK" : "WHAT HAPPENS NEXT",
+    nextLine,
+    ...(needsKickoff ? [`Book your kickoff call: ${d.bookUrl}`] : []),
+    ...(!isLive && step > 0
+      ? ["", "WHERE YOUR DESK IS", ...CUSTOMER_STEPS.map((s) => `${s.n}. ${s.title}${s.n < step ? ": done" : s.n === step ? ": next" : ""}`)]
+      : []),
+    "",
+    `Your account: ${d.accountUrl}`,
+    "",
+    "Thanks for staying,",
+    "Matt Girvan",
+    "Founder, Forecourt",
+    ...textFooter(reason, true),
+  ].join("\n");
+
+  return { subject, preheader, html: shell({ title: subject, preheader, rows }), text };
+}
+
 export function thankYouEmail(d: ThankYouData): RenderedEmail {
+  if (d.kind === "convert") return convertThankYouEmail(d);
   const first = (d.firstName ?? "").trim().split(/\s+/)[0] ?? "";
   const subject = first ? `Thanks, ${first}. Next step: book your kickoff call` : "Thank you. Next step: book your kickoff call";
   const preheader = "Pick a 30 minute slot. Here is what happens from today to going live.";

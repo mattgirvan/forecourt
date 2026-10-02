@@ -205,7 +205,7 @@ function Home() {
 
       <section id="start" className="mx-auto max-w-5xl px-4 py-20 sm:px-6 sm:py-28">
         <Reveal className="text-center">
-          <p className="text-[13px] font-medium text-muted">How to get started</p>
+          <p className="text-[13px] font-medium text-muted">Start here</p>
           <h2 className="mx-auto mt-3 max-w-xl text-4xl font-semibold tracking-tight sm:text-5xl">
             Three steps to get started.
           </h2>
