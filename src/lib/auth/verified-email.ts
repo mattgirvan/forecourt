@@ -2,13 +2,15 @@
  * Is this account's email really proven? Decided from the user's IDENTITIES,
  * never from how the current session started.
  *
- * Why: this project has "Confirm email" off (`mailer_autoconfirm: true`). In
+ * Why: "Confirm email" is ON for this project now, but it was off for a long
+ * time (`mailer_autoconfirm: true`), and it could be switched off again. In
  * that mode Supabase Auth links a Google sign-in to an existing account with
  * the same email even when Google says the email is not verified
- * (supabase/auth, models/linking.go: `email.Verified || Mailer.Autoconfirm`).
- * Once linked, the person holding that Google login can add a password or a
- * passkey and start sessions that do not look like Google at all. So the
- * check has to look at what is attached to the account, not at the session.
+ * (supabase/auth, models/linking.go: `email.Verified || Mailer.Autoconfirm`),
+ * so accounts from that time may already carry such a link. Once linked, the
+ * person holding that Google login can add a password or a passkey and start
+ * sessions that do not look like Google at all. So the check has to look at
+ * what is attached to the account, not at the session.
  *
  * A user counts as verified when BOTH hold:
  *  1. Nothing attached is unproven: every identity that is not the email
@@ -18,9 +20,9 @@
  *  2. There is a proof: an email identity for the account email with the
  *     email confirmed, or a Google identity that verified the same email.
  *
- * Email code users: their email identity is confirmed when the code is used,
- * and with `mailer_autoconfirm` Supabase may set `email_confirmed_at` at
- * signup instead. Either is accepted here (`email_confirmed_at` on the user,
+ * Email code users: with Confirm email on, their email is confirmed when the
+ * first code is used. Older accounts, made while it was off, had
+ * `email_confirmed_at` set at signup instead. Either is accepted here (`email_confirmed_at` on the user,
  * or `email_verified` on the identity), so nobody who signs in with a code
  * today is locked out. The same rule runs in the database:
  * supabase/signin-verified-guard.sql, `public.auth_email_verified()`.

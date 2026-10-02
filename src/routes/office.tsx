@@ -149,7 +149,7 @@ function OfficeInner() {
       <div className="mx-auto max-w-lg px-4 py-20 text-center">
         <h1 className="text-3xl font-semibold tracking-tight">{"You've been invited."}</h1>
         <p className="mt-3 text-sm text-muted">
-          Accept your invite with an email code first, then add Google or a passkey on your Account page. A password, Google or a passkey does not count for this first step.
+          Sign in with an email code to accept your invite. After that you can add Google or a passkey on your Account page.
         </p>
         <Button
           className="mt-6"
