@@ -2,11 +2,11 @@
 -- staff.sql before the hotfix. This REOPENS THE HOLE: any @forecourt.me
 -- address is trusted again while no team member is active.
 --
--- Locked out of the office? Do not use this file. Reactivate hello@ instead,
--- with this one line in the SQL editor:
+-- If hello@ sees an empty office, sign out and back in first; then ask Forge.
+-- Do not use this file for that. (If Forge finds hello@'s team row was
+-- revoked, the fix is one line in the SQL editor:
 --   update team_members set status = 'active' where email = 'hello@forecourt.me';
--- If hello@ has no confirmation date (email_confirmed_at), sign in once with
--- an email code first, then try the office again.
+-- and if hello@ has no confirmation date, sign in once with an email code.)
 -- Paste into the SQL editor on https://hxodmtmrnpxzkfwhrsjg.supabase.co
 -- Safe to run more than once. Changes no rows.
 
