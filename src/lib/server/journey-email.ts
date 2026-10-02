@@ -16,6 +16,7 @@ import { looksLikeTeam } from "@/lib/team";
 import { resendKey } from "@/lib/server/resend-key";
 import {
   deliverJourneyEmail,
+  deliverStaffAlert,
   emailMode,
   supabaseEmailLog,
   teamList,
@@ -245,5 +246,38 @@ export function emailOutcomeMessage(r: Awaited<ReturnType<typeof sendProgressEma
       return `Email failed: ${r.detail ?? "unknown error"}.`;
     default:
       return `No email (${r.reason}).`;
+  }
+}
+
+/** Team-only email for a staff flag on a payment (duplicate, look-alike). Never throws. */
+export async function sendStaffAlert(flag: {
+  tenantId: number;
+  title: string;
+  body: string;
+  dedupeKey: string;
+}): Promise<DeliverResult | null> {
+  try {
+    const config = gateConfig();
+    if (config.mode === "off") return { sent: false, reason: "mode_off" };
+    const sb = serviceClient();
+    const officeUrl = `${SITE.url}/office`;
+    const text = `${flag.title}\n\n${flag.body}\n\nSite #${flag.tenantId}. Open the office: ${officeUrl}`;
+    const esc = (v: string) => v.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const html = `<p><strong>${esc(flag.title)}</strong></p><p>${esc(flag.body)}</p><p>Site #${flag.tenantId}. <a href="${officeUrl}">Open the office</a></p>`;
+    return await deliverStaffAlert(
+      { config, log: supabaseEmailLog(sb as unknown as EmailLogDb), send: resendSender(), logger: console },
+      {
+        dedupeKey: flag.dedupeKey,
+        tenantId: flag.tenantId,
+        from: EMAIL_FROM,
+        replyTo: EMAIL_REPLY_TO,
+        subject: flag.title,
+        text,
+        html,
+      },
+    );
+  } catch (err) {
+    console.error("[email] staff alert failed", err);
+    return null;
   }
 }

@@ -11,8 +11,11 @@ import {
   type CheckoutSessionLike,
   type OrderRow,
   type PaymentStore,
+  type StaffFlag,
+  type TenantRow,
   type WebhookEvent,
 } from "./payments.ts";
+import type { MatchTenant } from "./dealer-match.ts";
 
 const NOW = new Date("2026-10-01T21:00:00Z");
 
@@ -46,15 +49,26 @@ function session(over: Partial<CheckoutSessionLike> = {}): CheckoutSessionLike {
   };
 }
 
-function memoryStore(o: OrderRow | null, opts: { failWrites?: boolean; tenantOwner?: string } = {}) {
+function memoryStore(
+  o: OrderRow | null,
+  opts: {
+    failWrites?: boolean;
+    tenantOwner?: string;
+    tenant?: Partial<TenantRow>;
+    otherPaid?: number[];
+    tenants?: MatchTenant[];
+    failMatch?: boolean;
+  } = {},
+) {
   const calls: { op: string; id: number | string; patch?: unknown }[] = [];
   const state = { order: o ? { ...o } : null };
+  const flags: StaffFlag[] = [];
   const store: PaymentStore = {
     async loadOrder(id) {
       return state.order && state.order.id === id ? { ...state.order } : null;
     },
     async loadTenant() {
-      return { user_id: opts.tenantOwner ?? "user-a", status: "briefing", trial_ends_at: null };
+      return { user_id: opts.tenantOwner ?? "user-a", status: "briefing", trial_ends_at: null, ...opts.tenant };
     },
     async updateTenant(id, patch) {
       if (opts.failWrites) throw new Error("update tenant: permission denied");
@@ -69,11 +83,21 @@ function memoryStore(o: OrderRow | null, opts: { failWrites?: boolean; tenantOwn
       if (opts.failWrites) throw new Error("cancel tenant: permission denied");
       calls.push({ op: "cancel", id });
     },
+    async otherPaidOrderIds() {
+      return opts.otherPaid ?? [];
+    },
+    async listTenantsForMatch() {
+      if (opts.failMatch) throw new Error("list tenants: permission denied");
+      return opts.tenants ?? [];
+    },
+    async flagForStaff(flag) {
+      flags.push(flag);
+    },
     async seedPaid(id, actor) {
       calls.push({ op: "seed", id, patch: actor });
     },
   };
-  return { store, calls, state };
+  return { store, calls, state, flags };
 }
 
 function quietLog() {
@@ -351,4 +375,75 @@ test("a session id is always checked with Stripe, even if a preview order id is 
   assert.equal(retrieved, true);
   assert.deepEqual(r, { ok: false, reason: "session_not_paid" });
   assert.equal(calls.length, 0);
+});
+
+// ---- duplicate payments and look-alike dealerships (follow-ups) ----------
+
+test("a second paid checkout never overwrites the stored subscription; staff are flagged", async () => {
+  // Two Checkout tabs for one site, both paid: sub_1 landed first.
+  const m = memoryStore(order({ id: 8, stripe_session_id: "cs_test_2" }), {
+    tenant: { status: "subscribed", stripe_subscription_id: "sub_1" },
+    otherPaid: [7],
+  });
+  let thankYou = 0;
+  const { deps } = hookDeps(
+    m.store,
+    completed(session({ id: "cs_test_2", subscription: "sub_2", metadata: { order_id: "8" } })),
+  );
+  const r = await handleStripeWebhook({ ...deps, onPaid: async () => void thankYou++ }, "{}", "s");
+  assert.deepEqual(r, { status: 200, body: "ok" });
+  assert.equal(m.calls.filter((c) => c.op === "updateTenant").length, 0, "tenant left alone");
+  assert.equal(m.calls.filter((c) => c.op === "seed").length, 0);
+  assert.equal(m.state.order?.status, "paid", "the money was taken, so the order is recorded");
+  assert.equal(m.flags.length, 1);
+  assert.equal(m.flags[0]!.kind, "duplicate_payment");
+  assert.equal(m.flags[0]!.dedupeKey, "duplicate-payment:order:8");
+  assert.match(m.flags[0]!.body, /keeps subscription sub_1/);
+  assert.match(m.flags[0]!.body, /cancel sub_2 in Stripe/);
+  assert.equal(thankYou, 0, "no thank-you email for a duplicate");
+});
+
+test("paidOrderConflict allows first payments, retries, conversions and re-buys after cancel", async () => {
+  const { paidOrderConflict } = await import("./payments.ts");
+  assert.equal(paidOrderConflict({ status: "briefing" }, { kind: "subscription" }, "sub_1", [7]), null);
+  assert.equal(paidOrderConflict({ status: "subscribed", stripe_subscription_id: "sub_1" }, { kind: "subscription" }, "sub_1", [7]), null);
+  assert.equal(paidOrderConflict({ status: "trial" }, { kind: "convert" }, "sub_9", [5]), null);
+  assert.equal(paidOrderConflict({ status: "cancelled", stripe_subscription_id: "sub_1" }, { kind: "subscription" }, "sub_2", [7]), null);
+  // Partial earlier failure (tenant written, order not): no other paid order, so not a duplicate.
+  assert.equal(paidOrderConflict({ status: "trial" }, { kind: "trial" }, null, []), null);
+  assert.deepEqual(paidOrderConflict({ status: "trial" }, { kind: "trial" }, null, [5]), { reason: "already_paid" });
+  assert.deepEqual(
+    paidOrderConflict({ status: "live", stripe_subscription_id: "sub_1" }, { kind: "subscription" }, "sub_2", [7]),
+    { reason: "active_subscription" },
+  );
+});
+
+test("a paid order that looks like an existing dealership is flagged, not blocked", async () => {
+  const m = memoryStore(order(), {
+    tenant: { name: "St. John's Motors & Sons Limited", email: "Sales@StJohns.example" },
+    tenants: [
+      { id: 3, name: "St. John's Motors & Sons Limited", status: "briefing" },
+      { id: 11, name: "st johns motors and sons", status: "live" },
+      { id: 12, name: "Other Cars", email: "sales@stjohns.example", status: "subscribed" },
+      { id: 13, name: "St Johns Motors and Sons", status: "cancelled" },
+    ],
+  });
+  const { deps } = hookDeps(m.store, completed());
+  const r = await handleStripeWebhook(deps, "{}", "s");
+  assert.deepEqual(r, { status: 200, body: "ok" });
+  assert.equal(m.calls.filter((c) => c.op === "updateTenant").length, 1, "still applied");
+  assert.equal(m.flags.length, 1);
+  assert.equal(m.flags[0]!.kind, "similar_dealer");
+  assert.match(m.flags[0]!.body, /#11 st johns motors and sons \(live\) has a similar name\./);
+  assert.match(m.flags[0]!.body, /#12 Other Cars \(subscribed\) has the same email\./);
+  assert.doesNotMatch(m.flags[0]!.body, /#13|#3 /);
+});
+
+test("the look-alike check failing never fails the payment", async () => {
+  const m = memoryStore(order(), { tenant: { name: "Northbridge" }, failMatch: true });
+  const { deps, q } = hookDeps(m.store, completed());
+  const r = await handleStripeWebhook(deps, "{}", "s");
+  assert.deepEqual(r, { status: 200, body: "ok" });
+  assert.equal(m.state.order?.status, "paid");
+  assert.ok(q.lines.some((l) => l.includes("similar dealership check failed")));
 });

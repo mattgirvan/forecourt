@@ -173,6 +173,62 @@ export async function deliverJourneyEmail(deps: DeliverDeps, email: JourneyEmail
   }
 }
 
+export type StaffAlertEmail = {
+  dedupeKey: string;
+  tenantId: number | null;
+  from: string;
+  replyTo: string;
+  subject: string;
+  text: string;
+  html: string;
+};
+
+/**
+ * An internal alert for the Forecourt team (never a customer). Sent to the
+ * EMAIL_TEAM_TO list whenever EMAIL_MODE is team or live; off sends nothing.
+ * Logged and deduped like journey emails. Never throws.
+ */
+export async function deliverStaffAlert(deps: DeliverDeps, email: StaffAlertEmail): Promise<DeliverResult> {
+  const { config } = deps;
+  const logger = deps.logger ?? { warn: () => {}, error: () => {} };
+  if (config.mode === "off") return { sent: false, reason: "mode_off" };
+  if (!config.teamTo.length) return { sent: false, reason: "team_list_empty" };
+  if (!deps.send) return { sent: false, reason: "no_sender" };
+  const key = `staff:${email.dedupeKey}`;
+  const subject = `[Forecourt staff] ${email.subject}`;
+  const claim = await deps.log.claim({
+    dedupe_key: key,
+    tenant_id: email.tenantId,
+    kind: "staff_alert",
+    step: null,
+    mode: config.mode,
+    recipient: config.teamTo.join(", "),
+    subject,
+  });
+  if (claim === "duplicate") return { sent: false, reason: "duplicate" };
+  if (claim === "unavailable") {
+    logger.warn("[email] email_log unavailable; skipping", key);
+    return { sent: false, reason: "log_unavailable" };
+  }
+  try {
+    const res = await deps.send(
+      { from: email.from, to: config.teamTo, replyTo: email.replyTo, subject, html: email.html, text: email.text },
+      key,
+    );
+    if (res.error) {
+      await deps.log.finish(key, { status: "failed", error: String(res.error).slice(0, 500) });
+      return { sent: false, reason: "send_failed", detail: String(res.error) };
+    }
+    await deps.log.finish(key, { status: "sent", provider_id: res.id ?? "" });
+    return { sent: true, mode: config.mode, to: config.teamTo, id: res.id ?? null };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    await deps.log.finish(key, { status: "failed", error: msg.slice(0, 500) });
+    logger.error("[email] staff alert threw", key, msg);
+    return { sent: false, reason: "send_failed", detail: msg };
+  }
+}
+
 type DbError = { code?: string; message?: string } | null;
 type InsertResult = { error: DbError };
 // Minimal structural type so this file needs no supabase-js import.
