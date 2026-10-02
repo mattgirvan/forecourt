@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
 
 import { DealerPortal } from "@/components/account/portal";
+import { SignInMethods } from "@/components/account/sign-in-methods";
 import { SignInGate } from "@/lib/sb-session";
 import { SiteShell } from "@/components/site-shell";
 import { Button } from "@/components/ui/button";
@@ -94,6 +95,7 @@ function AccountPage() {
         }
       >
         <AccountInner />
+        <SignInMethods />
       </SignInGate>
     </SiteShell>
   );

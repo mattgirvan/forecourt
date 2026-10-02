@@ -405,6 +405,7 @@ const GUARDED = { auth_email_verified: "placeholder (always yes)", is_team: "cal
 /** Stands in for #38's signin-verified-guard.sql: confirmed email only. */
 const REAL_GUARD = `create or replace function public.auth_email_verified() returns boolean language sql stable security definer set search_path = ''
   as $$ select auth.uid() is not null and exists (select 1 from auth.users u where u.id = auth.uid() and u.email_confirmed_at is not null) /* simulated real guard */ $$;`;
+const DEALER_POLICIES = ["own tenants", "own orders", "own provision", "dealer customer notes", "dealer write customer notes", "dealer messages", "dealer send messages", "dealer events", "dealer write events", "dealer meetings"];
 const guardBody = async (d) => (await d.query("select prosrc from pg_proc where oid = to_regprocedure('public.auth_email_verified()')")).rows[0]?.prosrc ?? null;
 
 test("a signed-out session loses staff access at once, not when its token expires", async () => {
@@ -451,6 +452,13 @@ test("the guard stand-in: created only if missing, before is_team(), in both fil
     return s.slice(a, s.indexOf("end;\n$$;", a));
   };
   assert.equal(block("team-domain-hotfix.sql"), block("team-owner-only.sql"));
+  // The dealer files (#38) carry the same block, before their first use of the guard.
+  for (const f of ["control-plane.sql", "portal.sql", "build.sql"]) {
+    const sql = read(f);
+    assert.equal(block(f), block("team-owner-only.sql"), f);
+    assert.ok(sql.indexOf("if to_regprocedure('public.auth_email_verified()') is null then") < sql.indexOf("(select public.auth_email_verified())"), `${f}: the stand-in comes first`);
+    assert.doesNotMatch(sql, /create or replace function (public\.)?auth_email_verified/i, `${f} never replaces the guard`);
+  }
   // Re-runs keep exactly one stand-in and change nothing.
   await d.exec(read("team-owner-only.sql"));
   await d.exec(read("team-domain-hotfix.sql"));
@@ -472,6 +480,10 @@ test("the real guard is never overwritten: every SQL file, in any order, after t
     assert.equal(await isTeam(d, U.operator), false, files.join(", "));
     assert.equal(await isTeam(d, U.owner2), true, "confirmed staff still get in");
     assert.deepEqual(await guardState(d), { ...GUARDED, auth_email_verified: "real guard" });
+    // Every dealer policy (#38) still needs the guard.
+    const dealer = (await d.query("select policyname, qual, with_check from pg_policies where policyname = any($1)", [DEALER_POLICIES])).rows;
+    assert.equal(dealer.length, DEALER_POLICIES.length, files.join(", "));
+    for (const p of dealer) assert.match(`${p.qual ?? ""} ${p.with_check ?? ""}`, /auth_email_verified/, `${p.policyname}: ${files.join(", ")}`);
   }
   // The rollback keeps the real guard too, and its is_team() still calls it.
   await d.exec(read("team-owner-only.rollback.sql"));
@@ -492,13 +504,16 @@ test("the rollback never drops the stand-in, and puts it back if it went missing
   assert.match(await guardBody(d), /forecourt placeholder/);
   assert.match(read("team-owner-only.rollback.sql"), /if to_regprocedure\('public\.auth_email_verified\(\)'\) is null then/);
   assert.doesNotMatch(read("team-owner-only.rollback.sql"), /drop function[^;]*auth_email_verified/i);
-  // Dropped by hand (Postgres allows it): every staff check errors until it is back.
-  await d.exec("drop function public.auth_email_verified()");
+  // Since #38 the dealer policies use it, so Postgres refuses a plain drop.
+  await assert.rejects(d.exec("drop function public.auth_email_verified()"), /other objects depend on it/);
+  // Dropped by hand with cascade (which also removes those dealer policies):
+  // every staff check errors until it is back.
+  await d.exec("drop function public.auth_email_verified() cascade");
   await assert.rejects(isTeam(d, U.operator), /auth_email_verified/);
   assert.equal((await guardState(d)).auth_email_verified, "missing");
   await d.exec(read("team-owner-only.rollback.sql"));
   assert.equal(await isTeam(d, U.operator), true);
-  await d.exec("drop function public.auth_email_verified()");
+  await d.exec("drop function public.auth_email_verified() cascade");
   await d.exec(read("team-owner-only.sql"));
   assert.deepEqual(await guardState(d), GUARDED);
 });

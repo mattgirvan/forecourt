@@ -123,7 +123,7 @@ function OfficeInner() {
         <h1 className="text-3xl font-semibold tracking-tight">{"Your invite isn't accepted yet."}</h1>
         <p className="mt-3 text-sm text-muted" data-testid="accept-problem">
           {otherSignIn
-            ? "This account also has another way to sign in, such as Google, a passkey or an authenticator app, so it can't join the team yet. Tell Matt."
+            ? "This account already has another way to sign in, such as Google, a passkey or an authenticator app, so it can't join the team yet. An invite has to be accepted with an email code first; Google or a passkey can be added on your Account page after that. Tell Matt."
             : "Sorry, we couldn't finish accepting your invite. Please try again, or tell Matt."}
         </p>
         {otherSignIn ? null : (
@@ -149,7 +149,7 @@ function OfficeInner() {
       <div className="mx-auto max-w-lg px-4 py-20 text-center">
         <h1 className="text-3xl font-semibold tracking-tight">{"You've been invited."}</h1>
         <p className="mt-3 text-sm text-muted">
-          Sign in with an email code to accept. A password, Google or a passkey does not count for this first step.
+          Sign in with an email code to accept your invite. After that you can add Google or a passkey on your Account page.
         </p>
         <Button
           className="mt-6"

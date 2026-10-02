@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { createServerFn } from "@tanstack/react-start";
 import {
   PLANS,
@@ -24,8 +24,8 @@ import {
 } from "@/lib/server/checkout-guard";
 import { confirmPaymentFlow, supabasePaymentStore, type SupabaseLike } from "@/lib/server/payments";
 import { env } from "@/lib/env.server";
-import { actor } from "@/lib/server/staff-actor";
-import { SUPABASE_ANON, SUPABASE_URL } from "@/lib/sb";
+import { actor, verifiedUser } from "@/lib/server/staff-actor";
+import { SUPABASE_URL } from "@/lib/sb";
 
 function slugify(name: string) {
   return (
@@ -37,20 +37,9 @@ function slugify(name: string) {
   );
 }
 
-function sbFor(token: string) {
-  const key = SUPABASE_ANON || env("VITE_SUPABASE_ANON_KEY") || env("VITE_SUPABASE_PUBLISHABLE_KEY") || "";
-  const url = SUPABASE_URL;
-  return createClient(url, key, {
-    global: { headers: { Authorization: `Bearer ${token}` } },
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-}
-
 async function uid(token: string) {
-  const sb = sbFor(token);
-  const { data, error } = await sb.auth.getUser(token);
-  if (error || !data.user) throw new Error("Sign in again.");
-  return { sb, userId: data.user.id };
+  const { sb, user } = await verifiedUser(token);
+  return { sb, userId: user.id };
 }
 
 function stripeSecret() {
@@ -69,7 +58,7 @@ function sbAdmin() {
  * ids). Service role when configured; otherwise the caller's own client, which
  * stops working for these fields once supabase/entitlement-guard.sql is live.
  */
-function moneyWriter(userSb: ReturnType<typeof sbFor>) {
+function moneyWriter(userSb: SupabaseClient) {
   const admin = sbAdmin();
   if (!admin) {
     console.warn("[payments] SUPABASE_SERVICE_ROLE_KEY is not set; payment writes use the customer session");
