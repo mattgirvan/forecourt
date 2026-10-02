@@ -13,6 +13,10 @@
 -- 4. Delete the sign-in account (the SQL below, or Supabase, Authentication,
 --    Users, then the row's menu, Delete user). This stops anyone using that
 --    account if you ever invite the address again.
+--    If this errors (the account is still linked to other records), ban the
+--    user instead: Authentication, Users, the user's menu, Ban user. Then
+--    tell Forge. An error undoes the whole block, so run it again without
+--    the two "delete from auth.users" lines to keep the revoke.
 -- 5. Run team-domain-hotfix.check.sql again: the address should show as
 --    revoked in section 1 and be gone from sections 2 and 3.
 --
@@ -30,6 +34,10 @@
 -- delete from team_emails
 -- where email = 'stranger@forecourt.me' and email <> 'hello@forecourt.me';
 --
+-- -- If this errors (the account is still linked to other records), ban the
+-- -- user instead: Authentication, Users, the user's menu, Ban user. Then
+-- -- tell Forge. The error undoes this whole block: run it again without
+-- -- these delete lines so the revoke above still happens.
 -- delete from auth.users
 -- where lower(email) = 'stranger@forecourt.me' and lower(email) <> 'hello@forecourt.me';
 --
