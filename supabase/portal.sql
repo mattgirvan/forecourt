@@ -16,11 +16,13 @@ stable
 security definer
 set search_path = public
 as $$
+  -- Exact addresses only, never the email domain. staff.sql (run next)
+  -- replaces this with the team_members rule.
   select exists (
     select 1 from team_emails
     where email = lower(coalesce(auth.jwt() ->> 'email', ''))
-  )
-  or lower(coalesce(auth.jwt() ->> 'email', '')) like '%@forecourt.me';
+      and lower(coalesce(auth.jwt() ->> 'email', '')) <> ''
+  );
 $$;
 
 alter table tenants add column if not exists principal_name text not null default '';

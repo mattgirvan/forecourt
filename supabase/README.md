@@ -23,6 +23,28 @@ This is the **office** — sign-in, tenants, orders. Not Aberdeen. Not a custome
 
 14. Before turning on journey emails: SQL editor → paste `email-log.sql` → run. Then set `EMAIL_MODE` on Vercel Production (`team` first, then `live`). Unset or `off` sends nothing.
 
+15. Security hotfix (#41: staff are never let in just for having an @forecourt.me address). Do these steps in this exact order:
+    1. Supabase, Authentication, Sign In / Providers, Email: turn **Confirm email** ON and **Secure email change** ON. Check that **Google** is off. Until Confirm email is on, every new sign-up counts as confirmed, so the checks below prove nothing.
+    2. SQL editor: paste `team-domain-hotfix.check.sql`, run it, and save the output (it changes nothing). In section 1 or 3, check that hello@forecourt.me has a date under `email_confirmed_at`. If it does not, stop here and ask.
+    3. SQL editor: paste `team-domain-hotfix.sql` and run it. Then run the check again and save the output. Section 4 should no longer contain `like '%@forecourt.me'`.
+    4. Merge #41 and wait until the Production deploy on Vercel shows Ready. Sign in as hello@forecourt.me and check that /office loads.
+    5. Clean up, only now that #41 is live (the old code lets a removed person straight back in):
+       - In section 1 of the check, remove EVERY person you do not personally recognise, not only rows marked `auto_owner_suspect` or `invited_by_unknown`. Those marks are only hints: a stranger with owner access could have invited others or added rows directly.
+       - In section 3, deal with EVERY @forecourt.me sign-in account you do not recognise, even if it has no team row. Otherwise whoever made it becomes staff the moment you invite that address.
+       - Use `team-domain-hotfix.cleanup.sql`, one person at a time:
+         - Always run the whole file. Never highlight one part and run only that: the address check would be skipped. (A highlighted part on its own matches nobody, because the address only lasts for one run, so it changes nothing, but it does not do the job either.)
+         - Type the person's address once, on the line near the top of the file. Everything else in the file works from that address, so it cannot mix up two people. If no sign-in account has that address, or more than one does, or it is hello@forecourt.me, the run stops with an error and changes nothing. (Someone with a team row but no sign-in account: revoke them in the office Staff list instead.)
+         - Part 1 runs every time (read only). Save the output. It lists everything tied to that account: their dealer sites (tenants), orders, setup steps, and the notes, messages and build events on those sites. If you see a real dealer's site in it, stop and tell Forge.
+         - Part 2 is the normal step: remove its dashes and run the file again. It sets the person to revoked, deletes their `team_emails` row and bans their sign-in account. You can ban in Supabase instead of with the SQL line: Authentication, Users, the user's menu, Ban user. Banning keeps their data, so nothing a dealer relies on is lost. After a ban the app refuses them at once; a token already issued keeps working directly against the database until it expires (1 hour by default).
+         - Part 3 is optional: delete the sign-in account, but only if Part 1 showed 0 in every row. Deleting an account also deletes every dealer site, order and setup step that points at it, with their notes, messages and build events. If in doubt, leave it banned.
+         - Never delete a `team_members` row while its `team_emails` row is still there: re-running `staff.sql` would bring them back.
+       - Run the check again and save the output.
+    6. If any stranger had owner access, look at what they did: notes and build events they wrote, any refunds or Resume actions, and any payment links made while they were in.
+    - If hello@ sees an empty office, sign out and back in first; then ask Forge. Do not use the rollback for that. (If Forge finds hello@'s team row was revoked, the fix is one line: `update team_members set status = 'active' where email = 'hello@forecourt.me';`)
+    - `team-domain-hotfix.rollback.sql` is a last resort only. It puts the domain rule back and reopens the hole.
+
+Running the tests needs Node 22.6 or later (`npm test` uses `node --test` with file globs and TypeScript type stripping).
+
 Stripe webhook (optional, return-URL confirm still works): `https://www.forecourt.me/api/stripe/webhook`
 Needs `STRIPE_WEBHOOK_SECRET` and `SUPABASE_SERVICE_ROLE_KEY` on Vercel. Do not put the service-role key in `VITE_` vars.
 

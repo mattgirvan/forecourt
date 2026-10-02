@@ -12,7 +12,7 @@ import { env } from "@/lib/env.server";
 import { BOOK_URL, customerStepNumber } from "@/lib/journey";
 import { SITE } from "@/lib/site";
 import { SUPABASE_URL } from "@/lib/sb";
-import { looksLikeTeam } from "@/lib/team";
+import { onForecourtDomain } from "@/lib/team";
 import { resendKey } from "@/lib/server/resend-key";
 import {
   deliverJourneyEmail,
@@ -57,7 +57,8 @@ function resendSender(): EmailSender | null {
 async function isStaffEmail(sb: SupabaseClient, email: string | null | undefined) {
   const e = (email ?? "").trim().toLowerCase();
   if (!e) return false;
-  if (looksLikeTeam(e)) return true;
+  // Recipient check only (never access): do not send customer emails to our own addresses.
+  if (onForecourtDomain(e)) return true;
   try {
     const { data } = await sb.from("team_members").select("status").eq("email", e).maybeSingle();
     return Boolean(data && data.status !== "revoked");

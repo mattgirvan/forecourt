@@ -24,7 +24,7 @@ import {
 } from "@/lib/server/checkout-guard";
 import { confirmPaymentFlow, supabasePaymentStore, type SupabaseLike } from "@/lib/server/payments";
 import { env } from "@/lib/env.server";
-import { looksLikeTeam } from "@/lib/team";
+import { teamAccess } from "@/lib/team";
 import { SUPABASE_ANON, SUPABASE_URL } from "@/lib/sb";
 
 function slugify(name: string) {
@@ -268,8 +268,9 @@ export const toggleStep = createServerFn({ method: "POST" })
     const { sb } = await uid(data.token);
     const { data: who } = await sb.auth.getUser(data.token);
     const email = (who.user?.email ?? "").toLowerCase();
-    const { data: member } = await sb.from("team_members").select("status").eq("email", email).maybeSingle();
-    const team = member ? member.status !== "revoked" : looksLikeTeam(email);
+    const { data: member } = await sb.from("team_members").select("status, role").eq("email", email).maybeSingle();
+    // Never by email domain: a team_members row, or a confirmed hello@forecourt.me.
+    const { team } = teamAccess({ email, emailConfirmed: Boolean(who.user?.email_confirmed_at), member });
     if (!team) throw new Error("Only staff change the setup checklist.");
     const { error } = await sb
       .from("provision_steps")

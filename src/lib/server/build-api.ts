@@ -15,7 +15,7 @@ import {
 import { normalizeBilling, normalizePlan } from "@/lib/catalog";
 import { env } from "@/lib/env.server";
 import { SUPABASE_ANON, SUPABASE_URL } from "@/lib/sb";
-import { looksLikeTeam } from "@/lib/team";
+import { teamAccess } from "@/lib/team";
 import {
   deskHtmlUrl,
   deskRepoName,
@@ -42,10 +42,11 @@ async function actor(token: string) {
   const email = (data.user.email ?? "").toLowerCase();
   const { data: member } = await sb
     .from("team_members")
-    .select("status")
+    .select("status, role")
     .eq("email", email)
     .maybeSingle();
-  const team = member ? member.status !== "revoked" : looksLikeTeam(email);
+  // Never by email domain: a team_members row, or a confirmed hello@forecourt.me.
+  const { team } = teamAccess({ email, emailConfirmed: Boolean(data.user.email_confirmed_at), member });
   return { sb, userId: data.user.id, email, team };
 }
 

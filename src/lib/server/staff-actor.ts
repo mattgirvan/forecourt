@@ -5,7 +5,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { env } from "@/lib/env.server";
 import { SUPABASE_ANON, SUPABASE_URL } from "@/lib/sb";
-import { looksLikeTeam, type StaffRole } from "@/lib/team";
+import { resolveActor } from "@/lib/server/team-actor";
 
 export function sbFor(token: string) {
   const key = SUPABASE_ANON || env("VITE_SUPABASE_ANON_KEY") || env("VITE_SUPABASE_PUBLISHABLE_KEY") || "";
@@ -21,79 +21,38 @@ export function sbAdmin() {
   return createClient(SUPABASE_URL, key, { auth: { persistSession: false, autoRefreshToken: false } });
 }
 
+/**
+ * The caller and their staff access. Only a team_members row (invited or
+ * active) or a confirmed hello@forecourt.me counts; an @forecourt.me address
+ * on its own never does, because anyone can sign up with one.
+ */
 export async function actor(token: string) {
   const sb = sbFor(token);
-  const { data, error } = await sb.auth.getUser(token);
-  if (error || !data.user) throw new Error("Sign in again.");
-  const email = (data.user.email ?? "").toLowerCase();
-
-  const { data: member } = await sb
-    .from("team_members")
-    .select("email, role, status, name")
-    .eq("email", email)
-    .maybeSingle();
-
-  if (member) {
-    if (member.status === "revoked") {
-      return {
-        sb,
-        userId: data.user.id,
-        email,
-        team: false,
-        role: null as StaffRole | null,
-        name: member.name as string,
-      };
-    }
-    if (member.status === "invited") {
-      void sb.from("team_members").update({ status: "active", last_seen_at: new Date().toISOString() }).eq("email", email);
-    } else {
-      void sb.from("team_members").update({ last_seen_at: new Date().toISOString() }).eq("email", email);
-    }
-    return {
-      sb,
-      userId: data.user.id,
-      email,
-      team: true,
-      role: (member.role as StaffRole) ?? "operator",
-      name: member.name as string,
-    };
-  }
-
-  if (looksLikeTeam(email)) {
-    const admin = sbAdmin();
-    if (admin) {
-      await admin.from("team_members").upsert(
-        {
-          email,
-          name: email === "hello@forecourt.me" ? "Matt Girvan" : "",
-          role: "owner",
-          status: "active",
-          last_seen_at: new Date().toISOString(),
-        },
-        { onConflict: "email" },
-      );
-      await admin.from("team_emails").upsert({ email });
-    }
-    return {
-      sb,
-      userId: data.user.id,
-      email,
-      team: true,
-      role: "owner" as StaffRole,
-      name: email === "hello@forecourt.me" ? "Matt Girvan" : "",
-    };
-  }
-
-  const { data: row } = await sb.from("team_emails").select("email").eq("email", email).maybeSingle();
-  const team = Boolean(row) || looksLikeTeam(email);
-  return {
-    sb,
-    userId: data.user.id,
-    email,
-    team,
-    role: (team ? "owner" : null) as StaffRole | null,
-    name: "",
-  };
+  const who = await resolveActor({
+    getUser: async () => {
+      const { data, error } = await sb.auth.getUser(token);
+      return error || !data.user ? null : data.user;
+    },
+    getMember: async (email) => {
+      const { data: member } = await sb.from("team_members").select("email, role, status, name").eq("email", email).maybeSingle();
+      return member ?? null;
+    },
+    touchMember: (email, activate) => {
+      const now = new Date().toISOString();
+      void sb
+        .from("team_members")
+        .update(activate ? { status: "active", last_seen_at: now } : { last_seen_at: now })
+        .eq("email", email);
+    },
+    seedOwner: async (email) => {
+      const admin = sbAdmin();
+      if (!admin) return;
+      await admin
+        .from("team_members")
+        .upsert({ email, name: "Matt Girvan", role: "owner", status: "active", last_seen_at: new Date().toISOString() }, { onConflict: "email" });
+    },
+  });
+  return { sb, ...who };
 }
 
 export function stripeSecret() {

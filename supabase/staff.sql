@@ -28,6 +28,7 @@ insert into team_members (email, role, status)
 select email, 'operator', 'active' from team_emails
 on conflict (email) do nothing;
 
+-- Never by email domain: see team-domain-hotfix.sql (kept identical).
 create or replace function is_team()
 returns boolean
 language sql
@@ -35,20 +36,35 @@ stable
 security definer
 set search_path = public
 as $$
+  with me as (
+    select lower(coalesce(auth.jwt() ->> 'email', '')) as email
+  )
   select
-    exists (
-      select 1 from team_members
-      where email = lower(coalesce(auth.jwt() ->> 'email', ''))
-        and status in ('active', 'invited')
+    (select email from me) <> ''
+    -- Revoked is never staff.
+    and not exists (
+      select 1 from team_members t
+      where t.email = (select email from me) and t.status = 'revoked'
     )
-    or (
-      not exists (select 1 from team_members where status = 'active')
-      and (
-        exists (
-          select 1 from team_emails
-          where email = lower(coalesce(auth.jwt() ->> 'email', ''))
-        )
-        or lower(coalesce(auth.jwt() ->> 'email', '')) like '%@forecourt.me'
+    -- hello@forecourt.me only counts once that auth user's email is confirmed.
+    and (
+      (select email from me) <> 'hello@forecourt.me'
+      or exists (
+        select 1 from auth.users u
+        where u.id = auth.uid()
+          and lower(u.email) = 'hello@forecourt.me'
+          and u.email_confirmed_at is not null
+      )
+    )
+    and (
+      exists (
+        select 1 from team_members t
+        where t.email = (select email from me) and t.status in ('active', 'invited')
+      )
+      or (select email from me) = 'hello@forecourt.me'
+      or (
+        not exists (select 1 from team_members where status = 'active')
+        and exists (select 1 from team_emails te where te.email = (select email from me))
       )
     );
 $$;
