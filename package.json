@@ -16,7 +16,7 @@
     "preview:stop": "node scripts/preview.mjs stop",
     "typecheck": "tsc --noEmit",
     "check:auth": "node scripts/check-auth-invariant.mjs",
-    "test": "node --test 'scripts/**/*.test.mjs' && node --experimental-strip-types --test src/lib/db.test.ts src/lib/app-data/app-data.test.ts src/lib/app-data/readiness-schedule.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts src/lib/server/desk-scaffold.test.ts src/lib/server/payments.test.ts src/lib/server/billing-start.test.ts src/lib/server/checkout-guard.test.ts src/lib/server/refund-target.test.ts",
+    "test": "node --test 'scripts/**/*.test.mjs' && node --experimental-strip-types --test src/lib/db.test.ts src/lib/app-data/app-data.test.ts src/lib/app-data/readiness-schedule.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts src/lib/server/desk-scaffold.test.ts src/lib/server/payments.test.ts src/lib/server/billing-start.test.ts src/lib/server/checkout-guard.test.ts src/lib/server/refund-target.test.ts src/lib/server/email-engine.test.ts src/lib/email/templates.test.ts",
     "lint": "eslint .",
     "format": "prettier --write .",
     "indexnow": "node scripts/indexnow.mjs"

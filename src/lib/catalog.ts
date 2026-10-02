@@ -39,7 +39,7 @@ export type IngestId = (typeof INGEST)[number]["id"];
 
 export const PROVISION = [
   { id: "brand", n: "01", title: "Your colours", body: "Logo, name, phone, website." },
-  { id: "config", n: "02", title: "Your desk", body: "Same portal, your name. On the order you switch what you need." },
+  { id: "config", n: "02", title: "Your desk", body: "Same desk, your name. On the order you switch what you need." },
   { id: "data", n: "03", title: "Your stock", body: "A private list of cars. Not mixed with anyone else." },
   { id: "ingest", n: "04", title: "How cars come in", body: "Spreadsheet to start. Live feed if you have one; that feed also updates the customer." },
   { id: "ship", n: "05", title: "Go live", body: "Your link. Staff sign in with a code." },
@@ -79,7 +79,7 @@ export const PLANS: Record<PlanId, Plan> = {
     minSites: 1,
     sellNow: true,
     body: "One dealership. Stock, deals, locator, customers. The desk as it already runs on the floor.",
-    why: "The 60-day trial lives here and only here. A site takes half a day to stand up. If it does not earn its keep, we have not built a group.",
+    why: "The 60-day trial lives here and only here. We set up your desk within 7 working days of the kickoff call. If it does not earn its keep, we have not built a group.",
     includes: [
       "One site, one desk",
       "Sales, management, host, and progressor on the trial",
@@ -100,7 +100,7 @@ export const PLANS: Record<PlanId, Plan> = {
     minSites: 1,
     sellNow: true,
     body: "A franchise dealer. Manufacturer feed, option codes, extra seats. Twelve-month contract.",
-    why: "Manufacturer ingest is a real build. Twelve months, billed monthly.",
+    why: "Manufacturer ingest is a real build. Twelve months from go live, billed monthly.",
     includes: [
       "One manufacturer brand",
       "Every site seat: host, progressor, admin, accounts",
@@ -121,7 +121,7 @@ export const PLANS: Record<PlanId, Plan> = {
     minSites: 2,
     sellNow: true,
     body: "A motor group. Every site, every franchise, one picture of the pipeline.",
-    why: "A group is a project. The contract starts when we do.",
+    why: "A group is a project. Monthly billing starts the day your desks go live.",
     includes: [
       "Every site on the contract",
       "Principal roll-up across the group",

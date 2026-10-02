@@ -2,7 +2,6 @@
  * Contact / enquiry handling for POST /api/contact.
  * Email via Resend; persist via Supabase service role. Prefer both; succeed if either works.
  */
-import { createRequire } from "node:module";
 import { createClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import {
@@ -16,6 +15,7 @@ import { env } from "@/lib/env.server";
 import { SITE } from "@/lib/site";
 import { SUPABASE_URL } from "@/lib/sb";
 import { jsonResponse } from "@/lib/server/build-api";
+import { resendKey } from "@/lib/server/resend-key";
 
 const RATE_WINDOW_MS = 15 * 60 * 1000;
 const RATE_MAX = 5;
@@ -28,36 +28,6 @@ function serviceClient() {
   return createClient(SUPABASE_URL, key, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
-}
-
-function firstNonEmpty(...vals: Array<string | undefined>) {
-  for (const v of vals) {
-    const t = v?.trim();
-    if (t) return t;
-  }
-  return undefined;
-}
-
-function resendKeyFromRuntimeConfig(): string | undefined {
-  try {
-    const req = createRequire(import.meta.url);
-    const nitroRc = req("nitro/runtime-config") as {
-      useRuntimeConfig: () => Record<string, unknown>;
-    };
-    const rc = nitroRc.useRuntimeConfig() ?? {};
-    const asString = (v: unknown) => (typeof v === "string" ? v : undefined);
-    return firstNonEmpty(
-      asString(rc.resendApiKey),
-      asString(rc.RESEND_API_KEY),
-      asString(rc.GROK_RESEND_API_KEY),
-    );
-  } catch {
-    return undefined;
-  }
-}
-
-function resendKey() {
-  return firstNonEmpty(env("RESEND_API_KEY"), env("GROK_RESEND_API_KEY"), resendKeyFromRuntimeConfig());
 }
 
 function clientIp(request: Request): string {

@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { ArrowRight } from "lucide-react";
 import { Reveal } from "@/components/reveal";
 import { Button } from "@/components/ui/button";
+import { BookCallButton } from "@/components/journey/after-you-pay";
 
 /**
  * Soft mid-page band for long marketing pages. One per page is enough.
@@ -25,12 +26,13 @@ export function ContactPromo({
             <h2 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">{title}</h2>
             <p className="mt-3 text-[15px] leading-relaxed text-muted">{body}</p>
           </div>
-          <div className="shrink-0">
+          <div className="flex shrink-0 flex-wrap gap-2">
             <Button className="cta-amber rounded-full" asChild>
               <Link to="/contact" hash="form">
                 Talk to us <ArrowRight className="size-4" />
               </Link>
             </Button>
+            <BookCallButton />
           </div>
         </div>
       </Reveal>

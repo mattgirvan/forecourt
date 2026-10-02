@@ -98,16 +98,13 @@ export function HowPage() {
           </div>
         </Reveal>
 
-        <ol className="mt-16 space-y-10">
+        <ul className="mt-16 space-y-10">
           {PROVISION.map((p, i) => (
             <li key={p.id}>
               <Reveal delay={i * 40}>
                 <div className="grid gap-6 rounded-[1.75rem] border border-line bg-surface p-6 sm:p-8 lg:grid-cols-[0.4fr_1fr] lg:items-start">
                   <div>
-                    <div className="flex size-10 items-center justify-center rounded-full bg-fg text-sm font-semibold text-accent-fg">
-                      {i + 1}
-                    </div>
-                    <h2 className="mt-4 text-2xl font-semibold tracking-tight">{p.title}</h2>
+                    <h2 className="text-2xl font-semibold tracking-tight">{p.title}</h2>
                     <p className="mt-2 text-sm leading-relaxed text-muted">{p.body}</p>
                   </div>
                   {p.id === "brand" && (
@@ -185,7 +182,7 @@ export function HowPage() {
               </Reveal>
             </li>
           ))}
-        </ol>
+        </ul>
       </section>
 
       <section className="mx-auto max-w-5xl px-4 pb-16 sm:px-6">

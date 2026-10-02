@@ -21,6 +21,10 @@ import { addMeeting, getBuild, goLiveConfirm, savePack, setBuildStage } from "@/
 import { BrandPackPreview } from "@/components/trust/brand-preview";
 import { GoLiveChecklist } from "@/components/trust/go-live-checklist";
 import { cn } from "@/lib/utils";
+import { CUSTOMER_STEP_COUNT, customerStepFor, customerStepNumber } from "@/lib/journey";
+import { JourneyNow } from "@/components/journey/after-you-pay";
+
+const NOTIFY_KEY = "forecourt.staff.notifyCustomer";
 
 type Build = Awaited<ReturnType<typeof getBuild>>;
 
@@ -64,6 +68,7 @@ async function postSendToBuild(token: string, tenantId: number) {
   };
 }
 
+/** Staff rail: every internal stage, with the customer step it shows as. */
 export function StageRail({
   stage,
   onPick,
@@ -76,10 +81,11 @@ export function StageRail({
 }) {
   const at = stageIndex(stage);
   return (
-    <ol className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+    <ol className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
       {BUILD_STAGES.map((s, i) => {
         const on = s.id === stage;
         const done = i < at;
+        const customer = customerStepNumber(s.id);
         return (
           <li key={s.id}>
             <button
@@ -96,6 +102,9 @@ export function StageRail({
             >
               <div className={cn("text-[11px] uppercase tracking-[0.12em]", on ? "opacity-70" : "text-subtle")}>{s.n}</div>
               <div className="mt-1 text-sm font-medium">{s.label}</div>
+              <div className={cn("mt-0.5 text-[11px]", on ? "opacity-70" : "text-muted")}>
+                Customer step {customer} of {CUSTOMER_STEP_COUNT}
+              </div>
             </button>
           </li>
         );
@@ -119,6 +128,24 @@ export function OrderBuild({
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [staffNotice, setStaffNotice] = useState<string | null>(null);
+  // Emailing the customer is the default; staff can untick it and the last
+  // choice is remembered on this browser.
+  const [notify, setNotifyState] = useState(true);
+  useEffect(() => {
+    try {
+      if (window.localStorage.getItem(NOTIFY_KEY) === "off") setNotifyState(false);
+    } catch {
+      /* storage blocked: keep the default */
+    }
+  }, []);
+  function setNotify(on: boolean) {
+    setNotifyState(on);
+    try {
+      window.localStorage.setItem(NOTIFY_KEY, on ? "on" : "off");
+    } catch {
+      /* storage blocked */
+    }
+  }
   // Guards the stage rail against a double click opening two confirms.
   const [moving, setMoving] = useState(false);
   const movingRef = useRef(false);
@@ -137,14 +164,27 @@ export function OrderBuild({
   const plan = normalizePlan(build.plan);
   const billing = normalizeBilling(plan, build.billing);
   const meta = stageMeta(build.stage);
+  const customerStep = customerStepFor(build.stage);
 
   return (
     <div className="space-y-8">
-      <div>
-        <p className="text-[13px] font-medium text-muted">{meta.label}</p>
-        <h2 className="mt-2 text-3xl font-semibold tracking-tight">{team ? "The build" : "Your desk"}</h2>
-        <p className="mt-2 max-w-xl text-sm text-muted">{team ? meta.staff : meta.customer}</p>
-      </div>
+      {team ? (
+        <div>
+          <p className="text-[13px] font-medium text-muted">
+            {meta.label}
+            {customerStep ? ` · customer sees Step ${customerStep.n} of ${CUSTOMER_STEP_COUNT}: ${customerStep.title}` : ""}
+          </p>
+          <h2 className="mt-2 text-3xl font-semibold tracking-tight">The build</h2>
+          <p className="mt-2 max-w-xl text-sm text-muted">{meta.staff}</p>
+        </div>
+      ) : customerStep ? (
+        <JourneyNow current={customerStep.n} />
+      ) : (
+        <div>
+          <h2 className="text-3xl font-semibold tracking-tight">Your desk</h2>
+          <p className="mt-2 max-w-xl text-sm text-muted">Once your payment is in, your next steps show here.</p>
+        </div>
+      )}
       {!team ? (
         <GoLiveChecklist
           pack={build.pack}
@@ -152,37 +192,41 @@ export function OrderBuild({
           onInviteStaff={onInviteStaff}
         />
       ) : null}
-            <StageRail
-        stage={build.stage}
-        onPick={
-          team
-            ? (id) => {
-                if (movingRef.current) return;
-                movingRef.current = true;
-                setMoving(true);
-                void (async () => {
-                  if (id === "live" && build.stage !== "live") {
-                    // Going live can start the monthly plan in Stripe, so ask first.
-                    const { text } = await goLiveConfirm({ data: { token, tenantId } }).catch(() => ({
-                      text: "Mark live? This may start their monthly plan today.",
-                    }));
-                    if (typeof window !== "undefined" && !window.confirm(text)) return;
-                  }
-                  const r = await setBuildStage({ data: { token, tenantId, stage: id } });
-                  setStaffNotice(r.billingMessage ?? null);
-                  await reload();
-                })()
-                  .catch((e) => setErr(e instanceof Error ? e.message : "Could not move the build."))
-                  .finally(() => {
-                    movingRef.current = false;
-                    setMoving(false);
-                  });
-              }
-            : undefined
-        }
-        pending={moving}
-      />
-      {team && staffNotice ? <p className="text-sm text-muted">{staffNotice}</p> : null}
+      {team ? (
+        <div className="space-y-3">
+          <StageRail
+            stage={build.stage}
+            pending={moving}
+            onPick={(id) => {
+              if (movingRef.current) return;
+              movingRef.current = true;
+              setMoving(true);
+              void (async () => {
+                if (id === "live" && build.stage !== "live") {
+                  // Going live can start the monthly plan in Stripe, so ask first.
+                  const { text } = await goLiveConfirm({ data: { token, tenantId } }).catch(() => ({
+                    text: "Mark live? This may start their monthly plan today.",
+                  }));
+                  if (typeof window !== "undefined" && !window.confirm(text)) return;
+                }
+                const r = await setBuildStage({ data: { token, tenantId, stage: id, notify } });
+                setStaffNotice([r.billingMessage, r.emailMessage].filter(Boolean).join(" ") || null);
+                await reload();
+              })()
+                .catch((e) => setErr(e instanceof Error ? e.message : "Could not move the build."))
+                .finally(() => {
+                  movingRef.current = false;
+                  setMoving(false);
+                });
+            }}
+          />
+          <label className="flex items-center gap-2 text-sm text-muted">
+            <input type="checkbox" checked={notify} onChange={(e) => setNotify(e.target.checked)} />
+            Notify customer: email them the progress update when I move the stage
+          </label>
+          {staffNotice ? <p className="text-sm text-muted">{staffNotice}</p> : null}
+        </div>
+      ) : null}
       {team ? (
         <StaffBuild
           token={token}

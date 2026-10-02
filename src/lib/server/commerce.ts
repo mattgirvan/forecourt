@@ -16,6 +16,7 @@ import { seedPaidOrder } from "@/lib/server/build";
 import { checkoutRefusal, type GuardTenant, type StoredSubscription } from "@/lib/server/checkout-guard";
 import { confirmPaymentFlow, supabasePaymentStore, type SupabaseLike } from "@/lib/server/payments";
 import { env } from "@/lib/env.server";
+import { looksLikeTeam } from "@/lib/team";
 import { SUPABASE_ANON, SUPABASE_URL } from "@/lib/sb";
 
 function slugify(name: string) {
@@ -252,10 +253,16 @@ export const upsertTenant = createServerFn({ method: "POST" })
     return { id, slug, plan, billing, siteCount };
   });
 
+/** Internal setup checklist. Staff only: customers follow the six journey steps instead. */
 export const toggleStep = createServerFn({ method: "POST" })
   .validator((d: { token: string; tenantId: number; step: string; done: boolean }) => d)
   .handler(async ({ data }) => {
     const { sb } = await uid(data.token);
+    const { data: who } = await sb.auth.getUser(data.token);
+    const email = (who.user?.email ?? "").toLowerCase();
+    const { data: member } = await sb.from("team_members").select("status").eq("email", email).maybeSingle();
+    const team = member ? member.status !== "revoked" : looksLikeTeam(email);
+    if (!team) throw new Error("Only staff change the setup checklist.");
     const { error } = await sb
       .from("provision_steps")
       .update({ done: data.done })

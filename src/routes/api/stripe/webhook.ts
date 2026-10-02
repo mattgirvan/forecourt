@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { env } from "@/lib/env.server";
 import { SUPABASE_URL } from "@/lib/sb";
 import { seedPaidOrder } from "@/lib/server/build";
+import { sendThankYouEmail } from "@/lib/server/journey-email";
 import {
   handleStripeWebhook,
   supabasePaymentStore,
@@ -45,6 +46,15 @@ export const Route = createFileRoute("/api/stripe/webhook")({
               return stripe.webhooks.constructEvent(body, sig, hookSecret) as unknown as WebhookEvent;
             },
             log: console,
+            // Thank-you email. Gated by EMAIL_MODE (unset = off) and deduped
+            // in email_log, so Stripe retries never send it twice.
+            onPaid: async (order, session, event) => {
+              await sendThankYouEmail({
+                order,
+                stripeLivemode: typeof event.livemode === "boolean" ? event.livemode : null,
+                monthlyFrom: session.metadata?.monthly_from,
+              });
+            },
           },
           raw,
           request.headers.get("stripe-signature") ?? "",

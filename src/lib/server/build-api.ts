@@ -159,14 +159,15 @@ export async function executeSendToBuild(
     await sb.from("tenants").update({ repo_slug: result.repo }).eq("id", tenantId);
     const body = result.created
       ? `Private repo ${result.repo} created from forecourt-desk. tenant.json locked. Supabase and Vercel are still manual.`
-      : `Repo ${result.repo} already existed — tenant.json updated. Supabase and Vercel are still manual.`;
+      : `Repo ${result.repo} already existed, so tenant.json was updated. Supabase and Vercel are still manual.`;
+    // Staff only: repo names and tenant.json are internal details.
     await sb.from("build_events").insert({
       tenant_id: tenantId,
-      kind: "stage",
+      kind: "note",
       stage: "build",
       title: "Sent to build",
       body,
-      visibility: "customer",
+      visibility: "internal",
       actor_email: email,
     });
     return {

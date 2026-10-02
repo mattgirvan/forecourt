@@ -187,6 +187,10 @@ export default defineConfig(({ command, isPreview }) => ({
               "/demo": { redirect: { to: "/#showcase", status: 301 } },
               "/demo/": { redirect: { to: "/#showcase", status: 301 } },
               "/demo/**": { redirect: { to: "/#showcase", status: 301 } },
+              // Booking: a Forecourt-owned link so sent emails can move tools later.
+              // 302 (not 301) so browsers do not cache it. Mirrors vercel.json.
+              "/book": { redirect: { to: "https://cal.com/matthew-girvan-i3mfm7/forecourtkickoff", status: 302 } },
+              "/book/": { redirect: { to: "https://cal.com/matthew-girvan-i3mfm7/forecourtkickoff", status: 302 } },
             },
             // Auto-registers server/middleware/* (the PWA install page +
             // manifest + head-tag middleware). Nitro v3 defaults serverDir to
