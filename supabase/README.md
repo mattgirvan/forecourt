@@ -60,11 +60,11 @@ This is the **office** — sign-in, tenants, orders. Not Aberdeen. Not a custome
       - Someone you invite gets no access until they sign in with the code from the invite email. A password, Google, a passkey, or a code from before the invite does not count. If they are already signed in some other way, the office tells them to sign out and get an email code.
       - When they accept, the app gives their account a new random password and signs out every other session on it, so nobody else who knew an old password can get in. They keep signing in with email codes.
       - Signing out ends database access at once: staff access needs the sign-in session to still exist, so a signed-out token stops working straight away instead of an hour later.
-      - An invite cannot be accepted while the account has another way to sign in: Google or a phone number linked to it, a passkey, or an authenticator app. The office tells the person to tell you. Do not remove these yourself: ask Forge first, because it can mean someone else set the account up.
-      - If accepting goes wrong part way, the invite is put back and the office says "Couldn't finish accepting, try again or tell Matt." If the Vercel logs ever show `SECURITY: team row ... is ACTIVE`, revoke that person in the office Staff list straight away and tell Forge.
+      - An invite cannot be accepted while the account has another way to sign in: Google or a phone number linked to it, a passkey, or an authenticator app. If the app cannot check for passkeys, it refuses too. The office tells the person to tell you. Do not remove these yourself: ask Forge first, because it can mean someone else set the account up.
+      - If accepting goes wrong part way, the invite is put back and the office says "Sorry, we couldn't finish accepting your invite. Please try again, or tell Matt." If the Vercel logs ever show `SECURITY: team row ... is ACTIVE`, revoke that person in the office Staff list straight away and tell Forge.
       - A staff email address cannot be changed. To move someone to a new address, revoke the old one and invite the new one.
       - Restoring a revoked person sends them a fresh invite. They get access again once they sign in from that email.
-      - hello@forecourt.me can only be changed here in the SQL editor, never from the office. Locked out? The same one line as in step 15 still works.
+      - hello@forecourt.me can only be changed here in the SQL editor, never from the office. If hello@ sees an empty office, sign out and back in first; then ask Forge. The step 15 line only fixes a revoked hello@ row, not a sign-in session problem.
     - Only ever re-run the copies of `team-owner-only.sql` and `team-domain-hotfix.sql` on main. Section 7 of the check shows whether the sign-in guard is still on.
     - `team-owner-only.rollback.sql` is a last resort only. It lets any staff member change the team again. It keeps the sign-in guard and drops the session check.
 

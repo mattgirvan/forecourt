@@ -124,7 +124,7 @@ function OfficeInner() {
         <p className="mt-3 text-sm text-muted" data-testid="accept-problem">
           {otherSignIn
             ? "This account also has another way to sign in, such as Google, a passkey or an authenticator app, so it can't join the team yet. Tell Matt."
-            : "Couldn't finish accepting, try again or tell Matt."}
+            : "Sorry, we couldn't finish accepting your invite. Please try again, or tell Matt."}
         </p>
         {otherSignIn ? null : (
           <Button

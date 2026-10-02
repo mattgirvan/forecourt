@@ -7,8 +7,11 @@
 -- themselves or revoke others. Only use it if the office is broken, and
 -- revert the code of the follow-up PR at the same time.
 --
--- Locked out of the office? Do not use this file. Run this one line instead:
---   update team_members set status = 'active' where email = 'hello@forecourt.me';
+-- If hello@ sees an empty office, sign out and back in first; then ask Forge.
+-- Do not use this file for that unless Forge says so. (Forge may find the
+-- session check is the cause, and this file removes it; or that hello@'s row
+-- was revoked, which needs only this line instead:
+--   update team_members set status = 'active' where email = 'hello@forecourt.me';)
 --
 -- Kept: the invited_at and accepted_at columns (harmless), the
 -- (select public.is_team()) wrapping on other tables (same meaning), and

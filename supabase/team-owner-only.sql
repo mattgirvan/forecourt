@@ -245,8 +245,8 @@ $$;
 -- No other way into the account: no linked identity other than email (such
 -- as Google or phone) and no verified authenticator factor. Once the row is
 -- active, is_team() is true however the account signs in, so a stranger's
--- Google link would keep working. The app also refuses while the account has
--- a passkey (Supabase keeps those outside these tables).
+-- Google link would keep working. Also no passkey (auth.webauthn_credentials,
+-- where that table exists); the app checks passkeys with the Admin API too.
 -- After a successful accept, the app (service role) gives the account a
 -- random password and signs out its other sessions, so a stranger who
 -- registered the address before the invite cannot keep using it.
@@ -261,8 +261,14 @@ declare
   me text := lower(coalesce(auth.jwt() ->> 'email', ''));
   amr jsonb := auth.jwt() -> 'amr';
   since timestamptz;
+  has_passkey boolean := false;
 begin
   if me = '' or amr is null or jsonb_typeof(amr) <> 'array' then
+    return false;
+  end if;
+  -- The sign-in guard: always yes until the sign-in work (#38) installs the
+  -- real check, then a proven email is needed to accept as well.
+  if not public.auth_email_verified() then
     return false;
   end if;
   -- The token's email must be this user's own sign-in address.
@@ -281,6 +287,15 @@ begin
     where f.user_id = auth.uid() and f.status::text = 'verified'
   ) then
     return false;
+  end if;
+  -- Passkeys (Supabase keeps them in auth.webauthn_credentials). Checked only
+  -- where that table exists, so this works on any Auth version.
+  if to_regclass('auth.webauthn_credentials') is not null then
+    execute 'select exists (select 1 from auth.webauthn_credentials where user_id = $1)'
+      into has_passkey using auth.uid();
+    if has_passkey then
+      return false;
+    end if;
   end if;
   select t.invited_at into since
   from public.team_members t

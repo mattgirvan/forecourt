@@ -275,13 +275,44 @@ test("other ways into the account: Google, passkeys and authenticator apps are f
     ["totp factor"],
     "an unfinished factor cannot be used to sign in",
   );
-  // An Auth server with no passkey endpoint at all (404, not user_not_found): none can exist.
-  assert.deepEqual(await otherSignInMethods(mockMethods({ passkeyError: { status: 404, code: "not_found" } }), "u1", quiet), []);
   // Anything the check cannot answer is a refusal (null).
   assert.equal(await otherSignInMethods(mockMethods({ passkeyError: { status: 404, code: "user_not_found" } }), "u1", quiet), null);
   assert.equal(await otherSignInMethods(mockMethods({ passkeyError: { status: 500, message: "down" } }), "u1", quiet), null);
   assert.equal(await otherSignInMethods(mockMethods({ userError: true }), "u1", quiet), null);
   assert.equal(await otherSignInMethods(mockMethods({ throws: true }), "u1", quiet), null);
+});
+
+test("a passkey list that answers 404 refuses, whatever the 404 says", async () => {
+  const logs: string[] = [];
+  for (const passkeyError of [
+    { status: 404, code: "not_found", message: "no Route matched with those values" }, // a gateway's JSON 404
+    { status: 404, code: "user_not_found" },
+    { status: 404 }, // no code at all
+  ]) {
+    assert.equal(await otherSignInMethods(mockMethods({ passkeyError }), "u1", (s) => logs.push(s)), null, JSON.stringify(passkeyError));
+  }
+  assert.equal(logs.length, 3);
+  assert.match(logs[0], /could not list the passkeys of user u1: 404 not_found no Route matched/);
+  // Through the whole accept: refused before the database is asked, shown as "failed".
+  const rows: Record<string, TeamMemberRow & { name?: string }> = { "sales@forecourt.me": { status: "invited", role: "operator", name: "Sales" } };
+  const f = fake({ id: "u5", email: "sales@forecourt.me", email_confirmed_at: confirmed }, rows);
+  let accepted = 0;
+  f.deps.acceptInvite = (user) =>
+    acceptInviteSecurely({
+      who: user,
+      log: () => {},
+      otherSignIn: () => otherSignInMethods(mockMethods({ passkeyError: { status: 404, code: "not_found" } }), user.id, () => {}),
+      accept: async () => {
+        accepted++;
+        return true;
+      },
+      lockDown: async () => true,
+      undo: async () => true,
+    });
+  const who = await resolveActor(f.deps);
+  assert.deepEqual({ team: who.team, acceptProblem: who.acceptProblem }, { team: false, acceptProblem: "failed" });
+  assert.equal(accepted, 0);
+  assert.equal(rows["sales@forecourt.me"].status, "invited");
 });
 
 test("accept is only kept when the account has no other way in and the lock-down works", async () => {

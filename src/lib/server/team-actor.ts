@@ -103,20 +103,15 @@ export async function otherSignInMethods(admin: SignInMethodsLike, userId: strin
     }
     const pk = await admin.listPasskeys(userId);
     if (pk.error) {
-      // 404 from an Auth server without passkeys at all: none can exist.
-      // Any other error (including user_not_found) is a refusal.
-      const e = pk.error as { status?: unknown; code?: unknown };
-      if (!(e.status === 404 && e.code !== "user_not_found")) {
-        log(`[team] could not list the passkeys of user ${userId}: ${describeError(pk.error)}`);
-        return null;
-      }
-    } else {
-      if (!Array.isArray(pk.data)) {
-        log(`[team] unexpected passkey list for user ${userId}`);
-        return null;
-      }
-      if (pk.data.length) found.push(pk.data.length === 1 ? "passkey" : `${pk.data.length} passkeys`);
+      // Any error refuses, a 404 included: we cannot prove there is no passkey.
+      log(`[team] could not list the passkeys of user ${userId}: ${describeError(pk.error)}`);
+      return null;
     }
+    if (!Array.isArray(pk.data)) {
+      log(`[team] unexpected passkey list for user ${userId}`);
+      return null;
+    }
+    if (pk.data.length) found.push(pk.data.length === 1 ? "passkey" : `${pk.data.length} passkeys`);
     return found;
   } catch (e) {
     log(`[team] could not check the sign-in methods of user ${userId}: ${describeError(e)}`);

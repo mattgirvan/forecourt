@@ -218,6 +218,39 @@ test("an account with Google, a phone identity or a verified authenticator canno
   assert.equal((await row(d, U.invited.email)).status, "active");
 });
 
+test("a passkey in auth.webauthn_credentials blocks accepting; without that table the check is skipped", async () => {
+  // Without the table (older Auth versions): accepting works as before.
+  const plain = await db();
+  await plain.exec(`update team_members set invited_at = now() - interval '1 hour' where email = '${U.invited.email}'`);
+  assert.equal((await plain.query("select to_regclass('auth.webauthn_credentials') as t")).rows[0].t, null);
+  assert.equal((await as(plain, U.invited, "select public.accept_team_invite() as ok", [], [{ method: "otp", timestamp: now() }])).rows[0].ok, true);
+  // With the table, as Supabase Auth creates it.
+  const d = await db();
+  await d.exec("create table auth.webauthn_credentials (id uuid primary key default gen_random_uuid(), user_id uuid not null, credential_id bytea not null default ''::bytea)");
+  await d.exec(`update team_members set invited_at = now() - interval '1 hour' where email = '${U.invited.email}'`);
+  const accept = async () => (await as(d, U.invited, "select public.accept_team_invite() as ok", [], [{ method: "otp", timestamp: now() }])).rows[0].ok;
+  await d.exec(`insert into auth.webauthn_credentials (user_id) values ('${U.invited.id}')`);
+  assert.equal(await accept(), false, "own passkey present");
+  assert.equal((await row(d, U.invited.email)).status, "invited");
+  await d.exec(`delete from auth.webauthn_credentials; insert into auth.webauthn_credentials (user_id) values ('${U.stranger.id}')`);
+  assert.equal(await accept(), true, "someone else's passkey does not count");
+});
+
+test("accepting needs the sign-in guard: a no-op with the stand-in, refused by a real guard that says no", async () => {
+  const d = await db();
+  await d.exec(`update team_members set invited_at = now() - interval '1 hour' where email = '${U.invited.email}'`);
+  await d.exec(REAL_GUARD);
+  await d.exec(`update auth.users set email_confirmed_at = null where id = '${U.invited.id}'`);
+  const accept = async () => (await as(d, U.invited, "select public.accept_team_invite() as ok", [], [{ method: "otp", timestamp: now() }])).rows[0].ok;
+  assert.equal(await accept(), false, "real guard says no");
+  assert.equal((await row(d, U.invited.email)).status, "invited");
+  await d.exec(`update auth.users set email_confirmed_at = now() where id = '${U.invited.id}'`);
+  assert.equal(await accept(), true, "real guard says yes");
+  const src = read("team-owner-only.sql");
+  const body = src.slice(src.indexOf("create or replace function public.accept_team_invite()"));
+  assert.ok(body.indexOf("if not public.auth_email_verified() then") < body.indexOf("select t.invited_at into since"));
+});
+
 test("accepting an invite needs mailbox proof dated after the invite", async () => {
   const d = await db();
   const inv = U.invited;
