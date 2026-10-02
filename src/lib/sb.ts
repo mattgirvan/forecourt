@@ -33,6 +33,12 @@ export function getSb(): SupabaseClient {
         detectSessionInUrl: true,
         flowType: "pkce",
         storageKey: "forecourt-auth",
+        // Supabase Auth passkeys are experimental (supabase-js 2.105+). The
+        // flag only unlocks auth.signInWithPasskey / registerPasskey /
+        // auth.passkey.*; the UI still hides them unless the project reports
+        // passkeys_enabled and the page is on forecourt.me (see
+        // src/lib/auth/signin-options.ts).
+        experimental: { passkey: true },
       },
     });
   }

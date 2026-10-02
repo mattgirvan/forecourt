@@ -19,6 +19,27 @@ begin
 end;
 $$;
 
+-- auth_email_verified(): the sign-in guard used by the dealer policies below.
+-- Always yes until signin-verified-guard.sql installs the real check. Created
+-- ONLY if missing (the same block as team-owner-only.sql), so re-running this
+-- file never overwrites the real check.
+do $$
+begin
+  if to_regprocedure('public.auth_email_verified()') is null then
+    execute $create$
+      create function public.auth_email_verified()
+      returns boolean
+      language sql
+      stable
+      security definer
+      set search_path = ''
+      as $body$ select true /* forecourt placeholder: signin-verified-guard.sql replaces this */ $body$
+    $create$;
+    execute 'grant execute on function public.auth_email_verified() to anon, authenticated';
+  end if;
+end;
+$$;
+
 alter table tenants add column if not exists principal_name text not null default '';
 alter table tenants add column if not exists group_name text not null default '';
 alter table tenants add column if not exists research text not null default '';
@@ -83,12 +104,14 @@ drop policy if exists "dealer customer notes" on notes;
 create policy "dealer customer notes" on notes
   for select using (
     visibility = 'customer'
+    and (select public.auth_email_verified())
     and exists (select 1 from tenants t where t.id = notes.tenant_id and t.user_id = auth.uid())
   );
 drop policy if exists "dealer write customer notes" on notes;
 create policy "dealer write customer notes" on notes
   for insert with check (
     visibility = 'customer'
+    and (select public.auth_email_verified())
     and exists (select 1 from tenants t where t.id = notes.tenant_id and t.user_id = auth.uid())
   );
 drop policy if exists "team notes" on notes;
@@ -98,12 +121,14 @@ create policy "team notes" on notes
 drop policy if exists "dealer messages" on messages;
 create policy "dealer messages" on messages
   for select using (
-    exists (select 1 from tenants t where t.id = messages.tenant_id and t.user_id = auth.uid())
+    (select public.auth_email_verified())
+    and exists (select 1 from tenants t where t.id = messages.tenant_id and t.user_id = auth.uid())
   );
 drop policy if exists "dealer send messages" on messages;
 create policy "dealer send messages" on messages
   for insert with check (
     from_team = false
+    and (select public.auth_email_verified())
     and exists (select 1 from tenants t where t.id = messages.tenant_id and t.user_id = auth.uid())
   );
 drop policy if exists "team messages" on messages;

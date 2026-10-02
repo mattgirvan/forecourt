@@ -68,6 +68,19 @@ This is the **office** — sign-in, tenants, orders. Not Aberdeen. Not a custome
     - Only ever re-run the copies of `team-owner-only.sql` and `team-domain-hotfix.sql` on main. Section 7 of the check shows whether the sign-in guard is still on.
     - `team-owner-only.rollback.sql` is a last resort only. It lets any staff member change the team again. It keeps the sign-in guard and drops the session check.
 
+17. Proven email for staff and dealers (PR #38), once, after step 16 is finished and #42 is live. Same order as before: settings, then SQL, then merge, then flags.
+    1. Settings. REQUIRED FIRST: **Confirm email** ON (step 15.1, already done). While it is off, Supabase marks every new password sign-up as confirmed without the inbox, so a confirmed email is not real proof. If it is ever off again, switch the **Google** provider OFF until it is back on.
+    2. Settings. Authentication, Passkeys: Enable Passkey authentication on, Relying Party ID `forecourt.me`, Relying Party Origins `https://www.forecourt.me,https://forecourt.me`. Do this before the merge: `VITE_PASSKEYS=1` is already on Production, so passkeys go live when #38 deploys. Never change the Relying Party ID later, or every saved passkey stops working.
+    3. SQL editor: paste `signin-verified-guard.check.sql` and run it. It is read only and lists any account that would be refused. Expect none for real staff and dealers. Its last section should say `placeholder (always yes)`.
+    4. SQL editor: paste `signin-verified-guard.sql` and run it (after `team-owner-only.sql` from step 16). Run the check again: the last section should say `real guard`, and `calls the guard, checks the session` for `is_team` and `is_team_owner`. Then sign in with an email code as hello@forecourt.me (office loads) and as a test dealer (`/account` loads).
+    5. Merge #38 and wait until the Production deploy shows Ready. Test a passkey on www.forecourt.me.
+    6. Before Google: Supabase has Secure email change ON, anonymous sign-ins OFF, manual linking OFF, Google "Skip nonce check" OFF, Site URL `https://www.forecourt.me` and Redirect URLs `https://www.forecourt.me/login` and `https://forecourt.me/login`. Google Cloud has the redirect URI exactly `https://hxodmtmrnpxzkfwhrsjg.supabase.co/auth/v1/callback`, JavaScript origins `https://www.forecourt.me` and `https://forecourt.me`, and the consent screen In production with basic scopes only.
+    7. Flags last: Google provider on in Supabase, then `VITE_GOOGLE_SIGNIN=1` on Vercel Production and redeploy.
+    - Only ever run main's copies of the SQL files. The guard file only switches on the real email check; re-running any other file keeps it on. Section 7 of `team-owner-only.check.sql` shows whether the guard is on (`real guard`) and whether `is_team` and `is_team_owner` call it.
+    - Two files take the guard call out of `is_team()`: #41's original `team-domain-hotfix.sql` (not main's copy) and `team-domain-hotfix.rollback.sql`. Section 7 then says `DOES NOT call the guard`. Re-running main's `team-owner-only.sql` puts it back.
+    - New staff, once Google and passkeys are on: accept your invite with an email code first, then add Google or a passkey on the Account page. An invite cannot be accepted while the account already has Google or a passkey (step 16).
+    - Undo: `signin-verified-guard.rollback.sql`. It puts the stand-in check back (always yes) and never removes it. Staff stay exactly the step 16 rule, never the email domain.
+
 Running the tests needs Node 22.6 or later (`npm test` uses `node --test` with file globs and TypeScript type stripping).
 
 Stripe webhook (optional, return-URL confirm still works): `https://www.forecourt.me/api/stripe/webhook`

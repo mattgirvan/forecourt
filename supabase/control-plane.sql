@@ -1,6 +1,27 @@
 -- Forecourt control plane (this website). NOT Aberdeen. NOT a customer desk.
 -- Paste into the SQL editor on https://hxodmtmrnpxzkfwhrsjg.supabase.co
 
+-- auth_email_verified(): the sign-in guard used by the dealer policies below.
+-- Always yes until signin-verified-guard.sql installs the real check. Created
+-- ONLY if missing (the same block as team-owner-only.sql), so re-running this
+-- file never overwrites the real check.
+do $$
+begin
+  if to_regprocedure('public.auth_email_verified()') is null then
+    execute $create$
+      create function public.auth_email_verified()
+      returns boolean
+      language sql
+      stable
+      security definer
+      set search_path = ''
+      as $body$ select true /* forecourt placeholder: signin-verified-guard.sql replaces this */ $body$
+    $create$;
+    execute 'grant execute on function public.auth_email_verified() to anon, authenticated';
+  end if;
+end;
+$$;
+
 create table if not exists tenants (
   id           serial primary key,
   user_id      uuid not null references auth.users (id) on delete cascade,
@@ -57,12 +78,12 @@ alter table provision_steps enable row level security;
 
 drop policy if exists "own tenants" on tenants;
 create policy "own tenants" on tenants
-  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+  for all using (auth.uid() = user_id and (select public.auth_email_verified())) with check (auth.uid() = user_id and (select public.auth_email_verified()));
 
 drop policy if exists "own orders" on orders;
 create policy "own orders" on orders
-  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+  for all using (auth.uid() = user_id and (select public.auth_email_verified())) with check (auth.uid() = user_id and (select public.auth_email_verified()));
 
 drop policy if exists "own provision" on provision_steps;
 create policy "own provision" on provision_steps
-  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+  for all using (auth.uid() = user_id and (select public.auth_email_verified())) with check (auth.uid() = user_id and (select public.auth_email_verified()));

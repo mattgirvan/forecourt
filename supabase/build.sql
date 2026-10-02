@@ -1,6 +1,27 @@
 -- Order execution: timeline, pack, meetings, build queue.
 -- Paste after staff.sql. Safe to run more than once.
 
+-- auth_email_verified(): the sign-in guard used by the dealer policies below.
+-- Always yes until signin-verified-guard.sql installs the real check. Created
+-- ONLY if missing (the same block as team-owner-only.sql), so re-running this
+-- file never overwrites the real check.
+do $$
+begin
+  if to_regprocedure('public.auth_email_verified()') is null then
+    execute $create$
+      create function public.auth_email_verified()
+      returns boolean
+      language sql
+      stable
+      security definer
+      set search_path = ''
+      as $body$ select true /* forecourt placeholder: signin-verified-guard.sql replaces this */ $body$
+    $create$;
+    execute 'grant execute on function public.auth_email_verified() to anon, authenticated';
+  end if;
+end;
+$$;
+
 alter table tenants add column if not exists stage text not null default 'briefing';
 alter table tenants add column if not exists pack_json text not null default '';
 alter table tenants add column if not exists preview_url text not null default '';
@@ -56,12 +77,14 @@ drop policy if exists "dealer events" on build_events;
 create policy "dealer events" on build_events
   for select using (
     visibility = 'customer'
+    and (select public.auth_email_verified())
     and exists (select 1 from tenants t where t.id = build_events.tenant_id and t.user_id = auth.uid())
   );
 drop policy if exists "dealer write events" on build_events;
 create policy "dealer write events" on build_events
   for insert with check (
     visibility = 'customer'
+    and (select public.auth_email_verified())
     and exists (select 1 from tenants t where t.id = build_events.tenant_id and t.user_id = auth.uid())
   );
 drop policy if exists "team events" on build_events;
@@ -71,7 +94,8 @@ create policy "team events" on build_events
 drop policy if exists "dealer meetings" on meetings;
 create policy "dealer meetings" on meetings
   for select using (
-    exists (select 1 from tenants t where t.id = meetings.tenant_id and t.user_id = auth.uid())
+    (select public.auth_email_verified())
+    and exists (select 1 from tenants t where t.id = meetings.tenant_id and t.user_id = auth.uid())
   );
 drop policy if exists "team meetings" on meetings;
 create policy "team meetings" on meetings
