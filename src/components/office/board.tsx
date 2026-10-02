@@ -26,21 +26,35 @@ export type BoardRow = {
   flags?: { duplicate: boolean; lookalike: boolean } | null;
 };
 
+/** What each badge means, shown as text so it reads on touch screens too. */
+export const FLAG_EXPLAINERS = {
+  duplicate: "A second payment came in for this site. See the note on the file.",
+  lookalike: "This paid order looks like another dealership. See the note on the file.",
+} as const;
+
 /** Small badges for payment flags. Shown on the list so they are seen even with emails off. */
 export function FlagBadges({ flags }: { flags?: BoardRow["flags"] }) {
   if (!flags || (!flags.duplicate && !flags.lookalike)) return null;
+  const lines = [flags.duplicate ? FLAG_EXPLAINERS.duplicate : null, flags.lookalike ? FLAG_EXPLAINERS.lookalike : null].filter(Boolean);
   return (
-    <span className="mt-1.5 flex flex-wrap gap-1">
-      {flags.duplicate ? (
-        <span title="A second payment came in for this site. See the note on the file.">
-          <Badge tone="warn">Duplicate payment</Badge>
+    <span className="mt-1.5 block">
+      <span className="flex flex-wrap gap-1">
+        {flags.duplicate ? (
+          <Badge tone="warn" className="text-[11px]">
+            Duplicate payment
+          </Badge>
+        ) : null}
+        {flags.lookalike ? (
+          <Badge tone="neutral" className="text-[11px]">
+            Looks like another dealer
+          </Badge>
+        ) : null}
+      </span>
+      {lines.map((l) => (
+        <span key={l} className="mt-1 block max-w-xs text-xs text-muted">
+          {l}
         </span>
-      ) : null}
-      {flags.lookalike ? (
-        <span title="This paid order looks like another dealership. See the note on the file.">
-          <Badge tone="neutral">Looks like another dealer</Badge>
-        </span>
-      ) : null}
+      ))}
     </span>
   );
 }

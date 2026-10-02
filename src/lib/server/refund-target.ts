@@ -21,11 +21,17 @@ export type SessionLike = {
   invoice?: string | null;
   subscription?: string | null;
   amount_total?: number | null;
-  /** Our checkout metadata: kind (trial, subscription, convert) and monthly_from (checkout, go_live). */
+  /** Unix seconds. Used to tell one package from the next. */
+  created?: number | null;
+  /** Our checkout metadata: kind (trial, subscription, convert, balance) and monthly_from (checkout, go_live). */
   metadata?: { kind?: string | null; monthly_from?: string | null } | null;
 };
 
-export type InvoiceLike = { id: string; billing_reason?: string | null; amount_paid?: number | null };
+export type InvoiceLike = {
+  id: string;
+  billing_reason?: string | null;
+  amount_paid?: number | null;
+};
 
 export type InvoicePaymentLike = {
   status: string;
@@ -37,18 +43,19 @@ export type RefundDeps = {
   /** Checkout sessions on this file, newest first. */
   sessions: SessionLike[];
   subscriptionId?: string | null;
-  /**
-   * The subscription stored on the site itself (tenants.stripe_subscription_id).
-   * A subscription checkout for any other subscription is a duplicate payment
-   * and is never the setup to refund.
-   */
-  storedSubscriptionId?: string | null;
+  /** Checkout sessions named in a "Second payment" flag on the file: never refunded from here. */
+  duplicateSessionIds?: Iterable<string>;
+  /** When packages on this file were refunded or ended (unix seconds), to find the current one. */
+  endedAt?: (number | null | undefined)[];
+  /** How much of a payment has already gone back. A fully refunded payment is never the target. */
+  refundedPence?: (paymentIntent: string) => Promise<number>;
   listInvoices: (subscriptionId: string) => Promise<InvoiceLike[]>;
   listInvoicePayments: (invoiceId: string) => Promise<InvoicePaymentLike[]>;
 };
 
 /** What exactly the refunded payment paid for. */
-export type RefundCovers = "trial" | "setup" | "setup_and_first_month" | "first_invoice";
+export type RefundCovers =
+  "trial" | "setup" | "setup_and_first_month" | "first_invoice" | "balance";
 
 export type RefundTarget = {
   paymentIntent: string;
@@ -69,29 +76,18 @@ function labelFor(covers: RefundCovers, conversion: boolean) {
     case "trial":
       return "the 60-day trial payment";
     case "setup":
-      return conversion ? "the remaining setup, paid when they converted from the trial" : "the setup payment";
+      return conversion
+        ? "the remaining setup, paid when they converted from the trial"
+        : "the setup payment";
     case "setup_and_first_month":
       return conversion
         ? "the remaining setup and the first month, paid when they converted from the trial"
         : "the setup and the first month";
+    case "balance":
+      return "the balance they paid by payment link after the order was resumed";
     default:
       return "the first invoice on the subscription";
   }
-}
-
-/**
- * Is this paid session one the site itself paid for? A second subscription
- * checkout (a duplicate payment) carries its own subscription, which is not
- * the site's stored one. With nothing stored we cannot tell, so it counts.
- * Office Refund and Resume order both use this rule.
- */
-export function sessionIsSitesOwn(
-  session: { mode: string; subscription?: string | null },
-  storedSubscription: string | null | undefined,
-): boolean {
-  if (session.mode !== "subscription") return true;
-  if (!storedSubscription) return true;
-  return session.subscription === storedSubscription;
 }
 
 /**
@@ -104,7 +100,10 @@ function convertedFromTrial(s: SessionLike, paid: SessionLike[]): SessionLike | 
   const kind = s.metadata?.kind ?? null;
   if (kind === "subscription") return null;
   const older = paid.slice(paid.indexOf(s) + 1);
-  const trialAt = older.findIndex((o) => o.mode === "payment" && o.metadata?.kind !== "subscription" && o.metadata?.kind !== "balance");
+  const trialAt = older.findIndex(
+    (o) =>
+      o.mode === "payment" && o.metadata?.kind !== "subscription" && o.metadata?.kind !== "balance",
+  );
   if (trialAt < 0) return kind === "convert" ? s : null;
   const trial = older[trialAt]!;
   if (kind === "convert") return trial;
@@ -120,76 +119,125 @@ async function paidOnInvoice(deps: RefundDeps, invoiceId: string) {
   return { paymentIntent: paid.payment.payment_intent, amountPence: paid.amount_paid ?? 0 };
 }
 
+/**
+ * The site's own payment for its current package, newest first, never a
+ * duplicate (named in a "Second payment" flag), never one from an earlier
+ * package that was already refunded or ended, and never a payment that has
+ * already been refunded in full. Same rule as Resume order (ownSessions).
+ */
 export async function findSetupPayment(deps: RefundDeps): Promise<RefundTarget | null> {
-  // Never a duplicate's payment: refunding it would end the real package.
-  const paid = deps.sessions.filter(
-    (s) => s.payment_status === "paid" && s.metadata?.kind !== "balance" && sessionIsSitesOwn(s, deps.storedSubscriptionId),
+  return (await findRefundTarget(deps)).target;
+}
+
+export const ALL_REFUNDED_TEXT =
+  "Everything this package paid has already been refunded in Stripe, so there is nothing left to refund. Use Cancel to end the package without a refund.";
+
+/** The target, plus whether the only payments found were already refunded in full. */
+export async function findRefundTarget(
+  deps: RefundDeps,
+): Promise<{ target: RefundTarget | null; allRefunded: boolean }> {
+  const { own } = ownSessions(
+    // deps.sessions is newest first; reversed, ties on created keep that order.
+    [...deps.sessions].reverse().map((s) => ({ ...s, kind: s.metadata?.kind ?? null })),
+    { duplicateSessionIds: deps.duplicateSessionIds, endedAt: deps.endedAt },
   );
-  // A site pays the trial fee once: a later trial payment is a duplicate.
-  const trials = paid.filter((s) => s.mode === "payment" && s.payment_intent);
-  const ownTrial = trials[trials.length - 1] ?? null;
-  for (const s of paid) {
+  const newestFirst = [...own].reverse();
+  const alreadyBack = async (pi: string, amount: number) => {
+    if (!deps.refundedPence || amount <= 0) return false;
+    return (await deps.refundedPence(pi)) >= amount;
+  };
+  let foundRefunded = false;
+  for (const s of newestFirst) {
     if (s.mode === "payment" && s.payment_intent) {
-      if (s !== ownTrial) continue;
+      const amount = s.amount_total ?? 0;
+      if (await alreadyBack(s.payment_intent, amount)) {
+        foundRefunded = true;
+        continue;
+      }
+      const covers: RefundCovers = s.metadata?.kind === "balance" ? "balance" : "trial";
       return {
-        paymentIntent: s.payment_intent,
-        amountPence: s.amount_total ?? 0,
-        label: labelFor("trial", false),
-        covers: "trial",
-        conversion: false,
-        trialPence: null,
-        sessionId: s.id,
-        invoiceId: null,
+        allRefunded: false,
+        target: {
+          paymentIntent: s.payment_intent,
+          amountPence: amount,
+          label: labelFor(covers, false),
+          covers,
+          conversion: false,
+          trialPence: null,
+          sessionId: s.id,
+          invoiceId: null,
+        },
       };
     }
     if (s.mode === "subscription" && s.invoice) {
       const hit = await paidOnInvoice(deps, s.invoice);
       if (!hit) continue;
-      const trial = convertedFromTrial(s, paid);
+      if (await alreadyBack(hit.paymentIntent, hit.amountPence)) {
+        foundRefunded = true;
+        continue;
+      }
+      const trial = convertedFromTrial(s, newestFirst);
       const conversion = Boolean(trial);
-      const covers: RefundCovers = s.metadata?.monthly_from === "checkout" ? "setup_and_first_month" : "setup";
+      const covers: RefundCovers =
+        s.metadata?.monthly_from === "checkout" ? "setup_and_first_month" : "setup";
       return {
-        ...hit,
-        label: labelFor(covers, conversion),
-        covers,
-        conversion,
-        trialPence: trial && trial !== s ? (trial.amount_total ?? null) : null,
-        sessionId: s.id,
-        invoiceId: s.invoice,
+        allRefunded: false,
+        target: {
+          ...hit,
+          label: labelFor(covers, conversion),
+          covers,
+          conversion,
+          trialPence: trial && trial !== s ? (trial.amount_total ?? null) : null,
+          sessionId: s.id,
+          invoiceId: s.invoice,
+        },
       };
     }
   }
+  // Everything this package paid has already gone back: nothing to refund.
+  if (foundRefunded) return { target: null, allRefunded: true };
   // Older files: no session on record, but the subscription's first invoice
   // is the one that carried the setup line.
   if (deps.subscriptionId) {
     const invoices = await deps.listInvoices(deps.subscriptionId);
-    const first = invoices.find((i) => i.billing_reason === "subscription_create" && (i.amount_paid ?? 0) > 0);
+    const first = invoices.find(
+      (i) => i.billing_reason === "subscription_create" && (i.amount_paid ?? 0) > 0,
+    );
     if (first) {
       const hit = await paidOnInvoice(deps, first.id);
-      if (hit) {
+      if (hit && !(await alreadyBack(hit.paymentIntent, hit.amountPence))) {
         return {
-          ...hit,
-          label: labelFor("first_invoice", false),
-          covers: "first_invoice",
-          conversion: false,
-          trialPence: null,
-          sessionId: null,
-          invoiceId: first.id,
+          allRefunded: false,
+          target: {
+            ...hit,
+            label: labelFor("first_invoice", false),
+            covers: "first_invoice",
+            conversion: false,
+            trialPence: null,
+            sessionId: null,
+            invoiceId: first.id,
+          },
         };
       }
     }
   }
-  return null;
+  return { target: null, allRefunded: false };
 }
 
 /** The staff confirm. Says exactly what goes back, and what does not. */
-export function refundConfirmText(target: RefundTarget | null, formatPence: (p: number) => string): string {
+export function refundConfirmText(
+  target: RefundTarget | null,
+  formatPence: (p: number) => string,
+): string {
   if (!target) {
     return "No setup payment found on this file, so nothing can be refunded from here. Refund in Stripe by hand if they paid.";
   }
-  const parts = [`Refund ${formatPence(target.amountPence)}, ${target.label}, through Stripe and end this package?`];
+  const parts = [
+    `Refund ${formatPence(target.amountPence)}, ${target.label}, through Stripe and end this package?`,
+  ];
   switch (target.covers) {
     case "trial":
+    case "balance":
       break;
     case "setup":
       parts.push("No monthly payments are refunded.");
@@ -198,7 +246,9 @@ export function refundConfirmText(target: RefundTarget | null, formatPence: (p: 
       parts.push("That includes the first month. Later monthly payments are not refunded.");
       break;
     default:
-      parts.push("That is the setup, plus the first month if it was charged at checkout. Later monthly payments are not refunded.");
+      parts.push(
+        "That is the setup, plus the first month if it was charged at checkout. Later monthly payments are not refunded.",
+      );
   }
   if (target.conversion) {
     parts.push(
@@ -252,7 +302,12 @@ export type OwnSessionLike = {
 };
 
 function ukDate(unix: number) {
-  return new Date(unix * 1000).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/London" });
+  return new Date(unix * 1000).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: "Europe/London",
+  });
 }
 
 /**
@@ -271,12 +326,15 @@ export function ownSessions<T extends OwnSessionLike>(
   opts: { duplicateSessionIds?: Iterable<string>; endedAt?: (number | null | undefined)[] } = {},
 ): { own: T[]; skipped: { id: string; reason: string }[] } {
   const dupes = new Set(opts.duplicateSessionIds ?? []);
-  const ends = (opts.endedAt ?? []).filter((n): n is number => typeof n === "number" && Number.isFinite(n)).sort((a, b) => a - b);
+  const ends = (opts.endedAt ?? [])
+    .filter((n): n is number => typeof n === "number" && Number.isFinite(n))
+    .sort((a, b) => a - b);
   const skipped: { id: string; reason: string }[] = [];
   const paid: T[] = [];
   for (const s of [...sessions].sort((a, b) => (a.created ?? 0) - (b.created ?? 0))) {
     if (s.payment_status !== "paid") skipped.push({ id: s.id, reason: "not paid" });
-    else if (dupes.has(s.id)) skipped.push({ id: s.id, reason: "duplicate payment (flagged on the file)" });
+    else if (dupes.has(s.id))
+      skipped.push({ id: s.id, reason: "duplicate payment (flagged on the file)" });
     else paid.push(s);
   }
   const purchases = paid.filter((s) => s.kind !== "balance");
@@ -286,13 +344,19 @@ export function ownSessions<T extends OwnSessionLike>(
   let trialSeen = false;
   for (const s of paid) {
     if (cutoff !== undefined && (s.created ?? 0) < cutoff) {
-      skipped.push({ id: s.id, reason: `from an earlier package that was ended on ${ukDate(cutoff)}` });
+      skipped.push({
+        id: s.id,
+        reason: `from an earlier package that was ended on ${ukDate(cutoff)}`,
+      });
       continue;
     }
     const trial = s.mode === "payment" && s.kind !== "balance" && s.kind !== "subscription";
     if (trial) {
       if (trialSeen) {
-        skipped.push({ id: s.id, reason: "second trial fee in the same package (duplicate payment)" });
+        skipped.push({
+          id: s.id,
+          reason: "second trial fee in the same package (duplicate payment)",
+        });
         continue;
       }
       trialSeen = true;

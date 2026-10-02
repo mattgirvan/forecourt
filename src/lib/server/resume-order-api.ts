@@ -17,6 +17,7 @@ import { emailOutcomeMessage, sendBalanceLinkEmail } from "@/lib/server/journey-
 import { subscriptionEnded } from "@/lib/server/checkout-guard";
 import { flaggedDuplicateSessions } from "@/lib/server/refund-target";
 import {
+  BALANCE_LINK_TITLE,
   ENDED_EVENT_TITLES,
   OWNER_ONLY_MESSAGE,
   balanceOwed,
@@ -41,7 +42,7 @@ type StripeClient = InstanceType<typeof import("stripe").default>;
 
 const STAGE_IDS = BUILD_STAGES.map((s) => s.id) as readonly string[];
 const SESSION_RE = /\b(cs_(?:live|test)_[A-Za-z0-9]+)\b/g;
-const LINK_TITLE = "Payment link sent";
+const LINK_TITLE = BALANCE_LINK_TITLE;
 
 type TenantRow = {
   id: number;

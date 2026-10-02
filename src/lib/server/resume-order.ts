@@ -129,6 +129,9 @@ export type TimelineEvent = {
 };
 
 /** Internal timeline titles that record the stage when a file was ended. */
+/** Timeline title for a balance payment link staff made from Resume order. */
+export const BALANCE_LINK_TITLE = "Payment link sent";
+
 export const ENDED_EVENT_TITLES = ["Package refunded", "Package ended"] as const;
 
 export type StagePick = {

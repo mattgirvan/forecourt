@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Notes, Thread } from "@/components/account/portal";
 import { OrderBuild } from "@/components/build/order-desk";
 import { BoardStats, CustomerTable, type BoardRow } from "@/components/office/board";
+import { FileFlags } from "@/components/office/file-flags";
 import { ResumeOrder } from "@/components/office/resume-order";
 import { StaffPanel } from "@/components/office/staff-panel";
 import { SiteShell } from "@/components/site-shell";
@@ -364,6 +365,7 @@ function TenantFile({ token, tenantId, onSaved }: { token: string; tenantId: num
         />
         </div>
       ) : null}
+      <FileFlags key={`flags-${tenantId}`} token={token} tenantId={tenantId} owner={owner} onChanged={onSaved} />
 
       <div className="mt-6 flex flex-wrap gap-1.5">
         {(

@@ -81,6 +81,12 @@ export interface PaymentStore {
    * empty). True if this call wrote it. Optional: stores without it skip the check.
    */
   claimSubscription?(tenantId: number, expected: string | null, incoming: string): Promise<boolean>;
+  /**
+   * Set the site's status only if it still holds `expected` (null for empty).
+   * True if this call set it. Closes the race where two trial payments both
+   * read "briefing". Optional: stores without it skip the check.
+   */
+  claimStatus?(tenantId: number, expected: string | null, next: string): Promise<boolean>;
   /** Ids of this tenant's other orders already marked paid. */
   otherPaidOrderIds(tenantId: number, exceptOrderId: number): Promise<number[]>;
   /** Tenants to compare a new paid order against. Best effort. */
@@ -245,6 +251,18 @@ export async function applyPaidOrder(
         const now2 = await store.loadTenant(order.tenant_id);
         kept = now2?.stripe_subscription_id ?? null;
         conflict = { reason: "active_subscription" };
+      }
+    }
+    // Two trial payments at once: neither has a subscription to compare, so the
+    // status is the claim. If another call won, find out whether it was this
+    // same order (the success page and the webhook together) or a second trial.
+    if (!conflict && !incoming && orderBilling(order) === "trial" && store.claimStatus) {
+      const won = await store.claimStatus(order.tenant_id, current.status ?? null, "trial");
+      if (!won) {
+        if ((await trialRaceWinner(store, order.tenant_id, order.id)) === "same_order") {
+          return { applied: "already_paid", flags: [] };
+        }
+        conflict = { reason: "already_paid" };
       }
     }
     if (conflict) {
@@ -535,19 +553,76 @@ export const FLAG_TITLES = {
 } as const;
 
 export type BoardFlags = { duplicate: boolean; lookalike: boolean };
+export type FlagKind = keyof typeof FLAG_TITLES;
 
-/** Office list badges from the internal flag events, per site. Works with EMAIL_MODE off. */
-export function boardFlags(events: { tenant_id: number; title: string | null }[]): Record<number, BoardFlags> {
+/** Timeline title when an owner marks a flag as dealt with. Clears its badge. */
+export const FLAG_HANDLED_TITLE = "Flag marked handled";
+
+/** The tag a handled mark carries, so the board knows which flag it clears. */
+export function handledTag(kind: FlagKind) {
+  return `[handled:${kind}]`;
+}
+
+/**
+ * Office list badges from the internal flag events, per site. Works with
+ * EMAIL_MODE off. A flag clears once an owner marks it handled, and shows
+ * again if a newer flag of the same kind comes in after that.
+ */
+export function boardFlags(
+  events: { tenant_id: number; title: string | null; body?: string | null; created_at?: string | null }[],
+): Record<number, BoardFlags> {
   const out: Record<number, BoardFlags> = {};
-  for (const e of events) {
+  const ordered = [...events].sort((a, b) => Date.parse(a.created_at ?? "") - Date.parse(b.created_at ?? "") || 0);
+  for (const e of ordered) {
     const dup = e.title === FLAG_TITLES.duplicate_payment;
     const look = e.title === FLAG_TITLES.similar_dealer;
-    if (!dup && !look) continue;
+    const handled = e.title === FLAG_HANDLED_TITLE;
+    if (!dup && !look && !handled) continue;
     const f = (out[e.tenant_id] ??= { duplicate: false, lookalike: false });
     if (dup) f.duplicate = true;
     if (look) f.lookalike = true;
+    if (handled && (e.body ?? "").includes(handledTag("duplicate_payment"))) f.duplicate = false;
+    if (handled && (e.body ?? "").includes(handledTag("similar_dealer"))) f.lookalike = false;
   }
   return out;
+}
+
+/** The internal note when an owner marks a flag handled. */
+export function handledNote(d: { kind: FlagKind; by: string; how: "refunded" | "checked"; stripe?: string | null }): string {
+  const what = d.kind === "duplicate_payment" ? "Duplicate payment" : "Look-alike dealership flag";
+  const how = d.how === "refunded" ? "the duplicate was refunded in Stripe" : "checked, nothing else to do";
+  return [`${what} marked handled by ${d.by}: ${how}.`, d.stripe ?? "", handledTag(d.kind)].filter(Boolean).join(" ");
+}
+
+/**
+ * After a lost trial claim: was the winner this same order or another one?
+ * The winner marks its order paid moments after claiming, so look a few times.
+ * If it cannot be told, treat it as a second trial so staff check it.
+ */
+export async function trialRaceWinner(
+  store: Pick<PaymentStore, "otherPaidOrderIds">,
+  tenantId: number,
+  orderId: number,
+  opts: { tries?: number; waitMs?: number } = {},
+): Promise<"same_order" | "other_order"> {
+  const tries = opts.tries ?? 6;
+  for (let i = 0; i < tries; i++) {
+    // 0 is never an order id, so this lists every paid order on the site, this one included.
+    const paid = await store.otherPaidOrderIds(tenantId, 0);
+    if (paid.includes(orderId)) return "same_order";
+    if (paid.length) return "other_order";
+    if (i < tries - 1) await new Promise((r) => setTimeout(r, opts.waitMs ?? 400));
+  }
+  return "other_order";
+}
+
+/** email_log rows that hold a staff note claim, not an email. Never list them as sent emails. */
+export const STAFF_NOTE_KIND = "staff_note";
+export const STAFF_NOTE_RECIPIENT = "(staff note, not an email)";
+
+/** Only real emails from email_log, for any list of what was sent. */
+export function sentEmailRows<T extends { kind?: string | null }>(rows: T[]): T[] {
+  return rows.filter((r) => r.kind !== STAFF_NOTE_KIND);
 }
 
 /**
@@ -560,10 +635,10 @@ export async function claimStaffNote(sb: SupabaseLike, flag: StaffFlag): Promise
     const r = await sb.from("email_log").insert({
       dedupe_key: `note:${flag.dedupeKey}`,
       tenant_id: flag.tenantId,
-      kind: "staff_note",
+      kind: STAFF_NOTE_KIND,
       mode: "team",
-      recipient: "",
-      subject: flag.title,
+      recipient: STAFF_NOTE_RECIPIENT,
+      subject: `Staff note: ${flag.title}`,
       status: "sent",
     });
     if (!r.error) return "claimed";
@@ -637,6 +712,13 @@ export function supabasePaymentStore(
       const guarded = expected === null ? base.is("stripe_subscription_id", null) : base.eq("stripe_subscription_id", expected);
       const r = await guarded.select("id");
       const rows = (must(r, "claim subscription") as Array<{ id: number }> | null) ?? [];
+      return rows.length > 0;
+    },
+    async claimStatus(tenantId, expected, next) {
+      const base = sb.from("tenants").update({ status: next }).eq("id", tenantId);
+      const guarded = expected === null ? base.is("status", null) : base.eq("status", expected);
+      const r = await guarded.select("id");
+      const rows = (must(r, "claim status") as Array<{ id: number }> | null) ?? [];
       return rows.length > 0;
     },
     async otherPaidOrderIds(tenantId, exceptOrderId) {
