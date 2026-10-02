@@ -20,8 +20,12 @@ function day(iso?: string) {
  * on, on forecourt.me, in a browser with WebAuthn, with passkeys switched on
  * for the project. With the flag on but on a preview or localhost it shows a
  * one-line pointer to www.forecourt.me instead. Otherwise it shows nothing.
+ *
+ * Used on /account (customers and dealers) and in the office's Sign-in &
+ * security tab (staff). `embedded` drops the page padding when it sits
+ * inside another page's layout.
  */
-export function SignInMethods() {
+export function SignInMethods({ embedded = false }: { embedded?: boolean } = {}) {
   const { passkey } = useSignInOptions();
   const [rows, setRows] = useState<PasskeyRow[] | null>(null);
   // What is in progress: adding waits for the device prompt, removing does not.
@@ -44,7 +48,7 @@ export function SignInMethods() {
 
   if (passkey === "off_domain") {
     return (
-      <Section>
+      <Section embedded={embedded}>
         <p className="mt-2 text-sm text-muted" data-testid="passkeys-off-domain">
           Passkeys work on www.forecourt.me. Open your account there to add one.
         </p>
@@ -94,7 +98,7 @@ export function SignInMethods() {
   }
 
   return (
-    <Section>
+    <Section embedded={embedded}>
       <p className="mt-2 max-w-xl text-sm text-muted">
         Sign in with Face ID, Touch ID, Windows Hello or your phone instead of waiting for a code.
         Your email code still works.
@@ -162,9 +166,12 @@ export function SignInMethods() {
   );
 }
 
-function Section({ children }: { children: ReactNode }) {
+function Section({ children, embedded }: { children: ReactNode; embedded: boolean }) {
   return (
-    <section className="mx-auto max-w-6xl px-4 pb-14 sm:px-6" data-testid="passkeys-section">
+    <section
+      className={embedded ? undefined : "mx-auto max-w-6xl px-4 pb-14 sm:px-6"}
+      data-testid="passkeys-section"
+    >
       <div className="rounded-lg border border-line p-5">
         <h2 className="font-medium">Passkeys</h2>
         {children}
