@@ -10,8 +10,13 @@
 -- Locked out of the office? Do not use this file. Run this one line instead:
 --   update team_members set status = 'active' where email = 'hello@forecourt.me';
 --
--- Kept: the invited_at and accepted_at columns (harmless) and the
--- (select public.is_team()) wrapping on other tables (same meaning).
+-- Kept: the invited_at and accepted_at columns (harmless), the
+-- (select public.is_team()) wrapping on other tables (same meaning), and
+-- auth_email_verified(). This file never drops or replaces that function:
+-- it is either the stand-in (always yes) or the sign-in work's real check,
+-- and is_team() below still calls it, so the real check stays on.
+-- Removed: the "session must still exist" check, so this file is also the
+-- way back if that check ever causes trouble.
 
 drop policy if exists "owner add members" on public.team_members;
 drop policy if exists "owner change members" on public.team_members;
@@ -29,7 +34,26 @@ drop function if exists public.team_members_guard();
 drop function if exists public.accept_team_invite();
 drop function if exists public.is_team_owner();
 
--- is_team() exactly as #41's team-domain-hotfix.sql had it (invited counts).
+-- The stand-in, only if it is missing (same block as team-owner-only.sql).
+do $$
+begin
+  if to_regprocedure('public.auth_email_verified()') is null then
+    execute $create$
+      create function public.auth_email_verified()
+      returns boolean
+      language sql
+      stable
+      security definer
+      set search_path = ''
+      as $body$ select true /* forecourt placeholder: signin-verified-guard.sql replaces this */ $body$
+    $create$;
+    execute 'grant execute on function public.auth_email_verified() to anon, authenticated';
+  end if;
+end;
+$$;
+
+-- is_team() as #41's team-domain-hotfix.sql had it (invited counts), still
+-- behind auth_email_verified().
 create or replace function is_team()
 returns boolean
 language sql
@@ -41,7 +65,8 @@ as $$
     select lower(coalesce(auth.jwt() ->> 'email', '')) as email
   )
   select
-    (select email from me) <> ''
+    public.auth_email_verified()
+    and (select email from me) <> ''
     -- Revoked is never staff.
     and not exists (
       select 1 from team_members t

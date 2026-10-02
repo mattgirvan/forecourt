@@ -5,7 +5,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { env } from "@/lib/env.server";
 import { SUPABASE_ANON, SUPABASE_URL } from "@/lib/sb";
-import { acceptInviteSecurely, lockDownAcceptedAccount, resolveActor } from "@/lib/server/team-actor";
+import { acceptInviteSecurely, lockDownAcceptedAccount, otherSignInMethods, resolveActor } from "@/lib/server/team-actor";
 
 export function sbFor(token: string) {
   const key = SUPABASE_ANON || env("VITE_SUPABASE_ANON_KEY") || env("VITE_SUPABASE_PUBLISHABLE_KEY") || "";
@@ -18,7 +18,11 @@ export function sbFor(token: string) {
 export function sbAdmin() {
   const key = env("SUPABASE_SERVICE_ROLE_KEY") ?? env("GROK_SUPABASE_SERVICE_ROLE_KEY");
   if (!key) return null;
-  return createClient(SUPABASE_URL, key, { auth: { persistSession: false, autoRefreshToken: false } });
+  // experimental.passkey turns on auth.admin.passkey, used to check an account
+  // for passkeys before an invite is accepted.
+  return createClient(SUPABASE_URL, key, {
+    auth: { persistSession: false, autoRefreshToken: false, experimental: { passkey: true } },
+  });
 }
 
 /**
@@ -64,13 +68,23 @@ export async function actor(token: string) {
       // the service role. Without it, invites stay pending (fail closed).
       if (!admin) {
         console.warn("[team] SUPABASE_SERVICE_ROLE_KEY is not set; staff invites cannot be accepted");
-        return false;
+        return "not-yet";
       }
       return acceptInviteSecurely({
+        who: user,
+        otherSignIn: () =>
+          otherSignInMethods(
+            {
+              getUserById: (id) => admin.auth.admin.getUserById(id),
+              listPasskeys: (userId) => admin.auth.admin.passkey.listPasskeys({ userId }),
+            },
+            user.id,
+          ),
         accept: async () => {
           // The caller's own token: the database checks its sign-in method and time.
           const { data, error } = await sb.rpc("accept_team_invite");
-          return !error && data === true;
+          if (error) throw error;
+          return data === true;
         },
         lockDown: () =>
           lockDownAcceptedAccount(
@@ -82,8 +96,13 @@ export async function actor(token: string) {
             token,
           ),
         undo: async () => {
-          console.error("[team] could not lock down an accepted account; the invite is put back");
-          await admin.from("team_members").update({ status: "invited", accepted_at: null }).eq("email", user.email).eq("status", "active");
+          const { error } = await admin
+            .from("team_members")
+            .update({ status: "invited", accepted_at: null })
+            .eq("email", user.email)
+            .eq("status", "active");
+          if (error) throw error;
+          return true;
         },
       });
     },

@@ -25,6 +25,12 @@ create role authenticated nologin;
 create role service_role nologin bypassrls;
 create schema auth;
 create table auth.users (id uuid primary key, email text, email_confirmed_at timestamptz);
+create table auth.sessions (id uuid primary key, user_id uuid not null);
+create table auth.identities (id uuid primary key default gen_random_uuid(), user_id uuid not null, provider text not null);
+create table auth.mfa_factors (id uuid primary key default gen_random_uuid(), user_id uuid not null, factor_type text not null, status text not null);
+-- Stub only: every user gets one session whose id is the user id (session_id in the claims below).
+create function auth.stub_session() returns trigger language plpgsql as $s$ begin insert into auth.sessions values (new.id, new.id) on conflict do nothing; return new; end $s$;
+create trigger stub_session after insert on auth.users for each row execute function auth.stub_session();
 create function auth.jwt() returns jsonb language sql stable as
   $$ select coalesce(nullif(current_setting('request.jwt.claims', true), ''), '{}')::jsonb $$;
 create function auth.uid() returns uuid language sql stable as
@@ -61,7 +67,7 @@ async function as(db, who, sql, params = []) {
   const claims =
     who === "service_role"
       ? { role: "service_role" }
-      : { sub: who.id, email: who.email, role: "authenticated" };
+      : { sub: who.id, email: who.email, role: "authenticated", session_id: who.id };
   const role = who === "service_role" ? "service_role" : "authenticated";
   await db.query("select set_config('request.jwt.claims', $1, false)", [JSON.stringify(claims)]);
   await db.exec(`set role ${role}`);

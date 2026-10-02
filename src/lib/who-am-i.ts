@@ -12,6 +12,8 @@ export function useWhoAmI() {
     name: string;
     /** Invited, not accepted yet: they need to sign in with an email code. */
     pendingInvite?: boolean;
+    /** Accepting was tried and did not finish: show what to do instead of the code hint. */
+    acceptProblem?: "failed" | "other-sign-in" | null;
   } | null>(null);
   const [pending, setPending] = useState(true);
 

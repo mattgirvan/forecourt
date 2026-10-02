@@ -7,8 +7,14 @@
 -- invited_at for rows that are already invited.
 --
 -- What it does:
+--   * auth_email_verified(): a stand-in that always says yes, created only
+--     if it is missing. The sign-in work (#38) replaces it with the real
+--     check. This file never replaces it, so a re-run cannot switch the
+--     real check off.
 --   * is_team(): active staff only. An invite grants nothing until accepted.
---     A revoked row is never staff. The email domain is never trusted.
+--     A revoked row is never staff. The email domain is never trusted. The
+--     sign-in session must still exist, so signing someone out ends their
+--     database access at once, not when their token runs out.
 --   * is_team_owner(): an active owner row, or a confirmed hello@forecourt.me
 --     with no row yet. Only owners can add, change or remove team_members and
 --     team_emails rows (RLS below).
@@ -101,6 +107,28 @@ create trigger team_members_guard
   before insert or update or delete on public.team_members
   for each row execute function public.team_members_guard();
 
+-- auth_email_verified(): always yes until the sign-in work (#38) installs
+-- the real check (signin-verified-guard.sql). Created ONLY if missing, never
+-- with "create or replace", so re-running team-owner-only.sql or main's
+-- team-domain-hotfix.sql (both carry this same block) can never overwrite
+-- the real check. It must come before is_team(), which calls it.
+do $$
+begin
+  if to_regprocedure('public.auth_email_verified()') is null then
+    execute $create$
+      create function public.auth_email_verified()
+      returns boolean
+      language sql
+      stable
+      security definer
+      set search_path = ''
+      as $body$ select true /* forecourt placeholder: signin-verified-guard.sql replaces this */ $body$
+    $create$;
+    execute 'grant execute on function public.auth_email_verified() to anon, authenticated';
+  end if;
+end;
+$$;
+
 -- Never by email domain. team-domain-hotfix.sql carries an identical copy so
 -- re-running it cannot weaken this.
 create or replace function public.is_team()
@@ -114,7 +142,16 @@ as $$
     select lower(coalesce(auth.jwt() ->> 'email', '')) as email
   )
   select
-    (select email from me) <> ''
+    public.auth_email_verified()
+    and (select email from me) <> ''
+    -- The sign-in session must still exist. Signing out (or the office's
+    -- "sign out other sessions" after an accept) deletes it, and the token
+    -- stops working here at once instead of when it expires.
+    and exists (
+      select 1 from auth.sessions s
+      where s.id = nullif(auth.jwt() ->> 'session_id', '')::uuid
+        and s.user_id = auth.uid()
+    )
     -- Revoked is never staff.
     and not exists (
       select 1 from public.team_members t
@@ -158,7 +195,16 @@ as $$
     select lower(coalesce(auth.jwt() ->> 'email', '')) as email
   )
   select
-    (select email from me) <> ''
+    public.auth_email_verified()
+    and (select email from me) <> ''
+    -- The sign-in session must still exist. Signing out (or the office's
+    -- "sign out other sessions" after an accept) deletes it, and the token
+    -- stops working here at once instead of when it expires.
+    and exists (
+      select 1 from auth.sessions s
+      where s.id = nullif(auth.jwt() ->> 'session_id', '')::uuid
+        and s.user_id = auth.uid()
+    )
     and not exists (
       select 1 from public.team_members t
       where t.email = (select email from me) and t.status = 'revoked'
@@ -196,6 +242,11 @@ $$;
 -- never qualifies here, and phone sign-in must stay off in Supabase.
 -- Do NOT add a custom access token hook (Supabase, Authentication, Hooks)
 -- without revisiting this function: a hook can rewrite the amr claim.
+-- No other way into the account: no linked identity other than email (such
+-- as Google or phone) and no verified authenticator factor. Once the row is
+-- active, is_team() is true however the account signs in, so a stranger's
+-- Google link would keep working. The app also refuses while the account has
+-- a passkey (Supabase keeps those outside these tables).
 -- After a successful accept, the app (service role) gives the account a
 -- random password and signs out its other sessions, so a stranger who
 -- registered the address before the invite cannot keep using it.
@@ -219,6 +270,15 @@ begin
   if not exists (
     select 1 from auth.users u
     where u.id = auth.uid() and lower(u.email) = me and coalesce(u.phone, '') = ''
+  ) then
+    return false;
+  end if;
+  if exists (
+    select 1 from auth.identities i
+    where i.user_id = auth.uid() and i.provider <> 'email'
+  ) or exists (
+    select 1 from auth.mfa_factors f
+    where f.user_id = auth.uid() and f.status::text = 'verified'
   ) then
     return false;
   end if;

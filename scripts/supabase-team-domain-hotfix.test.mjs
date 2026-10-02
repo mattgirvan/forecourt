@@ -21,6 +21,12 @@ create role authenticated nologin;
 create role service_role nologin bypassrls;
 create schema auth;
 create table auth.users (id uuid primary key, email text, email_confirmed_at timestamptz);
+create table auth.sessions (id uuid primary key, user_id uuid not null);
+create table auth.identities (id uuid primary key default gen_random_uuid(), user_id uuid not null, provider text not null);
+create table auth.mfa_factors (id uuid primary key default gen_random_uuid(), user_id uuid not null, factor_type text not null, status text not null);
+-- Stub only: every user gets one session whose id is the user id (session_id in the claims below).
+create function auth.stub_session() returns trigger language plpgsql as $s$ begin insert into auth.sessions values (new.id, new.id) on conflict do nothing; return new; end $s$;
+create trigger stub_session after insert on auth.users for each row execute function auth.stub_session();
 create function auth.jwt() returns jsonb language sql stable as
   $$ select coalesce(nullif(current_setting('request.jwt.claims', true), ''), '{}')::jsonb $$;
 create function auth.uid() returns uuid language sql stable as
@@ -63,7 +69,7 @@ async function db({ hotfix = true, helloConfirmed = true } = {}) {
 }
 
 async function isTeam(d, who) {
-  await d.query("select set_config('request.jwt.claims', $1, false)", [JSON.stringify({ sub: who.id, email: who.email, role: "authenticated" })]);
+  await d.query("select set_config('request.jwt.claims', $1, false)", [JSON.stringify({ sub: who.id, email: who.email, role: "authenticated", session_id: who.id })]);
   await d.exec("set role authenticated");
   try {
     return (await d.query("select is_team() as t")).rows[0].t;
@@ -81,7 +87,7 @@ test("hotfix: a fresh @forecourt.me signup is not staff; nor is an unaccepted in
   assert.equal(await isTeam(d, U.dealer), false);
   assert.equal(await isTeam(d, U.hello), true);
   // A stranger cannot read or write team_members through RLS.
-  await d.query("select set_config('request.jwt.claims', $1, false)", [JSON.stringify({ sub: U.stranger.id, email: U.stranger.email, role: "authenticated" })]);
+  await d.query("select set_config('request.jwt.claims', $1, false)", [JSON.stringify({ sub: U.stranger.id, email: U.stranger.email, role: "authenticated", session_id: U.stranger.id })]);
   await d.exec("set role authenticated");
   const seen = (await d.query("select email from team_members")).rows;
   await d.exec("reset role");
@@ -105,6 +111,7 @@ test("hotfix: with no active member, only an exact team_emails address passes, n
   await d.exec("update team_members set status = 'invited' where status = 'active'");
   await d.exec("delete from team_members where email = 'ops@forecourt.me'");
   await d.exec("insert into team_emails (email) values ('listed@forecourt.me') on conflict do nothing");
+  await d.exec("insert into auth.users (id, email) values ('00000000-0000-0000-0000-000000000009', 'listed@forecourt.me')");
   assert.equal(await isTeam(d, { id: "00000000-0000-0000-0000-000000000009", email: "listed@forecourt.me" }), true);
   assert.equal(await isTeam(d, U.stranger), false);
 });

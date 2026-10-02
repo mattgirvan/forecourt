@@ -17,6 +17,12 @@ create role authenticated nologin;
 create role service_role nologin bypassrls;
 create schema auth;
 create table auth.users (id uuid primary key, email text, email_confirmed_at timestamptz, phone text);
+create table auth.sessions (id uuid primary key, user_id uuid not null);
+create table auth.identities (id uuid primary key default gen_random_uuid(), user_id uuid not null, provider text not null);
+create table auth.mfa_factors (id uuid primary key default gen_random_uuid(), user_id uuid not null, factor_type text not null, status text not null);
+-- Stub only: every user gets one session whose id is the user id (session_id in the claims below).
+create function auth.stub_session() returns trigger language plpgsql as $s$ begin insert into auth.sessions values (new.id, new.id) on conflict do nothing; return new; end $s$;
+create trigger stub_session after insert on auth.users for each row execute function auth.stub_session();
 create function auth.jwt() returns jsonb language sql stable as
   $$ select coalesce(nullif(current_setting('request.jwt.claims', true), ''), '{}')::jsonb $$;
 create function auth.uid() returns uuid language sql stable as
@@ -43,7 +49,7 @@ async function db() {
 /** The same deps as staff-actor.ts, over PGlite. `admin` = service role available. */
 function deps(d: PGlite, user: User, opts: { admin: boolean; amr: { method: string; timestamp: number }[] }): ActorDeps {
   const asUser = async <T>(q: string, params: unknown[] = []) => {
-    const claims = { sub: user.id, email: user.email, role: "authenticated", amr: opts.amr };
+    const claims = { sub: user.id, email: user.email, role: "authenticated", amr: opts.amr, session_id: user.id };
     await d.query("select set_config('request.jwt.claims', $1, false)", [JSON.stringify(claims)]);
     await d.exec("set role authenticated");
     try {
@@ -74,7 +80,8 @@ function deps(d: PGlite, user: User, opts: { admin: boolean; amr: { method: stri
         [email],
       );
     },
-    acceptInvite: async () => (await asUser<{ ok: boolean }>("select public.accept_team_invite() as ok"))[0]?.ok === true,
+    acceptInvite: async () =>
+      (await asUser<{ ok: boolean }>("select public.accept_team_invite() as ok"))[0]?.ok === true ? "accepted" : "not-yet",
   };
 }
 

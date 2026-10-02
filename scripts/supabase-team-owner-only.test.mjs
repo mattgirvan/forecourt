@@ -21,6 +21,12 @@ create role authenticated nologin;
 create role service_role nologin bypassrls;
 create schema auth;
 create table auth.users (id uuid primary key, email text, email_confirmed_at timestamptz, phone text);
+create table auth.sessions (id uuid primary key, user_id uuid not null);
+create table auth.identities (id uuid primary key default gen_random_uuid(), user_id uuid not null, provider text not null);
+create table auth.mfa_factors (id uuid primary key default gen_random_uuid(), user_id uuid not null, factor_type text not null, status text not null);
+-- Stub only: every user gets one session whose id is the user id (session_id in the claims below).
+create function auth.stub_session() returns trigger language plpgsql as $s$ begin insert into auth.sessions values (new.id, new.id) on conflict do nothing; return new; end $s$;
+create trigger stub_session after insert on auth.users for each row execute function auth.stub_session();
 create function auth.jwt() returns jsonb language sql stable as
   $$ select coalesce(nullif(current_setting('request.jwt.claims', true), ''), '{}')::jsonb $$;
 create function auth.uid() returns uuid language sql stable as
@@ -69,7 +75,7 @@ const now = () => Math.floor(Date.now() / 1000);
 
 /** Run as a signed-in Supabase request (role plus JWT claims, like PostgREST). */
 async function as(d, who, sql, params = [], amr = [{ method: "password", timestamp: now() }]) {
-  const claims = { sub: who.id, email: who.email, role: "authenticated", amr };
+  const claims = { sub: who.id, email: who.email, role: "authenticated", amr, session_id: who.id };
   await d.query("select set_config('request.jwt.claims', $1, false)", [JSON.stringify(claims)]);
   await d.exec("set role authenticated");
   try {
@@ -192,6 +198,26 @@ test("an account with a phone number cannot accept: an SMS code is also amr otp"
   assert.equal(await accept(), true);
 });
 
+test("an account with Google, a phone identity or a verified authenticator cannot accept", async () => {
+  const d = await db();
+  await d.exec(`update team_members set invited_at = now() - interval '1 hour' where email = '${U.invited.email}'`);
+  const accept = async () => (await as(d, U.invited, "select public.accept_team_invite() as ok", [], [{ method: "otp", timestamp: now() }])).rows[0].ok;
+  await d.exec(`insert into auth.identities (user_id, provider) values ('${U.invited.id}', 'email')`);
+  for (const provider of ["google", "phone"]) {
+    await d.exec(`insert into auth.identities (user_id, provider) values ('${U.invited.id}', '${provider}')`);
+    assert.equal(await accept(), false, provider);
+    assert.equal((await row(d, U.invited.email)).status, "invited");
+    await d.exec(`delete from auth.identities where provider = '${provider}'`);
+  }
+  await d.exec(`insert into auth.mfa_factors (user_id, factor_type, status) values ('${U.invited.id}', 'totp', 'verified')`);
+  assert.equal(await accept(), false, "verified factor");
+  await d.exec("update auth.mfa_factors set status = 'unverified'");
+  // Someone else's Google link does not block this account; an unfinished factor does not either.
+  await d.exec(`insert into auth.identities (user_id, provider) values ('${U.stranger.id}', 'google')`);
+  assert.equal(await accept(), true);
+  assert.equal((await row(d, U.invited.email)).status, "active");
+});
+
 test("accepting an invite needs mailbox proof dated after the invite", async () => {
   const d = await db();
   const inv = U.invited;
@@ -289,7 +315,7 @@ test("every staff policy is wrapped as (select is_team()) and the functions pin 
   assert.equal(pols.filter((p) => /team write/.test(p.policyname)).length, 0);
   // The check file's section 6 (unwrapped policies) comes back empty.
   const check = read("team-owner-only.check.sql");
-  const section6 = check.slice(check.indexOf("-- 6."));
+  const section6 = check.slice(check.indexOf("-- 6."), check.indexOf("-- 7."));
   assert.equal((await d.query(section6.slice(section6.indexOf("select")))).rows.length, 0);
   for (const fn of ["is_team", "is_team_owner", "accept_team_invite"]) {
     const { rows } = await d.query("select proconfig from pg_proc where proname = $1", [fn]);
@@ -334,3 +360,122 @@ test("the check file runs read-only, and the rollback goes back to #41", async (
   await d.exec(read("team-owner-only.sql"));
   assert.equal(await isTeam(d, U.invited), false);
 });
+
+/** The check file's section 7, as { item: state }. */
+const guardState = async (d) => {
+  const check = read("team-owner-only.check.sql");
+  const s7 = check.slice(check.indexOf("-- 7."));
+  const { rows } = await d.query(s7.slice(s7.indexOf("select")));
+  return Object.fromEntries(rows.map((r) => [r.item, r.state]));
+};
+const GUARDED = { auth_email_verified: "placeholder (always yes)", is_team: "calls the guard, checks the session", is_team_owner: "calls the guard, checks the session" };
+/** Stands in for #38's signin-verified-guard.sql: confirmed email only. */
+const REAL_GUARD = `create or replace function public.auth_email_verified() returns boolean language sql stable security definer set search_path = ''
+  as $$ select auth.uid() is not null and exists (select 1 from auth.users u where u.id = auth.uid() and u.email_confirmed_at is not null) /* simulated real guard */ $$;`;
+const guardBody = async (d) => (await d.query("select prosrc from pg_proc where oid = to_regprocedure('public.auth_email_verified()')")).rows[0]?.prosrc ?? null;
+
+test("a signed-out session loses staff access at once, not when its token expires", async () => {
+  const d = await db();
+  assert.equal(await isTeam(d, U.operator), true);
+  assert.equal(await isOwner(d, U.owner2), true);
+  // Supabase deletes the session row on sign-out (including "sign out other sessions").
+  await d.exec(`delete from auth.sessions where user_id in ('${U.operator.id}', '${U.owner2.id}')`);
+  assert.equal(await isTeam(d, U.operator), false, "the old token no longer works against the database");
+  assert.equal(await isOwner(d, U.owner2), false);
+  assert.equal((await as(d, U.operator, "select count(*)::int as n from team_members")).rows[0].n, 1, "only their own row, like any signed-in user");
+  // Someone else's live session id in the token does not count.
+  const borrowed = { ...U.operator };
+  await d.query("select set_config('request.jwt.claims', $1, false)", [JSON.stringify({ sub: U.operator.id, email: U.operator.email, role: "authenticated", session_id: U.hello.id })]);
+  await d.exec("set role authenticated");
+  assert.equal((await d.query("select public.is_team() as t")).rows[0].t, false);
+  // No session_id claim at all (an old or hand-made token): not staff.
+  await d.query("select set_config('request.jwt.claims', $1, false)", [JSON.stringify({ sub: U.hello.id, email: U.hello.email, role: "authenticated" })]);
+  assert.equal((await d.query("select public.is_team() as t, public.is_team_owner() as o")).rows[0].t, false);
+  await d.exec("reset role");
+  // A new sign-in makes a new session: access is back.
+  await d.exec(`insert into auth.sessions values ('${borrowed.id}', '${borrowed.id}')`);
+  assert.equal(await isTeam(d, U.operator), true);
+  // Policies still call (select public.is_team()), worked out once per query.
+  const pol = (await d.query("select qual from pg_policies where tablename = 'tenants' and policyname = 'team tenants'")).rows[0].qual;
+  assert.match(pol, /SELECT (public\.)?is_team\(\)/);
+});
+
+test("the guard stand-in: created only if missing, before is_team(), in both files, and reported by the check", async () => {
+  const d = await db();
+  assert.deepEqual(await guardState(d), GUARDED);
+  assert.match(await guardBody(d), /^\s*select true \/\* forecourt placeholder/);
+  for (const f of ["team-owner-only.sql", "team-domain-hotfix.sql"]) {
+    const sql = read(f);
+    const block = sql.indexOf("if to_regprocedure('public.auth_email_verified()') is null then");
+    assert.ok(block > 0, f);
+    assert.ok(block < sql.indexOf("create or replace function public.is_team()"), `${f}: the stand-in comes before is_team()`);
+    assert.doesNotMatch(sql, /create or replace function (public\.)?auth_email_verified/i, `${f} never replaces the guard`);
+  }
+  // Same block, word for word, in both files.
+  const block = (f) => {
+    const s = read(f);
+    const a = s.indexOf("do $$\nbegin\n  if to_regprocedure('public.auth_email_verified()')");
+    return s.slice(a, s.indexOf("end;\n$$;", a));
+  };
+  assert.equal(block("team-domain-hotfix.sql"), block("team-owner-only.sql"));
+  // Re-runs keep exactly one stand-in and change nothing.
+  await d.exec(read("team-owner-only.sql"));
+  await d.exec(read("team-domain-hotfix.sql"));
+  assert.equal((await d.query("select count(*)::int as n from pg_proc where proname = 'auth_email_verified'")).rows[0].n, 1);
+  assert.deepEqual(await guardState(d), GUARDED);
+});
+
+test("the real guard is never overwritten: every SQL file, in any order, after the guard", async () => {
+  const d = await db();
+  await d.exec(`update auth.users set email_confirmed_at = null where id = '${U.operator.id}'`);
+  assert.equal(await isTeam(d, U.operator), true, "the stand-in says yes");
+  await d.exec(REAL_GUARD);
+  const real = await guardBody(d);
+  assert.equal(await isTeam(d, U.operator), false, "the real guard bites");
+  const all = [...ORDER, "team-domain-hotfix.sql"];
+  for (const files of [all, [...all].reverse(), ["staff.sql", "team-domain-hotfix.sql", "portal.sql", "team-owner-only.sql", "build.sql"]]) {
+    for (const f of files) await d.exec(read(f));
+    assert.equal(await guardBody(d), real, files.join(", "));
+    assert.equal(await isTeam(d, U.operator), false, files.join(", "));
+    assert.equal(await isTeam(d, U.owner2), true, "confirmed staff still get in");
+    assert.deepEqual(await guardState(d), { ...GUARDED, auth_email_verified: "real guard" });
+  }
+  // The rollback keeps the real guard too, and its is_team() still calls it.
+  await d.exec(read("team-owner-only.rollback.sql"));
+  assert.equal(await guardBody(d), real);
+  assert.equal(await isTeam(d, U.operator), false);
+  assert.deepEqual(await guardState(d), {
+    auth_email_verified: "real guard",
+    is_team: "calls the guard, DOES NOT check the session",
+    is_team_owner: "missing",
+  });
+  await d.exec(read("team-owner-only.sql"));
+  assert.deepEqual(await guardState(d), { ...GUARDED, auth_email_verified: "real guard" });
+});
+
+test("the rollback never drops the stand-in, and puts it back if it went missing", async () => {
+  const d = await db();
+  await d.exec(read("team-owner-only.rollback.sql"));
+  assert.match(await guardBody(d), /forecourt placeholder/);
+  assert.match(read("team-owner-only.rollback.sql"), /if to_regprocedure\('public\.auth_email_verified\(\)'\) is null then/);
+  assert.doesNotMatch(read("team-owner-only.rollback.sql"), /drop function[^;]*auth_email_verified/i);
+  // Dropped by hand (Postgres allows it): every staff check errors until it is back.
+  await d.exec("drop function public.auth_email_verified()");
+  await assert.rejects(isTeam(d, U.operator), /auth_email_verified/);
+  assert.equal((await guardState(d)).auth_email_verified, "missing");
+  await d.exec(read("team-owner-only.rollback.sql"));
+  assert.equal(await isTeam(d, U.operator), true);
+  await d.exec("drop function public.auth_email_verified()");
+  await d.exec(read("team-owner-only.sql"));
+  assert.deepEqual(await guardState(d), GUARDED);
+});
+
+test("the check shows when an old copy (like #41's original hotfix) stripped the guard", async () => {
+  const d = await db();
+  // #41's original is_team(): no guard call, no session check.
+  await d.exec(read("team-owner-only.rollback.sql").replace("public.auth_email_verified()\n    and (select email from me) <> ''", "(select email from me) <> ''"));
+  assert.equal((await guardState(d)).is_team, "DOES NOT call the guard, DOES NOT check the session");
+  await d.exec(read("team-domain-hotfix.sql"));
+  assert.equal((await guardState(d)).is_team, GUARDED.is_team, "main's hotfix copy repairs it");
+});
+

@@ -116,6 +116,34 @@ function OfficeInner() {
 
   if (pending) return <div className="mx-auto max-w-5xl px-4 py-20 text-sm text-muted">Checking access…</div>;
 
+  if (!me?.team && me?.pendingInvite && me.acceptProblem) {
+    const otherSignIn = me.acceptProblem === "other-sign-in";
+    return (
+      <div className="mx-auto max-w-lg px-4 py-20 text-center">
+        <h1 className="text-3xl font-semibold tracking-tight">{"Your invite isn't accepted yet."}</h1>
+        <p className="mt-3 text-sm text-muted" data-testid="accept-problem">
+          {otherSignIn
+            ? "This account also has another way to sign in, such as Google, a passkey or an authenticator app, so it can't join the team yet. Tell Matt."
+            : "Couldn't finish accepting, try again or tell Matt."}
+        </p>
+        {otherSignIn ? null : (
+          <Button
+            className="mt-6"
+            onClick={() => {
+              // Each try needs a fresh email code: putting the invite back
+              // restarts its clock.
+              void getSb()
+                .auth.signOut()
+                .finally(() => void navigate({ to: "/login" }));
+            }}
+          >
+            Try again
+          </Button>
+        )}
+      </div>
+    );
+  }
+
   if (!me?.team && me?.pendingInvite) {
     return (
       <div className="mx-auto max-w-lg px-4 py-20 text-center">

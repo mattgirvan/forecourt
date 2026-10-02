@@ -17,7 +17,32 @@
 -- original copy from #41 lets unaccepted invites count as staff again.
 -- hello@forecourt.me only counts when that auth user's email is confirmed
 -- (in every case above), and a revoked team_members row is never staff.
+-- Since #42 the caller's sign-in session must also still exist, and
+-- is_team() calls auth_email_verified() (a stand-in that always says yes
+-- until the sign-in work replaces it; created here only if missing).
 -- Undo: team-domain-hotfix.rollback.sql (puts the domain rule back).
+
+-- auth_email_verified(): always yes until the sign-in work (#38) installs
+-- the real check (signin-verified-guard.sql). Created ONLY if missing, never
+-- with "create or replace", so re-running team-owner-only.sql or main's
+-- team-domain-hotfix.sql (both carry this same block) can never overwrite
+-- the real check. It must come before is_team(), which calls it.
+do $$
+begin
+  if to_regprocedure('public.auth_email_verified()') is null then
+    execute $create$
+      create function public.auth_email_verified()
+      returns boolean
+      language sql
+      stable
+      security definer
+      set search_path = ''
+      as $body$ select true /* forecourt placeholder: signin-verified-guard.sql replaces this */ $body$
+    $create$;
+    execute 'grant execute on function public.auth_email_verified() to anon, authenticated';
+  end if;
+end;
+$$;
 
 create or replace function public.is_team()
 returns boolean
@@ -30,7 +55,16 @@ as $$
     select lower(coalesce(auth.jwt() ->> 'email', '')) as email
   )
   select
-    (select email from me) <> ''
+    public.auth_email_verified()
+    and (select email from me) <> ''
+    -- The sign-in session must still exist. Signing out (or the office's
+    -- "sign out other sessions" after an accept) deletes it, and the token
+    -- stops working here at once instead of when it expires.
+    and exists (
+      select 1 from auth.sessions s
+      where s.id = nullif(auth.jwt() ->> 'session_id', '')::uuid
+        and s.user_id = auth.uid()
+    )
     -- Revoked is never staff.
     and not exists (
       select 1 from public.team_members t

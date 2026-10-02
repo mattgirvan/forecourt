@@ -23,8 +23,8 @@ import { FLAG_HANDLED_TITLE, FLAG_TITLES, boardFlags, handledNote, type FlagKind
 export const whoAmI = createServerFn({ method: "POST" })
   .validator((d: { token: string }) => d)
   .handler(async ({ data }) => {
-    const { email, team, role, name, pendingInvite } = await actor(data.token);
-    return { email, team, role, name, pendingInvite };
+    const { email, team, role, name, pendingInvite, acceptProblem } = await actor(data.token);
+    return { email, team, role, name, pendingInvite, acceptProblem };
   });
 
 export const listAllTenants = createServerFn({ method: "POST" })

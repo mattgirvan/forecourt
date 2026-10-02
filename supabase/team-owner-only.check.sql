@@ -46,3 +46,29 @@ where schemaname = 'public'
   and (coalesce(qual, '') ~ 'is_team\(\)' or coalesce(with_check, '') ~ 'is_team\(\)')
   and not (coalesce(qual, '') ~ 'SELECT is_team\(\)' or coalesce(qual, '') ~ 'SELECT public\.is_team\(\)')
   and coalesce(qual, '') !~ 'is_team_owner';
+
+-- 7. The sign-in guard and the session check. auth_email_verified shows
+--    "placeholder (always yes)" until the sign-in work (#38) installs the
+--    real check, then "real guard". is_team and is_team_owner must both show
+--    "calls the guard, checks the session". Anything else means an old copy
+--    of a file was run (for example #41's original team-domain-hotfix.sql):
+--    run main's team-owner-only.sql again (after team-owner-only.rollback.sql,
+--    "DOES NOT check the session" is expected). "missing" for the guard means
+--    every staff check is failing: run main's team-owner-only.sql again.
+select 'auth_email_verified' as item,
+  case
+    when to_regprocedure('public.auth_email_verified()') is null then 'missing'
+    when (select p.prosrc from pg_proc p where p.oid = to_regprocedure('public.auth_email_verified()')) ~ 'forecourt placeholder'
+      then 'placeholder (always yes)'
+    else 'real guard'
+  end as state
+union all
+select f.name,
+  case
+    when to_regprocedure('public.' || f.name || '()') is null then 'missing'
+    else concat_ws(', ',
+      case when p.prosrc ~ 'auth_email_verified\(\)' then 'calls the guard' else 'DOES NOT call the guard' end,
+      case when p.prosrc ~ 'auth\.sessions' then 'checks the session' else 'DOES NOT check the session' end)
+  end
+from (values ('is_team'), ('is_team_owner')) as f (name)
+left join pg_proc p on p.oid = to_regprocedure('public.' || f.name || '()');
