@@ -3,7 +3,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { gbpPence, normalizeBilling, normalizePlan } from "@/lib/catalog";
 import { SUPABASE_ANON, SUPABASE_URL } from "@/lib/sb";
 import { SITE } from "@/lib/site";
-import { TEAM_EMAILS, looksLikeTeam, type StaffRole, type StaffStatus } from "@/lib/team";
+import { TEAM_EMAILS, type StaffRole, type StaffStatus } from "@/lib/team";
 import { actor, sbAdmin, stripeSecret } from "@/lib/server/staff-actor";
 import { startMonthlyForTenant } from "@/lib/server/billing-go-live";
 import { tenantEnded } from "@/lib/server/billing-start";

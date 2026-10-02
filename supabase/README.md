@@ -23,6 +23,14 @@ This is the **office** — sign-in, tenants, orders. Not Aberdeen. Not a custome
 
 14. Before turning on journey emails: SQL editor → paste `email-log.sql` → run. Then set `EMAIL_MODE` on Vercel Production (`team` first, then `live`). Unset or `off` sends nothing.
 
+15. Security hotfix (staff never by email domain), once:
+    - SQL editor: paste `team-domain-hotfix.check.sql`, run it, and keep the results. It is read only.
+    - SQL editor: paste `team-domain-hotfix.sql` and run it. It is safe to run more than once and changes no rows.
+    - Run `team-domain-hotfix.check.sql` again. Section 4 should show no `like '%@forecourt.me'`.
+    - Revoke anyone in the results you do not know, especially rows with `auto_owner_suspect` = true (the app used to make any @forecourt.me sign-in an owner). Use the two lines at the top of the check file. Revoke rather than delete: re-running `staff.sql` copies `team_emails` back into `team_members`.
+    - Authentication: turn Confirm email on.
+    - Undo: `team-domain-hotfix.rollback.sql`. It puts the domain rule back, so only use it if real staff are locked out.
+
 Stripe webhook (optional, return-URL confirm still works): `https://www.forecourt.me/api/stripe/webhook`
 Needs `STRIPE_WEBHOOK_SECRET` and `SUPABASE_SERVICE_ROLE_KEY` on Vercel. Do not put the service-role key in `VITE_` vars.
 
