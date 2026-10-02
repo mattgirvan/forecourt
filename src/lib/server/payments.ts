@@ -76,6 +76,11 @@ export interface PaymentStore {
     fields: { stripe_session_id?: string; stripe_subscription_id?: string | null },
   ): Promise<void>;
   cancelBySubscription(subscriptionId: string): Promise<void>;
+  /**
+   * Write the site's subscription only if it still holds `expected` (null for
+   * empty). True if this call wrote it. Optional: stores without it skip the check.
+   */
+  claimSubscription?(tenantId: number, expected: string | null, incoming: string): Promise<boolean>;
   /** Ids of this tenant's other orders already marked paid. */
   otherPaidOrderIds(tenantId: number, exceptOrderId: number): Promise<number[]>;
   /** Tenants to compare a new paid order against. Best effort. */
@@ -169,8 +174,38 @@ export function paidOrderConflict(
   if (incomingSubscription && current.stripe_subscription_id === incomingSubscription) return null;
   // A paid trial converting is the one expected second payment.
   if (order.kind === "convert" && !current.stripe_subscription_id) return null;
+  // A different subscription already on a running site is a duplicate, even in
+  // the moment before the first order is marked paid.
+  if (incomingSubscription && current.stripe_subscription_id && current.stripe_subscription_id !== incomingSubscription) {
+    return { reason: "active_subscription" };
+  }
   if (!otherPaidOrders.length) return null;
   return { reason: current.stripe_subscription_id ? "active_subscription" : "already_paid" };
+}
+
+/** The staff note for a duplicate payment. Says exactly what to undo, and how not to. */
+export function duplicateNote(d: {
+  orderId: number;
+  sessionId: string | null;
+  incoming: string | null;
+  others: number[];
+  kept: string | null;
+  trial: boolean;
+}): string {
+  const paid = `Order #${d.orderId} was paid (Stripe session ${d.sessionId ?? "none"}${d.incoming ? `, subscription ${d.incoming}` : ""})`;
+  const prior = d.others.length
+    ? `but this site already had paid order${d.others.length > 1 ? "s" : ""} #${d.others.join(", #")}.`
+    : `but this site already has subscription ${d.kept ?? "on file"}.`;
+  const what = d.trial ? "the duplicate trial fee" : "the duplicate setup";
+  return [
+    `${paid} ${prior}`,
+    "The site was not changed.",
+    d.kept ? `It keeps subscription ${d.kept}.` : "",
+    `Refund ${what}${d.incoming ? ` and cancel ${d.incoming}` : ""} in Stripe.`,
+    "Don't use Office Refund for this: it is for the site's own payment and would end the real package.",
+  ]
+    .filter(Boolean)
+    .join(" ");
 }
 
 export type ApplyResult = { applied: "tenant_updated" | "order_only" | "already_paid"; flags: StaffFlag[] };
@@ -200,18 +235,31 @@ export async function applyPaidOrder(
       throw new PaymentRefused("tenant_not_owned", `order ${order.id} points at tenant ${order.tenant_id}`);
     }
     const others = await store.otherPaidOrderIds(order.tenant_id, order.id);
-    const conflict = paidOrderConflict(current, order, incoming, others);
+    let conflict = paidOrderConflict(current, order, incoming, others);
+    let kept = current.stripe_subscription_id ?? null;
+    // Two webhooks at once both read an empty slot. Only one may write its
+    // subscription: a compare-and-set on the value we read decides which.
+    if (!conflict && incoming && incoming !== current.stripe_subscription_id && store.claimSubscription) {
+      const won = await store.claimSubscription(order.tenant_id, current.stripe_subscription_id ?? null, incoming);
+      if (!won) {
+        const now2 = await store.loadTenant(order.tenant_id);
+        kept = now2?.stripe_subscription_id ?? null;
+        conflict = { reason: "active_subscription" };
+      }
+    }
     if (conflict) {
-      const kept = current.stripe_subscription_id ? `It keeps subscription ${current.stripe_subscription_id}.` : "";
       flags.push({
         tenantId: order.tenant_id,
         kind: "duplicate_payment",
-        title: DUPLICATE_FLAG_TITLE,
-        body: `Order #${order.id} was paid (Stripe session ${session?.id ?? "none"}${
-          incoming ? `, subscription ${incoming}` : ""
-        }) but this site already had paid order${others.length > 1 ? "s" : ""} #${others.join(", #")}. The site was not changed. ${kept} Refund the duplicate setup${
-          incoming ? ` and cancel ${incoming}` : ""
-        } in Stripe.`,
+        title: FLAG_TITLES.duplicate_payment,
+        body: duplicateNote({
+          orderId: order.id,
+          sessionId: session?.id ?? null,
+          incoming,
+          others,
+          kept,
+          trial: order.kind === "trial" || (!incoming && orderBilling(order) === "trial"),
+        }),
         dedupeKey: `duplicate-payment:order:${order.id}`,
       });
     } else {
@@ -227,7 +275,7 @@ export async function applyPaidOrder(
           flags.push({
             tenantId: order.tenant_id,
             kind: "similar_dealer",
-            title: "Paid order looks like an existing dealership",
+            title: FLAG_TITLES.similar_dealer,
             body: dealerMatchNote({ id: order.tenant_id, name: current.name }, matches),
             dedupeKey: `similar-dealer:order:${order.id}`,
           });
@@ -457,10 +505,14 @@ export async function handleStripeWebhook(
  * Supabase-backed store. `sb` should be the service-role client; the caller's
  * own client only works until the entitlement guard migration is applied.
  */
-type QueryResult = { data: unknown; error: { message: string } | null };
+type QueryResult = { data: unknown; error: { message: string; code?: string } | null };
 type Filter = PromiseLike<QueryResult> & {
   eq: (col: string, v: unknown) => Filter;
   neq: (col: string, v: unknown) => Filter;
+  is: (col: string, v: null) => Filter;
+  gte: (col: string, v: unknown) => Filter;
+  limit: (n: number) => Filter;
+  select: (cols: string) => Filter;
   maybeSingle: () => PromiseLike<QueryResult>;
 };
 // Minimal structural type so this file needs no supabase-js import.
@@ -468,13 +520,72 @@ export type SupabaseLike = {
   from: (table: string) => {
     select: (cols: string) => Filter;
     update: (patch: Record<string, unknown>) => {
-      eq: (col: string, v: unknown) => PromiseLike<QueryResult>;
+      eq: (col: string, v: unknown) => Filter;
     };
     insert: (row: Record<string, unknown>) => PromiseLike<QueryResult>;
   };
 };
 
 export type StaffAlert = (flag: StaffFlag) => Promise<void>;
+
+/** Titles of the flags the office list shows as badges. */
+export const FLAG_TITLES = {
+  duplicate_payment: DUPLICATE_FLAG_TITLE,
+  similar_dealer: "Paid order looks like an existing dealership",
+} as const;
+
+export type BoardFlags = { duplicate: boolean; lookalike: boolean };
+
+/** Office list badges from the internal flag events, per site. Works with EMAIL_MODE off. */
+export function boardFlags(events: { tenant_id: number; title: string | null }[]): Record<number, BoardFlags> {
+  const out: Record<number, BoardFlags> = {};
+  for (const e of events) {
+    const dup = e.title === FLAG_TITLES.duplicate_payment;
+    const look = e.title === FLAG_TITLES.similar_dealer;
+    if (!dup && !look) continue;
+    const f = (out[e.tenant_id] ??= { duplicate: false, lookalike: false });
+    if (dup) f.duplicate = true;
+    if (look) f.lookalike = true;
+  }
+  return out;
+}
+
+/**
+ * Claim the right to write a staff note for this flag. Uses email_log's
+ * unique dedupe_key (no new SQL). If email_log is not there, falls back to
+ * checking the timeline for the same note, which covers retries.
+ */
+export async function claimStaffNote(sb: SupabaseLike, flag: StaffFlag): Promise<"claimed" | "duplicate"> {
+  try {
+    const r = await sb.from("email_log").insert({
+      dedupe_key: `note:${flag.dedupeKey}`,
+      tenant_id: flag.tenantId,
+      kind: "staff_note",
+      mode: "team",
+      recipient: "",
+      subject: flag.title,
+      status: "sent",
+    });
+    if (!r.error) return "claimed";
+    if (r.error.code === "23505") return "duplicate";
+  } catch {
+    /* fall through */
+  }
+  try {
+    const r = await sb
+      .from("build_events")
+      .select("id")
+      .eq("tenant_id", flag.tenantId)
+      .eq("title", flag.title)
+      .eq("body", flag.body)
+      .limit(1);
+    const rows = (r.data as unknown[] | null) ?? [];
+    if (!r.error && rows.length) return "duplicate";
+  } catch {
+    /* write the note */
+  }
+  return "claimed";
+}
 
 export function supabasePaymentStore(
   sb: SupabaseLike,
@@ -521,6 +632,13 @@ export function supabasePaymentStore(
         "cancel tenant",
       );
     },
+    async claimSubscription(tenantId, expected, incoming) {
+      const base = sb.from("tenants").update({ stripe_subscription_id: incoming }).eq("id", tenantId);
+      const guarded = expected === null ? base.is("stripe_subscription_id", null) : base.eq("stripe_subscription_id", expected);
+      const r = await guarded.select("id");
+      const rows = (must(r, "claim subscription") as Array<{ id: number }> | null) ?? [];
+      return rows.length > 0;
+    },
     async otherPaidOrderIds(tenantId, exceptOrderId) {
       const r = await sb.from("orders").select("id").eq("tenant_id", tenantId).eq("status", "paid").neq("id", exceptOrderId);
       const rows = (must(r, "load paid orders") as Array<{ id: number }> | null) ?? [];
@@ -531,6 +649,9 @@ export function supabasePaymentStore(
       return (must(r, "list tenants") as MatchTenant[] | null) ?? [];
     },
     async flagForStaff(flag) {
+      // One note per flag, even when the success page and the webhook handle
+      // the same payment at once: email_log's unique key is the claim.
+      if ((await claimStaffNote(sb, flag)) === "duplicate") return;
       // Internal note on the file (office Notes) and the staff timeline.
       try {
         await sb.from("notes").insert({

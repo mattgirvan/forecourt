@@ -37,6 +37,12 @@ export type RefundDeps = {
   /** Checkout sessions on this file, newest first. */
   sessions: SessionLike[];
   subscriptionId?: string | null;
+  /**
+   * The subscription stored on the site itself (tenants.stripe_subscription_id).
+   * A subscription checkout for any other subscription is a duplicate payment
+   * and is never the setup to refund.
+   */
+  storedSubscriptionId?: string | null;
   listInvoices: (subscriptionId: string) => Promise<InvoiceLike[]>;
   listInvoicePayments: (invoiceId: string) => Promise<InvoicePaymentLike[]>;
 };
@@ -73,6 +79,40 @@ function labelFor(covers: RefundCovers, conversion: boolean) {
   }
 }
 
+/**
+ * Is this paid session one the site itself paid for? A second subscription
+ * checkout (a duplicate payment) carries its own subscription, which is not
+ * the site's stored one. With nothing stored we cannot tell, so it counts.
+ * Office Refund and Resume order both use this rule.
+ */
+export function sessionIsSitesOwn(
+  session: { mode: string; subscription?: string | null },
+  storedSubscription: string | null | undefined,
+): boolean {
+  if (session.mode !== "subscription") return true;
+  if (!storedSubscription) return true;
+  return session.subscription === storedSubscription;
+}
+
+/**
+ * Did this subscription checkout convert a paid trial? Only a "convert"
+ * checkout, or an older one with no kind whose trial came straight before it.
+ * A cancelled site that later resubscribes pays a plain setup, even if it
+ * once converted from a trial.
+ */
+function convertedFromTrial(s: SessionLike, paid: SessionLike[]): SessionLike | null {
+  const kind = s.metadata?.kind ?? null;
+  if (kind === "subscription") return null;
+  const older = paid.slice(paid.indexOf(s) + 1);
+  const trialAt = older.findIndex((o) => o.mode === "payment" && o.metadata?.kind !== "subscription" && o.metadata?.kind !== "balance");
+  if (trialAt < 0) return kind === "convert" ? s : null;
+  const trial = older[trialAt]!;
+  if (kind === "convert") return trial;
+  // No kind (older checkouts): only a conversion if no other subscription checkout sits between.
+  const between = older.slice(0, trialAt).some((o) => o.mode === "subscription");
+  return between ? null : trial;
+}
+
 async function paidOnInvoice(deps: RefundDeps, invoiceId: string) {
   const payments = await deps.listInvoicePayments(invoiceId);
   const paid = payments.find((p) => p.status === "paid" && p.payment?.payment_intent);
@@ -81,12 +121,16 @@ async function paidOnInvoice(deps: RefundDeps, invoiceId: string) {
 }
 
 export async function findSetupPayment(deps: RefundDeps): Promise<RefundTarget | null> {
-  const paid = deps.sessions.filter((s) => s.payment_status === "paid");
-  // An earlier paid trial (payment mode) on a file that later subscribed.
-  const trialSession = (newer: SessionLike) =>
-    paid.slice(paid.indexOf(newer) + 1).find((s) => s.mode === "payment" && s.metadata?.kind !== "subscription");
+  // Never a duplicate's payment: refunding it would end the real package.
+  const paid = deps.sessions.filter(
+    (s) => s.payment_status === "paid" && s.metadata?.kind !== "balance" && sessionIsSitesOwn(s, deps.storedSubscriptionId),
+  );
+  // A site pays the trial fee once: a later trial payment is a duplicate.
+  const trials = paid.filter((s) => s.mode === "payment" && s.payment_intent);
+  const ownTrial = trials[trials.length - 1] ?? null;
   for (const s of paid) {
     if (s.mode === "payment" && s.payment_intent) {
+      if (s !== ownTrial) continue;
       return {
         paymentIntent: s.payment_intent,
         amountPence: s.amount_total ?? 0,
@@ -101,15 +145,15 @@ export async function findSetupPayment(deps: RefundDeps): Promise<RefundTarget |
     if (s.mode === "subscription" && s.invoice) {
       const hit = await paidOnInvoice(deps, s.invoice);
       if (!hit) continue;
-      const trial = trialSession(s);
-      const conversion = s.metadata?.kind === "convert" || Boolean(trial);
+      const trial = convertedFromTrial(s, paid);
+      const conversion = Boolean(trial);
       const covers: RefundCovers = s.metadata?.monthly_from === "checkout" ? "setup_and_first_month" : "setup";
       return {
         ...hit,
         label: labelFor(covers, conversion),
         covers,
         conversion,
-        trialPence: trial ? (trial.amount_total ?? null) : null,
+        trialPence: trial && trial !== s ? (trial.amount_total ?? null) : null,
         sessionId: s.id,
         invoiceId: s.invoice,
       };

@@ -8,6 +8,7 @@ import { actor, sbAdmin, stripeSecret } from "@/lib/server/staff-actor";
 import { startMonthlyForTenant } from "@/lib/server/billing-go-live";
 import { tenantEnded } from "@/lib/server/billing-start";
 import { findSetupPayment, refundConfirmText, type SessionLike } from "@/lib/server/refund-target";
+import { FLAG_TITLES, boardFlags } from "@/lib/server/payments";
 
 export const whoAmI = createServerFn({ method: "POST" })
   .validator((d: { token: string }) => d)
@@ -96,8 +97,19 @@ export const listOfficeBoard = createServerFn({ method: "POST" })
         lastBy[id] = { at: m.created_at as string, from_team: Boolean(m.from_team) };
       }
     }
+    // Duplicate and look-alike flags as badges, so staff see them without opening the file.
+    let flags: ReturnType<typeof boardFlags> = {};
+    if (ids.length) {
+      const { data: flagged } = await sb
+        .from("build_events")
+        .select("tenant_id, title")
+        .in("tenant_id", ids)
+        .in("title", [FLAG_TITLES.duplicate_payment, FLAG_TITLES.similar_dealer]);
+      flags = boardFlags((flagged ?? []) as { tenant_id: number; title: string | null }[]);
+    }
     return tenants.map((t) => ({
       ...t,
+      flags: flags[t.id] ?? null,
       last_message_at: lastBy[t.id]?.at ?? null,
       waiting: lastBy[t.id] ? !lastBy[t.id].from_team : t.stage === "paid" || t.stage === "brief",
     }));
@@ -454,9 +466,11 @@ async function locateStripeFile(
     }
   }
 
+  const storedSubId = (tenant.stripe_subscription_id as string | null) || null;
   const setup = await findSetupPayment({
     sessions,
     subscriptionId: subId,
+    storedSubscriptionId: storedSubId,
     listInvoices: async (sub) =>
       (await stripe.invoices.list({ subscription: sub, limit: 20 })).data.map((i) => ({
         id: i.id ?? "",
@@ -475,7 +489,11 @@ async function locateStripeFile(
       })),
   }).catch(() => null);
 
-  return { subId, customerId, setup };
+  // The subscription Refund may cancel: the site's own, or the one on the setup checkout it refunds.
+  // Never a duplicate's: that would leave the real package running unbilled or end the wrong one.
+  const setupSub = setup?.sessionId ? (sessions.find((x) => x.id === setup.sessionId)?.subscription ?? null) : null;
+  const refundSubId = storedSubId || setupSub || (setup && !setup.sessionId ? subId : null);
+  return { subId, customerId, setup, refundSubId };
 }
 
 /** Staff only: what Refund would send back, for the confirm. Changes nothing. */
@@ -601,14 +619,7 @@ export const runBillingAction = createServerFn({ method: "POST" })
       if (data.expectPaymentIntent && data.expectPaymentIntent !== target.paymentIntent) {
         throw new Error("The payment on this file changed since you confirmed. Nothing was refunded. Try again.");
       }
-      if (subId) {
-        try {
-          await stripe.subscriptions.cancel(subId);
-          bits.push("Monthly Stripe subscription cancelled now.");
-        } catch (e) {
-          bits.push(e instanceof Error ? e.message : "Could not cancel the subscription.");
-        }
-      }
+      // Refund first: if Stripe refuses, the subscription is left alone.
       try {
         await stripe.refunds.create(
           { payment_intent: target.paymentIntent },
@@ -625,6 +636,15 @@ export const runBillingAction = createServerFn({ method: "POST" })
         if (!/already been refunded/i.test(msg)) throw new Error(msg);
         bits.push(`Stripe says ${target.label} (${gbpPence(target.amountPence)}) was already refunded.`);
       }
+      const ownSub = located.refundSubId;
+      if (ownSub) {
+        try {
+          await stripe.subscriptions.cancel(ownSub);
+          bits.push("Monthly Stripe subscription cancelled now.");
+        } catch (e) {
+          bits.push(e instanceof Error ? e.message : "Could not cancel the subscription.");
+        }
+      }
       if (target.sessionId) {
         await admin.from("orders").update({ status: "refunded" }).eq("stripe_session_id", target.sessionId);
       } else {
@@ -638,7 +658,9 @@ export const runBillingAction = createServerFn({ method: "POST" })
       cancelled_at: new Date().toISOString(),
     };
     if (customerId) patch.stripe_customer_id = customerId;
-    if (subId) patch.stripe_subscription_id = subId;
+    // Keep the site's own subscription on the file, never a duplicate's.
+    const keepSub = located.refundSubId ?? subId;
+    if (keepSub) patch.stripe_subscription_id = keepSub;
     const { error: up } = await admin.from("tenants").update(patch).eq("id", data.tenantId);
     if (up) await admin.from("tenants").update({ status }).eq("id", data.tenantId);
 

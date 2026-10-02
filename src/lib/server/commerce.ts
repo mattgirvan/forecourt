@@ -14,7 +14,7 @@ import {
 } from "@/lib/catalog";
 import { seedPaidOrder } from "@/lib/server/build";
 import { sendStaffAlert } from "@/lib/server/journey-email";
-import { expireOpenSessions } from "@/lib/server/checkout-sessions";
+import { OPEN_SESSION_MAX, expireOpenSessions, recentPendingCutoff } from "@/lib/server/checkout-sessions";
 import {
   PLAN_CHECK_FAILED_MESSAGE,
   checkoutRefusal,
@@ -364,7 +364,10 @@ export const startCheckout = createServerFn({ method: "POST" })
         .from("orders")
         .select("stripe_session_id")
         .eq("tenant_id", data.tenantId)
-        .eq("status", "pending");
+        .eq("status", "pending")
+        .gte("created_at", recentPendingCutoff())
+        .order("created_at", { ascending: false })
+        .limit(OPEN_SESSION_MAX);
       await expireOpenSessions(
         {
           retrieve: (id) => stripe.checkout.sessions.retrieve(id),

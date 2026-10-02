@@ -7,6 +7,19 @@
  * Pure (no framework or `@/` imports) so it can be unit tested with node --test.
  */
 
+/**
+ * Stripe Checkout sessions last 24 hours at most, so only pending orders from
+ * the last day can still have an open session. Older abandoned orders stay
+ * pending forever; looking them up would cost a Stripe call each, for nothing.
+ */
+export const OPEN_SESSION_WINDOW_HOURS = 25;
+/** At most this many recent pending orders are checked per checkout. */
+export const OPEN_SESSION_MAX = 10;
+
+export function recentPendingCutoff(now: Date = new Date()): string {
+  return new Date(now.getTime() - OPEN_SESSION_WINDOW_HOURS * 3600_000).toISOString();
+}
+
 export type OpenSessionDeps = {
   retrieve: (id: string) => Promise<{ id: string; status?: string | null }>;
   expire: (id: string) => Promise<unknown>;
