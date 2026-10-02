@@ -16,9 +16,9 @@
 --     access, only with proof they opened their mailbox AFTER the invite (an
 --     email code or link sign-in in their current session, see below).
 --   * A trigger: invited_at is always set by the database; nobody signed in
---     can make a row active directly (only accepting does that); and
---     hello@forecourt.me's role and access can only be changed here, in the
---     SQL editor.
+--     can make a row active directly (only accepting does that) or change a
+--     row's email address; and hello@forecourt.me's row can only be added or
+--     changed here, in the SQL editor.
 --   * Every staff policy calls (select public.is_team()), so Postgres works
 --     it out once per query instead of once per row.
 -- Check: team-owner-only.check.sql. Undo: team-owner-only.rollback.sql.
@@ -61,6 +61,9 @@ begin
   end if;
   new.email := lower(trim(new.email));
   if tg_op = 'INSERT' then
+    if signed_in and new.email = 'hello@forecourt.me' then
+      raise exception 'hello@forecourt.me can only be changed in the Supabase SQL editor.';
+    end if;
     if new.status = 'invited' then
       new.invited_at := now();
       new.accepted_at := null;
@@ -72,6 +75,12 @@ begin
   if signed_in and old.email = 'hello@forecourt.me'
      and (new.email <> old.email or new.role <> old.role or new.status <> old.status) then
     raise exception 'hello@forecourt.me can only be changed in the Supabase SQL editor.';
+  end if;
+  -- No renames from the office: a new address would inherit the row's
+  -- access with no invite or acceptance (and nobody can be renamed to
+  -- hello@forecourt.me, even when its row is missing).
+  if signed_in and new.email <> lower(trim(old.email)) then
+    raise exception 'An email address cannot be changed. Revoke this person and invite the new address instead.';
   end if;
   if new.status = 'invited' and old.status <> 'invited' then
     new.invited_at := now();
@@ -183,6 +192,13 @@ $$;
 -- stranger's sign-up, and automatic while Confirm email is off) and
 -- last_sign_in_at (also moves for password sign-ins, so it proves nothing
 -- about the mailbox).
+-- An SMS code is also recorded as "otp", so an account with a phone number
+-- never qualifies here, and phone sign-in must stay off in Supabase.
+-- Do NOT add a custom access token hook (Supabase, Authentication, Hooks)
+-- without revisiting this function: a hook can rewrite the amr claim.
+-- After a successful accept, the app (service role) gives the account a
+-- random password and signs out its other sessions, so a stranger who
+-- registered the address before the invite cannot keep using it.
 create or replace function public.accept_team_invite()
 returns boolean
 language plpgsql
@@ -199,7 +215,11 @@ begin
     return false;
   end if;
   -- The token's email must be this user's own sign-in address.
-  if not exists (select 1 from auth.users u where u.id = auth.uid() and lower(u.email) = me) then
+  -- No phone on the account: an SMS code would also show up as "otp".
+  if not exists (
+    select 1 from auth.users u
+    where u.id = auth.uid() and lower(u.email) = me and coalesce(u.phone, '') = ''
+  ) then
     return false;
   end if;
   select t.invited_at into since

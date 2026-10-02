@@ -9,6 +9,7 @@ import { StaffPanel } from "@/components/office/staff-panel";
 import { SiteShell } from "@/components/site-shell";
 import { Button } from "@/components/ui/button";
 import { SignInGate, useSbAccessToken } from "@/lib/sb-session";
+import { getSb } from "@/lib/sb";
 import { normalizeBilling, normalizePlan } from "@/lib/catalog";
 import { goLiveConfirm } from "@/lib/server/build";
 import {
@@ -114,6 +115,27 @@ function OfficeInner() {
   }, [rows, q]);
 
   if (pending) return <div className="mx-auto max-w-5xl px-4 py-20 text-sm text-muted">Checking access…</div>;
+
+  if (!me?.team && me?.pendingInvite) {
+    return (
+      <div className="mx-auto max-w-lg px-4 py-20 text-center">
+        <h1 className="text-3xl font-semibold tracking-tight">{"You've been invited."}</h1>
+        <p className="mt-3 text-sm text-muted">
+          Sign in with an email code to accept. A password, Google or a passkey does not count for this first step.
+        </p>
+        <Button
+          className="mt-6"
+          onClick={() => {
+            void getSb()
+              .auth.signOut()
+              .finally(() => void navigate({ to: "/login" }));
+          }}
+        >
+          Sign out and get an email code
+        </Button>
+      </div>
+    );
+  }
 
   if (!me?.team) {
     return (

@@ -20,7 +20,7 @@ create role anon nologin;
 create role authenticated nologin;
 create role service_role nologin bypassrls;
 create schema auth;
-create table auth.users (id uuid primary key, email text, email_confirmed_at timestamptz);
+create table auth.users (id uuid primary key, email text, email_confirmed_at timestamptz, phone text);
 create function auth.jwt() returns jsonb language sql stable as
   $$ select coalesce(nullif(current_setting('request.jwt.claims', true), ''), '{}')::jsonb $$;
 create function auth.uid() returns uuid language sql stable as
@@ -160,6 +160,38 @@ test("an owner can invite, change roles and revoke, but cannot switch access on 
   assert.equal(await changed(d, boss, "insert into team_emails (email) values ('new@forecourt.me')"), 1);
 });
 
+test("nobody signed in can rename a row's email, not even an owner, and nobody can become hello@", async () => {
+  const d = await db();
+  const boss = U.owner2;
+  // Renaming an active row would hand the new address access with no invite.
+  assert.equal(await changed(d, boss, "update team_members set email = 'mate@evil.test' where email = $1", [U.operator.email]), -1);
+  assert.equal(await changed(d, boss, "update team_members set email = 'mate@evil.test' where email = $1", [U.invited.email]), -1);
+  assert.ok((await changed(d, U.operator, "update team_members set email = 'mate@evil.test' where email = $1", [U.operator.email])) <= 0, "operator: RLS or the trigger");
+  assert.equal(await row(d, "mate@evil.test"), undefined);
+  assert.equal((await row(d, U.operator.email)).status, "active");
+  // Not to hello@ either, even when hello@ has no row; and no signed-in insert of hello@.
+  await d.exec("delete from team_members where email = 'hello@forecourt.me'");
+  assert.equal(await changed(d, boss, "update team_members set email = 'hello@forecourt.me' where email = $1", [U.operator.email]), -1);
+  assert.equal(await changed(d, boss, "insert into team_members (email, role, status) values ('hello@forecourt.me', 'operator', 'invited')"), -1);
+  assert.equal(await row(d, U.hello.email), undefined);
+  // Same case, different spelling, is not a rename.
+  assert.equal(await changed(d, boss, "update team_members set email = 'OPS@forecourt.me', name = 'Ops' where email = $1", [U.operator.email]), 1);
+  // The SQL editor (postgres) can still fix an address by hand.
+  await d.exec(`update team_members set email = 'ops2@forecourt.me' where email = '${U.operator.email}'`);
+  assert.equal((await row(d, "ops2@forecourt.me")).status, "active");
+});
+
+test("an account with a phone number cannot accept: an SMS code is also amr otp", async () => {
+  const d = await db();
+  await d.exec(`update team_members set invited_at = now() - interval '1 hour' where email = '${U.invited.email}'`);
+  await d.exec(`update auth.users set phone = '447700900123' where id = '${U.invited.id}'`);
+  const accept = async () => (await as(d, U.invited, "select public.accept_team_invite() as ok", [], [{ method: "otp", timestamp: now() }])).rows[0].ok;
+  assert.equal(await accept(), false);
+  assert.equal((await row(d, U.invited.email)).status, "invited");
+  await d.exec(`update auth.users set phone = '' where id = '${U.invited.id}'`);
+  assert.equal(await accept(), true);
+});
+
 test("accepting an invite needs mailbox proof dated after the invite", async () => {
   const d = await db();
   const inv = U.invited;
@@ -278,6 +310,13 @@ test("only team-owner-only.sql and the hotfix define is_team(), and their copies
     assert.doesNotMatch(read(f), /like '%@forecourt\.me'/, f);
   }
   assert.doesNotMatch(read("staff.sql"), /from team_emails\s*\n?\s*on conflict/, "staff.sql no longer copies team_emails into team_members");
+});
+
+test("the Confirm signup email carries the code and a type=signup link, like the magic link one", () => {
+  const signup = read("confirm-signup.html");
+  assert.match(signup, /\{\{ \.Token \}\}/);
+  assert.match(signup, /token_hash=\{\{ \.TokenHash \}\}&type=signup/);
+  assert.equal(signup.replace("type=signup", "type=email"), read("magic-link.html"));
 });
 
 test("the check file runs read-only, and the rollback goes back to #41", async () => {

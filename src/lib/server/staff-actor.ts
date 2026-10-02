@@ -5,7 +5,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { env } from "@/lib/env.server";
 import { SUPABASE_ANON, SUPABASE_URL } from "@/lib/sb";
-import { resolveActor } from "@/lib/server/team-actor";
+import { acceptInviteSecurely, lockDownAcceptedAccount, resolveActor } from "@/lib/server/team-actor";
 
 export function sbFor(token: string) {
   const key = SUPABASE_ANON || env("VITE_SUPABASE_ANON_KEY") || env("VITE_SUPABASE_PUBLISHABLE_KEY") || "";
@@ -59,10 +59,33 @@ export async function actor(token: string) {
           { onConflict: "email", ignoreDuplicates: true },
         );
     },
-    acceptInvite: async () => {
-      // Must use the caller's own token: the database checks its sign-in method and time.
-      const { data, error } = await sb.rpc("accept_team_invite");
-      return !error && data === true;
+    acceptInvite: async (user) => {
+      // Accepting also locks the account down with the Admin API, so it needs
+      // the service role. Without it, invites stay pending (fail closed).
+      if (!admin) {
+        console.warn("[team] SUPABASE_SERVICE_ROLE_KEY is not set; staff invites cannot be accepted");
+        return false;
+      }
+      return acceptInviteSecurely({
+        accept: async () => {
+          // The caller's own token: the database checks its sign-in method and time.
+          const { data, error } = await sb.rpc("accept_team_invite");
+          return !error && data === true;
+        },
+        lockDown: () =>
+          lockDownAcceptedAccount(
+            {
+              updateUserById: (id, attrs) => admin.auth.admin.updateUserById(id, attrs),
+              signOut: (jwt, scope) => admin.auth.admin.signOut(jwt, scope),
+            },
+            user.id,
+            token,
+          ),
+        undo: async () => {
+          console.error("[team] could not lock down an accepted account; the invite is put back");
+          await admin.from("team_members").update({ status: "invited", accepted_at: null }).eq("email", user.email).eq("status", "active");
+        },
+      });
     },
   });
   return { sb, ...who };

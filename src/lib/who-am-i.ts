@@ -10,6 +10,8 @@ export function useWhoAmI() {
     team: boolean;
     role: StaffRole | null;
     name: string;
+    /** Invited, not accepted yet: they need to sign in with an email code. */
+    pendingInvite?: boolean;
   } | null>(null);
   const [pending, setPending] = useState(true);
 

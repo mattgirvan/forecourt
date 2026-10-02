@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { OWNER_EMAIL, onForecourtDomain, teamAccess, teamChangeRefusal, type TeamMemberRow } from "../team.ts";
-import { resolveActor, type ActorUser } from "./team-actor.ts";
+import { acceptInviteSecurely, lockDownAcceptedAccount, resolveActor, unknownPassword, type ActorDeps, type ActorUser, type AdminAuthLike } from "./team-actor.ts";
 
 /** A fake Supabase: a user from the token and a team_members table. Records every write. */
 function fake(user: ActorUser | null, rows: Record<string, TeamMemberRow & { name?: string }> = {}, accepts = false) {
@@ -26,7 +26,7 @@ function fake(user: ActorUser | null, rows: Record<string, TeamMemberRow & { nam
         rows[email] = { ...rows[email], status: "active" };
         return true;
       },
-    },
+    } as ActorDeps,
   };
 }
 
@@ -138,4 +138,85 @@ test("the domain helper is only a recipient check", () => {
   assert.equal(onForecourtDomain("x@forecourt.me"), true);
   assert.equal(onForecourtDomain("x@dealer.test"), false);
   assert.equal(onForecourtDomain(""), false);
+});
+
+/** A mock of the two Supabase Admin API calls. Records every call. */
+function mockAdmin(fail: { password?: boolean; signOut?: boolean; throws?: boolean } = {}) {
+  const calls: string[] = [];
+  let password = "";
+  const admin: AdminAuthLike = {
+    updateUserById: async (id, attrs) => {
+      if (fail.throws) throw new Error("network");
+      calls.push(`password ${id}`);
+      password = attrs.password;
+      return { error: fail.password ? new Error("no") : null };
+    },
+    signOut: async (jwt, scope) => {
+      calls.push(`signOut ${jwt} ${scope}`);
+      return { error: fail.signOut ? new Error("no") : null };
+    },
+  };
+  return { admin, calls, password: () => password };
+}
+
+test("after an accept: an unknown password, then every OTHER session signed out", async () => {
+  const m = mockAdmin();
+  assert.equal(await lockDownAcceptedAccount(m.admin, "u9", "hire-token"), true);
+  assert.deepEqual(m.calls, ["password u9", "signOut hire-token others"], "the hire's own session (this token) is kept");
+  assert.match(m.password(), /^[0-9a-f]{96}$/);
+  assert.notEqual(unknownPassword(), unknownPassword());
+  // Any failure means not locked down.
+  const pw = mockAdmin({ password: true });
+  assert.equal(await lockDownAcceptedAccount(pw.admin, "u9", "t"), false);
+  assert.deepEqual(pw.calls, ["password u9"], "no sign-out attempt after a failed password change");
+  assert.equal(await lockDownAcceptedAccount(mockAdmin({ signOut: true }).admin, "u9", "t"), false);
+  assert.equal(await lockDownAcceptedAccount(mockAdmin({ throws: true }).admin, "u9", "t"), false);
+});
+
+test("accept is only kept when the lock-down works; otherwise the invite is put back", async () => {
+  const log: string[] = [];
+  const steps = (accept: boolean | "throw", lock: boolean) => ({
+    accept: async () => {
+      if (accept === "throw") throw new Error("rpc");
+      log.push("accept");
+      return accept;
+    },
+    lockDown: async () => {
+      log.push("lockDown");
+      return lock;
+    },
+    undo: async () => void log.push("undo"),
+  });
+  assert.equal(await acceptInviteSecurely(steps(true, true)), true);
+  assert.deepEqual(log.splice(0), ["accept", "lockDown"]);
+  assert.equal(await acceptInviteSecurely(steps(true, false)), false);
+  assert.deepEqual(log.splice(0), ["accept", "lockDown", "undo"]);
+  assert.equal(await acceptInviteSecurely(steps(false, true)), false);
+  assert.deepEqual(log.splice(0), ["accept"], "no proof: nothing is touched");
+  assert.equal(await acceptInviteSecurely(steps("throw", true)), false);
+  assert.deepEqual(log.splice(0), []);
+});
+
+test("the full accept path with mocked Admin calls: the hire gets in, a failed lock-down keeps them out", async () => {
+  for (const failSignOut of [false, true]) {
+    const rows: Record<string, TeamMemberRow & { name?: string }> = { "sales@forecourt.me": { status: "invited", role: "operator", name: "Sales" } };
+    const m = mockAdmin({ signOut: failSignOut });
+    const f = fake({ id: "u5", email: "sales@forecourt.me", email_confirmed_at: confirmed }, rows);
+    f.deps.acceptInvite = (user) =>
+      acceptInviteSecurely({
+        accept: async () => {
+          rows[user.email] = { ...rows[user.email], status: "active" };
+          return true;
+        },
+        lockDown: () => lockDownAcceptedAccount(m.admin, user.id, "hire-token"),
+        undo: async () => {
+          rows[user.email] = { ...rows[user.email], status: "invited" };
+        },
+      });
+    const who = await resolveActor(f.deps);
+    assert.equal(who.team, !failSignOut);
+    assert.equal(who.pendingInvite, failSignOut);
+    assert.equal(rows["sales@forecourt.me"].status, failSignOut ? "invited" : "active");
+    assert.deepEqual(m.calls, ["password u5", "signOut hire-token others"]);
+  }
 });

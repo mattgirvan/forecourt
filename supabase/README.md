@@ -12,6 +12,8 @@ This is the **office** — sign-in, tenants, orders. Not Aberdeen. Not a custome
    - Site URL: `https://www.forecourt.me`
    - Redirects: `https://www.forecourt.me/**` and `https://forecourt.me/**`
 4. Authentication → Providers → Email on (magic link)
+   - Authentication → Emails: set **Magic link** to `magic-link.html` and **Confirm signup** to `confirm-signup.html`. Both show the code and a sign-in link. With Confirm email on, a brand-new person (for example a new staff invite) gets the Confirm signup email, so it needs the same code and link (its link uses `type=signup`; the app handles both).
+   - Keep **Phone** sign-in off. An SMS code would look like an email code to the staff invite check (accounts with a phone number cannot accept a staff invite anyway).
 5. Settings → API → anon key is already in the app (public by design; RLS holds the line)
 6. SQL editor → paste `team-owner-only.sql` → run (who is staff and who is owner; portal.sql and staff.sql need it first)
 7. SQL editor → paste `portal.sql` → run (dealer notes, support messages, team office)
@@ -41,15 +43,21 @@ This is the **office** — sign-in, tenants, orders. Not Aberdeen. Not a custome
     6. If any stranger had owner access, look at what they did: notes and build events they wrote, any refunds or Resume actions, and any payment links made while they were in.
     - Locked out of the office after step 3? Do not use the rollback. Run this one line instead: `update team_members set status = 'active' where email = 'hello@forecourt.me';`
     - `team-domain-hotfix.rollback.sql` is a last resort only. It puts the domain rule back and reopens the hole.
+    - After #42 is merged, only ever re-run the copy of `team-domain-hotfix.sql` on main. The original #41 copy would let unaccepted invites count as staff again.
 
 16. Team safety follow-up (only owners can change the team). Do this after step 15 is finished and #41 is live:
     1. SQL editor: paste `team-owner-only.check.sql`, run it, and save the output (it changes nothing).
     2. SQL editor: paste `team-owner-only.sql` and run it. Run the check again and save the output. Section 3 should list four functions, section 4 should show one row, and section 6 should show no rows.
     3. Merge the follow-up PR and wait until the Production deploy on Vercel shows Ready. Sign in as hello@forecourt.me and check that /office loads and the staff list shows.
     - Why this order: either order is safe (nobody gets extra access in between), but until both are done, people you invite cannot get in yet.
+    - Before you start: in Supabase, Authentication, Emails, check the **Confirm signup** template is `confirm-signup.html` (see step 4), and that **Phone** sign-in is off.
+    - Accepting an invite needs `SUPABASE_SERVICE_ROLE_KEY` on Vercel Production (the same key as step 13). Without it, invites stay pending and nobody new can get in.
     - What changes for you:
       - Only owners can add, remove or change staff. Operators cannot, and neither can someone who has been invited but not signed in yet.
-      - Someone you invite gets no access until they sign in with the code from the invite email. A password, or a code from before the invite, does not count.
+      - Before inviting, check the address has no account you don't recognise: in Supabase, Authentication, Users, search for the address. If an account is there that you or the new person did not make, do not invite yet: ask Forge.
+      - Someone you invite gets no access until they sign in with the code from the invite email. A password, Google, a passkey, or a code from before the invite does not count. If they are already signed in some other way, the office tells them to sign out and get an email code.
+      - When they accept, the app gives their account a new random password and signs out every other session on it, so nobody else who knew an old password can get in. They keep signing in with email codes.
+      - A staff email address cannot be changed. To move someone to a new address, revoke the old one and invite the new one.
       - Restoring a revoked person sends them a fresh invite. They get access again once they sign in from that email.
       - hello@forecourt.me can only be changed here in the SQL editor, never from the office. Locked out? The same one line as in step 15 still works.
     - `team-owner-only.rollback.sql` is a last resort only. It lets any staff member change the team again.

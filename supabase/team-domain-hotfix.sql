@@ -13,6 +13,8 @@
 -- Since team-owner-only.sql (the follow-up), an invite no longer counts until
 -- it is accepted. This file carries the exact same is_team() as
 -- team-owner-only.sql, so running it again later cannot weaken anything.
+-- After #42 is merged, only ever re-run THIS copy (the one on main). The
+-- original copy from #41 lets unaccepted invites count as staff again.
 -- hello@forecourt.me only counts when that auth user's email is confirmed
 -- (in every case above), and a revoked team_members row is never staff.
 -- Undo: team-domain-hotfix.rollback.sql (puts the domain rule back).
