@@ -1,7 +1,7 @@
 /** A desk that is already paid for cannot be bought again. */
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { ALREADY_PAID_MESSAGE, PLAN_CHECK_FAILED_MESSAGE, checkoutRefusal, sameDealership } from "./checkout-guard.ts";
+import { ALREADY_PAID_MESSAGE, PLAN_CHECK_FAILED_MESSAGE, TRIAL_USED_MESSAGE, checkoutRefusal, sameDealership, trialAlreadyUsed } from "./checkout-guard.ts";
 
 const sub = (status: string, extra: Record<string, unknown> = {}) => ({ status, ...extra });
 
@@ -94,4 +94,18 @@ test("the same dealership name already paid for by this user is refused", () => 
   );
   assert.equal(sameDealership("Northbridge Motors Ltd.", "northbridge motors ltd"), true);
   assert.equal(sameDealership("", ""), false);
+});
+
+test("round 7 nit: refusals on the web say write to hello@forecourt.me, never reply to", () => {
+  for (const m of [ALREADY_PAID_MESSAGE, PLAN_CHECK_FAILED_MESSAGE, TRIAL_USED_MESSAGE]) {
+    assert.match(m, /[Ww]rite to hello@forecourt\.me/);
+    assert.doesNotMatch(m, /reply to/i);
+  }
+});
+
+test("round 7 nit: the account page only hides Trial for a site whose own orders include a paid trial", () => {
+  // The account page passes this site's orders only (by tenant_id).
+  assert.equal(trialAlreadyUsed([{ kind: "trial", status: "paid" }]), true);
+  assert.equal(trialAlreadyUsed([{ kind: "trial", status: "pending" }]), false);
+  assert.equal(trialAlreadyUsed([]), false);
 });

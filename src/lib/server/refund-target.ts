@@ -365,3 +365,54 @@ export function ownSessions<T extends OwnSessionLike>(
   }
   return { own, skipped };
 }
+
+const SUB_ID = "sub_[A-Za-z0-9]+";
+/** "(Stripe session cs_..., subscription sub_...)": the duplicate's own subscription. */
+const FLAG_INCOMING_SUB_RE = new RegExp(`\\(Stripe session [^,)]+, subscription (${SUB_ID})\\)`, "g");
+/** "... and cancel sub_... in Stripe.": the same subscription, in the to do line. */
+const FLAG_CANCEL_SUB_RE = new RegExp(`cancel (${SUB_ID}) in Stripe`, "g");
+
+/**
+ * Subscriptions named as the duplicate in "Second payment" flags. Never the
+ * subscription the site keeps (the flag says "It keeps subscription ..."), and
+ * never the one on the file.
+ */
+export function flaggedDuplicateSubscriptions(events: { title?: string | null; body?: string | null }[], keep: string | null = null): Set<string> {
+  const out = new Set<string>();
+  for (const e of events) {
+    if (e.title !== DUPLICATE_FLAG_TITLE) continue;
+    const body = e.body ?? "";
+    for (const m of body.matchAll(FLAG_INCOMING_SUB_RE)) out.add(m[1]!);
+    for (const m of body.matchAll(FLAG_CANCEL_SUB_RE)) out.add(m[1]!);
+    for (const m of body.matchAll(new RegExp(`keeps subscription (${SUB_ID})`, "g"))) out.delete(m[1]!);
+  }
+  if (keep) out.delete(keep);
+  return out;
+}
+
+/** A subscription that can never bill again. */
+export function subscriptionGone(status: string | null | undefined): boolean {
+  return status === "canceled" || status === "incomplete_expired";
+}
+
+/**
+ * Can a duplicate flag be marked "Refunded in Stripe"? Every flagged payment
+ * must be fully refunded AND every flagged duplicate subscription must be
+ * cancelled. Returns the plain reason it cannot, or null when it can.
+ */
+export function duplicateHandledProblem(input: {
+  payments: { sessionId: string; paidPence: number; refundedPence: number; paid: string; refunded: string }[];
+  subscriptions: { id: string; status: string | null }[];
+}): string | null {
+  for (const p of input.payments) {
+    if (p.paidPence > 0 && p.refundedPence < p.paidPence) {
+      return `Stripe shows ${p.refunded} of ${p.paid} refunded on ${p.sessionId}. Refund the duplicate in Stripe first, or mark it checked. Nothing was changed.`;
+    }
+  }
+  for (const s of input.subscriptions) {
+    if (!subscriptionGone(s.status)) {
+      return `The duplicate payment is refunded, but Stripe shows the duplicate subscription ${s.id} is still ${s.status ?? "there"}, so it could bill again. Cancel it in Stripe first, or mark it checked. Nothing was changed.`;
+    }
+  }
+  return null;
+}

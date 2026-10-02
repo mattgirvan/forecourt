@@ -33,6 +33,7 @@ import {
   startCheckout,
   upsertTenant,
 } from "@/lib/server/commerce";
+import { trialAlreadyUsed } from "@/lib/server/checkout-guard";
 import { whoAmI } from "@/lib/server/portal";
 import { packageLive } from "@/lib/team";
 import { pageHead } from "@/lib/seo";
@@ -126,7 +127,10 @@ function AccountInner() {
   const [wantCheckout, setWantCheckout] = useState(Boolean(search.plan || search.checkout));
 
   const chosen = PLANS[plan];
-  const trialLocked = plan !== "site";
+  // One trial per site (the checkout guard refuses a second): a site that has
+  // had its trial goes straight to the full plan and Trial is hidden.
+  const trialUsed = activeId != null && trialAlreadyUsed(orders.filter((o) => o.tenant_id === activeId));
+  const trialLocked = plan !== "site" || trialUsed;
   const effectiveBilling: BillingKind = trialLocked ? "subscription" : billing;
   const activeTenant = tenants.find((x) => x.id === activeId);
   // Same rule as startCheckout (catalog checkoutQuote), so the Pay button
@@ -147,8 +151,8 @@ function AccountInner() {
   const needsContract = Boolean(chosen.contractMonths);
 
   useEffect(() => {
-    if (plan !== "site" && billing !== "subscription") setBilling("subscription");
-  }, [plan, billing]);
+    if ((plan !== "site" || trialUsed) && billing !== "subscription") setBilling("subscription");
+  }, [plan, billing, trialUsed]);
 
   useEffect(() => {
     setFeatures(defaultFeaturesFor(plan, effectiveBilling));
@@ -439,21 +443,26 @@ function AccountInner() {
           })}
         </div>
 
+        {plan === "site" && trialUsed && (
+          <p className="mt-4 text-sm text-muted">This site has already had its 60-day trial, so it goes on the full plan.</p>
+        )}
         {plan === "site" && (
-          <div className="mt-4 grid gap-2 sm:grid-cols-2">
-            <button
-              type="button"
-              onClick={() => setBilling("trial")}
-              className={cn(
-                "rounded-2xl border px-4 py-3 text-left",
-                effectiveBilling === "trial" ? "border-line-strong bg-elevated" : "border-line",
-              )}
-            >
-              <div className="text-sm font-medium">60-day trial</div>
-              <div className="mt-1 text-xs text-muted">
-                {gbpPence(PLANS.site.trialPence!)} once. Sales + manager. Comes off setup if you stay.
-              </div>
-            </button>
+          <div className={cn("mt-4 grid gap-2", !trialUsed && "sm:grid-cols-2")}>
+            {!trialUsed && (
+              <button
+                type="button"
+                onClick={() => setBilling("trial")}
+                className={cn(
+                  "rounded-2xl border px-4 py-3 text-left",
+                  effectiveBilling === "trial" ? "border-line-strong bg-elevated" : "border-line",
+                )}
+              >
+                <div className="text-sm font-medium">60-day trial</div>
+                <div className="mt-1 text-xs text-muted">
+                  {gbpPence(PLANS.site.trialPence!)} once. Sales + manager. Comes off setup if you stay.
+                </div>
+              </button>
+            )}
             <button
               type="button"
               onClick={() => setBilling("subscription")}

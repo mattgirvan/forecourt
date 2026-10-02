@@ -118,13 +118,13 @@ export const listMyOrders = createServerFn({ method: "POST" })
     const { sb, userId } = await uid(data.token);
     const { data: rows, error } = await sb
       .from("orders")
-      .select("id, plan, amount_pence, status, stripe_session_id, kind, site_count")
+      .select("id, plan, amount_pence, status, stripe_session_id, kind, site_count, tenant_id")
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
     if (error) {
       const { data: fallback, error: err2 } = await sb
         .from("orders")
-        .select("id, plan, amount_pence, status, stripe_session_id")
+        .select("id, plan, amount_pence, status, stripe_session_id, tenant_id")
         .eq("user_id", userId)
         .order("created_at", { ascending: false });
       if (err2) throw new Error(err2.message);

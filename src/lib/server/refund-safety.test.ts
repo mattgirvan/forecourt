@@ -26,7 +26,10 @@ import {
 import {
   ALL_REFUNDED_TEXT,
   DUPLICATE_FLAG_TITLE,
+  duplicateHandledProblem,
   findRefundTarget,
+  flaggedDuplicateSubscriptions,
+  subscriptionGone,
   findSetupPayment,
   refundConfirmText,
   type SessionLike,
@@ -457,4 +460,40 @@ test("R6. the handled note is plain English and carries its tag", () => {
   assert.equal(n, "Duplicate payment marked handled by matt@forecourt.me: the duplicate was refunded in Stripe. Stripe shows £4,500 of £4,500 refunded on cs_test_1. [handled:duplicate_payment]");
   const c = handledNote({ kind: "similar_dealer", by: "a@b.c", how: "checked" });
   for (const t of [n, c]) assert.doesNotMatch(t, /[\u2013\u2014]|glass/i);
+});
+
+// ------------------------------------------------------------------ round 7: "Refunded in Stripe" also needs the duplicate subscription cancelled
+
+test("round 7 must-fix 2: the duplicate subscription is read from the flag, never the one the site keeps", () => {
+  const body = duplicateNote({ orderId: 9, sessionId: "cs_live_dup9", incoming: "sub_Dup9", others: [], kept: "sub_Keep1", trial: false });
+  assert.match(body, /\(Stripe session cs_live_dup9, subscription sub_Dup9\)/);
+  const flags = [{ title: DUPLICATE_FLAG_TITLE, body }];
+  assert.deepEqual([...flaggedDuplicateSubscriptions(flags)], ["sub_Dup9"]);
+  assert.deepEqual([...flaggedDuplicateSubscriptions(flags, "sub_Dup9")], [], "the file's own subscription is never treated as the duplicate");
+  // A trial fee duplicate has no subscription of its own.
+  const trial = duplicateNote({ orderId: 3, sessionId: "cs_live_t3", incoming: null, others: [1], kept: null, trial: true });
+  assert.deepEqual([...flaggedDuplicateSubscriptions([{ title: DUPLICATE_FLAG_TITLE, body: trial }])], []);
+  // Other flags are ignored.
+  assert.deepEqual([...flaggedDuplicateSubscriptions([{ title: "Note", body }])], []);
+});
+
+test("round 7 must-fix 2: refunded is not enough; the duplicate subscription must be canceled or incomplete_expired", () => {
+  const refunded = [{ sessionId: "cs_live_dup9", paidPence: 450_000, refundedPence: 450_000, paid: "£4,500", refunded: "£4,500" }];
+  for (const status of ["active", "trialing", "past_due", "unpaid", "incomplete", "paused"]) {
+    const why = duplicateHandledProblem({ payments: refunded, subscriptions: [{ id: "sub_Dup9", status }] });
+    assert.equal(
+      why,
+      `The duplicate payment is refunded, but Stripe shows the duplicate subscription sub_Dup9 is still ${status}, so it could bill again. Cancel it in Stripe first, or mark it checked. Nothing was changed.`,
+    );
+    assert.ok(!/[\u2013\u2014]/.test(why!));
+  }
+  for (const status of ["canceled", "incomplete_expired"]) {
+    assert.equal(duplicateHandledProblem({ payments: refunded, subscriptions: [{ id: "sub_Dup9", status }] }), null);
+    assert.equal(subscriptionGone(status), true);
+  }
+  // A part refund is still refused first, with the amounts.
+  const part = [{ sessionId: "cs_live_dup9", paidPence: 450_000, refundedPence: 100_000, paid: "£4,500", refunded: "£1,000" }];
+  assert.match(duplicateHandledProblem({ payments: part, subscriptions: [{ id: "sub_Dup9", status: "canceled" }] })!, /Stripe shows £1,000 of £4,500 refunded on cs_live_dup9\. Refund the duplicate in Stripe first/);
+  // No duplicate subscription (a trial fee): the refund alone is enough.
+  assert.equal(duplicateHandledProblem({ payments: refunded, subscriptions: [] }), null);
 });

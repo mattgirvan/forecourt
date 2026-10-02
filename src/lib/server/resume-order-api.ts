@@ -13,7 +13,7 @@ import { MONTHLY_START_LATEST_DAYS, gbpPence, monthTotalPence, normalizePlan } f
 import { SITE } from "@/lib/site";
 import { statusLabel } from "@/lib/team";
 import { actor, sbAdmin, stripeSecret } from "@/lib/server/staff-actor";
-import { emailOutcomeMessage, sendBalanceLinkEmail } from "@/lib/server/journey-email";
+import { emailOutcomeMessage, sendBalanceLinkEmail, sendMonthlyRestartEmail } from "@/lib/server/journey-email";
 import { subscriptionEnded } from "@/lib/server/checkout-guard";
 import { flaggedDuplicateSessions } from "@/lib/server/refund-target";
 import {
@@ -21,6 +21,7 @@ import {
   ENDED_EVENT_TITLES,
   OWNER_ONLY_MESSAGE,
   balanceOwed,
+  chargeErrorMessage,
   executeResume,
   monthlyStartOnResume,
   gbp,
@@ -398,6 +399,10 @@ export const resumeOrder = createServerFn({ method: "POST" })
       expectStatus: string;
       undoCancel?: boolean;
       newSubscription?: boolean;
+      /** Owner tick: the customer agreed to restart monthly billing. Required to charge today. */
+      customerAgreed?: boolean;
+      /** Fresh per attempt (the panel makes a new one after any failure); part of the Stripe key. */
+      attemptId?: string;
     }) => d,
   )
   .handler(async ({ data }) => {
@@ -415,6 +420,29 @@ export const resumeOrder = createServerFn({ method: "POST" })
           if (!stripe) throw new Error("Stripe is not connected on the server, so the subscription was not changed.");
           await stripe.subscriptions.update(id, params, { idempotencyKey });
         },
+        recordAttempt: async (idempotencyKey) => {
+          // Backstop for the panel's fresh id: a key already on the file is never sent again.
+          const { data: used, error: readError } = await admin
+            .from("build_events")
+            .select("id")
+            .eq("tenant_id", data.tenantId)
+            .eq("title", "Resume attempt")
+            .like("body", `%${idempotencyKey}%`)
+            .limit(1);
+          if (readError) throw new Error(`Could not check earlier tries (${readError.message}), so Stripe was not called. Nothing changed.`);
+          if (used?.length) throw new Error("This try was already sent to Stripe once, so it was not sent again. Nothing changed. Open Resume order again for a fresh try.");
+          // Saved before Stripe is called, so every key ever used is on the file.
+          const { error } = await admin.from("build_events").insert({
+            tenant_id: data.tenantId,
+            kind: "billing",
+            stage: null,
+            title: "Resume attempt",
+            body: `Resume by ${email} is setting up a monthly in Stripe with key ${idempotencyKey}.`,
+            visibility: "internal",
+            actor_email: email,
+          });
+          if (error) throw new Error(`Could not save this try (${error.message}), so Stripe was not called. Nothing changed.`);
+        },
         createSubscription: async (idempotencyKey) => {
           if (!stripe || !f.customerId || !f.productId) throw new Error("Cannot set up a subscription from here.");
           // Check again right before creating: never a second live subscription.
@@ -430,7 +458,9 @@ export const resumeOrder = createServerFn({ method: "POST" })
           // declined card fails the call, so nothing changes.
           const start = f.start;
           if (start.kind === "now" && !f.paymentMethod) throw new Error("There is no card on file to charge the first month. Nothing changed.");
-          const sub = await stripe.subscriptions.create(
+          let created;
+          try {
+            created = await stripe.subscriptions.create(
             {
               customer: f.customerId,
               items: [
@@ -438,15 +468,25 @@ export const resumeOrder = createServerFn({ method: "POST" })
               ],
               ...(start.kind === "future"
                 ? { trial_end: start.trialEnd, trial_settings: { end_behavior: { missing_payment_method: "cancel" as const } } }
-                : { payment_behavior: "error_if_incomplete" as const }),
+                : // Nobody is at the card: off session, and a failed or 3DS payment fails the call.
+                  { payment_behavior: "error_if_incomplete" as const, off_session: true }),
               ...(f.paymentMethod ? { default_payment_method: f.paymentMethod } : {}),
               proration_behavior: "none",
               metadata: { tenant_id: String(f.tenant.id), kind: "resume", monthly_from: start.kind === "now" ? "resume" : "go_live" },
             },
             { idempotencyKey },
-          );
-          if (subscriptionEnded(sub.status)) {
-            throw new Error(`Stripe returned subscription ${sub.id}, which is ${sub.status}. Nothing changed on the desk. Set the monthly up in Stripe by hand.`);
+            );
+          } catch (err) {
+            throw new Error(chargeErrorMessage(err as { code?: string; decline_code?: string; message?: string; type?: string }));
+          }
+          // Read it back: never store a subscription that is not live now.
+          const sub = await stripe.subscriptions.retrieve(created.id);
+          if (sub.status !== "active" && sub.status !== "trialing") {
+            // Not live: make sure it can never bill (an ended one needs nothing).
+            if (!subscriptionEnded(sub.status)) await stripe.subscriptions.cancel(sub.id).catch(() => null);
+            throw new Error(
+              `Stripe shows subscription ${sub.id} as ${sub.status}, not live. Nothing changed on the desk. Open Resume order again for a fresh try, or set the monthly up in Stripe by hand.`,
+            );
           }
           return {
             id: sub.id,
@@ -456,22 +496,37 @@ export const resumeOrder = createServerFn({ method: "POST" })
                 : `New ${gbp(total)} a month subscription ${sub.id} set up, starting at go live or ${start.date} at the latest (180 days from their first payment). Nothing charged today.`,
           };
         },
+        refundFirstMonth: async (id) => {
+          if (!stripe || f.start.kind !== "now") return null;
+          const invoices = (await stripe.invoices.list({ subscription: id, limit: 3 })).data;
+          const lines: string[] = [];
+          for (const inv of invoices) {
+            if (!inv.id || (inv.amount_paid ?? 0) <= 0) continue;
+            const payments = (await stripe.invoicePayments.list({ invoice: inv.id, limit: 10 })).data;
+            const paid = payments.find((p) => p.status === "paid" && p.payment?.payment_intent);
+            const ref = paid?.payment?.payment_intent;
+            const pi = typeof ref === "string" ? ref : (ref?.id ?? null);
+            if (!pi) throw new Error(`no payment found on invoice ${inv.id}`);
+            await stripe.refunds.create({ payment_intent: pi }, { idempotencyKey: `forecourt-resume-undo-charge-${pi}` });
+            lines.push(`The ${gbp(inv.amount_paid ?? 0)} first month (${pi}) was refunded.`);
+          }
+          return lines.length ? lines.join(" ") : null;
+        },
         cancelSubscription: async (id) => {
-          if (!stripe) return;
-          await stripe.subscriptions.cancel(id);
-          // A monthly that started today charged its first month: give it back.
-          if (f.start.kind === "now") {
-            const invoices = (await stripe.invoices.list({ subscription: id, limit: 3 })).data;
-            for (const inv of invoices) {
-              if (!inv.id || (inv.amount_paid ?? 0) <= 0) continue;
-              const payments = (await stripe.invoicePayments.list({ invoice: inv.id, limit: 10 })).data;
-              const paid = payments.find((p) => p.status === "paid" && p.payment?.payment_intent);
-              const ref = paid?.payment?.payment_intent;
-              const pi = typeof ref === "string" ? ref : (ref?.id ?? null);
-              if (pi) await stripe.refunds.create({ payment_intent: pi }, { idempotencyKey: `forecourt-resume-undo-charge-${pi}` });
-            }
+          if (!stripe) throw new Error("Stripe is not connected on the server");
+          try {
+            await stripe.subscriptions.cancel(id);
+          } catch (err) {
+            // Already cancelled is done, not a failure.
+            const now = await stripe.subscriptions.retrieve(id).catch(() => null);
+            if (!now || !subscriptionEnded(now.status)) throw err;
           }
         },
+        notifyCharge: async (id) =>
+          emailOutcomeMessage(await sendMonthlyRestartEmail({ tenantId: data.tenantId, subscriptionId: id, monthlyPence: total, chargedAt: new Date() })).replace(
+            /^Customer emailed\.$/,
+            "Customer emailed about the first month charge.",
+          ),
         claim: async (patch) => {
           const { data: won, error } = await admin
             .from("tenants")
@@ -511,7 +566,8 @@ export const resumeOrder = createServerFn({ method: "POST" })
         endedAt: f.tenant.cancelled_at,
         plan: f.plan,
         subscription: f.subscription,
-        choice: { undoCancel: Boolean(data.undoCancel), newSubscription: Boolean(data.newSubscription) },
+        choice: { undoCancel: Boolean(data.undoCancel), newSubscription: Boolean(data.newSubscription), customerAgreed: Boolean(data.customerAgreed) },
+        attemptId: data.attemptId,
         newStatus: f.newStatus,
         newStatusLabel: statusLabel(f.newStatus),
         stage: f.stagePick.stage,

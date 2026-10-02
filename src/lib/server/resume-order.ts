@@ -346,8 +346,8 @@ export function subscriptionPlan(input: {
       ? `This customer already has a live subscription in Stripe (${live.map((l) => `${l.id}, ${l.status}`).join("; ")}). Resume will not set up a second one.`
       : !input.customerId
         ? "There is no Stripe customer on this file, so a new subscription cannot be set up from here."
-        : input.stage === "live"
-          ? "The site is already live, so a subscription waiting for go live would never start. Set the monthly up in Stripe by hand."
+        : input.stage === "live" && input.start.kind === "future"
+          ? "The site is already live but 180 days from their first payment have not passed, so a monthly that waits for go live does not fit. Set it up in Stripe by hand."
           : !input.productId
             ? "There is no earlier subscription to copy the monthly price from, so set it up in Stripe by hand."
             : input.start.kind === "now" && !input.hasCard
@@ -370,7 +370,12 @@ export function subscriptionPlan(input: {
 export type ResumeChoice = {
   undoCancel: boolean;
   newSubscription: boolean;
+  /** Owner tick, required before the first month is charged on resume. */
+  customerAgreed?: boolean;
 };
+
+/** The owner tick that must be on before Resume charges a first month. */
+export const CUSTOMER_AGREED_LABEL = "The customer has agreed to restart monthly billing";
 
 /** Where Resume puts the package, in plain words. */
 export function backOnPhrase(newStatus: string): string {
@@ -399,17 +404,36 @@ export function chargeNowPence(plan: SubscriptionPlan, choice: ResumeChoice): nu
   return plan.kind === "ended" && plan.canCreate && choice.newSubscription && plan.start.kind === "now" ? plan.monthlyPence : 0;
 }
 
-/** The main button: the money is on it when something is owed or charged now. */
+/**
+ * The main button. A first month charged today is charged, not owed, so it
+ * reads "Resume and charge £399 today (£4,500 still owed)".
+ */
 export function resumeButtonLabel(b: Balance, firstMonthNowPence = 0): string {
-  const month = firstMonthNowPence > 0 ? gbp(firstMonthNowPence) : null;
-  if (b.unknown) return month ? `Resume and charge ${month} first month today (balance unknown)` : "Resume (amount owed unknown)";
-  if (month) {
-    const total = b.owedPence + firstMonthNowPence;
-    return b.owedPence > 0
-      ? `Resume with ${gbp(total)} owed (${gbp(b.owedPence)} balance plus ${month} first month, charged today)`
-      : `Resume with ${month} owed (first month, charged today)`;
+  if (firstMonthNowPence > 0) {
+    const charge = `Resume and charge ${gbp(firstMonthNowPence)} today`;
+    if (b.unknown) return `${charge} (amount owed unknown)`;
+    return b.owedPence > 0 ? `${charge} (${gbp(b.owedPence)} still owed)` : charge;
   }
+  if (b.unknown) return "Resume (amount owed unknown)";
   return b.owedPence > 0 ? `Resume with ${gbp(b.owedPence)} owed` : "Resume order";
+}
+
+/** True when the main button must wait for the customer-agreed tick. */
+export function needsCustomerAgreement(plan: SubscriptionPlan, choice: ResumeChoice): boolean {
+  return chargeNowPence(plan, choice) > 0 && !choice.customerAgreed;
+}
+
+/** A Stripe error from charging the first month, in words staff can act on. Nothing changed in every case. */
+export function chargeErrorMessage(err: { code?: string | null; decline_code?: string | null; message?: string | null; type?: string | null }): string {
+  const code = err.code ?? "";
+  const decline = err.decline_code ?? "";
+  if (code === "authentication_required" || decline === "authentication_required" || code === "subscription_payment_intent_requires_action") {
+    return "The bank wants the customer to approve this payment themselves, so it cannot be charged now. Nothing changed. Untick the monthly, resume, and send the customer a payment link instead.";
+  }
+  if (code === "card_declined" || err.type === "StripeCardError") {
+    return `The card on file was declined${decline ? ` (${decline.replace(/_/g, " ")})` : ""}. Nothing changed. Ask the customer to update their card, or send them a payment link.`;
+  }
+  return `Stripe did not set up the monthly (${err.message ?? "unknown error"}). Nothing changed.`;
 }
 
 /** The plain list of what Resume will do, shown before staff confirm. */
@@ -426,7 +450,9 @@ export function resumeSteps(input: {
     `Clear the ${input.status} flag and ${backOnPhrase(input.newStatus)}.`,
     `Put the order at ${input.stageLabel}: ${input.stage.why}.`,
     "Write a timeline event and an internal note with who resumed it, when, and these amounts.",
-    "Journey emails and the You're live email work again from the next stage move. Nothing is emailed by resuming.",
+    chargeNowPence(input.plan, input.choice) > 0
+      ? "Journey emails and the You're live email work again from the next stage move. The only email sent now is the first month notice below."
+      : "Journey emails and the You're live email work again from the next stage move. Nothing is emailed by resuming.",
   ];
   if (input.plan.kind === "set_to_cancel") {
     steps.push(input.choice.undoCancel ? "Undo the cancel on the monthly subscription in Stripe. No charge." : "Leave the monthly subscription set to cancel.");
@@ -435,7 +461,7 @@ export function resumeSteps(input: {
     steps.push(
       input.choice.newSubscription && p.canCreate
         ? p.start.kind === "now"
-          ? `Set up a new ${gbp(p.monthlyPence)} monthly subscription in Stripe that starts today. The first ${gbp(p.monthlyPence)} month is charged to the card on file now, because 180 days from their first payment has passed.`
+          ? `Set up a new ${gbp(p.monthlyPence)} monthly subscription in Stripe that starts today. The first ${gbp(p.monthlyPence)} month is charged to the card on file now, because 180 days from their first payment has passed. The customer is emailed about the charge.`
           : `Set up a new monthly subscription in Stripe that starts at go live, or on ${p.start.date} at the latest (180 days from their first payment). Nothing is charged today.`
         : "No monthly subscription is set up. Nothing is billed until you choose.",
     );
@@ -491,10 +517,23 @@ export function resumeNote(input: {
 export type ResumeDeps = {
   /** Stripe: undo a cancel. Called with a fixed idempotency key. */
   undoCancel: (subscriptionId: string, params: { cancel_at_period_end: false } | { cancel_at: "" }, idempotencyKey: string) => Promise<void>;
-  /** Stripe: a new monthly subscription waiting for go live. Returns its id. */
+  /**
+   * Save this attempt and its Stripe key before Stripe is called. Every
+   * attempt gets a fresh key, so Stripe never replays an earlier attempt's
+   * response (a rolled-back subscription or a declined card).
+   */
+  recordAttempt?: (idempotencyKey: string) => Promise<void>;
+  /**
+   * Stripe: a new monthly subscription. Must re-read it after creating and
+   * refuse unless it is active or trialing. Returns its id.
+   */
   createSubscription: (idempotencyKey: string) => Promise<{ id: string; line: string }>;
-  /** Stripe: cancel a subscription this call just set up, when the desk write failed. */
+  /** Rollback step 1: refund any first month this call charged. Returns a line for the message, or null if nothing was charged. */
+  refundFirstMonth?: (subscriptionId: string) => Promise<string | null>;
+  /** Rollback step 2: cancel the subscription this call set up. Already cancelled counts as done. */
   cancelSubscription?: (subscriptionId: string) => Promise<void>;
+  /** After a resume that charged a first month: tell the customer (journey engine, deduped). Returns a line for the message. */
+  notifyCharge?: (subscriptionId: string) => Promise<string>;
   /** Conditional write: only a file still refunded or cancelled is changed. True if this call changed it. */
   claim: (patch: Record<string, unknown>) => Promise<boolean>;
   setOrderStatus: (orderId: number, status: string) => Promise<void>;
@@ -521,14 +560,18 @@ export type ResumeInput = {
   stageLabel: string;
   balance: Balance;
   orders: { id: number; status: string | null; sessionPaid: boolean; fullyRefunded?: boolean }[];
+  /** A fresh id per attempt from the panel; part of the Stripe key. */
+  attemptId?: string;
 };
 
 export type ResumeResult = { ok: true; noop: boolean; message: string };
 
 /**
- * Resume, in the safe order: refuse a stale panel, do any Stripe change with
- * a fixed key (a retry reuses it), then a conditional write so only one
- * request resumes the file, then the orders, timeline and note.
+ * Resume, in the safe order: refuse a stale panel, do any Stripe change (a
+ * fresh key per attempt for a new subscription), then a conditional write
+ * so only one request resumes the file, then the orders, timeline and note.
+ * If the desk write fails, the new subscription is rolled back: refund
+ * first, then cancel.
  */
 export const OWNER_ONLY_MESSAGE = "Only an owner can resume an order. Nothing was changed.";
 
@@ -546,6 +589,13 @@ export async function executeResume(deps: ResumeDeps, input: ResumeInput): Promi
   if (create && input.plan.kind === "ended" && !input.plan.canCreate) {
     throw new Error(input.plan.createBlocked ?? "Cannot set up a subscription from here.");
   }
+  const chargesNow = create && input.plan.kind === "ended" && input.plan.start.kind === "now";
+  if (chargesNow && !input.choice.customerAgreed) {
+    throw new Error(`Tick "${CUSTOMER_AGREED_LABEL}" before the first month is charged. Nothing changed.`);
+  }
+  if (create && !/^[A-Za-z0-9-]{8,64}$/.test(input.attemptId ?? "")) {
+    throw new Error("This try has no attempt id, so Stripe was not called. Nothing changed. Open Resume order again.");
+  }
   const endKey = input.endedAt ? Date.parse(input.endedAt) || 0 : 0;
   const lines: string[] = [];
   let newSubscriptionId: string | null = null;
@@ -555,7 +605,10 @@ export async function executeResume(deps: ResumeDeps, input: ResumeInput): Promi
     lines.push(`Undid the cancel on subscription ${input.plan.subscriptionId}. No charge.`);
   }
   if (create) {
-    const sub = await deps.createSubscription(`forecourt-resume-sub-${input.tenantId}-${endKey}`);
+    const key = resumeSubscriptionKey(input.tenantId, endKey, input.attemptId!);
+    // Saved before the call; if it cannot be saved, Stripe is not called.
+    if (deps.recordAttempt) await deps.recordAttempt(key);
+    const sub = await deps.createSubscription(key);
     newSubscriptionId = sub.id;
     lines.push(sub.line);
   }
@@ -565,23 +618,11 @@ export async function executeResume(deps: ResumeDeps, input: ResumeInput): Promi
   try {
     claimed = await deps.claim(patch);
   } catch (e) {
-    // The desk write failed, so nothing points at the new subscription. Cancel
-    // it rather than leave a second live one behind. A false claim is
-    // different: another request resumed the file, maybe with this same
-    // subscription (same idempotency key), so it is left alone.
-    if (newSubscriptionId && deps.cancelSubscription) {
-      try {
-        await deps.cancelSubscription(newSubscriptionId);
-        deps.log("[resume] desk write failed, new subscription cancelled", { tenantId: input.tenantId, subscription: newSubscriptionId });
-      } catch (ce) {
-        deps.log("[resume] desk write failed and the new subscription could not be cancelled", {
-          tenantId: input.tenantId,
-          subscription: newSubscriptionId,
-          error: ce instanceof Error ? ce.message : String(ce),
-        });
-        throw new Error(`Resume failed after setting up subscription ${newSubscriptionId}, and it could not be cancelled. Cancel it in Stripe now.`);
-      }
-    }
+    // The desk write failed, so nothing points at the new subscription. Roll
+    // it back rather than leave a second live one behind: refund first, then
+    // cancel. A false claim is different: another request resumed the file,
+    // so it is left alone.
+    if (newSubscriptionId) throw new Error(await rollBack(deps, input.tenantId, newSubscriptionId, e, chargesNow));
     throw e;
   }
   if (!claimed) {
@@ -611,6 +652,14 @@ export async function executeResume(deps: ResumeDeps, input: ResumeInput): Promi
   } catch {
     /* best effort */
   }
+  let notice = "";
+  if (chargesNow && newSubscriptionId && deps.notifyCharge) {
+    try {
+      notice = ` ${await deps.notifyCharge(newSubscriptionId)}`;
+    } catch {
+      notice = " The customer was not emailed about the charge. Tell them yourself.";
+    }
+  }
   deps.log("[resume] resumed", {
     tenantId: input.tenantId,
     from: input.status,
@@ -625,6 +674,49 @@ export async function executeResume(deps: ResumeDeps, input: ResumeInput): Promi
   return {
     ok: true,
     noop: false,
-    message: `Resumed. Now ${input.newStatusLabel} at ${input.stageLabel}. Journey emails work again from the next stage move.${lines.length ? ` ${lines.join(" ")}` : ""}${owed}`,
+    message: `Resumed. Now ${input.newStatusLabel} at ${input.stageLabel}. Journey emails work again from the next stage move.${lines.length ? ` ${lines.join(" ")}` : ""}${notice}${owed}`,
   };
+}
+
+/** The Stripe key for one attempt: tenant, the end being resumed, and a fresh attempt id. */
+export function resumeSubscriptionKey(tenantId: number, endKey: number, attemptId: string) {
+  return `forecourt-resume-sub-${tenantId}-${endKey}-${attemptId}`;
+}
+
+/** Undo a subscription set up by a resume whose desk write failed. Returns the message to show. */
+async function rollBack(deps: ResumeDeps, tenantId: number, subscriptionId: string, cause: unknown, charged: boolean): Promise<string> {
+  const why = cause instanceof Error ? cause.message : String(cause);
+  let refundLine: string | null = null;
+  let refundError: string | null = null;
+  if (deps.refundFirstMonth) {
+    try {
+      refundLine = await deps.refundFirstMonth(subscriptionId);
+    } catch (re) {
+      refundError = re instanceof Error ? re.message : String(re);
+    }
+  }
+  let cancelError: string | null = null;
+  if (deps.cancelSubscription) {
+    try {
+      await deps.cancelSubscription(subscriptionId);
+    } catch (ce) {
+      cancelError = ce instanceof Error ? ce.message : String(ce);
+    }
+  } else {
+    cancelError = "no cancel step";
+  }
+  deps.log("[resume] desk write failed, rolled back", { tenantId, subscription: subscriptionId, refundError, cancelError, refunded: Boolean(refundLine) });
+  const head = `Resume failed (${why}), so nothing changed on the desk.`;
+  const refund = refundError
+    ? ` The first month charged on subscription ${subscriptionId} could NOT be refunded (${refundError}). Refund it in Stripe now.`
+    : refundLine
+      ? ` ${refundLine}`
+      : charged
+        ? ` No first month payment was found on subscription ${subscriptionId} to refund. Check it in Stripe now.`
+        : "";
+  const cancel = cancelError
+    ? ` Subscription ${subscriptionId} could NOT be cancelled (${cancelError}). Cancel it in Stripe now.`
+    : ` Subscription ${subscriptionId} was cancelled.`;
+  const next = refundError || cancelError || (charged && !refundLine) ? "" : " Nothing is left in Stripe. You can try again.";
+  return `${head}${refund}${cancel}${next}`;
 }

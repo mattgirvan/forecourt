@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { progressEmailHold, startMonthlyAtGoLive, tenantEnded } from "./billing-start.ts";
 import { balancePaidFlag, handleStripeWebhook, type PaymentStore, type StaffFlag } from "./payments.ts";
-import { balanceLinkEmail } from "../email/templates.ts";
+import { balanceLinkEmail, monthlyRestartEmail } from "../email/templates.ts";
 import { checkoutRefusal, subscriptionEnded, trialAlreadyUsed, TRIAL_USED_MESSAGE } from "./checkout-guard.ts";
 import { DUPLICATE_FLAG_TITLE, flaggedDuplicateSessions, ownSessions, sessionIdsIn } from "./refund-target.ts";
 import {
@@ -23,6 +23,10 @@ import {
   resumeButtonLabel,
   backOnPhrase,
   OWNER_ONLY_MESSAGE,
+  CUSTOMER_AGREED_LABEL,
+  chargeErrorMessage,
+  needsCustomerAgreement,
+  resumeSubscriptionKey,
   sessionsThatCount,
   subscriptionPlan,
   type Balance,
@@ -365,12 +369,21 @@ test("180 days: passed, the monthly starts today and the first month is on the b
   assert.equal(chargeNowPence(plan, { undoCancel: false, newSubscription: false }), 0);
   const ticked = chargeNowPence(plan, { undoCancel: false, newSubscription: true });
   assert.equal(ticked, 39_900);
-  assert.equal(resumeButtonLabel(owed(450_000), ticked), "Resume with £4,899 owed (£4,500 balance plus £399 first month, charged today)");
-  assert.equal(resumeButtonLabel(owed(0), ticked), "Resume with £399 owed (first month, charged today)");
-  assert.equal(resumeButtonLabel({ ...owed(0), unknown: true }, ticked), "Resume and charge £399 first month today (balance unknown)");
+  assert.equal(resumeButtonLabel(owed(450_000), ticked), "Resume and charge £399 today (£4,500 still owed)");
+  assert.equal(resumeButtonLabel(owed(12_345), ticked), "Resume and charge £399 today (£123.45 still owed)");
+  assert.equal(resumeButtonLabel(owed(0), ticked), "Resume and charge £399 today");
+  assert.equal(resumeButtonLabel({ ...owed(0), unknown: true }, ticked), "Resume and charge £399 today (amount owed unknown)");
+  // The owner must tick that the customer agreed before the charge.
+  assert.equal(needsCustomerAgreement(plan, { undoCancel: false, newSubscription: true }), true);
+  assert.equal(needsCustomerAgreement(plan, { undoCancel: false, newSubscription: true, customerAgreed: true }), false);
+  assert.equal(needsCustomerAgreement(plan, { undoCancel: false, newSubscription: false }), false);
+  assert.equal(CUSTOMER_AGREED_LABEL, "The customer has agreed to restart monthly billing");
   const pick = resumeStage({ currentStage: "build", endedAt: null, events: [], validStages: STAGES, anyPaid: true });
   const steps = resumeSteps({ status: "refunded", stage: pick, stageLabel: "Build", newStatus: "subscribed", balance: owed(0), plan, choice: { undoCancel: false, newSubscription: true } });
   assert.ok(steps.some((t) => /starts today\. The first £399 month is charged to the card on file now/.test(t)));
+  assert.ok(steps.some((t) => /The customer is emailed about the charge\./.test(t)));
+  assert.ok(steps.some((t) => /The only email sent now is the first month notice below\./.test(t)));
+  assert.ok(!steps.some((t) => /Nothing is emailed by resuming/.test(t)));
   // No card from the old subscription: cannot charge, so it is not offered.
   const noCard = subscriptionPlan({ ...base, subscription: null, start: s, hasCard: false });
   assert.ok(noCard.kind === "ended" && !noCard.canCreate);
@@ -422,7 +435,16 @@ function harness(start: string, claimThrows = false) {
       calls.push(`create ${key}`);
       return { id: "sub_new", line: "New subscription." };
     },
+    recordAttempt: async (key) => void calls.push(`record ${key}`),
+    refundFirstMonth: async (id) => {
+      calls.push(`refund ${id}`);
+      return "The £399 first month was refunded.";
+    },
     cancelSubscription: async (id) => void calls.push(`cancel ${id}`),
+    notifyCharge: async (id) => {
+      calls.push(`notify ${id}`);
+      return "Customer emailed about the first month charge.";
+    },
     claim: async (patch) => {
       if (claimThrows) throw new Error("db down");
       if (status !== "refunded" && status !== "cancelled") return false;
@@ -449,6 +471,7 @@ const input = (over: Partial<ResumeInput> = {}): ResumeInput => ({
   plan: { kind: "none_needed", text: "" },
   subscription: null,
   choice: { undoCancel: false, newSubscription: false },
+  attemptId: "attempt-0001",
   newStatus: "subscribed",
   newStatusLabel: "Subscription",
   stage: "build",
@@ -535,7 +558,12 @@ test("a new subscription is only made when ticked, and its id is stored on the f
   assert.ok(!off.calls.some((c) => c.startsWith("create")));
   const on = harness("refunded");
   await executeResume(on.deps, input({ plan, choice: { undoCancel: false, newSubscription: true } }));
-  assert.ok(on.calls.some((c) => c.startsWith("create forecourt-resume-sub-7-")));
+  const key = `forecourt-resume-sub-7-${Date.parse("2026-09-16T18:09:36Z")}-attempt-0001`;
+  assert.ok(on.calls.includes(`create ${key}`));
+  // The key is saved on the file before Stripe is called.
+  assert.ok(on.calls.indexOf(`record ${key}`) < on.calls.indexOf(`create ${key}`));
+  // Waiting for go live charges nothing, so no charge email.
+  assert.ok(!on.calls.some((c) => c.startsWith("notify")));
   assert.ok(on.calls.some((c) => c.includes(`"stripe_subscription_id":"sub_new"`)));
   const blocked = harness("refunded");
   await assert.rejects(
@@ -551,6 +579,8 @@ test("MF2: a new subscription is cancelled again if the desk write throws, but n
   const broken = harness("refunded", true);
   await assert.rejects(executeResume(broken.deps, input({ plan, choice })), /db down/);
   assert.ok(broken.calls.includes("cancel sub_new"));
+  // Refund first, then cancel.
+  assert.ok(broken.calls.indexOf("refund sub_new") < broken.calls.indexOf("cancel sub_new"));
   const lost = harness("subscribed");
   const r = await executeResume(lost.deps, input({ plan, choice }));
   assert.equal(r.noop, true);
@@ -562,6 +592,279 @@ test("should-fix: a fully refunded order is not set back to paid on resume", asy
   await executeResume(h.deps, input({ orders: [{ id: 1, status: "refunded", sessionPaid: true, fullyRefunded: true }, { id: 3, status: "refunded", sessionPaid: true }] }));
   assert.ok(!h.calls.some((c) => c.startsWith("order 1")));
   assert.ok(h.calls.includes("order 3 paid"));
+});
+
+// ------------------------------------------------------------------ round 7: a fresh Stripe key per try
+
+/**
+ * A small Stripe stand-in that behaves like the real one on idempotency: the
+ * same key replays the first answer (success or error) for 24 hours, even
+ * after that subscription was refunded and cancelled, or the card was fixed.
+ */
+function replayingStripe() {
+  const answers = new Map<string, { id: string } | { error: { type: string; code: string; decline_code?: string; message: string } }>();
+  const subs = new Map<string, string>();
+  const state = { card: "good" as "good" | "declined" | "needs_auth", made: 0, charges: [] as string[], refunds: [] as string[] };
+  return {
+    state,
+    subs,
+    create(key: string): string {
+      if (!answers.has(key)) {
+        if (state.card === "declined") answers.set(key, { error: { type: "StripeCardError", code: "card_declined", decline_code: "insufficient_funds", message: "Your card has insufficient funds." } });
+        else if (state.card === "needs_auth") answers.set(key, { error: { type: "StripeCardError", code: "authentication_required", message: "This payment requires authentication." } });
+        else {
+          const id = `sub_${++state.made}`;
+          subs.set(id, "active");
+          state.charges.push(id);
+          answers.set(key, { id });
+        }
+      }
+      const a = answers.get(key)!;
+      if ("error" in a) throw Object.assign(new Error(a.error.message), a.error);
+      return a.id;
+    },
+  };
+}
+
+/** Deps wired like the server: catch Stripe errors plainly, read the subscription back, refund then cancel. */
+function stripeHarness(stripe: ReturnType<typeof replayingStripe>, opts: { claimFailsOnce?: boolean } = {}) {
+  let status = "refunded";
+  let claimFails = Boolean(opts.claimFailsOnce);
+  const calls: string[] = [];
+  const keys: string[] = [];
+  const deps: ResumeDeps = {
+    undoCancel: async () => {},
+    recordAttempt: async (key) => {
+      if (keys.includes(key)) throw new Error("This try was already sent to Stripe once, so it was not sent again.");
+      keys.push(key);
+    },
+    createSubscription: async (key) => {
+      let id: string;
+      try {
+        id = stripe.create(key);
+      } catch (err) {
+        throw new Error(chargeErrorMessage(err as { code?: string; decline_code?: string; message?: string; type?: string }));
+      }
+      const now = stripe.subs.get(id);
+      if (now !== "active") throw new Error(`Stripe shows subscription ${id} as ${now}, not live. Nothing changed on the desk.`);
+      calls.push(`create ${id}`);
+      return { id, line: `New subscription ${id}.` };
+    },
+    refundFirstMonth: async (id) => {
+      stripe.state.refunds.push(id);
+      calls.push(`refund ${id}`);
+      return `The £399 first month on ${id} was refunded.`;
+    },
+    cancelSubscription: async (id) => {
+      stripe.subs.set(id, "canceled");
+      calls.push(`cancel ${id}`);
+    },
+    notifyCharge: async (id) => {
+      calls.push(`notify ${id}`);
+      return "Customer emailed about the first month charge.";
+    },
+    claim: async (patch) => {
+      if (claimFails) {
+        claimFails = false;
+        throw new Error("db down");
+      }
+      if (status !== "refunded") return false;
+      status = String(patch.status);
+      calls.push(`claim ${JSON.stringify(patch)}`);
+      return true;
+    },
+    setOrderStatus: async () => {},
+    timeline: async () => {},
+    note: async () => {},
+    log: () => {},
+  };
+  return { deps, calls, keys, status: () => status };
+}
+
+const nowStart = { kind: "now" as const, text: "Monthly £399 starts today." };
+const chargePlan = { kind: "ended" as const, text: "", canCreate: true, start: nowStart, monthlyPence: 39_900 };
+const agreed = { undoCancel: false, newSubscription: true, customerAgreed: true };
+
+test("must-fix 1: a retry after a rollback uses a fresh key, so Stripe makes a new subscription instead of replaying the cancelled one", async () => {
+  const stripe = replayingStripe();
+  const h = stripeHarness(stripe, { claimFailsOnce: true });
+  const first = input({ plan: chargePlan, choice: agreed, attemptId: "try-aaaa-0001" });
+  const rolled = await executeResume(h.deps, first).then(
+    () => assert.fail("should roll back"),
+    (e: Error) => e.message,
+  );
+  assert.match(rolled, /Resume failed \(db down\)/);
+  assert.match(rolled, /The £399 first month on sub_1 was refunded\. Subscription sub_1 was cancelled\. Nothing is left in Stripe\. You can try again\./);
+  assert.deepEqual(h.calls, ["create sub_1", "refund sub_1", "cancel sub_1"], "refund before cancel");
+  // The old way: the same key replays sub_1, which is now cancelled. Never stored.
+  const stale = stripeHarness(stripe);
+  await assert.rejects(executeResume(stale.deps, first), /sub_1 as canceled, not live/);
+  assert.ok(!stale.calls.some((c) => c.startsWith("claim")));
+  // The panel's next try has a new id: a new subscription, charged once, stored.
+  const r = await executeResume(h.deps, input({ plan: chargePlan, choice: agreed, attemptId: "try-bbbb-0002" }));
+  assert.equal(r.noop, false);
+  assert.ok(h.calls.includes("create sub_2"));
+  assert.ok(h.calls.some((c) => c.includes(`"stripe_subscription_id":"sub_2"`)));
+  assert.deepEqual(stripe.state.charges, ["sub_1", "sub_2"]);
+  assert.deepEqual(stripe.state.refunds, ["sub_1"]);
+  assert.notEqual(h.keys[0], h.keys[1]);
+  assert.equal(h.keys[1], resumeSubscriptionKey(7, Date.parse("2026-09-16T18:09:36Z"), "try-bbbb-0002"));
+});
+
+test("must-fix 1: a decline then a fixed card works on the next try; the same key would replay the decline", async () => {
+  const stripe = replayingStripe();
+  stripe.state.card = "declined";
+  const h = stripeHarness(stripe);
+  const a = input({ plan: chargePlan, choice: agreed, attemptId: "try-decl-0001" });
+  await assert.rejects(executeResume(h.deps, a), /The card on file was declined \(insufficient funds\)\. Nothing changed\./);
+  assert.equal(h.status(), "refunded");
+  stripe.state.card = "good";
+  // Same key: Stripe replays the decline even though the card is fixed.
+  await assert.rejects(executeResume(stripeHarness(stripe).deps, a), /declined/);
+  // A fresh key charges the fixed card.
+  const r = await executeResume(h.deps, input({ plan: chargePlan, choice: agreed, attemptId: "try-good-0002" }));
+  assert.equal(r.noop, false);
+  assert.equal(h.status(), "subscribed");
+  assert.deepEqual(stripe.state.charges, ["sub_1"]);
+  assert.match(r.message, /Customer emailed about the first month charge\./);
+});
+
+test("must-fix 1: the server refuses a key it has already sent, so a reused id cannot replay", async () => {
+  const stripe = replayingStripe();
+  const h = stripeHarness(stripe, { claimFailsOnce: true });
+  const a = input({ plan: chargePlan, choice: agreed, attemptId: "try-same-0001" });
+  await assert.rejects(executeResume(h.deps, a), /Resume failed/);
+  await assert.rejects(executeResume(h.deps, a), /already sent to Stripe once/);
+  assert.equal(stripe.state.charges.length, 1);
+});
+
+test("must-fix 1: a failed refund on rollback is reported as a refund failure, and the cancel still runs", async () => {
+  const h = harness("refunded", true);
+  h.deps.refundFirstMonth = async (id) => {
+    h.calls.push(`refund ${id}`);
+    throw new Error("card_declined on refund");
+  };
+  const msg = await executeResume(h.deps, input({ plan: chargePlan, choice: agreed })).then(
+    () => "",
+    (e: Error) => e.message,
+  );
+  assert.match(msg, /The first month charged on subscription sub_new could NOT be refunded \(card_declined on refund\)\. Refund it in Stripe now\./);
+  assert.match(msg, /Subscription sub_new was cancelled\./);
+  assert.doesNotMatch(msg, /try again/);
+  assert.ok(h.calls.indexOf("refund sub_new") < h.calls.indexOf("cancel sub_new"));
+});
+
+test("must-fix 1: a failed cancel on rollback says so plainly", async () => {
+  const h = harness("refunded", true);
+  h.deps.cancelSubscription = async () => {
+    throw new Error("Stripe timed out");
+  };
+  const msg = await executeResume(h.deps, input({ plan: chargePlan, choice: agreed })).then(
+    () => "",
+    (e: Error) => e.message,
+  );
+  assert.match(msg, /The £399 first month was refunded\./);
+  assert.match(msg, /Subscription sub_new could NOT be cancelled \(Stripe timed out\)\. Cancel it in Stripe now\./);
+  assert.doesNotMatch(msg, /try again/);
+});
+
+test("must-fix 1: a charge with no refundable payment found is not called clean", async () => {
+  const h = harness("refunded", true);
+  h.deps.refundFirstMonth = async () => null;
+  const msg = await executeResume(h.deps, input({ plan: chargePlan, choice: agreed })).then(
+    () => "",
+    (e: Error) => e.message,
+  );
+  assert.match(msg, /No first month payment was found on subscription sub_new to refund\. Check it in Stripe now\./);
+  assert.doesNotMatch(msg, /Nothing is left in Stripe/);
+});
+
+test("must-fix 1: the try is saved before Stripe; if it cannot be saved, Stripe is not called", async () => {
+  const h = harness("refunded");
+  h.deps.recordAttempt = async () => {
+    throw new Error("Could not save this try (db down), so Stripe was not called. Nothing changed.");
+  };
+  await assert.rejects(executeResume(h.deps, input({ plan: chargePlan, choice: agreed })), /Stripe was not called/);
+  assert.deepEqual(h.calls, []);
+});
+
+test("must-fix 1: a new subscription without a valid attempt id is refused before anything happens", async () => {
+  for (const attemptId of [undefined, "", "short", "has spaces in it", "x".repeat(65)]) {
+    const h = harness("refunded");
+    await assert.rejects(executeResume(h.deps, input({ plan: chargePlan, choice: agreed, attemptId })), /no attempt id/);
+    assert.deepEqual(h.calls, []);
+  }
+  // Not needed when nothing is created.
+  const plain = harness("refunded");
+  const r = await executeResume(plain.deps, input({ attemptId: undefined }));
+  assert.equal(r.noop, false);
+});
+
+test("should-fix: charging today needs the customer-agreed tick, and then emails the customer once", async () => {
+  const no = harness("refunded");
+  await assert.rejects(
+    executeResume(no.deps, input({ plan: chargePlan, choice: { undoCancel: false, newSubscription: true } })),
+    /Tick "The customer has agreed to restart monthly billing" before the first month is charged\. Nothing changed\./,
+  );
+  assert.deepEqual(no.calls, []);
+  const yes = harness("refunded");
+  const r = await executeResume(yes.deps, input({ plan: chargePlan, choice: agreed }));
+  assert.deepEqual(yes.calls.filter((c) => c.startsWith("notify")), ["notify sub_new"]);
+  assert.match(r.message, /Customer emailed about the first month charge\./);
+  // A failed email never undoes the resume; staff are told.
+  const quiet = harness("refunded");
+  quiet.deps.notifyCharge = async () => {
+    throw new Error("resend down");
+  };
+  const q = await executeResume(quiet.deps, input({ plan: chargePlan, choice: agreed }));
+  assert.equal(q.noop, false);
+  assert.match(q.message, /The customer was not emailed about the charge\. Tell them yourself\./);
+});
+
+test("should-fix: Stripe charge errors are plain, and each says nothing changed", () => {
+  const auth = chargeErrorMessage({ type: "StripeCardError", code: "authentication_required" });
+  assert.match(auth, /approve this payment themselves/);
+  assert.match(auth, /send the customer a payment link instead/);
+  assert.match(auth, /Nothing changed/);
+  assert.equal(chargeErrorMessage({ type: "StripeCardError", code: "card_declined", decline_code: "authentication_required" }), auth);
+  assert.equal(chargeErrorMessage({ type: "StripeInvalidRequestError", code: "subscription_payment_intent_requires_action" }), auth);
+  assert.equal(
+    chargeErrorMessage({ type: "StripeCardError", code: "card_declined", decline_code: "expired_card" }),
+    "The card on file was declined (expired card). Nothing changed. Ask the customer to update their card, or send them a payment link.",
+  );
+  assert.equal(chargeErrorMessage({ message: "Rate limited" }), "Stripe did not set up the monthly (Rate limited). Nothing changed.");
+  for (const m of [auth, chargeErrorMessage({ code: "card_declined" }), chargeErrorMessage({})]) assert.ok(!DASHES.test(m));
+});
+
+test("should-fix: authentication required on the charge changes nothing on the desk", async () => {
+  const stripe = replayingStripe();
+  stripe.state.card = "needs_auth";
+  const h = stripeHarness(stripe);
+  await assert.rejects(executeResume(h.deps, input({ plan: chargePlan, choice: agreed, attemptId: "try-auth-0001" })), /pay by link|payment link instead/);
+  assert.equal(h.status(), "refunded");
+  assert.deepEqual(h.calls, []);
+});
+
+test("nit: a live site past 180 days may start the monthly now; a live site before then still may not", () => {
+  const now = startOf("2027-04-01T09:00:00Z");
+  const liveNow = subscriptionPlan({ ...base, stage: "live", subscription: null, start: now });
+  assert.ok(liveNow.kind === "ended" && liveNow.canCreate);
+  assert.equal(chargeNowPence(liveNow, { undoCancel: false, newSubscription: true }), 39_900);
+  assert.equal(needsCustomerAgreement(liveNow, { undoCancel: false, newSubscription: true }), true);
+  const liveFuture = subscriptionPlan({ ...base, stage: "live", subscription: null, start: future });
+  assert.ok(liveFuture.kind === "ended" && !liveFuture.canCreate);
+  assert.match(liveFuture.kind === "ended" ? (liveFuture.createBlocked ?? "") : "", /already live but 180 days/);
+});
+
+test("should-fix: the first month email is plain, with no dashes", () => {
+  const m = monthlyRestartEmail({ firstName: "Sam Jones", dealer: "Northside Motors", monthlyPence: 39_900, chargedOn: "1 Apr 2027", accountUrl: "https://forecourt.me/account" });
+  assert.equal(m.subject, "Your Forecourt monthly has restarted: £399 charged");
+  assert.match(m.text, /Hi Sam,/);
+  assert.match(m.text, /We charged £399 for the first month to the card on file on 1 Apr 2027\./);
+  for (const t of [m.subject, m.text, m.html]) {
+    assert.ok(!DASHES.test(t));
+    assert.ok(!/glass/i.test(t));
+  }
 });
 
 // ------------------------------------------------------------------ email holds lifted

@@ -10,7 +10,9 @@ import { tenantEnded } from "@/lib/server/billing-start";
 import {
   ALL_REFUNDED_TEXT,
   findRefundTarget,
+  duplicateHandledProblem,
   flaggedDuplicateSessions,
+  flaggedDuplicateSubscriptions,
   refundConfirmText,
   sessionIdsIn,
   type SessionLike,
@@ -746,8 +748,9 @@ export const fileFlags = createServerFn({ method: "POST" })
   });
 
 /** How much of a flagged duplicate checkout has gone back in Stripe. GET calls only. */
-async function duplicateRefunded(stripe: StripeClient, sessionId: string): Promise<{ paid: number; refunded: number }> {
+async function duplicateRefunded(stripe: StripeClient, sessionId: string): Promise<{ paid: number; refunded: number; subscription: string | null }> {
   const session = await stripe.checkout.sessions.retrieve(sessionId);
+  const subscription = typeof session.subscription === "string" ? session.subscription : (session.subscription?.id ?? null);
   let pi = typeof session.payment_intent === "string" ? session.payment_intent : null;
   if (!pi && typeof session.invoice === "string") {
     const payments = (await stripe.invoicePayments.list({ invoice: session.invoice, limit: 10 })).data;
@@ -755,15 +758,16 @@ async function duplicateRefunded(stripe: StripeClient, sessionId: string): Promi
     const ref = paid?.payment?.payment_intent;
     pi = typeof ref === "string" ? ref : (ref?.id ?? null);
   }
-  if (!pi) return { paid: 0, refunded: 0 };
+  if (!pi) return { paid: 0, refunded: 0, subscription };
   const intent = await stripe.paymentIntents.retrieve(pi, { expand: ["latest_charge"] });
   const charge = intent.latest_charge && typeof intent.latest_charge !== "string" ? intent.latest_charge : null;
-  return { paid: charge?.amount_captured ?? intent.amount_received ?? 0, refunded: charge?.amount_refunded ?? 0 };
+  return { paid: charge?.amount_captured ?? intent.amount_received ?? 0, refunded: charge?.amount_refunded ?? 0, subscription };
 }
 
 /**
  * Owner only: mark a duplicate payment or look-alike flag as dealt with, so
- * its badge clears. "Refunded" is checked against Stripe first. Writes an
+ * its badge clears. "Refunded" is checked against Stripe first: the
+ * duplicate payment fully refunded and its subscription cancelled. Writes an
  * internal timeline mark and a note. Nothing in Stripe is changed.
  */
 export const markFlagHandled = createServerFn({ method: "POST" })
@@ -781,23 +785,38 @@ export const markFlagHandled = createServerFn({ method: "POST" })
         .select("title, body")
         .eq("tenant_id", data.tenantId)
         .eq("title", FLAG_TITLES.duplicate_payment);
-      const sessions = [...flaggedDuplicateSessions((rows ?? []) as { title: string | null; body: string | null }[])];
+      const { data: orderRows } = await admin.from("orders").select("id, stripe_session_id").eq("tenant_id", data.tenantId);
+      const { data: tenantRow } = await admin.from("tenants").select("stripe_subscription_id").eq("id", data.tenantId).maybeSingle();
+      const flags = (rows ?? []) as { title: string | null; body: string | null }[];
+      const sessions = [...flaggedDuplicateSessions(flags, (orderRows ?? []) as { id: number; stripe_session_id: string | null }[])];
+      const keep = ((tenantRow as { stripe_subscription_id?: string | null } | null)?.stripe_subscription_id ?? null) || null;
       const secret = stripeSecret();
       if (!secret) throw new Error("Stripe is not connected on the server, so the refund cannot be checked. Mark it checked instead.");
       if (!sessions.length) throw new Error("The flag does not name a Stripe checkout, so the refund cannot be checked. Mark it checked instead.");
       const Stripe = (await import("stripe")).default;
       const stripe = new Stripe(secret);
-      const lines: string[] = [];
+      const payments: { sessionId: string; paidPence: number; refundedPence: number; paid: string; refunded: string }[] = [];
+      // The duplicate's own subscription: named in the flag, or on its checkout.
+      const subIds = flaggedDuplicateSubscriptions(flags, keep);
       for (const sid of sessions) {
         const r = await duplicateRefunded(stripe, sid);
-        if (r.paid > 0 && r.refunded < r.paid) {
-          throw new Error(
-            `Stripe shows ${gbpPence(r.refunded)} of ${gbpPence(r.paid)} refunded on ${sid}. Refund the duplicate in Stripe first, or mark it checked. Nothing was changed.`,
-          );
-        }
-        lines.push(`Stripe shows ${gbpPence(r.refunded)} of ${gbpPence(r.paid)} refunded on ${sid}.`);
+        payments.push({ sessionId: sid, paidPence: r.paid, refundedPence: r.refunded, paid: gbpPence(r.paid), refunded: gbpPence(r.refunded) });
+        if (r.subscription && r.subscription !== keep) subIds.add(r.subscription);
       }
-      stripeLine = lines.join(" ");
+      const subscriptions: { id: string; status: string | null }[] = [];
+      for (const id of subIds) {
+        const sub = await stripe.subscriptions.retrieve(id).catch((err: unknown) => {
+          if ((err as { code?: string })?.code === "resource_missing") return null;
+          throw err;
+        });
+        subscriptions.push({ id, status: sub ? sub.status : "canceled" });
+      }
+      const problem = duplicateHandledProblem({ payments, subscriptions });
+      if (problem) throw new Error(problem);
+      stripeLine = [
+        ...payments.map((p) => `Stripe shows ${p.refunded} of ${p.paid} refunded on ${p.sessionId}.`),
+        ...subscriptions.map((s) => `Duplicate subscription ${s.id} is ${s.status === "incomplete_expired" ? "expired" : "cancelled"}.`),
+      ].join(" ");
     }
     const body = handledNote({ kind: data.kind, by: email, how: data.how, stripe: stripeLine });
     const { error } = await admin.from("build_events").insert({

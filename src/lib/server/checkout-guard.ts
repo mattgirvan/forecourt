@@ -12,10 +12,10 @@
 import { onPaidTrial, type BillingKind, type QuoteTenant } from "../catalog.ts";
 
 export const ALREADY_PAID_MESSAGE =
-  "This desk is already paid for. Reply to hello@forecourt.me if you need to change your plan.";
+  "This desk is already paid for. Write to hello@forecourt.me if you need to change your plan.";
 
 export const PLAN_CHECK_FAILED_MESSAGE =
-  "We could not check your current plan just now, so nothing was charged. Try again in a minute, or reply to hello@forecourt.me.";
+  "We could not check your current plan just now, so nothing was charged. Try again in a minute, or write to hello@forecourt.me.";
 
 export type GuardTenant = NonNullable<QuoteTenant> & {
   id?: number | null;
@@ -34,7 +34,7 @@ export type StoredSubscription =
   | null;
 
 export const TRIAL_USED_MESSAGE =
-  "This site has already had its 60-day trial. Choose the full plan, or reply to hello@forecourt.me.";
+  "This site has already had its 60-day trial. Choose the full plan, or write to hello@forecourt.me.";
 
 const OPEN_STATUSES = new Set(["briefing", "cancelled", "refunded"]);
 /** The only Stripe statuses that mean a subscription is over. Anything else is still live. */

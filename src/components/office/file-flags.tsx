@@ -48,12 +48,12 @@ export function FileFlags({ token, tenantId, owner, onChanged }: { token: string
             Duplicate payment
           </Badge>
           <p className="mt-1.5 text-sm text-muted">
-            {FLAG_EXPLAINERS.duplicate} Refund the duplicate in Stripe, not with Office Refund.
+            {FLAG_EXPLAINERS.duplicate} Refund the duplicate in Stripe and cancel its subscription there, not with Office Refund. The first button checks both in Stripe before it clears the flag.
           </p>
           {owner ? (
             <div className="mt-2 flex flex-wrap gap-2">
               <Button type="button" variant="secondary" disabled={busy} onClick={() => void mark("duplicate_payment", "refunded")}>
-                Refunded in Stripe, clear the flag
+                Refunded and cancelled in Stripe, clear the flag
               </Button>
               <Button type="button" variant="secondary" disabled={busy} onClick={() => void mark("duplicate_payment", "checked")}>
                 Checked, clear the flag
