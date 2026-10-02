@@ -213,3 +213,30 @@ test("a declined card at go live is reported as a failed payment, not as started
   const pastDue = await startMonthlyAtGoLive({ subscriptions: fakeSubs("past_due").subs, log }, "sub_1");
   assert.match(monthlyStartMessage(pastDue), /last payment failed/);
 });
+
+test("no 'You're live' email when going live skipped the £399 because the file is ending", async () => {
+  const { progressEmailHold } = await import("./billing-start.ts");
+  // Cancelled or refunded file: held, whatever the stage.
+  for (const priorStatus of ["cancelled", "refunded"]) {
+    const start = await startMonthlyAtGoLive({ subscriptions: fakeSubs("trialing").subs, log }, "sub_1", { tenantStatus: priorStatus });
+    assert.match(progressEmailHold({ stage: "live", priorStatus, start }) ?? "", new RegExp(`this file is ${priorStatus}`));
+    assert.ok(progressEmailHold({ stage: "testing", priorStatus }));
+  }
+  // Subscription set to cancel: the live email is held.
+  const setToCancel = await startMonthlyAtGoLive(
+    { subscriptions: fakeSubs("trialing", { extra: { cancel_at_period_end: true } }).subs, log },
+    "sub_1",
+    { tenantStatus: "subscribed" },
+  );
+  assert.match(progressEmailHold({ stage: "live", priorStatus: "subscribed", start: setToCancel }) ?? "", /set to cancel/);
+  // Normal go live, a trial with no subscription, a plan already running, or a declined card: still emailed.
+  const ok = await startMonthlyAtGoLive({ subscriptions: fakeSubs("trialing").subs, log }, "sub_1", { tenantStatus: "subscribed" });
+  assert.equal(progressEmailHold({ stage: "live", priorStatus: "subscribed", start: ok }), null);
+  const trial = await startMonthlyAtGoLive({ subscriptions: fakeSubs("trialing").subs, log }, null, { tenantStatus: "trial" });
+  assert.equal(progressEmailHold({ stage: "live", priorStatus: "trial", start: trial }), null);
+  const running = await startMonthlyAtGoLive({ subscriptions: fakeSubs("active").subs, log }, "sub_1");
+  assert.equal(progressEmailHold({ stage: "live", priorStatus: "subscribed", start: running }), null);
+  const declined = await startMonthlyAtGoLive({ subscriptions: fakeSubs("trialing", { afterStatus: "past_due" }).subs, log }, "sub_1");
+  assert.equal(progressEmailHold({ stage: "live", priorStatus: "subscribed", start: declined }), null);
+  assert.equal(progressEmailHold({ stage: "preview", priorStatus: "subscribed" }), null);
+});

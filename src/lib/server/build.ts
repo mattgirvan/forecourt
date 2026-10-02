@@ -15,7 +15,7 @@ import { executeSendToBuild } from "@/lib/server/build-api";
 import { goLiveConfirmForTenant, startMonthlyForTenant } from "@/lib/server/billing-go-live";
 import { emailOutcomeMessage, sendProgressEmail } from "@/lib/server/journey-email";
 import { customerStepFor, customerStepNumber, stepLabel } from "@/lib/journey";
-import { tenantEnded } from "@/lib/server/billing-start";
+import { progressEmailHold, tenantEnded, type MonthlyStartResult } from "@/lib/server/billing-start";
 
 function sbFor(token: string) {
   const key = SUPABASE_ANON || env("VITE_SUPABASE_ANON_KEY") || env("VITE_SUPABASE_PUBLISHABLE_KEY") || "";
@@ -209,10 +209,12 @@ export const setBuildStage = createServerFn({ method: "POST" })
     // Monthly billing starts the day the desk goes live.
     let billingMessage: string | null = null;
     let monthlyStartsToday = false;
+    let startResult: MonthlyStartResult | null = null;
     if (data.stage === "live" && previousStage !== "live") {
       const started = await startMonthlyForTenant(sb, data.tenantId, email, { priorStatus });
       billingMessage = started.message;
       monthlyStartsToday = started.result.started;
+      startResult = started.result;
     }
     if (stageChanged) {
       const meta = BUILD_STAGES.find((s) => s.id === data.stage)!;
@@ -231,7 +233,10 @@ export const setBuildStage = createServerFn({ method: "POST" })
       });
     }
     let emailMessage: string | null = null;
-    if (data.notify) {
+    const hold = progressEmailHold({ stage: data.stage, priorStatus, start: startResult });
+    if (data.notify && hold) {
+      emailMessage = hold;
+    } else if (data.notify) {
       emailMessage = stageChanged
         ? emailOutcomeMessage(
             await sendProgressEmail({ tenantId: data.tenantId, stage: data.stage, previousStage, monthlyStartsToday }),

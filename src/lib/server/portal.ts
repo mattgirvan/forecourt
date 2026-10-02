@@ -540,6 +540,7 @@ async function locateStripeFile(
         invoice: typeof session.invoice === "string" ? session.invoice : null,
         subscription: typeof session.subscription === "string" ? session.subscription : null,
         amount_total: session.amount_total,
+        metadata: { kind: session.metadata?.kind ?? null, monthly_from: session.metadata?.monthly_from ?? null },
       });
     } catch {
       /* next order */
@@ -707,6 +708,11 @@ export const runBillingAction = createServerFn({ method: "POST" })
           { idempotencyKey: `forecourt-refund-${target.paymentIntent}` },
         );
         bits.push(`Refunded ${gbpPence(target.amountPence)}, ${target.label}.`);
+        if (target.conversion) {
+          bits.push(
+            `The ${target.trialPence ? `${gbpPence(target.trialPence)} ` : ""}trial payment was not refunded; do that in Stripe by hand if needed.`,
+          );
+        }
       } catch (e) {
         const msg = e instanceof Error ? e.message : "Stripe refused the refund.";
         if (!/already been refunded/i.test(msg)) throw new Error(msg);

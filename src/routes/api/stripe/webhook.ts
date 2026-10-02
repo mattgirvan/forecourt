@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { env } from "@/lib/env.server";
 import { SUPABASE_URL } from "@/lib/sb";
 import { seedPaidOrder } from "@/lib/server/build";
-import { sendThankYouEmail } from "@/lib/server/journey-email";
+import { sendStaffAlert, sendThankYouEmail } from "@/lib/server/journey-email";
 import {
   handleStripeWebhook,
   supabasePaymentStore,
@@ -39,6 +39,7 @@ export const Route = createFileRoute("/api/stripe/webhook")({
             store: sb
               ? supabasePaymentStore(sb as unknown as SupabaseLike, (tenantId, actor) =>
                   seedPaidOrder(sb, tenantId, actor),
+                  async (flag) => void (await sendStaffAlert(flag)),
                 )
               : null,
             constructEvent: (body, sig, hookSecret) => {

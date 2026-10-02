@@ -13,6 +13,8 @@ import {
   type PlanId,
 } from "@/lib/catalog";
 import { seedPaidOrder } from "@/lib/server/build";
+import { sendStaffAlert } from "@/lib/server/journey-email";
+import { expireOpenSessions } from "@/lib/server/checkout-sessions";
 import { checkoutRefusal, type GuardTenant, type StoredSubscription } from "@/lib/server/checkout-guard";
 import { confirmPaymentFlow, supabasePaymentStore, type SupabaseLike } from "@/lib/server/payments";
 import { env } from "@/lib/env.server";
@@ -337,6 +339,24 @@ export const startCheckout = createServerFn({ method: "POST" })
       otherTenants: (mine ?? []) as GuardTenant[],
     });
     if (refusal) return { url: null, message: refusal };
+
+    // One open Checkout per site: expire older open sessions for this tenant
+    // so two tabs can never both be paid.
+    if (stripe) {
+      const { data: pending } = await sb
+        .from("orders")
+        .select("stripe_session_id")
+        .eq("tenant_id", data.tenantId)
+        .eq("status", "pending");
+      await expireOpenSessions(
+        {
+          retrieve: (id) => stripe.checkout.sessions.retrieve(id),
+          expire: (id) => stripe.checkout.sessions.expire(id),
+          log: console,
+        },
+        ((pending ?? []) as Array<{ stripe_session_id?: string | null }>).map((o) => o.stripe_session_id),
+      );
+    }
     // One shared rule (catalog checkoutQuote) decides the charge, so the Pay
     // button on the account page always matches what Stripe takes. Monthly
     // billing starts at go live; a site already live starts it now.
@@ -519,6 +539,7 @@ export const confirmPayment = createServerFn({ method: "POST" })
     const writer = moneyWriter(sb);
     const store = supabasePaymentStore(writer as unknown as SupabaseLike, (tenantId, actor) =>
       seedPaidOrder(writer, tenantId, actor),
+      async (flag) => void (await sendStaffAlert(flag)),
     );
     try {
       const result = await confirmPaymentFlow(

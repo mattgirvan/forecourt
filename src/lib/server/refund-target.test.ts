@@ -40,13 +40,16 @@ test("after go live, refund picks the setup invoice payment from the checkout, n
   assert.deepEqual(t, {
     paymentIntent: "pi_setup",
     amountPence: 450_000,
-    label: "the setup payment (first invoice)",
+    label: "the setup payment",
+    covers: "setup",
+    conversion: false,
+    trialPence: null,
     sessionId: "cs_1",
     invoiceId: "in_setup",
   });
   assert.equal(
     refundConfirmText(t, gbp),
-    "Refund £4,500, the setup payment (first invoice), through Stripe and end this package? Monthly payments are not refunded.",
+    "Refund £4,500, the setup payment, through Stripe and end this package? No monthly payments are refunded.",
   );
 });
 
@@ -63,7 +66,8 @@ test("a 60-day trial refunds its own checkout payment", async () => {
   );
   assert.equal(t?.paymentIntent, "pi_trial");
   assert.equal(t?.amountPence, 150_000);
-  assert.equal(t?.label, "the checkout payment");
+  assert.equal(t?.label, "the 60-day trial payment");
+  assert.equal(refundConfirmText(t, gbp), "Refund £1,500, the 60-day trial payment, through Stripe and end this package?");
 });
 
 test("unpaid sessions are skipped and there is no newest-payment fallback", async () => {
@@ -73,4 +77,53 @@ test("unpaid sessions are skipped and there is no newest-payment fallback", asyn
   assert.equal(await findSetupPayment(d), null);
   assert.equal(d.asked.length, 0);
   assert.match(refundConfirmText(null, gbp), /No setup payment found/);
+});
+
+const convertPayments: Record<string, InvoicePaymentLike[]> = {
+  in_conv: [{ status: "paid", amount_paid: 300_000, payment: { payment_intent: "pi_conv" } }],
+  in_conv_live: [{ status: "paid", amount_paid: 339_900, payment: { payment_intent: "pi_conv_live" } }],
+};
+const trialSession = { id: "cs_trial", mode: "payment", payment_status: "paid", payment_intent: "pi_trial", amount_total: 150_000, metadata: { kind: "trial" } };
+
+test("a live trial conversion: the confirm says the £3,399 includes the first month", async () => {
+  const t = await findSetupPayment(
+    deps({
+      sessions: [
+        { id: "cs_conv", mode: "subscription", payment_status: "paid", invoice: "in_conv_live", metadata: { kind: "convert", monthly_from: "checkout" } },
+        trialSession,
+      ],
+      listInvoicePayments: async (inv) => convertPayments[inv] ?? [],
+    }),
+  );
+  assert.equal(t?.paymentIntent, "pi_conv_live");
+  assert.equal(t?.covers, "setup_and_first_month");
+  const text = refundConfirmText(t, gbp);
+  assert.match(text, /^Refund £3,399, the remaining setup and the first month, paid when they converted from the trial,/);
+  assert.match(text, /That includes the first month\. Later monthly payments are not refunded\./);
+  assert.doesNotMatch(text, /No monthly payments are refunded/);
+});
+
+test("a converted trial: the confirm says plainly the £1,500 trial payment is not refunded", async () => {
+  const t = await findSetupPayment(
+    deps({
+      sessions: [
+        { id: "cs_conv", mode: "subscription", payment_status: "paid", invoice: "in_conv", metadata: { kind: "convert", monthly_from: "go_live" } },
+        trialSession,
+      ],
+      listInvoicePayments: async (inv) => convertPayments[inv] ?? [],
+    }),
+  );
+  assert.equal(t?.paymentIntent, "pi_conv", "the conversion payment, not the trial");
+  assert.equal(t?.conversion, true);
+  assert.equal(t?.trialPence, 150_000);
+  assert.equal(
+    refundConfirmText(t, gbp),
+    "Refund £3,000, the remaining setup, paid when they converted from the trial, through Stripe and end this package? No monthly payments are refunded. The £1,500 trial payment they made before converting is separate and is not refunded here. Refund it in Stripe by hand if you need to.",
+  );
+});
+
+test("an older file with no session: the first invoice is described honestly", async () => {
+  const t = await findSetupPayment(deps({ subscriptionId: "sub_1" }));
+  assert.equal(t?.covers, "first_invoice");
+  assert.match(refundConfirmText(t, gbp), /the first invoice on the subscription.*plus the first month if it was charged at checkout/);
 });

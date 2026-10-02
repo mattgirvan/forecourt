@@ -160,3 +160,25 @@ export function goLiveConfirmText(preview: GoLiveBillingPreview, monthlyLabel: s
   const amount = monthlyLabel ? `${monthlyLabel} ` : "";
   return `Mark live? This starts their ${amount}monthly plan today.`;
 }
+
+/**
+ * Should the progress email be held back? A file that is cancelled or
+ * refunded, or whose subscription is set to cancel, must not be told "You're
+ * live" (going live skipped the £399 start for exactly that reason). Other
+ * skips (a trial with no subscription, a plan already running) still email.
+ * Returns the staff message when the email is held, otherwise null.
+ */
+export function progressEmailHold(input: {
+  stage: string;
+  priorStatus?: string | null;
+  start?: MonthlyStartResult | null;
+}): string | null {
+  if (tenantEnded(input.priorStatus)) {
+    return `No email: this file is ${input.priorStatus}, so the customer was not emailed.`;
+  }
+  const r = input.start;
+  if (input.stage === "live" && r && !r.started && (r.reason === "set_to_cancel" || r.reason === "tenant_ended")) {
+    return "No email: their subscription is set to cancel, so the customer was not told they are live.";
+  }
+  return null;
+}

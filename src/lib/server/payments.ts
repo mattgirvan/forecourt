@@ -9,6 +9,7 @@
  * Card data never passes through here; we only read Stripe's session summary.
  */
 import { normalizePlan, type BillingKind, type PlanId } from "../catalog.ts";
+import { dealerMatchNote, similarPaidTenants, type MatchTenant } from "./dealer-match.ts";
 
 export type OrderRow = {
   id: number;
@@ -45,7 +46,24 @@ export type TenantPaidPatch = {
   stripe_customer_id?: string;
 };
 
-export type TenantRow = { user_id: string; status: string | null; trial_ends_at: string | null };
+export type TenantRow = {
+  user_id: string;
+  status: string | null;
+  trial_ends_at: string | null;
+  stripe_subscription_id?: string | null;
+  name?: string | null;
+  email?: string | null;
+};
+
+/** Something staff must look at. Recorded on the file and, when email is on, sent to the team. */
+export type StaffFlag = {
+  tenantId: number;
+  kind: "duplicate_payment" | "similar_dealer";
+  title: string;
+  body: string;
+  /** One flag per order and kind, so retries never repeat it. */
+  dedupeKey: string;
+};
 
 /** Writes the confirmation needs. Every method throws on a database error. */
 export interface PaymentStore {
@@ -57,6 +75,12 @@ export interface PaymentStore {
     fields: { stripe_session_id?: string; stripe_subscription_id?: string | null },
   ): Promise<void>;
   cancelBySubscription(subscriptionId: string): Promise<void>;
+  /** Ids of this tenant's other orders already marked paid. */
+  otherPaidOrderIds(tenantId: number, exceptOrderId: number): Promise<number[]>;
+  /** Tenants to compare a new paid order against. Best effort. */
+  listTenantsForMatch(): Promise<MatchTenant[]>;
+  /** Record a staff flag. Must never throw. */
+  flagForStaff(flag: StaffFlag): Promise<void>;
   /** Puts the order on the build board. Failures are logged, not fatal. */
   seedPaid(tenantId: number, actor: string): Promise<void>;
 }
@@ -127,6 +151,35 @@ export function paidTenantPatch(
  * Apply a confirmed payment. Tenant first, order last, so "order paid" always
  * means the tenant was updated too and a retry after a failure redoes both.
  */
+/**
+ * A second paid order for a site that already has a running package (two
+ * Checkout tabs both paid, say). The tenant must keep the subscription it
+ * has: overwriting it would orphan a subscription that nobody marks live.
+ */
+export function paidOrderConflict(
+  current: Pick<TenantRow, "status" | "stripe_subscription_id">,
+  order: Pick<OrderRow, "kind">,
+  incomingSubscription: string | null,
+  otherPaidOrders: number[],
+): null | { reason: "active_subscription" | "already_paid" } {
+  const status = current.status || "briefing";
+  if (status === "briefing" || status === "cancelled" || status === "refunded") return null;
+  // A retry of the payment that set this subscription.
+  if (incomingSubscription && current.stripe_subscription_id === incomingSubscription) return null;
+  // A paid trial converting is the one expected second payment.
+  if (order.kind === "convert" && !current.stripe_subscription_id) return null;
+  if (!otherPaidOrders.length) return null;
+  return { reason: current.stripe_subscription_id ? "active_subscription" : "already_paid" };
+}
+
+export type ApplyResult = { applied: "tenant_updated" | "order_only" | "already_paid"; flags: StaffFlag[] };
+
+/**
+ * Apply a confirmed payment. Tenant first, order last, so "order paid" always
+ * means the tenant was updated too and a retry after a failure redoes both.
+ * If the site already has a running package, the tenant is left alone, the
+ * order is still recorded as paid (the money was taken) and staff are flagged.
+ */
 export async function applyPaidOrder(
   store: PaymentStore,
   order: OrderRow,
@@ -134,27 +187,74 @@ export async function applyPaidOrder(
   actor: string,
   log: Logger,
   now: Date = new Date(),
-): Promise<void> {
-  if (order.status === "paid") return;
+): Promise<ApplyResult> {
+  if (order.status === "paid") return { applied: "already_paid", flags: [] };
+  const flags: StaffFlag[] = [];
+  let applied: ApplyResult["applied"] = "order_only";
+  const incoming = refId(session?.subscription);
   if (order.tenant_id) {
     const current = await store.loadTenant(order.tenant_id);
     // An order may only ever pay for a site owned by the same account.
     if (!current || current.user_id !== order.user_id) {
       throw new PaymentRefused("tenant_not_owned", `order ${order.id} points at tenant ${order.tenant_id}`);
     }
-    await store.updateTenant(order.tenant_id, paidTenantPatch(order, session, current, now));
+    const others = await store.otherPaidOrderIds(order.tenant_id, order.id);
+    const conflict = paidOrderConflict(current, order, incoming, others);
+    if (conflict) {
+      const kept = current.stripe_subscription_id ? `It keeps subscription ${current.stripe_subscription_id}.` : "";
+      flags.push({
+        tenantId: order.tenant_id,
+        kind: "duplicate_payment",
+        title: "Second payment for a site that is already paid for",
+        body: `Order #${order.id} was paid (Stripe session ${session?.id ?? "none"}${
+          incoming ? `, subscription ${incoming}` : ""
+        }) but this site already had paid order${others.length > 1 ? "s" : ""} #${others.join(", #")}. The site was not changed. ${kept} Refund the duplicate setup${
+          incoming ? ` and cancel ${incoming}` : ""
+        } in Stripe.`,
+        dedupeKey: `duplicate-payment:order:${order.id}`,
+      });
+    } else {
+      await store.updateTenant(order.tenant_id, paidTenantPatch(order, session, current, now));
+      applied = "tenant_updated";
+      // Flag (never block) a paid order that looks like another dealership.
+      try {
+        const matches = similarPaidTenants(
+          { id: order.tenant_id, name: current.name, email: current.email },
+          await store.listTenantsForMatch(),
+        );
+        if (matches.length) {
+          flags.push({
+            tenantId: order.tenant_id,
+            kind: "similar_dealer",
+            title: "Paid order looks like an existing dealership",
+            body: dealerMatchNote({ id: order.tenant_id, name: current.name }, matches),
+            dedupeKey: `similar-dealer:order:${order.id}`,
+          });
+        }
+      } catch (err) {
+        log.warn("[payments] similar dealership check failed for tenant", order.tenant_id, err);
+      }
+    }
   }
   await store.markOrderPaid(order.id, {
     stripe_session_id: session?.id,
-    stripe_subscription_id: refId(session?.subscription),
+    stripe_subscription_id: incoming,
   });
-  if (order.tenant_id) {
+  for (const flag of flags) {
+    try {
+      await store.flagForStaff(flag);
+    } catch (err) {
+      log.warn("[payments] staff flag failed", flag.dedupeKey, err);
+    }
+  }
+  if (order.tenant_id && applied === "tenant_updated") {
     try {
       await store.seedPaid(order.tenant_id, actor);
     } catch (err) {
       log.warn("[payments] build board seed failed for tenant", order.tenant_id, err);
     }
   }
+  return { applied, flags };
 }
 
 /** A confirmation that must not be applied (as opposed to a database error). */
@@ -308,8 +408,10 @@ export async function handleStripeWebhook(
       log.error("[stripe-webhook] paid session not applied:", check.reason, session.id, "order", orderId || "none");
       return { status: 422, body: `not applied: ${check.reason}` };
     }
-    await applyPaidOrder(store, order as OrderRow, session, "stripe", log, deps.now);
-    if (deps.onPaid) {
+    const applied = await applyPaidOrder(store, order as OrderRow, session, "stripe", log, deps.now);
+    // No thank-you for a duplicate payment: staff were flagged instead.
+    const duplicate = applied.flags.some((f) => f.kind === "duplicate_payment");
+    if (deps.onPaid && !duplicate) {
       try {
         await deps.onPaid(order as OrderRow, session, event);
       } catch (err) {
@@ -332,21 +434,29 @@ export async function handleStripeWebhook(
  * own client only works until the entitlement guard migration is applied.
  */
 type QueryResult = { data: unknown; error: { message: string } | null };
+type Filter = PromiseLike<QueryResult> & {
+  eq: (col: string, v: unknown) => Filter;
+  neq: (col: string, v: unknown) => Filter;
+  maybeSingle: () => PromiseLike<QueryResult>;
+};
 // Minimal structural type so this file needs no supabase-js import.
 export type SupabaseLike = {
   from: (table: string) => {
-    select: (cols: string) => {
-      eq: (col: string, v: unknown) => { maybeSingle: () => PromiseLike<QueryResult> };
-    };
+    select: (cols: string) => Filter;
     update: (patch: Record<string, unknown>) => {
       eq: (col: string, v: unknown) => PromiseLike<QueryResult>;
     };
+    insert: (row: Record<string, unknown>) => PromiseLike<QueryResult>;
   };
 };
+
+export type StaffAlert = (flag: StaffFlag) => Promise<void>;
 
 export function supabasePaymentStore(
   sb: SupabaseLike,
   seed: (tenantId: number, actor: string) => Promise<void>,
+  /** Optional team email for staff flags (gated by EMAIL_MODE by the caller). */
+  alert?: StaffAlert,
 ): PaymentStore {
   const must = (r: QueryResult, what: string) => {
     if (r.error) throw new Error(`${what}: ${r.error.message}`);
@@ -362,6 +472,13 @@ export function supabasePaymentStore(
       return (must(r, "load order") as OrderRow | null) ?? null;
     },
     async loadTenant(id) {
+      const full = await sb
+        .from("tenants")
+        .select("user_id, status, trial_ends_at, stripe_subscription_id, name, email")
+        .eq("id", id)
+        .maybeSingle();
+      if (!full.error) return (full.data as TenantRow | null) ?? null;
+      // Older schema without the billing columns.
       const r = await sb.from("tenants").select("user_id, status, trial_ends_at").eq("id", id).maybeSingle();
       return (must(r, "load tenant") as TenantRow | null) ?? null;
     },
@@ -379,6 +496,47 @@ export function supabasePaymentStore(
         await sb.from("tenants").update({ status: "cancelled" }).eq("stripe_subscription_id", subscriptionId),
         "cancel tenant",
       );
+    },
+    async otherPaidOrderIds(tenantId, exceptOrderId) {
+      const r = await sb.from("orders").select("id").eq("tenant_id", tenantId).eq("status", "paid").neq("id", exceptOrderId);
+      const rows = (must(r, "load paid orders") as Array<{ id: number }> | null) ?? [];
+      return rows.map((o) => o.id);
+    },
+    async listTenantsForMatch() {
+      const r = await sb.from("tenants").select("id, name, email, status");
+      return (must(r, "list tenants") as MatchTenant[] | null) ?? [];
+    },
+    async flagForStaff(flag) {
+      // Internal note on the file (office Notes) and the staff timeline.
+      try {
+        await sb.from("notes").insert({
+          tenant_id: flag.tenantId,
+          author_email: "stripe",
+          visibility: "internal",
+          body: `${flag.title}. ${flag.body}`,
+        });
+      } catch {
+        /* best effort */
+      }
+      try {
+        await sb.from("build_events").insert({
+          tenant_id: flag.tenantId,
+          kind: "note",
+          title: flag.title,
+          body: flag.body,
+          visibility: "internal",
+          actor_email: "stripe",
+        });
+      } catch {
+        /* best effort */
+      }
+      if (alert) {
+        try {
+          await alert(flag);
+        } catch {
+          /* best effort */
+        }
+      }
     },
     seedPaid: seed,
   };

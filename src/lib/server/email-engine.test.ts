@@ -170,6 +170,9 @@ test("webhook: the thank-you hook failing never turns a paid webhook into an err
     updateTenant: async () => {},
     markOrderPaid: async () => {},
     cancelBySubscription: async () => {},
+    otherPaidOrderIds: async () => [],
+    listTenantsForMatch: async () => [],
+    flagForStaff: async () => {},
     seedPaid: async () => {},
   };
   const session = {
@@ -199,4 +202,41 @@ test("webhook: the thank-you hook failing never turns a paid webhook into an err
   );
   assert.deepEqual(res, { status: 200, body: "ok" });
   assert.deepEqual(hookSaw, [42, "go_live", false]);
+});
+
+test("staff alerts go only to the team list, whenever email is on, and only once", async () => {
+  const { deliverStaffAlert } = await import("./email-engine.ts");
+  const rows = new Map<string, { status: string }>();
+  const store = {
+    async claim(row: { dedupe_key: string }) {
+      if (rows.has(row.dedupe_key)) return "duplicate" as const;
+      rows.set(row.dedupe_key, { status: "sending" });
+      return "claimed" as const;
+    },
+    async finish(key: string, patch: { status: string }) {
+      rows.set(key, { status: patch.status });
+    },
+  };
+  const sent: { to: string[]; subject: string }[] = [];
+  const send = async (msg: { to: string[]; subject: string }) => {
+    sent.push({ to: msg.to, subject: msg.subject });
+    return { id: "em_1" };
+  };
+  const alert = {
+    dedupeKey: "duplicate-payment:order:8",
+    tenantId: 3,
+    from: "Forecourt <hello@forecourt.me>",
+    replyTo: "hello@forecourt.me",
+    subject: "Second payment for a site that is already paid for",
+    text: "x",
+    html: "<p>x</p>",
+  };
+  const cfg = (mode: "off" | "team" | "live", teamTo: string[] = ["matt@forecourt.me"]) => ({ mode, teamTo, vercelEnv: "production" });
+  assert.deepEqual(await deliverStaffAlert({ config: cfg("off"), log: store, send }, alert), { sent: false, reason: "mode_off" });
+  assert.deepEqual(await deliverStaffAlert({ config: cfg("live", []), log: store, send }, alert), { sent: false, reason: "team_list_empty" });
+  const r = await deliverStaffAlert({ config: cfg("live"), log: store, send }, alert);
+  assert.equal(r.sent, true);
+  assert.deepEqual(sent[0], { to: ["matt@forecourt.me"], subject: "[Forecourt staff] Second payment for a site that is already paid for" });
+  assert.deepEqual(await deliverStaffAlert({ config: cfg("live"), log: store, send }, alert), { sent: false, reason: "duplicate" });
+  assert.equal(sent.length, 1);
 });
