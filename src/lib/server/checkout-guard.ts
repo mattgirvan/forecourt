@@ -33,8 +33,24 @@ export type StoredSubscription =
   /** Nothing stored, or Stripe is not connected (no charge can happen then). */
   | null;
 
+export const TRIAL_USED_MESSAGE =
+  "This site has already had its 60-day trial. Choose the full plan, or reply to hello@forecourt.me.";
+
 const OPEN_STATUSES = new Set(["briefing", "cancelled", "refunded"]);
-const ENDED_SUBSCRIPTIONS = new Set(["canceled", "incomplete_expired"]);
+/** The only Stripe statuses that mean a subscription is over. Anything else is still live. */
+export const ENDED_SUBSCRIPTIONS = new Set(["canceled", "incomplete_expired"]);
+
+export function subscriptionEnded(status: string | null | undefined) {
+  return ENDED_SUBSCRIPTIONS.has(status ?? "");
+}
+
+/**
+ * Has this site already paid for a trial (even if it was later refunded)?
+ * Only paid or refunded orders count: an unpaid or cancelled order never took the fee.
+ */
+export function trialAlreadyUsed(orders: { kind?: string | null; plan?: string | null; status?: string | null }[]) {
+  return orders.some((o) => (o.kind === "trial" || o.plan === "pilot") && (o.status === "paid" || o.status === "refunded"));
+}
 
 export function statusAllowsCheckout(
   t: GuardTenant | null | undefined,
@@ -59,9 +75,12 @@ export function checkoutRefusal(input: {
   storedSubscription: StoredSubscription;
   /** The signed-in user's other sites, to catch the same dealership twice. */
   otherTenants?: GuardTenant[];
+  /** This site already paid for a trial once. One trial per site. */
+  trialUsed?: boolean;
 }): string | null {
   const { tenant } = input;
   if (!statusAllowsCheckout(tenant, input)) return ALREADY_PAID_MESSAGE;
+  if (input.billing === "trial" && input.trialUsed) return TRIAL_USED_MESSAGE;
 
   if (tenant?.stripe_subscription_id) {
     const sub = input.storedSubscription;

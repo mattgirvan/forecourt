@@ -350,7 +350,8 @@ function TenantFile({ token, tenantId, onSaved }: { token: string; tenantId: num
           {busy ? "Working…" : file.archived_at ? "Unarchive" : "Archive"}
         </Button>
       </div>
-      <div className="mt-4">
+      {owner ? (
+        <div className="mt-4">
         <ResumeOrder
           key={`${tenantId}-${file.status ?? ""}`}
           token={token}
@@ -361,7 +362,8 @@ function TenantFile({ token, tenantId, onSaved }: { token: string; tenantId: num
             onSaved();
           }}
         />
-      </div>
+        </div>
+      ) : null}
 
       <div className="mt-6 flex flex-wrap gap-1.5">
         {(

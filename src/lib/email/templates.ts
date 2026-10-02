@@ -680,7 +680,7 @@ export function balanceLinkEmail(d: BalanceLinkData): RenderedEmail {
   const subject = `Your Forecourt balance: ${amount}`;
   const preheader = `A secure Stripe link to pay the ${amount} balance on ${d.dealer}.`;
   const hello = first ? `Hi ${first},` : "Hi,";
-  const intro = `Your order for ${d.dealer} is back on track. There is a balance of ${amount} to pay. The link below takes you to Stripe to pay it securely. It works for 23 hours; reply if you need a new one.`;
+  const intro = `There is a balance of ${amount} to pay on your order for ${d.dealer}. The link below takes you to Stripe to pay it securely. It works for 23 hours. Reply if you need a new one.`;
   const pay = safeUrl(d.payUrl) ?? d.accountUrl;
   const reason = `You are getting this because ${d.dealer} has a Forecourt desk in progress.`;
   const rows = `

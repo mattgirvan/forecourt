@@ -4,6 +4,8 @@ import { test } from "node:test";
 import { progressEmailHold, startMonthlyAtGoLive, tenantEnded } from "./billing-start.ts";
 import { balancePaidFlag, handleStripeWebhook, type PaymentStore, type StaffFlag } from "./payments.ts";
 import { balanceLinkEmail } from "../email/templates.ts";
+import { checkoutRefusal, subscriptionEnded, trialAlreadyUsed, TRIAL_USED_MESSAGE } from "./checkout-guard.ts";
+import { DUPLICATE_FLAG_TITLE, flaggedDuplicateSessions, ownSessions, sessionIdsIn } from "./refund-target.ts";
 import {
   balanceOwed,
   executeResume,
@@ -14,7 +16,11 @@ import {
   resumeStage,
   resumeStatus,
   resumeSteps,
-  sessionIsSitesOwn,
+  latestStartFrom,
+  owedSentence,
+  resumeButtonLabel,
+  backOnPhrase,
+  OWNER_ONLY_MESSAGE,
   sessionsThatCount,
   subscriptionPlan,
   type Balance,
@@ -39,38 +45,91 @@ const setup = (over: Partial<ResumeSession> = {}): ResumeSession => ({
 
 // ------------------------------------------------------------------ what counts
 
-test("a duplicate subscription checkout is left out when the site has its own stored subscription", () => {
-  const dup = setup({ id: "cs_dup", subscription: "sub_2", created: 200 });
-  const { counted, skipped } = sessionsThatCount([dup, setup()], "sub_1");
-  assert.deepEqual(counted.map((s) => s.id), ["cs_setup"]);
-  assert.equal(skipped[0]!.id, "cs_dup");
-  assert.match(skipped[0]!.reason, /not this site's own/);
-  assert.equal(sessionIsSitesOwn(dup, "sub_1"), false);
-  assert.equal(sessionIsSitesOwn(setup(), "sub_1"), true);
-  assert.equal(sessionIsSitesOwn({ mode: "payment", subscription: null }, "sub_1"), true);
+const flagFor = (dupId: string, siteId = "cs_setup") => ({
+  title: DUPLICATE_FLAG_TITLE,
+  body: `Order #9 was paid (Stripe session ${dupId}) but this site is already paid for by session ${siteId}. Don't use Office Refund for this.`,
 });
 
-test("with no stored subscription only the oldest paid subscription checkout counts", () => {
-  const later = setup({ id: "cs_later", subscription: "sub_2", created: 300 });
-  const { counted, skipped } = sessionsThatCount([later, setup()], null);
+test("a duplicate is the checkout named in the Second payment flag, not one with a different subscription", () => {
+  const dup = setup({ id: "cs_test_dup", subscription: "sub_2", created: 200 });
+  const dupes = flaggedDuplicateSessions([flagFor("cs_test_dup"), { title: "Something else", body: "cs_live_zzz" }]);
+  assert.deepEqual([...dupes], ["cs_test_dup"]);
+  // An older flag with no session still names the order, which maps to its session.
+  const byOrder = flaggedDuplicateSessions([{ title: DUPLICATE_FLAG_TITLE, body: "Order #9 was paid (Stripe session none) but..." }], [{ id: 9, stripe_session_id: "cs_test_nine" }]);
+  assert.deepEqual([...byOrder], ["cs_test_nine"]);
+  const { counted, skipped } = sessionsThatCount([dup, setup()], { duplicateSessionIds: dupes });
   assert.deepEqual(counted.map((s) => s.id), ["cs_setup"]);
-  assert.equal(skipped[0]!.id, "cs_later");
+  assert.equal(skipped[0]!.id, "cs_test_dup");
+  assert.match(skipped[0]!.reason, /duplicate payment \(flagged on the file\)/);
+  assert.deepEqual(sessionIdsIn("a cs_live_ABC1 and cs_test_x2, not cs_foo"), ["cs_live_ABC1", "cs_test_x2"]);
 });
 
-test("a site pays the trial fee once; a second trial payment is a duplicate", () => {
+test("MF1 A: after Resume sets up a new subscription the original setup still counts (no subscription matching)", () => {
+  // The stored id is now the Resume subscription; nothing compares against it.
+  const { counted, skipped } = sessionsThatCount([setup()], { duplicateSessionIds: [], endedAt: [Date.parse("2026-09-16T18:09:36Z") / 1000] });
+  assert.deepEqual(counted.map((s) => s.id), ["cs_setup"]);
+  assert.deepEqual(skipped, []);
+  const b = balanceOwed({ counted, facts: { cs_setup: { paidPence: 450_000, refundedPence: 450_000, refunds: [] } } });
+  assert.equal(b.owedPence, 450_000);
+  assert.equal(b.neverPaid, false);
+});
+
+test("MF1 B: a converted trial with the convert refunded owes £3,000, not £0, after a Resume with a new subscription", () => {
+  const trial = setup({ id: "cs_trial", mode: "payment", subscription: null, amount_total: 150_000, kind: "trial", created: 1 });
+  const conv = setup({ id: "cs_conv", subscription: "sub_1", amount_total: 300_000, kind: "convert", created: 2 });
+  const { counted } = sessionsThatCount([trial, conv], { endedAt: [3] });
+  assert.deepEqual(counted.map((s) => s.id), ["cs_trial", "cs_conv"]);
+  const b = balanceOwed({
+    counted,
+    facts: { cs_trial: { paidPence: 150_000, refundedPence: 0, refunds: [] }, cs_conv: { paidPence: 300_000, refundedPence: 300_000, refunds: [] } },
+  });
+  assert.deepEqual([b.duePence, b.paidPence, b.refundedPence, b.owedPence, b.neverPaid, b.unknown], [450_000, 450_000, 300_000, 300_000, false, false]);
+  assert.equal(owedSentence(b), "After the £3,000 refund they have £1,500 with us, so £3,000 is owed.");
+  assert.equal(resumeButtonLabel(b), "Resume with £3,000 owed");
+});
+
+test("MF1 D: a refunded trial that buys again counts the current trial; the old one is an earlier package", () => {
+  const tOld = setup({ id: "cs_t_old", mode: "payment", subscription: null, amount_total: 150_000, kind: "trial", created: 1_000 });
+  const tNew = { ...tOld, id: "cs_t_new", created: 3_000 };
+  const { counted, skipped } = sessionsThatCount([tNew, tOld], { endedAt: [2_000] });
+  assert.deepEqual(counted.map((s) => s.id), ["cs_t_new"]);
+  assert.equal(skipped[0]!.id, "cs_t_old");
+  assert.match(skipped[0]!.reason, /earlier package that was ended on/);
+  const b = balanceOwed({ counted, facts: { cs_t_new: { paidPence: 150_000, refundedPence: 0, refunds: [] } } });
+  assert.equal(b.owedPence, 0);
+  // An end AFTER the newest purchase (the one being resumed) is not a boundary.
+  assert.deepEqual(sessionsThatCount([tOld], { endedAt: [2_000] }).counted.map((s) => s.id), ["cs_t_old"]);
+});
+
+test("MF1: the checkout guard blocks a second trial for the site", () => {
+  assert.equal(trialAlreadyUsed([{ kind: "trial", plan: "pilot", status: "refunded" }]), true);
+  assert.equal(trialAlreadyUsed([{ kind: "trial", plan: "pilot", status: "pending" }]), false);
+  assert.equal(trialAlreadyUsed([{ kind: "trial", plan: "pilot", status: "cancelled" }]), false);
+  assert.equal(trialAlreadyUsed([{ kind: "trial", plan: "pilot", status: "paid" }]), true);
+  assert.equal(trialAlreadyUsed([{ kind: "subscription", plan: "growth", status: "paid" }]), false);
+  const tenant = { id: 1, name: "Test Motors", status: "refunded" } as never;
+  assert.equal(checkoutRefusal({ tenant, billing: "trial", storedSubscription: null, trialUsed: true }), TRIAL_USED_MESSAGE);
+  assert.equal(checkoutRefusal({ tenant, billing: "trial", storedSubscription: null, trialUsed: false }), null);
+  // A subscription purchase is still allowed after a used trial.
+  assert.equal(checkoutRefusal({ tenant, billing: "subscription", storedSubscription: null, trialUsed: true }), null);
+  assert.ok(!DASHES.test(TRIAL_USED_MESSAGE) && !/glass/i.test(TRIAL_USED_MESSAGE));
+});
+
+test("a site pays the trial fee once per package; a second trial payment is a duplicate", () => {
   const t1 = setup({ id: "cs_t1", mode: "payment", subscription: null, amount_total: 150_000, kind: "trial", created: 1 });
   const t2 = { ...t1, id: "cs_t2", created: 2 };
-  const { counted, skipped } = sessionsThatCount([t2, t1], null);
+  const { counted, skipped } = sessionsThatCount([t2, t1]);
   assert.deepEqual(counted.map((s) => s.id), ["cs_t1"]);
   assert.match(skipped[0]!.reason, /second trial fee/);
 });
 
 test("unpaid and expired checkouts never count; balance links always do", () => {
-  const expired = setup({ id: "cs_exp", payment_status: "unpaid", mode: "payment", kind: null });
+  const expired = setup({ id: "cs_exp", payment_status: "unpaid", mode: "payment", kind: null, created: 50 });
   const bal = setup({ id: "cs_bal", mode: "payment", subscription: null, kind: "balance", amount_total: 450_000, created: 500 });
-  const { counted, skipped } = sessionsThatCount([expired, setup(), bal], "sub_1");
+  const { counted, skipped } = sessionsThatCount([expired, setup(), bal], { endedAt: [300] });
   assert.deepEqual(counted.map((s) => s.id).sort(), ["cs_bal", "cs_setup"]);
   assert.deepEqual(skipped, [{ id: "cs_exp", reason: "not paid" }]);
+  assert.equal(ownSessions([bal], {}).own.length, 1);
 });
 
 // ------------------------------------------------------------------ balance maths
@@ -123,10 +182,31 @@ test("never paid: due is the order amount and all of it is owed", () => {
 
 test("a duplicate's refund never shows up as a balance on the real site", () => {
   const dup = setup({ id: "cs_dup", subscription: "sub_2", created: 200 });
-  const { counted } = sessionsThatCount([dup, setup()], "sub_1");
+  const { counted } = sessionsThatCount([dup, setup()], { duplicateSessionIds: ["cs_dup"] });
   const b = balanceOwed({ counted, facts: { cs_setup: facts(450_000), cs_dup: facts(450_000, 450_000) } });
   assert.equal(b.refundedPence, 0);
   assert.equal(b.owedPence, 0);
+});
+
+test("should-fix: a failed Stripe lookup shows owed as unknown, never £0, and the link is off", () => {
+  const b = balanceOwed({ counted: [setup()], facts: {} });
+  assert.equal(b.unknown, true);
+  assert.equal(resumeButtonLabel(b), "Resume (amount owed unknown)");
+  assert.match(owedSentence(b), /amount owed is unknown/);
+  const pick = resumeStage({ currentStage: "build", endedAt: null, events: [], validStages: STAGES, anyPaid: true });
+  const steps = resumeSteps({ status: "refunded", stage: pick, stageLabel: "Build", newStatus: "subscribed", balance: b, plan: { kind: "none_needed", text: "" }, choice: { undoCancel: false, newSubscription: false } });
+  assert.ok(steps.some((s) => /could not be checked in Stripe/.test(s)));
+  assert.ok(!steps.some((s) => /Nothing is owed/.test(s)));
+  assert.equal(balanceOwed({ counted: [], facts: {}, unknown: true }).unknown, true);
+  assert.equal(balanceOwed({ counted: [setup()], facts: { cs_setup: facts(450_000) } }).unknown, false);
+});
+
+test("should-fix: the owed amount is explained in plain words", () => {
+  assert.equal(owedSentence(owed(450_000)), "After the £4,500 refund they have £0 with us, so £4,500 is owed.");
+  assert.equal(owedSentence(owed(0)), "Nothing was refunded in Stripe, so they still have £4,500 with us and nothing is owed.");
+  assert.match(owedSentence(balanceOwed({ counted: [], facts: {}, orderAmountPence: 150_000 })), /the full £1,500 on its order is owed/);
+  assert.equal(resumeButtonLabel(owed(450_000)), "Resume with £4,500 owed");
+  assert.equal(resumeButtonLabel(owed(0)), "Resume order");
 });
 
 test("a refund above the payment is capped, never a negative balance", () => {
@@ -192,8 +272,10 @@ test("status after resume matches what a paid checkout sets", () => {
   for (const s of ["trial", "subscribed", "live"]) assert.equal(tenantEnded(s), false);
 });
 
-test("order rows go back to paid only if Stripe shows them paid", () => {
+test("order rows go back to paid only if Stripe shows them paid, and a fully refunded order stays refunded", () => {
   assert.equal(orderStatusAfterResume("refunded", true), "paid");
+  assert.equal(orderStatusAfterResume("refunded", true, true), null);
+  assert.equal(orderStatusAfterResume("cancelled", true, true), "refunded");
   assert.equal(orderStatusAfterResume("cancelled", false), "pending");
   assert.equal(orderStatusAfterResume("pending", false), null);
   assert.equal(orderStatusAfterResume("paid", true), null);
@@ -201,7 +283,7 @@ test("order rows go back to paid only if Stripe shows them paid", () => {
 
 // ------------------------------------------------------------------ subscription
 
-const base = { billing: "subscription", hadSubscription: true, stage: "build", customerId: "cus_1", monthlyLabel: "£399", productId: "prod_1" };
+const base = { billing: "subscription", hadSubscription: true, stage: "build", customerId: "cus_1", monthlyLabel: "£399", productId: "prod_1", latestStart: "31 Mar 2027" };
 
 test("subscription set to cancel: offer to undo it", () => {
   const p = subscriptionPlan({ ...base, subscription: { id: "sub_1", status: "trialing", cancel_at_period_end: true } });
@@ -214,7 +296,7 @@ test("fully cancelled: explain plainly, a new one waits for go live, or nothing"
   assert.equal(p.kind, "ended");
   assert.ok(p.kind === "ended" && p.canCreate);
   assert.match(p.text, /cannot be restarted/);
-  assert.match(p.text, /waits for go live/);
+  assert.match(p.text, /starts when you mark the site Live, or on 31 Mar 2027 at the latest/);
   assert.match(p.text, /nothing is billed until you choose/i);
 });
 
@@ -227,6 +309,50 @@ test("a new subscription is blocked when it could never start or has nothing to 
   assert.ok(noCustomer.kind === "ended" && !noCustomer.canCreate);
 });
 
+test("MF2: unpaid, paused and incomplete still count as live, so no new subscription is offered", () => {
+  for (const status of ["unpaid", "paused", "incomplete"]) {
+    const p = subscriptionPlan({ ...base, subscription: { id: "sub_1", status } });
+    assert.equal(p.kind, "alive_other", status);
+    assert.match(p.text, new RegExp(`is ${status} in Stripe`));
+    assert.equal(subscriptionEnded(status), false);
+  }
+  for (const status of ["canceled", "incomplete_expired"]) {
+    assert.equal(subscriptionPlan({ ...base, subscription: { id: "sub_1", status } }).kind, "ended");
+    assert.equal(subscriptionEnded(status), true);
+  }
+});
+
+test("MF2: any other live subscription on the customer blocks a new one; a failed list blocks too", () => {
+  const p = subscriptionPlan({ ...base, subscription: { id: "sub_1", status: "canceled" }, otherLive: [{ id: "sub_9", status: "trialing" }] });
+  assert.ok(p.kind === "ended" && !p.canCreate);
+  assert.match(p.kind === "ended" ? (p.createBlocked ?? "") : "", /already has a live subscription in Stripe \(sub_9, trialing\)/);
+  const failed = subscriptionPlan({ ...base, subscription: { id: "sub_1", status: "canceled" }, listFailed: true });
+  assert.ok(failed.kind === "ended" && !failed.canCreate);
+  const clear = subscriptionPlan({ ...base, subscription: { id: "sub_1", status: "canceled" }, otherLive: [] });
+  assert.ok(clear.kind === "ended" && clear.canCreate);
+});
+
+test("should-fix: the 180-day cap counts from the resume date and the date is shown", () => {
+  const l = latestStartFrom(new Date("2026-10-02T01:00:00Z"), 180);
+  assert.equal(l.label, "31 Mar 2027");
+  assert.equal(l.unix, Date.parse("2027-03-31T00:00:00Z") / 1000);
+  const p = subscriptionPlan({ ...base, subscription: null, latestStart: l.label });
+  assert.ok(p.kind === "ended" && p.latestStart === "31 Mar 2027");
+  const pick = resumeStage({ currentStage: "build", endedAt: null, events: [], validStages: STAGES, anyPaid: true });
+  const steps = resumeSteps({ status: "refunded", stage: pick, stageLabel: "Build", newStatus: "subscribed", balance: owed(0), plan: p, choice: { undoCancel: false, newSubscription: true } });
+  assert.ok(steps.some((s) => /starts at go live, or on 31 Mar 2027 at the latest/.test(s)));
+});
+
+test("should-fix: step 1 says where the package goes in plain words", () => {
+  assert.equal(backOnPhrase("subscribed"), "put them back on the monthly plan");
+  assert.equal(backOnPhrase("trial"), "put them back on their 60-day trial");
+  assert.equal(backOnPhrase("live"), "put them back to Live");
+  const pick = resumeStage({ currentStage: "build", endedAt: null, events: [], validStages: STAGES, anyPaid: true });
+  const steps = resumeSteps({ status: "refunded", stage: pick, stageLabel: "Build", newStatus: "subscribed", balance: owed(0), plan: { kind: "none_needed", text: "" }, choice: { undoCancel: false, newSubscription: false } });
+  assert.equal(steps[0], "Clear the refunded flag and put them back on the monthly plan.");
+  assert.ok(!steps.join(" ").includes("Set the package back"));
+});
+
 test("a 60-day trial has no monthly, and a running plan is left alone", () => {
   assert.equal(subscriptionPlan({ ...base, billing: "trial", hadSubscription: false, subscription: null }).kind, "none_needed");
   assert.equal(subscriptionPlan({ ...base, subscription: { id: "sub_1", status: "trialing" } }).kind, "running");
@@ -235,9 +361,9 @@ test("a 60-day trial has no monthly, and a running plan is left alone", () => {
 
 // ------------------------------------------------------------------ resume, idempotent
 
-const owed = (n: number): Balance => ({ duePence: 450_000, paidPence: 450_000, refundedPence: n, netPaidPence: 450_000 - n, owedPence: n, creditPence: 0, neverPaid: false });
+const owed = (n: number): Balance => ({ duePence: 450_000, paidPence: 450_000, refundedPence: n, netPaidPence: 450_000 - n, owedPence: n, creditPence: 0, neverPaid: false, unknown: false });
 
-function harness(start: string) {
+function harness(start: string, claimThrows = false) {
   let status = start;
   const calls: string[] = [];
   const deps: ResumeDeps = {
@@ -246,7 +372,9 @@ function harness(start: string) {
       calls.push(`create ${key}`);
       return { id: "sub_new", line: "New subscription." };
     },
+    cancelSubscription: async (id) => void calls.push(`cancel ${id}`),
     claim: async (patch) => {
+      if (claimThrows) throw new Error("db down");
       if (status !== "refunded" && status !== "cancelled") return false;
       status = String(patch.status);
       calls.push(`claim ${JSON.stringify(patch)}`);
@@ -293,7 +421,7 @@ test("resume clears the flag, restores the stage and orders, writes a timeline e
   assert.ok(!h.calls.some((c) => c.startsWith("order 2")));
   const note = h.calls.find((c) => c.startsWith("note "))!;
   assert.match(note, /Resumed by hello@forecourt\.me on 2 Oct 2026, 02:00/);
-  assert.match(note, /Paid £4,500, refunded £4,500, due £4,500, owed now £4,500\./);
+  assert.match(note, /Paid before refunds £4,500, refunded £4,500, package price so far £4,500, owed now £4,500\./);
   assert.ok(h.calls.some((c) => c.startsWith("timeline ")));
   assert.match(r.message, /£4,500 is still owed/);
 });
@@ -327,21 +455,31 @@ test("a stale panel (status changed since it opened) changes nothing", async () 
   assert.deepEqual(h.calls, []);
 });
 
-test("undo cancel uses a fixed key so a retry reuses the same Stripe call; operators cannot change Stripe", async () => {
+test("MF3: Resume is owner only; an operator is refused before anything happens", async () => {
+  for (const choice of [{ undoCancel: false, newSubscription: false }, { undoCancel: true, newSubscription: false }]) {
+    const op = harness("cancelled");
+    await assert.rejects(
+      executeResume(op.deps, input({ status: "cancelled", expectStatus: "cancelled", owner: false, choice, plan: { kind: "set_to_cancel", text: "", subscriptionId: "sub_1" } })),
+      (e: Error) => e.message === OWNER_ONLY_MESSAGE,
+    );
+    assert.deepEqual(op.calls, []);
+  }
+  // Even an active file: no detail is given to an operator.
+  await assert.rejects(executeResume(harness("live").deps, input({ status: "live", owner: false })), /Only an owner/);
+});
+
+test("undo cancel uses a fixed key so a retry reuses the same Stripe call; it is only done when ticked", async () => {
   const plan = { kind: "set_to_cancel" as const, text: "", subscriptionId: "sub_1" };
   const h = harness("cancelled");
   await executeResume(h.deps, input({ status: "cancelled", expectStatus: "cancelled", plan, subscription: { cancel_at_period_end: true }, choice: { undoCancel: true, newSubscription: false } }));
   assert.ok(h.calls[0]!.startsWith(`undo sub_1 {"cancel_at_period_end":false} forecourt-resume-undo-sub_1-${Date.parse("2026-09-16T18:09:36Z")}`));
-  const op = harness("cancelled");
-  await assert.rejects(
-    executeResume(op.deps, input({ status: "cancelled", expectStatus: "cancelled", owner: false, plan, choice: { undoCancel: true, newSubscription: false } })),
-    /Only an owner/,
-  );
-  assert.deepEqual(op.calls, []);
+  const unticked = harness("cancelled");
+  await executeResume(unticked.deps, input({ status: "cancelled", expectStatus: "cancelled", plan, subscription: { cancel_at_period_end: true } }));
+  assert.ok(!unticked.calls.some((c) => c.startsWith("undo")));
 });
 
 test("a new subscription is only made when ticked, and its id is stored on the file", async () => {
-  const plan = { kind: "ended" as const, text: "", canCreate: true };
+  const plan = { kind: "ended" as const, text: "", canCreate: true, latestStart: "31 Mar 2027" };
   const off = harness("refunded");
   await executeResume(off.deps, input({ plan }));
   assert.ok(!off.calls.some((c) => c.startsWith("create")));
@@ -349,6 +487,31 @@ test("a new subscription is only made when ticked, and its id is stored on the f
   await executeResume(on.deps, input({ plan, choice: { undoCancel: false, newSubscription: true } }));
   assert.ok(on.calls.some((c) => c.startsWith("create forecourt-resume-sub-7-")));
   assert.ok(on.calls.some((c) => c.includes(`"stripe_subscription_id":"sub_new"`)));
+  const blocked = harness("refunded");
+  await assert.rejects(
+    executeResume(blocked.deps, input({ plan: { ...plan, canCreate: false, createBlocked: "This customer already has a live subscription in Stripe (sub_9, trialing)." }, choice: { undoCancel: false, newSubscription: true } })),
+    /already has a live subscription/,
+  );
+  assert.deepEqual(blocked.calls, []);
+});
+
+test("MF2: a new subscription is cancelled again if the desk write throws, but not if another request won", async () => {
+  const plan = { kind: "ended" as const, text: "", canCreate: true, latestStart: "31 Mar 2027" };
+  const choice = { undoCancel: false, newSubscription: true };
+  const broken = harness("refunded", true);
+  await assert.rejects(executeResume(broken.deps, input({ plan, choice })), /db down/);
+  assert.ok(broken.calls.includes("cancel sub_new"));
+  const lost = harness("subscribed");
+  const r = await executeResume(lost.deps, input({ plan, choice }));
+  assert.equal(r.noop, true);
+  assert.ok(!lost.calls.some((c) => c.startsWith("cancel")));
+});
+
+test("should-fix: a fully refunded order is not set back to paid on resume", async () => {
+  const h = harness("refunded");
+  await executeResume(h.deps, input({ orders: [{ id: 1, status: "refunded", sessionPaid: true, fullyRefunded: true }, { id: 3, status: "refunded", sessionPaid: true }] }));
+  assert.ok(!h.calls.some((c) => c.startsWith("order 1")));
+  assert.ok(h.calls.includes("order 3 paid"));
 });
 
 // ------------------------------------------------------------------ email holds lifted
@@ -406,9 +569,18 @@ test("copy: plain English, no em or en dashes, never glass", () => {
   const pick = resumeStage({ currentStage: "build", endedAt: null, events: [], validStages: STAGES, anyPaid: true });
   const texts = [
     ...plans.flatMap((p) => [p.text, p.kind === "ended" ? (p.createBlocked ?? "") : ""]),
-    ...resumeSteps({ status: "refunded", stage: pick, stageLabel: "Build", newStatusLabel: "Subscription", balance: owed(450_000), plan: plans[1]!, choice: { undoCancel: true, newSubscription: true } }),
-    ...resumeSteps({ status: "cancelled", stage: pick, stageLabel: "Build", newStatusLabel: "Subscription", balance: owed(0), plan: plans[0]!, choice: { undoCancel: false, newSubscription: false } }),
+    ...resumeSteps({ status: "refunded", stage: pick, stageLabel: "Build", newStatus: "subscribed", balance: owed(450_000), plan: plans[1]!, choice: { undoCancel: true, newSubscription: true } }),
+    ...resumeSteps({ status: "cancelled", stage: pick, stageLabel: "Build", newStatus: "trial", balance: owed(0), plan: plans[0]!, choice: { undoCancel: false, newSubscription: false } }),
     resumeNote({ actor: "a@b.c", at: new Date(), from: "refunded", toStatus: "Subscription", stageLabel: "Build", balance: owed(1), stripe: [] }),
+    resumeNote({ actor: "a@b.c", at: new Date(), from: "refunded", toStatus: "Subscription", stageLabel: "Build", balance: { ...owed(1), unknown: true }, stripe: [] }),
+    owedSentence(owed(450_000)),
+    owedSentence(owed(0)),
+    owedSentence({ ...owed(0), unknown: true }),
+    owedSentence(balanceOwed({ counted: [], facts: {}, orderAmountPence: 150_000 })),
+    resumeButtonLabel(owed(1)),
+    subscriptionPlan({ ...base, subscription: { id: "sub_1", status: "unpaid" } }).text,
+    OWNER_ONLY_MESSAGE,
+    TRIAL_USED_MESSAGE,
   ];
   const mail = balanceLinkEmail({ firstName: "Matt", dealer: "Test Motors", amountPence: 450_000, payUrl: "https://checkout.stripe.com/c/pay/cs_x", accountUrl: "https://www.forecourt.me/account" });
   texts.push(mail.subject, mail.text, mail.preheader);
@@ -417,4 +589,5 @@ test("copy: plain English, no em or en dashes, never glass", () => {
     assert.ok(!/glass/i.test(t), `glass in: ${t}`);
   }
   assert.match(mail.text, /Pay £4,500: https:\/\/checkout\.stripe\.com/);
+  assert.ok(!/back on track/i.test(mail.text));
 });

@@ -10,6 +10,7 @@
  */
 import { normalizePlan, type BillingKind, type PlanId } from "../catalog.ts";
 import { dealerMatchNote, similarPaidTenants, type MatchTenant } from "./dealer-match.ts";
+import { DUPLICATE_FLAG_TITLE } from "./refund-target.ts";
 
 export type OrderRow = {
   id: number;
@@ -205,7 +206,7 @@ export async function applyPaidOrder(
       flags.push({
         tenantId: order.tenant_id,
         kind: "duplicate_payment",
-        title: "Second payment for a site that is already paid for",
+        title: DUPLICATE_FLAG_TITLE,
         body: `Order #${order.id} was paid (Stripe session ${session?.id ?? "none"}${
           incoming ? `, subscription ${incoming}` : ""
         }) but this site already had paid order${others.length > 1 ? "s" : ""} #${others.join(", #")}. The site was not changed. ${kept} Refund the duplicate setup${

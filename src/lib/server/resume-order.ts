@@ -10,6 +10,8 @@
  * Pure (no framework or `@/` imports) so it can be unit tested with node --test.
  */
 import { tenantEnded } from "./billing-start.ts";
+import { subscriptionEnded } from "./checkout-guard.ts";
+import { ownSessions } from "./refund-target.ts";
 
 /** A Stripe Checkout session on this file, as Resume needs it. */
 export type ResumeSession = {
@@ -35,64 +37,16 @@ export type PaymentFacts = {
 export type SkippedSession = { id: string; reason: string };
 
 /**
- * Is this paid session one the site itself owes for? A second subscription
- * checkout (a duplicate payment) carries its own subscription, which is not
- * the site's stored one. With no stored subscription we cannot tell, so the
- * caller keeps only the oldest paid subscription checkout.
- */
-export function sessionIsSitesOwn(
-  session: Pick<ResumeSession, "mode" | "subscription">,
-  storedSubscription: string | null | undefined,
-): boolean {
-  if (session.mode !== "subscription") return true;
-  if (!storedSubscription) return true;
-  return session.subscription === storedSubscription;
-}
-
-/**
- * Which sessions count towards what the site owes and paid. Duplicates are
- * left out on both sides, so a duplicate refund never looks like a balance.
+ * Which sessions count towards what the site owes and paid: the current
+ * package only, never a flagged duplicate. Same rule as Office Refund
+ * (ownSessions in refund-target.ts).
  */
 export function sessionsThatCount(
   sessions: ResumeSession[],
-  storedSubscription: string | null | undefined,
+  opts: { duplicateSessionIds?: Iterable<string>; endedAt?: (number | null | undefined)[] } = {},
 ): { counted: ResumeSession[]; skipped: SkippedSession[] } {
-  const counted: ResumeSession[] = [];
-  const skipped: SkippedSession[] = [];
-  const oldestFirst = [...sessions].sort((a, b) => a.created - b.created);
-  let trialSeen = false;
-  let subscriptionSeen = false;
-  for (const s of oldestFirst) {
-    if (s.payment_status !== "paid") {
-      skipped.push({ id: s.id, reason: "not paid" });
-      continue;
-    }
-    if (s.kind === "balance") {
-      counted.push(s);
-      continue;
-    }
-    if (s.mode === "subscription") {
-      if (!sessionIsSitesOwn(s, storedSubscription)) {
-        skipped.push({ id: s.id, reason: `duplicate payment: subscription ${s.subscription ?? "none"} is not this site's own` });
-        continue;
-      }
-      if (!storedSubscription && subscriptionSeen) {
-        skipped.push({ id: s.id, reason: "second subscription checkout on a file with no stored subscription" });
-        continue;
-      }
-      subscriptionSeen = true;
-      counted.push(s);
-      continue;
-    }
-    // Payment mode that is not a balance link: the 60-day trial fee. A site pays it once.
-    if (trialSeen) {
-      skipped.push({ id: s.id, reason: "second trial fee (duplicate payment)" });
-      continue;
-    }
-    trialSeen = true;
-    counted.push(s);
-  }
-  return { counted, skipped };
+  const { own, skipped } = ownSessions(sessions, opts);
+  return { counted: own, skipped };
 }
 
 export type Balance = {
@@ -109,6 +63,8 @@ export type Balance = {
   creditPence: number;
   /** True when no payment has gone through at all, so due comes from the order. */
   neverPaid: boolean;
+  /** A payment could not be read from Stripe, so owed cannot be trusted. Never show it as £0. */
+  unknown: boolean;
 };
 
 /**
@@ -121,13 +77,17 @@ export function balanceOwed(input: {
   counted: ResumeSession[];
   facts: Record<string, PaymentFacts | undefined>;
   orderAmountPence?: number | null;
+  /** Set when Stripe could not be read for some payment. */
+  unknown?: boolean;
 }): Balance {
   let due = 0;
   let paid = 0;
   let refunded = 0;
   let packagePaid = 0;
+  let missing = Boolean(input.unknown);
   for (const s of input.counted) {
     const f = input.facts[s.id];
+    if (!f && (s.amount_total ?? 0) > 0) missing = true;
     const paidHere = f ? f.paidPence : (s.amount_total ?? 0);
     const refundedHere = Math.min(f ? f.refundedPence : 0, paidHere);
     paid += paidHere;
@@ -148,6 +108,7 @@ export function balanceOwed(input: {
     owedPence: Math.max(0, due - net),
     creditPence: Math.max(0, net - due),
     neverPaid,
+    unknown: missing,
   };
 }
 
@@ -235,9 +196,17 @@ export function resumeStatus(input: {
   return input.billing === "trial" ? "trial" : "subscribed";
 }
 
-/** Order rows the refund or cancel touched go back to what Stripe shows. */
-export function orderStatusAfterResume(orderStatus: string | null | undefined, sessionPaid: boolean): string | null {
+/**
+ * Order rows the refund or cancel touched go back to what Stripe shows. A
+ * fully refunded order stays refunded: the money is gone.
+ */
+export function orderStatusAfterResume(
+  orderStatus: string | null | undefined,
+  sessionPaid: boolean,
+  fullyRefunded = false,
+): string | null {
   if (orderStatus !== "refunded" && orderStatus !== "cancelled") return null;
+  if (fullyRefunded) return orderStatus === "refunded" ? null : "refunded";
   return sessionPaid ? "paid" : "pending";
 }
 
@@ -254,12 +223,20 @@ export type SubscriptionPlan =
   | { kind: "none_needed"; text: string }
   | { kind: "running"; text: string }
   | { kind: "set_to_cancel"; text: string; subscriptionId: string }
-  | { kind: "ended"; text: string; canCreate: boolean; createBlocked?: string }
+  /** Still live in Stripe (unpaid, paused, incomplete): not ended, so nothing new is set up. */
+  | { kind: "alive_other"; text: string }
+  | { kind: "ended"; text: string; canCreate: boolean; createBlocked?: string; latestStart: string }
   | { kind: "unknown"; text: string };
 
 function day(unix: number | null | undefined) {
   if (!unix) return null;
   return new Date(unix * 1000).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/London" });
+}
+
+/** The latest a new subscription could start: 180 days from today, shown to staff before they tick. */
+export function latestStartFrom(now: Date, days: number): { unix: number; label: string } {
+  const unix = Math.floor(now.getTime() / 86_400_000) * 86_400 + days * 86_400;
+  return { unix, label: day(unix)! };
 }
 
 /** What Resume can do about the monthly plan, in words staff can act on. */
@@ -274,6 +251,12 @@ export function subscriptionPlan(input: {
   monthlyLabel: string;
   /** The old subscription's Stripe product, which a new subscription reuses. */
   productId?: string | null;
+  /** Every other subscription on the Stripe customer that is not ended. */
+  otherLive?: { id: string; status: string }[];
+  /** True when the customer's subscriptions could not be listed. */
+  listFailed?: boolean;
+  /** Latest start date for a new subscription, e.g. "31 Mar 2027". */
+  latestStart: string;
 }): SubscriptionPlan {
   const sub = input.subscription;
   if (input.lookupFailed) {
@@ -294,19 +277,31 @@ export function subscriptionPlan(input: {
     const waiting = sub.status === "trialing" ? ` It waits for go live${day(sub.trial_end) ? ` (or ${day(sub.trial_end)} at the latest)` : ""}.` : "";
     return { kind: "running", text: `The ${input.monthlyLabel} a month subscription is still running, so nothing changes in Stripe.${waiting}` };
   }
+  if (sub && !subscriptionEnded(sub.status)) {
+    return {
+      kind: "alive_other",
+      text: `The ${input.monthlyLabel} a month subscription is ${sub.status} in Stripe, so it still counts as live. Resume will not touch it or set up another one. Sort it out in Stripe.`,
+    };
+  }
   const gone = sub ? `was fully cancelled in Stripe (status ${sub.status})` : input.hadSubscription ? "is gone from Stripe" : "was never set up";
-  const blocked = !input.customerId
-    ? "There is no Stripe customer on this file, so a new subscription cannot be set up from here."
-    : input.stage === "live"
-      ? "The site is already live, so a subscription waiting for go live would never start. Set the monthly up in Stripe by hand."
-      : !input.productId
-        ? "There is no earlier subscription to copy the monthly price from, so set it up in Stripe by hand."
-        : undefined;
+  const live = input.otherLive ?? [];
+  const blocked = input.listFailed
+    ? "Could not check the customer's other subscriptions in Stripe, so a new one will not be set up from here."
+    : live.length
+      ? `This customer already has a live subscription in Stripe (${live.map((l) => `${l.id}, ${l.status}`).join("; ")}). Resume will not set up a second one.`
+      : !input.customerId
+        ? "There is no Stripe customer on this file, so a new subscription cannot be set up from here."
+        : input.stage === "live"
+          ? "The site is already live, so a subscription waiting for go live would never start. Set the monthly up in Stripe by hand."
+          : !input.productId
+            ? "There is no earlier subscription to copy the monthly price from, so set it up in Stripe by hand."
+            : undefined;
   return {
     kind: "ended",
     canCreate: !blocked,
     createBlocked: blocked,
-    text: `The ${input.monthlyLabel} a month subscription ${gone}. A cancelled subscription cannot be restarted. You can set up a new ${input.monthlyLabel} a month subscription now that waits for go live and starts when you mark the site Live, through the normal go live billing. Or leave it and nothing is billed until you choose.`,
+    latestStart: input.latestStart,
+    text: `The ${input.monthlyLabel} a month subscription ${gone}. A cancelled subscription cannot be restarted. You can set up a new ${input.monthlyLabel} a month subscription that starts when you mark the site Live, or on ${input.latestStart} at the latest, through the normal go live billing. Or leave it and nothing is billed until you choose.`,
   };
 }
 
@@ -315,18 +310,46 @@ export type ResumeChoice = {
   newSubscription: boolean;
 };
 
+/** Where Resume puts the package, in plain words. */
+export function backOnPhrase(newStatus: string): string {
+  if (newStatus === "trial") return "put them back on their 60-day trial";
+  if (newStatus === "live") return "put them back to Live";
+  return "put them back on the monthly plan";
+}
+
+/** The owed amount in plain words, for the panel. */
+export function owedSentence(b: Balance): string {
+  if (b.unknown) return "Some payments could not be read from Stripe, so the amount owed is unknown. Check Stripe before collecting anything.";
+  if (b.neverPaid) {
+    return b.owedPence > 0
+      ? `No card payment has gone through on Stripe for this file, so the full ${gbp(b.owedPence)} on its order is owed.`
+      : "No card payment has gone through on Stripe for this file, and nothing is due.";
+  }
+  if (b.refundedPence > 0) {
+    return `After the ${gbp(b.refundedPence)} refund they have ${gbp(b.netPaidPence)} with us, so ${b.owedPence > 0 ? `${gbp(b.owedPence)} is owed` : "nothing is owed"}.`;
+  }
+  if (b.owedPence > 0) return `They have ${gbp(b.netPaidPence)} with us against ${gbp(b.duePence)}, so ${gbp(b.owedPence)} is owed.`;
+  return `Nothing was refunded in Stripe, so they still have ${gbp(b.netPaidPence)} with us and nothing is owed.`;
+}
+
+/** The main button: the money is on it when something is owed. */
+export function resumeButtonLabel(b: Balance): string {
+  if (b.unknown) return "Resume (amount owed unknown)";
+  return b.owedPence > 0 ? `Resume with ${gbp(b.owedPence)} owed` : "Resume order";
+}
+
 /** The plain list of what Resume will do, shown before staff confirm. */
 export function resumeSteps(input: {
   status: string;
   stage: StagePick;
   stageLabel: string;
-  newStatusLabel: string;
+  newStatus: string;
   balance: Balance;
   plan: SubscriptionPlan;
   choice: ResumeChoice;
 }): string[] {
   const steps = [
-    `Clear the ${input.status} flag and set the package back to ${input.newStatusLabel}.`,
+    `Clear the ${input.status} flag and ${backOnPhrase(input.newStatus)}.`,
     `Put the order at ${input.stageLabel}: ${input.stage.why}.`,
     "Write a timeline event and an internal note with who resumed it, when, and these amounts.",
     "Journey emails and the You're live email work again from the next stage move. Nothing is emailed by resuming.",
@@ -336,14 +359,16 @@ export function resumeSteps(input: {
   } else if (input.plan.kind === "ended") {
     steps.push(
       input.choice.newSubscription && input.plan.canCreate
-        ? "Set up a new monthly subscription in Stripe that waits for go live. Nothing is charged today."
+        ? `Set up a new monthly subscription in Stripe that starts at go live, or on ${input.plan.latestStart} at the latest. Nothing is charged today.`
         : "No monthly subscription is set up. Nothing is billed until you choose.",
     );
   }
   steps.push(
-    input.balance.owedPence > 0
-      ? `${gbp(input.balance.owedPence)} is still owed. Resuming does not charge it. Send a payment link if you want it collected.`
-      : "Nothing is owed, so no payment is needed.",
+    input.balance.unknown
+      ? "The amount owed could not be checked in Stripe. Resuming does not charge anything. Check Stripe before collecting."
+      : input.balance.owedPence > 0
+        ? `${gbp(input.balance.owedPence)} is still owed. Resuming does not charge it. Send the payment link above if you want it collected.`
+        : "Nothing is owed, so no payment is needed.",
   );
   return steps;
 }
@@ -372,9 +397,11 @@ export function resumeNote(input: {
     minute: "2-digit",
   });
   const b = input.balance;
-  const money = b.neverPaid
+  const money = b.unknown
+    ? `Amount owed unknown: Stripe could not be read for every payment. Paid before refunds ${gbp(b.paidPence)}, refunded ${gbp(b.refundedPence)}.`
+    : b.neverPaid
     ? `No card payment has gone through on this file. ${gbp(b.duePence)} due, ${gbp(b.owedPence)} owed.`
-    : `Paid ${gbp(b.paidPence)}, refunded ${gbp(b.refundedPence)}, due ${gbp(b.duePence)}, owed now ${gbp(b.owedPence)}.`;
+    : `Paid before refunds ${gbp(b.paidPence)}, refunded ${gbp(b.refundedPence)}, package price so far ${gbp(b.duePence)}, owed now ${gbp(b.owedPence)}.`;
   return [
     `Resumed by ${input.actor} on ${when} (UK time). Was ${input.from}, now ${input.toStatus} at ${input.stageLabel}.`,
     money,
@@ -389,6 +416,8 @@ export type ResumeDeps = {
   undoCancel: (subscriptionId: string, params: { cancel_at_period_end: false } | { cancel_at: "" }, idempotencyKey: string) => Promise<void>;
   /** Stripe: a new monthly subscription waiting for go live. Returns its id. */
   createSubscription: (idempotencyKey: string) => Promise<{ id: string; line: string }>;
+  /** Stripe: cancel a subscription this call just set up, when the desk write failed. */
+  cancelSubscription?: (subscriptionId: string) => Promise<void>;
   /** Conditional write: only a file still refunded or cancelled is changed. True if this call changed it. */
   claim: (patch: Record<string, unknown>) => Promise<boolean>;
   setOrderStatus: (orderId: number, status: string) => Promise<void>;
@@ -414,7 +443,7 @@ export type ResumeInput = {
   stage: string;
   stageLabel: string;
   balance: Balance;
-  orders: { id: number; status: string | null; sessionPaid: boolean }[];
+  orders: { id: number; status: string | null; sessionPaid: boolean; fullyRefunded?: boolean }[];
 };
 
 export type ResumeResult = { ok: true; noop: boolean; message: string };
@@ -424,7 +453,10 @@ export type ResumeResult = { ok: true; noop: boolean; message: string };
  * a fixed key (a retry reuses it), then a conditional write so only one
  * request resumes the file, then the orders, timeline and note.
  */
+export const OWNER_ONLY_MESSAGE = "Only an owner can resume an order. Nothing was changed.";
+
 export async function executeResume(deps: ResumeDeps, input: ResumeInput): Promise<ResumeResult> {
+  if (!input.owner) throw new Error(OWNER_ONLY_MESSAGE);
   if (resumeDecision(input.status) === "noop") {
     deps.log("[resume] no-op, already active", { tenantId: input.tenantId, status: input.status, by: input.actor });
     return { ok: true, noop: true, message: "This order is already active. Nothing changed." };
@@ -434,9 +466,6 @@ export async function executeResume(deps: ResumeDeps, input: ResumeInput): Promi
   }
   const undo = input.choice.undoCancel && input.plan.kind === "set_to_cancel";
   const create = input.choice.newSubscription && input.plan.kind === "ended";
-  if ((undo || create) && !input.owner) {
-    throw new Error("Only an owner can change the subscription in Stripe. Untick it to resume the desk only.");
-  }
   if (create && input.plan.kind === "ended" && !input.plan.canCreate) {
     throw new Error(input.plan.createBlocked ?? "Cannot set up a subscription from here.");
   }
@@ -455,12 +484,35 @@ export async function executeResume(deps: ResumeDeps, input: ResumeInput): Promi
   }
   const patch: Record<string, unknown> = { status: input.newStatus, cancelled_at: null, stage: input.stage };
   if (newSubscriptionId) patch.stripe_subscription_id = newSubscriptionId;
-  if (!(await deps.claim(patch))) {
+  let claimed: boolean;
+  try {
+    claimed = await deps.claim(patch);
+  } catch (e) {
+    // The desk write failed, so nothing points at the new subscription. Cancel
+    // it rather than leave a second live one behind. A false claim is
+    // different: another request resumed the file, maybe with this same
+    // subscription (same idempotency key), so it is left alone.
+    if (newSubscriptionId && deps.cancelSubscription) {
+      try {
+        await deps.cancelSubscription(newSubscriptionId);
+        deps.log("[resume] desk write failed, new subscription cancelled", { tenantId: input.tenantId, subscription: newSubscriptionId });
+      } catch (ce) {
+        deps.log("[resume] desk write failed and the new subscription could not be cancelled", {
+          tenantId: input.tenantId,
+          subscription: newSubscriptionId,
+          error: ce instanceof Error ? ce.message : String(ce),
+        });
+        throw new Error(`Resume failed after setting up subscription ${newSubscriptionId}, and it could not be cancelled. Cancel it in Stripe now.`);
+      }
+    }
+    throw e;
+  }
+  if (!claimed) {
     deps.log("[resume] no-op, resumed by another request", { tenantId: input.tenantId, by: input.actor });
     return { ok: true, noop: true, message: "This order was already resumed. Nothing changed." };
   }
   for (const o of input.orders) {
-    const next = orderStatusAfterResume(o.status, o.sessionPaid);
+    const next = orderStatusAfterResume(o.status, o.sessionPaid, o.fullyRefunded);
     if (next) await deps.setOrderStatus(o.id, next);
   }
   const body = resumeNote({
@@ -490,7 +542,9 @@ export async function executeResume(deps: ResumeDeps, input: ResumeInput): Promi
     owed: input.balance.owedPence,
     by: input.actor,
   });
-  const owed = input.balance.owedPence > 0 ? ` ${gbp(input.balance.owedPence)} is still owed. Send a payment link if you want it collected.` : "";
+  const owed = input.balance.unknown
+    ? " The amount owed could not be checked in Stripe. Check it there before collecting."
+    : input.balance.owedPence > 0 ? ` ${gbp(input.balance.owedPence)} is still owed. Send a payment link if you want it collected.` : "";
   return {
     ok: true,
     noop: false,

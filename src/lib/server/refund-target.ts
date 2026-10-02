@@ -163,3 +163,97 @@ export function refundConfirmText(target: RefundTarget | null, formatPence: (p: 
   }
   return parts.join(" ");
 }
+
+// ---------------------------------------------------------------- whose payment is it
+
+/** Title of the staff flag written when a second payment lands (payments.ts). */
+export const DUPLICATE_FLAG_TITLE = "Second payment for a site that is already paid for";
+
+const SESSION_ID_RE = /\bcs_(?:live|test)_[A-Za-z0-9]+\b/g;
+
+/** Stripe Checkout session ids named in a piece of text (a flag or link note). */
+export function sessionIdsIn(text: string | null | undefined): string[] {
+  return [...(text ?? "").matchAll(SESSION_ID_RE)].map((m) => m[0]);
+}
+
+/**
+ * Checkout sessions named in "Second payment" flags on the file: those are
+ * the duplicates. The flag names the duplicate first ("Order #9 was paid
+ * (Stripe session cs_..."); the order number is used too, via its session.
+ */
+export function flaggedDuplicateSessions(
+  events: { title?: string | null; body?: string | null }[],
+  orders: { id: number; stripe_session_id?: string | null }[] = [],
+): Set<string> {
+  const out = new Set<string>();
+  for (const e of events) {
+    if (e.title !== DUPLICATE_FLAG_TITLE) continue;
+    const first = sessionIdsIn(e.body)[0];
+    if (first) out.add(first);
+    const orderId = Number(/^Order #(\d+) was paid/.exec(e.body ?? "")?.[1]);
+    const sid = orders.find((o) => o.id === orderId)?.stripe_session_id;
+    if (sid) out.add(sid);
+  }
+  return out;
+}
+
+export type OwnSessionLike = {
+  id: string;
+  mode: string;
+  payment_status: string;
+  /** Unix seconds. */
+  created?: number | null;
+  /** Checkout metadata kind: trial, subscription, convert, balance. */
+  kind?: string | null;
+};
+
+function ukDate(unix: number) {
+  return new Date(unix * 1000).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/London" });
+}
+
+/**
+ * Which paid checkouts belong to the site's current package. Office Refund
+ * and Resume order both use this, so they always agree.
+ * - A checkout named in a "Second payment" flag is a duplicate.
+ * - A package that was refunded or cancelled is over: checkouts from before
+ *   the last end that came ahead of the newest purchase belong to that old
+ *   package (a refunded trial that buys again is a new package).
+ * - Within one package a site pays one trial fee; a second is a duplicate.
+ * The site's subscription id plays no part, so a subscription Resume set up
+ * never makes the original setup look like a duplicate.
+ */
+export function ownSessions<T extends OwnSessionLike>(
+  sessions: T[],
+  opts: { duplicateSessionIds?: Iterable<string>; endedAt?: (number | null | undefined)[] } = {},
+): { own: T[]; skipped: { id: string; reason: string }[] } {
+  const dupes = new Set(opts.duplicateSessionIds ?? []);
+  const ends = (opts.endedAt ?? []).filter((n): n is number => typeof n === "number" && Number.isFinite(n)).sort((a, b) => a - b);
+  const skipped: { id: string; reason: string }[] = [];
+  const paid: T[] = [];
+  for (const s of [...sessions].sort((a, b) => (a.created ?? 0) - (b.created ?? 0))) {
+    if (s.payment_status !== "paid") skipped.push({ id: s.id, reason: "not paid" });
+    else if (dupes.has(s.id)) skipped.push({ id: s.id, reason: "duplicate payment (flagged on the file)" });
+    else paid.push(s);
+  }
+  const purchases = paid.filter((s) => s.kind !== "balance");
+  const newest = purchases[purchases.length - 1];
+  const cutoff = newest ? [...ends].reverse().find((t) => t < (newest.created ?? 0)) : undefined;
+  const own: T[] = [];
+  let trialSeen = false;
+  for (const s of paid) {
+    if (cutoff !== undefined && (s.created ?? 0) < cutoff) {
+      skipped.push({ id: s.id, reason: `from an earlier package that was ended on ${ukDate(cutoff)}` });
+      continue;
+    }
+    const trial = s.mode === "payment" && s.kind !== "balance" && s.kind !== "subscription";
+    if (trial) {
+      if (trialSeen) {
+        skipped.push({ id: s.id, reason: "second trial fee in the same package (duplicate payment)" });
+        continue;
+      }
+      trialSeen = true;
+    }
+    own.push(s);
+  }
+  return { own, skipped };
+}

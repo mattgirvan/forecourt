@@ -14,9 +14,14 @@ import { SITE } from "@/lib/site";
 import { statusLabel } from "@/lib/team";
 import { actor, sbAdmin, stripeSecret } from "@/lib/server/staff-actor";
 import { emailOutcomeMessage, sendBalanceLinkEmail } from "@/lib/server/journey-email";
+import { subscriptionEnded } from "@/lib/server/checkout-guard";
+import { flaggedDuplicateSessions } from "@/lib/server/refund-target";
 import {
+  ENDED_EVENT_TITLES,
+  OWNER_ONLY_MESSAGE,
   balanceOwed,
   executeResume,
+  latestStartFrom,
   gbp,
   resumeDecision,
   resumeStage,
@@ -70,6 +75,8 @@ export type ResumeFacts = {
   events: EventRow[];
   sessions: ResumeSession[];
   sessionPaid: Record<string, boolean>;
+  /** Sessions whose card payment was refunded in full. */
+  sessionFullyRefunded: Record<string, boolean>;
   skipped: SkippedSession[];
   balance: Balance;
   refunds: { id: string; amount: string; date: string }[];
@@ -82,6 +89,8 @@ export type ResumeFacts = {
   /** The old subscription's product and card, reused by a new subscription. */
   productId: string | null;
   paymentMethod: string | null;
+  /** Latest start for a new subscription, if one is set up now. */
+  latestStart: { unix: number; label: string };
   warnings: string[];
 };
 
@@ -149,6 +158,7 @@ async function loadResumeFacts(admin: SupabaseClient, stripe: StripeClient | nul
     for (const m of (e.body ?? "").matchAll(SESSION_RE)) ids.add(m[1]!);
   }
 
+  let stripeGaps = !stripe;
   const sessions: ResumeSession[] = [];
   const sessionPaid: Record<string, boolean> = {};
   const facts: Record<string, PaymentFacts | undefined> = {};
@@ -179,6 +189,7 @@ async function loadResumeFacts(admin: SupabaseClient, stripe: StripeClient | nul
         }
         intents[s.id] = pi;
       } catch (err) {
+        stripeGaps = true;
         warnings.push(`Could not read Stripe session ${id.slice(0, 16)}… (${err instanceof Error ? err.message : "error"}).`);
       }
     }
@@ -186,7 +197,14 @@ async function loadResumeFacts(admin: SupabaseClient, stripe: StripeClient | nul
     warnings.push("Stripe is not connected on the server, so amounts could not be checked.");
   }
 
-  const { counted, skipped } = sessionsThatCount(sessions, storedSub);
+  // Duplicates are the checkouts named in a "Second payment" flag. A package
+  // that was refunded or cancelled before the newest purchase is over.
+  const endedAt: number[] = [];
+  for (const e of events) {
+    if (e.kind === "billing" && (ENDED_EVENT_TITLES as readonly string[]).includes(e.title ?? "")) endedAt.push(Math.floor(Date.parse(e.created_at) / 1000));
+  }
+  if (tenant.cancelled_at) endedAt.push(Math.floor(Date.parse(tenant.cancelled_at) / 1000));
+  const { counted, skipped } = sessionsThatCount(sessions, { duplicateSessionIds: flaggedDuplicateSessions(events, orders), endedAt });
   const refunds: ResumeFacts["refunds"] = [];
   if (stripe) {
     for (const s of counted) {
@@ -200,12 +218,15 @@ async function loadResumeFacts(admin: SupabaseClient, stripe: StripeClient | nul
         facts[s.id] = f;
         for (const r of f.refunds) refunds.push({ id: r.id, amount: gbp(r.amountPence), date: london(r.created) });
       } catch (err) {
+        stripeGaps = true;
         warnings.push(`Could not read the payment for ${s.id.slice(0, 16)}… (${err instanceof Error ? err.message : "error"}).`);
       }
     }
   }
   const latestOrder = orders[0] ?? null;
-  const balance = balanceOwed({ counted, facts, orderAmountPence: latestOrder?.amount_pence ?? null });
+  const balance = balanceOwed({ counted, facts, orderAmountPence: latestOrder?.amount_pence ?? null, unknown: stripeGaps });
+  const sessionFullyRefunded: Record<string, boolean> = {};
+  for (const [id, f] of Object.entries(facts)) if (f && f.paidPence > 0 && f.refundedPence >= f.paidPence) sessionFullyRefunded[id] = true;
 
   let subscription: SubscriptionNow | null = null;
   let lookupFailed = false;
@@ -234,6 +255,19 @@ async function loadResumeFacts(admin: SupabaseClient, stripe: StripeClient | nul
     lookupFailed = true;
   }
 
+  // Any other subscription on the customer that is not ended blocks a new one.
+  let otherLive: { id: string; status: string }[] = [];
+  let listFailed = false;
+  if (customerId && stripe) {
+    try {
+      otherLive = await liveSubscriptions(stripe, customerId, subscription?.id ?? storedSub);
+    } catch (err) {
+      listFailed = true;
+      warnings.push(`Could not list the customer's subscriptions in Stripe (${err instanceof Error ? err.message : "error"}).`);
+    }
+  }
+  const latestStart = latestStartFrom(new Date(), MONTHLY_START_LATEST_DAYS);
+
   const stagePick = resumeStage({
     currentStage: tenant.stage,
     endedAt: tenant.cancelled_at,
@@ -252,6 +286,9 @@ async function loadResumeFacts(admin: SupabaseClient, stripe: StripeClient | nul
     customerId,
     monthlyLabel,
     productId,
+    otherLive,
+    listFailed,
+    latestStart: latestStart.label,
   });
   return {
     tenant,
@@ -259,6 +296,7 @@ async function loadResumeFacts(admin: SupabaseClient, stripe: StripeClient | nul
     events,
     sessions,
     sessionPaid,
+    sessionFullyRefunded,
     skipped,
     balance,
     refunds,
@@ -270,8 +308,15 @@ async function loadResumeFacts(admin: SupabaseClient, stripe: StripeClient | nul
     subscription,
     productId,
     paymentMethod,
+    latestStart,
     warnings,
   };
+}
+
+/** Subscriptions on the customer that are still live (anything but canceled or incomplete_expired). */
+async function liveSubscriptions(stripe: StripeClient, customer: string, except?: string | null) {
+  const list = await stripe.subscriptions.list({ customer, status: "all", limit: 100 });
+  return list.data.filter((s) => !subscriptionEnded(s.status) && s.id !== except).map((s) => ({ id: s.id, status: s.status }));
 }
 
 async function stripeClient(): Promise<StripeClient | null> {
@@ -293,6 +338,8 @@ export type ResumePreview = {
   skipped: SkippedSession[];
   stagePick: StagePick;
   stageLabel: string;
+  /** live, trial or subscribed: where Resume puts the package. */
+  newStatus: string;
   newStatusLabel: string;
   plan: SubscriptionPlan;
   warnings: string[];
@@ -314,6 +361,7 @@ function previewFrom(f: ResumeFacts, owner: boolean): ResumePreview {
     skipped: f.skipped,
     stagePick: f.stagePick,
     stageLabel,
+    newStatus: f.newStatus,
     newStatusLabel,
     plan: f.plan,
     warnings: f.warnings,
@@ -327,6 +375,7 @@ export const resumePreview = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<ResumePreview> => {
     const { sb, team, role } = await actor(data.token);
     if (!team) throw new Error("Office is for the Forecourt team.");
+    if (role !== "owner") throw new Error(OWNER_ONLY_MESSAGE);
     const admin = sbAdmin() ?? sb;
     const facts = await loadResumeFacts(admin, await stripeClient(), data.tenantId);
     return previewFrom(facts, role === "owner");
@@ -347,6 +396,7 @@ export const resumeOrder = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { sb, team, role, email } = await actor(data.token);
     if (!team) throw new Error("Office is for the Forecourt team.");
+    if (role !== "owner") throw new Error(OWNER_ONLY_MESSAGE);
     const admin = sbAdmin() ?? sb;
     const stripe = await stripeClient();
     const f = await loadResumeFacts(admin, stripe, data.tenantId);
@@ -360,8 +410,16 @@ export const resumeOrder = createServerFn({ method: "POST" })
         },
         createSubscription: async (idempotencyKey) => {
           if (!stripe || !f.customerId || !f.productId) throw new Error("Cannot set up a subscription from here.");
+          // Check again right before creating: never a second live subscription.
+          const live = await liveSubscriptions(stripe, f.customerId);
+          if (live.length) {
+            throw new Error(
+              `This customer already has a live subscription in Stripe (${live.map((l) => `${l.id}, ${l.status}`).join("; ")}). No new one was set up and nothing changed.`,
+            );
+          }
           // Latest start, like checkout: go live ends this wait early (startMonthlyAtGoLive).
-          const latest = Math.floor(Date.now() / 86_400_000) * 86_400 + MONTHLY_START_LATEST_DAYS * 86_400;
+          // The 180 days count from today, the day it is resumed.
+          const latest = latestStartFrom(new Date(), MONTHLY_START_LATEST_DAYS).unix;
           const sub = await stripe.subscriptions.create(
             {
               customer: f.customerId,
@@ -376,7 +434,17 @@ export const resumeOrder = createServerFn({ method: "POST" })
             },
             { idempotencyKey },
           );
-          return { id: sub.id, line: `New ${gbp(total)} a month subscription ${sub.id} set up, waiting for go live. Nothing charged today.` };
+          if (subscriptionEnded(sub.status)) {
+            throw new Error(`Stripe returned subscription ${sub.id}, which is ${sub.status}. Nothing changed on the desk. Set the monthly up in Stripe by hand.`);
+          }
+          return {
+            id: sub.id,
+            line: `New ${gbp(total)} a month subscription ${sub.id} set up, starting at go live or ${latestStartFrom(new Date(), MONTHLY_START_LATEST_DAYS).label} at the latest. Nothing charged today.`,
+          };
+        },
+        cancelSubscription: async (id) => {
+          if (!stripe) return;
+          await stripe.subscriptions.cancel(id);
         },
         claim: async (patch) => {
           const { data: won, error } = await admin
@@ -427,6 +495,7 @@ export const resumeOrder = createServerFn({ method: "POST" })
           id: o.id,
           status: o.status,
           sessionPaid: Boolean(o.stripe_session_id && f.sessionPaid[o.stripe_session_id]),
+          fullyRefunded: Boolean(o.stripe_session_id && f.sessionFullyRefunded[o.stripe_session_id]),
         })),
       },
     );
@@ -443,6 +512,7 @@ export const sendBalanceLink = createServerFn({ method: "POST" })
     if (!stripe) throw new Error("Stripe is not connected on the server, so no link was made.");
     const admin = sbAdmin() ?? sb;
     const f = await loadResumeFacts(admin, stripe, data.tenantId);
+    if (f.balance.unknown) throw new Error("Some payments could not be read from Stripe, so the amount owed is unknown. No link was made.");
     const owed = f.balance.owedPence;
     if (owed <= 0) throw new Error("Nothing is owed now, so no link was made.");
     if (owed !== data.expectOwedPence) {
@@ -455,9 +525,9 @@ export const sendBalanceLink = createServerFn({ method: "POST" })
     const dayAgo = Date.now() - 23 * 3600_000;
     for (const e of [...f.events].reverse()) {
       if (e.kind !== "billing" || e.title !== LINK_TITLE || Date.parse(e.created_at) < dayAgo) continue;
-      if (!(e.body ?? "").includes(`[${owed}p]`)) continue;
       const sid = [...(e.body ?? "").matchAll(SESSION_RE)][0]?.[1];
       if (!sid) continue;
+      if (!(e.body ?? "").includes(`[${owed}p]`)) continue;
       try {
         const s = await stripe.checkout.sessions.retrieve(sid);
         if (s.status === "open" && s.url) {
@@ -467,6 +537,26 @@ export const sendBalanceLink = createServerFn({ method: "POST" })
         }
       } catch {
         /* make a new one */
+      }
+    }
+    // An open link for a different amount is out of date: expire it so the
+    // customer cannot pay the wrong balance.
+    const expired: string[] = [];
+    for (const e of f.events) {
+      if (e.kind !== "billing" || e.title !== LINK_TITLE || Date.parse(e.created_at) < dayAgo) continue;
+      if ((e.body ?? "").includes(`[${owed}p]`)) continue;
+      for (const m of (e.body ?? "").matchAll(SESSION_RE)) {
+        const sid = m[1]!;
+        if (sid === sessionId) continue;
+        try {
+          const old = await stripe.checkout.sessions.retrieve(sid);
+          if (old.status === "open") {
+            await stripe.checkout.sessions.expire(sid);
+            expired.push(sid);
+          }
+        } catch (err) {
+          console.warn("[resume] could not expire an old balance link", { sid, error: err instanceof Error ? err.message : String(err) });
+        }
       }
     }
     let reused = Boolean(url);
@@ -518,7 +608,7 @@ export const sendBalanceLink = createServerFn({ method: "POST" })
         tenant_id: data.tenantId,
         author_email: email,
         visibility: "internal",
-        body: `${reused ? "Reused" : "Made"} a ${gbp(owed)} balance payment link (Stripe ${sessionId}). ${emailMessage}`,
+        body: `${reused ? "Reused" : "Made"} a ${gbp(owed)} balance payment link (Stripe ${sessionId}). ${emailMessage}${expired.length ? ` Expired the older link${expired.length > 1 ? "s" : ""} for a different amount: ${expired.join(", ")}.` : ""}`,
       });
     } catch {
       /* best effort */
