@@ -36,3 +36,12 @@ test("plan cards say roles, not seats", () => {
     for (const s of [p.body, p.why, p.tag, ...p.includes]) assert.ok(!/seat/i.test(s), s);
   }
 });
+
+test("role table and Administrator copy say role, not seat", async () => {
+  const { readFileSync } = await import("node:fs");
+  for (const f of ["src/components/trust/seat-matrix.tsx", "src/components/account/portal.tsx", "src/components/trust/doors-map.tsx", "src/routes/trust.tsx", "src/routes/how.tsx", "src/lib/roles.ts"]) {
+    const s = readFileSync(f, "utf8");
+    assert.ok(!/>Seats</.test(s), f);
+    assert.ok(!/administrator seat/i.test(s), f);
+  }
+});

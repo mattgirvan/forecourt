@@ -192,9 +192,9 @@ function Overview({
       </article>
       <article className="rounded-[1.75rem] border border-line bg-surface p-6 sm:p-8 lg:col-span-2">
         <div className="text-[13px] text-muted">On the desk</div>
-        <h2 className="mt-2 text-3xl font-semibold tracking-tight">Seats</h2>
+        <h2 className="mt-2 text-3xl font-semibold tracking-tight">Roles</h2>
         <p className="mt-2 text-sm text-muted">
-          {tenant.domain || "Your web address is set when we go live."} Administrator is a desk seat, not the Forecourt team.
+          {tenant.domain || "Your web address is set when we go live."} Administrator is a desk role, not the Forecourt team.
         </p>
         <div className="mt-6">
           <SeatMatrix plan={plan} billing={billing} compact />

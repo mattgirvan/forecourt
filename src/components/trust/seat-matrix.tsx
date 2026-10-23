@@ -22,11 +22,11 @@ export function SeatMatrix({
     <div className={cn("overflow-x-auto rounded-[1.75rem] border border-line bg-surface", compact ? "p-4" : "p-4 sm:p-8")}>
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-[13px] font-medium text-muted">Seats</p>
+          <p className="text-[13px] font-medium text-muted">Roles</p>
           <h3 className="mt-1 text-2xl font-semibold tracking-tight">Who sees what</h3>
         </div>
         <p className="max-w-sm text-xs leading-relaxed text-subtle">
-          Trial seats: sales, management, host, progressor. Administrator is a desk seat, not the Forecourt team.
+          Trial roles: sales, management, host, progressor. Administrator is a desk role, not the Forecourt team.
         </p>
       </div>
       {/* Phones: fixed layout like the CRM comparison table. Seat and what it
