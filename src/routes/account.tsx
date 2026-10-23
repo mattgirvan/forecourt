@@ -1,4 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { LiveView } from "@/components/account/live-view";
+import { isLiveTenant } from "@/lib/live-view";
 import { useEffect, useState, type ReactNode } from "react";
 
 import { DealerPortal } from "@/components/account/portal";
@@ -385,6 +387,10 @@ function AccountInner() {
         </div>
       </div>
     );
+  }
+
+  if (showPortal && current && token && isLiveTenant(current)) {
+    return <LiveView token={token} tenant={current} />;
   }
 
   if (showPortal && current && token) {

@@ -77,8 +77,8 @@ export type SiteDetails = {
   domain: string | null;
   /** When it went live: sign off date, else the first move to the Live stage. */
   goLiveAt: string | null;
-  /** go live + plan contract months; null for plans without a term. */
-  termEndAt: string | null;
+  /** Next annual renewal: go live plus 12 months, rolling forward each year. */
+  renewsAt: string | null;
   contractMonths: number | null;
 };
 
@@ -87,12 +87,26 @@ export function siteDetails(input: {
   signedOffAt?: string | null;
   liveStageAt?: string | null;
   contractMonths: number | null;
+  now?: Date;
 }): SiteDetails {
   const domain = (input.domain ?? "").trim() || null;
   const goLiveAt = input.signedOffAt || input.liveStageAt || null;
-  const termEndAt = goLiveAt && input.contractMonths ? addMonths(goLiveAt, input.contractMonths) : null;
-  return { domain, goLiveAt, termEndAt, contractMonths: input.contractMonths };
+  const renewsAt = goLiveAt ? nextRenewal(goLiveAt, input.now ?? new Date()) : null;
+  return { domain, goLiveAt, renewsAt, contractMonths: input.contractMonths };
 }
+
+/** Every plan renews every 12 months from go live (Matt, 23 Oct 2026). The first anniversary still ahead of now. */
+export const RENEWAL_MONTHS = 12;
+export function nextRenewal(goLiveAt: string, now: Date): string {
+  for (let n = 1; n < 200; n++) {
+    const at = addMonths(goLiveAt, RENEWAL_MONTHS * n);
+    if (new Date(at) > now) return at;
+  }
+  return addMonths(goLiveAt, RENEWAL_MONTHS);
+}
+
+export const CHANGE_COPY = "Unlimited change requests, included in your plan.";
+export const REPLY_TIME_COPY = "We usually reply within one working day.";
 
 export function ukDate(iso: string | null | undefined) {
   if (!iso) return "";
@@ -119,6 +133,10 @@ export type BillingSummary = {
   /** When Stripe retries a failed payment, if it is retrying. */
   retryAt: string | null;
   canManage: boolean;
+  /** Seats bought on top of the plan (quantity of the extra seat price on the subscription). */
+  extraSeats: number;
+  /** Price of one extra seat a month, null when extra seats are not set up in Stripe. */
+  seatPricePence: number | null;
 };
 
 export function cardLabel(card: BillingSummary["card"]) {

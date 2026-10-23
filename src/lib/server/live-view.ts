@@ -106,6 +106,8 @@ export const liveBillingSummary = createServerFn({ method: "POST" })
       pastDue: false,
       retryAt: null,
       canManage: Boolean(t.stripe_customer_id),
+      extraSeats: 0,
+      seatPricePence: null,
     };
     const stripe = await stripeClient();
     if (!stripe || !t.stripe_subscription_id) return base;
@@ -113,7 +115,17 @@ export const liveBillingSummary = createServerFn({ method: "POST" })
       const sub = await stripe.subscriptions.retrieve(t.stripe_subscription_id, {
         expand: ["default_payment_method", "latest_invoice", "customer.invoice_settings.default_payment_method"],
       });
-      const item = sub.items?.data?.[0];
+      const seatPrice = extraSeatPriceId();
+      const seatItem = seatPrice ? sub.items?.data?.find((i) => i.price?.id === seatPrice) : undefined;
+      const item = sub.items?.data?.find((i) => i.price?.id !== seatPrice) ?? sub.items?.data?.[0];
+      let seatPricePence: number | null = seatItem?.price?.unit_amount ?? null;
+      if (seatPrice && seatPricePence == null) {
+        try {
+          seatPricePence = (await stripe.prices.retrieve(seatPrice)).unit_amount ?? null;
+        } catch {
+          seatPricePence = null;
+        }
+      }
       const unit = item?.price?.unit_amount ?? null;
       const qty = item?.quantity ?? 1;
       // current_period_end lives on the item in newer Stripe API versions.
@@ -135,7 +147,9 @@ export const liveBillingSummary = createServerFn({ method: "POST" })
       return {
         ...base,
         connected: true,
-        monthlyPence: unit != null ? unit * qty : base.monthlyPence,
+        monthlyPence: unit != null ? unit * qty + (seatItem ? (seatItem.price?.unit_amount ?? 0) * (seatItem.quantity ?? 0) : 0) : base.monthlyPence,
+        extraSeats: seatItem?.quantity ?? 0,
+        seatPricePence,
         nextPaymentAt: sub.status === "trialing" && sub.trial_end ? new Date(sub.trial_end * 1000).toISOString() : periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
         card,
         pastDue: sub.status === "past_due" || sub.status === "unpaid" || failed,
@@ -161,6 +175,37 @@ export const openBillingPortal = createServerFn({ method: "POST" })
     if (!stripe) throw new Error("Billing is not connected right now. Message us and we will sort it.");
     const session = await stripe.billingPortal.sessions.create({ customer: t.stripe_customer_id, return_url: ACCOUNT_URL });
     return { url: session.url };
+  });
+
+// ------------------------------------------------------------ extra seats
+
+/** Stripe Price for one extra seat a month. Matt creates it and sets this env var; unset means the flow is hidden. */
+function extraSeatPriceId(): string | null {
+  return (process.env.STRIPE_PRICE_EXTRA_SEAT ?? "").trim() || null;
+}
+
+/**
+ * Dealer sets how many extra seats they pay for. Adds, updates or removes the
+ * extra seat item on their own subscription, prorated on the next invoice.
+ */
+export const setExtraSeats = createServerFn({ method: "POST" })
+  .validator((d: { token: string; tenantId: number; quantity: number }) => d)
+  .handler(async ({ data }): Promise<{ ok: true; extraSeats: number }> => {
+    const { t } = await loadTenant(data.token, data.tenantId);
+    const qty = Math.floor(Number(data.quantity));
+    if (!Number.isFinite(qty) || qty < 0 || qty > 50) throw new Error("Pick between 0 and 50 extra seats.");
+    const price = extraSeatPriceId();
+    const stripe = await stripeClient();
+    if (!price || !stripe) throw new Error("Extra seats are not switched on yet. Message us and we will add them.");
+    if (!t.stripe_subscription_id) throw new Error("No subscription on file yet. Message us and we will sort it.");
+    const sub = await stripe.subscriptions.retrieve(t.stripe_subscription_id);
+    if (sub.status === "canceled" || sub.status === "incomplete_expired") throw new Error("This plan is not active. Message us.");
+    const existing = sub.items.data.find((i) => i.price?.id === price);
+    const proration = { proration_behavior: "create_prorations" as const };
+    if (existing && qty === 0) await stripe.subscriptionItems.del(existing.id, proration);
+    else if (existing) await stripe.subscriptionItems.update(existing.id, { quantity: qty, ...proration });
+    else if (qty > 0) await stripe.subscriptionItems.create({ subscription: sub.id, price, quantity: qty, ...proration });
+    return { ok: true, extraSeats: qty };
   });
 
 // ------------------------------------------------------------ tickets and change requests

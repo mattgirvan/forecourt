@@ -8,13 +8,15 @@ test("term end is go live plus contract months, clamped to month end", () => {
 });
 
 test("site details prefer sign off, fall back to the live stage, no term without contract", () => {
-  const a = siteDetails({ domain: " desk.x.co.uk ", signedOffAt: "2026-09-14T10:00:00Z", liveStageAt: "2026-09-10T10:00:00Z", contractMonths: 12 });
+  const a = siteDetails({ domain: " desk.x.co.uk ", signedOffAt: "2026-09-14T10:00:00Z", liveStageAt: "2026-09-10T10:00:00Z", contractMonths: 12, now: new Date("2026-10-23T00:00:00Z") });
   assert.equal(a.domain, "desk.x.co.uk");
   assert.equal(a.goLiveAt, "2026-09-14T10:00:00Z");
-  assert.equal(a.termEndAt!.slice(0, 10), "2027-09-14");
+  assert.equal(a.renewsAt!.slice(0, 10), "2027-09-14");
+  const later = siteDetails({ signedOffAt: "2024-09-14T10:00:00Z", contractMonths: null, now: new Date("2026-10-23T00:00:00Z") });
+  assert.equal(later.renewsAt!.slice(0, 10), "2027-09-14");
   const b = siteDetails({ domain: "", liveStageAt: "2026-09-10T10:00:00Z", contractMonths: null });
   assert.equal(b.domain, null);
-  assert.equal(b.termEndAt, null);
+  assert.equal(b.renewsAt!.slice(0, 4) >= "2027", true);
 });
 
 test("statuses per kind and their tones", () => {
