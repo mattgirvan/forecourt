@@ -18,6 +18,7 @@ import { packageLive, statusLabel, trialDaysLeft } from "@/lib/team";
 import { cn } from "@/lib/utils";
 import { customerStepNumber } from "@/lib/journey";
 import { JourneyNow } from "@/components/journey/after-you-pay";
+import { PaymentIssueNotice } from "@/components/account/payment-issue";
 
 type Tenant = {
   id: number;
@@ -78,6 +79,8 @@ export function DealerPortal({
       {notice ? (
         <p className="mt-4 rounded-md border border-line bg-elevated px-3 py-2 text-sm">{notice}</p>
       ) : null}
+
+      <PaymentIssueNotice token={token} tenantId={tenant.id} />
 
       <div className="mt-8 flex flex-wrap gap-1.5">
         {(

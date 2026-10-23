@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { PaymentIssueNotice } from "@/components/account/payment-issue";
 import { useEffect, useMemo, useState } from "react";
 import { Notes, Thread } from "@/components/account/portal";
 import { OrderBuild } from "@/components/build/order-desk";
@@ -521,6 +522,7 @@ function TenantFile({ token, tenantId, onSaved }: { token: string; tenantId: num
 
       {pane === "billing" && (
         <div className="mt-8 space-y-6">
+          <PaymentIssueNotice token={token} tenantId={tenantId} team />
           <ul className="divide-y divide-line rounded-[1.75rem] border border-line bg-surface px-6">
             {receipts.length === 0 && <li className="py-6 text-sm text-muted">No receipts.</li>}
             {receipts.map((r) => (

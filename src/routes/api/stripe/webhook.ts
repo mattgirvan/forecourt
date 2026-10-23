@@ -3,13 +3,14 @@ import { createClient } from "@supabase/supabase-js";
 import { env } from "@/lib/env.server";
 import { SUPABASE_URL } from "@/lib/sb";
 import { seedPaidOrder } from "@/lib/server/build";
-import { sendStaffAlert, sendThankYouEmail } from "@/lib/server/journey-email";
+import { sendPaymentFailedEmail, sendStaffAlert, sendThankYouEmail } from "@/lib/server/journey-email";
 import {
   handleStripeWebhook,
   supabasePaymentStore,
   type SupabaseLike,
   type WebhookEvent,
 } from "@/lib/server/payments";
+import { supabaseIssueStore, type IssueDb } from "@/lib/server/payment-issues";
 
 function service() {
   const key = env("SUPABASE_SERVICE_ROLE_KEY") ?? env("GROK_SUPABASE_SERVICE_ROLE_KEY");
@@ -47,6 +48,15 @@ export const Route = createFileRoute("/api/stripe/webhook")({
               return stripe.webhooks.constructEvent(body, sig, hookSecret) as unknown as WebhookEvent;
             },
             log: console,
+            // Failed and recovered monthly payments (invoice.* events).
+            invoices: sb
+              ? {
+                  issues: supabaseIssueStore(sb as unknown as IssueDb),
+                  notifyCustomer: async (tenantId, f) => {
+                    await sendPaymentFailedEmail({ tenantId, invoiceId: f.invoiceId, nextRetryAt: f.nextRetryAt, stripeLivemode: null });
+                  },
+                }
+              : undefined,
             // Thank-you email. Gated by EMAIL_MODE (unset = off) and deduped
             // in email_log, so Stripe retries never send it twice.
             onPaid: async (order, session, event) => {
