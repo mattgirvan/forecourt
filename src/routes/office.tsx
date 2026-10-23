@@ -27,12 +27,14 @@ import {
 import { packageLive, statusLabel, trialDaysLeft } from "@/lib/team";
 import { useWhoAmI } from "@/lib/who-am-i";
 import { cn } from "@/lib/utils";
+import { SupportPane, SupportQueue } from "@/components/office/support-desk";
 
-type OfficeTab = "customers" | "staff" | "security";
+type OfficeTab = "customers" | "queue" | "staff" | "security";
 type OfficeSearch = { id?: number; tab?: OfficeTab };
 
 const TAB_LABEL: Record<OfficeTab, string> = {
   customers: "Customers",
+  queue: "Queue",
   staff: "Staff",
   security: "Sign-in & security",
 };
@@ -41,7 +43,7 @@ export const Route = createFileRoute("/office")({
   validateSearch: (raw: Record<string, unknown>): OfficeSearch => {
     const n = typeof raw.id === "string" ? Number(raw.id) : typeof raw.id === "number" ? raw.id : undefined;
     const tab: OfficeTab | undefined =
-      raw.tab === "staff" || raw.tab === "customers" || raw.tab === "security" ? raw.tab : undefined;
+      raw.tab === "staff" || raw.tab === "queue" || raw.tab === "customers" || raw.tab === "security" ? raw.tab : undefined;
     const out: OfficeSearch = {};
     if (typeof n === "number" && Number.isFinite(n)) out.id = n;
     if (tab) out.tab = tab;
@@ -199,7 +201,7 @@ function OfficeInner() {
           <h1 className="mt-2 text-4xl font-semibold tracking-tight">Office</h1>
         </div>
         <div className="flex flex-wrap gap-1.5">
-          {(["customers", "staff", "security"] as const).map((id) => (
+          {(["customers", "queue", "staff", "security"] as const).map((id) => (
             <button
               key={id}
               type="button"
@@ -225,6 +227,12 @@ function OfficeInner() {
             members={staff}
             onChange={() => void reload()}
           />
+        </div>
+      )}
+
+      {tab === "queue" && !search.id && token && (
+        <div className="mt-10">
+          <SupportQueue token={token} />
         </div>
       )}
 
@@ -300,7 +308,7 @@ function TenantFile({ token, tenantId, onSaved }: { token: string; tenantId: num
   const [group, setGroup] = useState("");
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
-  const [pane, setPane] = useState<"build" | "file" | "support" | "notes" | "billing">("build");
+  const [pane, setPane] = useState<"build" | "file" | "requests" | "support" | "notes" | "billing">("build");
 
   useEffect(() => {
     setFile(null);
@@ -445,7 +453,8 @@ function TenantFile({ token, tenantId, onSaved }: { token: string; tenantId: num
             ["build", "Build"],
             ["file", "File"],
             ["billing", "Billing"],
-            ["support", "Support"],
+            ["requests", "Tickets and requests"],
+            ["support", "Old messages"],
             ["notes", "Notes"],
           ] as const
         ).map(([id, label]) => (
@@ -578,6 +587,12 @@ function TenantFile({ token, tenantId, onSaved }: { token: string; tenantId: num
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {pane === "requests" && (
+        <div className="mt-8">
+          <SupportPane token={token} tenantId={tenantId} />
         </div>
       )}
 

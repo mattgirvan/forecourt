@@ -190,6 +190,52 @@ $p$;
 end
 $guard$;
 
+-- From live-support.sql, word for word. Skipped until those tables exist.
+do $guard$
+begin
+  if to_regclass('public.support_items') is not null and to_regclass('public.support_messages') is not null then
+    execute 'drop policy if exists "dealer support items" on support_items';
+    execute $p$
+create policy "dealer support items" on support_items
+  for select using (
+    (select public.auth_email_verified())
+    and exists (select 1 from tenants t where t.id = support_items.tenant_id and t.user_id = auth.uid())
+  )
+$p$;
+    execute 'drop policy if exists "dealer open support items" on support_items';
+    execute $p$
+create policy "dealer open support items" on support_items
+  for insert with check (
+    status in ('open', 'submitted')
+    and needs_reply
+    and (select public.auth_email_verified())
+    and exists (select 1 from tenants t where t.id = support_items.tenant_id and t.user_id = auth.uid())
+  )
+$p$;
+    execute 'drop policy if exists "dealer support messages" on support_messages';
+    execute $p$
+create policy "dealer support messages" on support_messages
+  for select using (
+    not internal
+    and (select public.auth_email_verified())
+    and exists (select 1 from tenants t where t.id = support_messages.tenant_id and t.user_id = auth.uid())
+  )
+$p$;
+    execute 'drop policy if exists "dealer send support messages" on support_messages';
+    execute $p$
+create policy "dealer send support messages" on support_messages
+  for insert with check (
+    not from_team
+    and not internal
+    and (select public.auth_email_verified())
+    and exists (select 1 from tenants t where t.id = support_messages.tenant_id and t.user_id = auth.uid())
+    and exists (select 1 from support_items i where i.id = support_messages.item_id and i.tenant_id = support_messages.tenant_id)
+  )
+$p$;
+  end if;
+end
+$guard$;
+
 commit;
 
 -- UNDO: run supabase/signin-verified-guard.rollback.sql. It puts the

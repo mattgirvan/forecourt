@@ -817,3 +817,38 @@ ${footer(reason, false)}`;
   ].join("\n");
   return { subject, preheader, html: shell({ title: subject, preheader, rows }), text };
 }
+
+// ------------------------------------------------------ support ticket or change request update
+
+export type SupportUpdateData = {
+  firstName?: string | null;
+  dealer: string;
+  kind: "ticket" | "change";
+  title: string;
+  /** One calm line, e.g. "We have replied." */
+  line: string;
+  accountUrl: string;
+};
+
+/** Staff replied to, or changed the status of, a ticket or change request. */
+export function supportUpdateEmail(d: SupportUpdateData): RenderedEmail {
+  const first = (d.firstName ?? "").trim().split(/\s+/)[0] ?? "";
+  const what = d.kind === "ticket" ? "ticket" : "change request";
+  const subject = `Update on your ${what}: ${d.title}`;
+  const preheader = d.line;
+  const hello = first ? `Hi ${first},` : "Hi,";
+  const intro = `There is an update on your ${what} "${d.title}". ${d.line}`;
+  const reason = `You are getting this because ${d.dealer} has a Forecourt plan.`;
+  const rows = `
+${header(`${d.dealer} · Support`)}
+${row(`${h1(`Update on your ${what}`)}
+  ${p(esc(hello))}
+  ${p(esc(intro))}
+  <div style="height:20px;line-height:20px;font-size:0;">&nbsp;</div>
+  ${buttonsRow(primaryButton(d.accountUrl, "Open your account"))}`, 0)}
+${row(contactCard(), 16)}
+${signoff("Thanks,")}
+${footer(reason, false)}`;
+  const text = [`Update on your ${what}`, "", hello, "", intro, "", `Open your account: ${d.accountUrl}`, "", "Thanks,", "Matt Girvan", "Founder, Forecourt", ...textFooter(reason, false)].join("\n");
+  return { subject, preheader, html: shell({ title: subject, preheader, rows }), text };
+}

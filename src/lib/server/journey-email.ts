@@ -7,7 +7,7 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { PLANS, monthTotalPence, normalizePlan } from "@/lib/catalog";
-import { EMAIL_FROM, EMAIL_REPLY_TO, balanceLinkEmail, monthlyRestartEmail, paymentFailedEmail, progressEmail, thankYouEmail, type PaymentKind } from "@/lib/email/templates";
+import { EMAIL_FROM, EMAIL_REPLY_TO, balanceLinkEmail, monthlyRestartEmail, paymentFailedEmail, supportUpdateEmail, progressEmail, thankYouEmail, type PaymentKind } from "@/lib/email/templates";
 import { env } from "@/lib/env.server";
 import { BOOK_URL, customerStepNumber } from "@/lib/journey";
 import { SITE } from "@/lib/site";
@@ -439,6 +439,49 @@ export async function sendPaymentFailedEmail(input: {
     );
   } catch (err) {
     console.error("[email] payment failed email failed", err);
+    return null;
+  }
+}
+
+/** Staff replied to or moved a ticket or change request. Same engine and gates as every journey email. */
+export async function sendSupportUpdateEmail(input: {
+  tenantId: number;
+  itemId: number;
+  title: string;
+  kind: "ticket" | "change";
+  line: string;
+  dedupe: string;
+}): Promise<DeliverResult | null> {
+  try {
+    const config = gateConfig();
+    if (config.mode === "off") return { sent: false, reason: "mode_off" };
+    const sb = serviceClient();
+    if (!sb) return null;
+    const t = await loadTenant(sb, input.tenantId);
+    if (!t) return null;
+    const mail = supportUpdateEmail({ firstName: t.principal_name, dealer: t.name || "your dealership", kind: input.kind, title: input.title, line: input.line, accountUrl: ACCOUNT_URL });
+    const { login, to } = await recipientFor(sb, t.user_id, t.email);
+    const staff = (await isStaffEmail(sb, login)) || (await isStaffEmail(sb, to));
+    return await deliverJourneyEmail(
+      { config, log: supabaseEmailLog(sb as unknown as EmailLogDb), send: resendSender(), logger: console },
+      {
+        dedupeKey: input.dedupe,
+        tenantId: t.id,
+        kind: "support_update",
+        step: null,
+        recipient: to,
+        from: EMAIL_FROM,
+        replyTo: EMAIL_REPLY_TO,
+        subject: mail.subject,
+        html: mail.html,
+        text: mail.text,
+        recipientIsStaff: staff,
+        stripeLivemode: null,
+        archived: Boolean(t.archived_at),
+      },
+    );
+  } catch (err) {
+    console.error("[email] support update failed", err);
     return null;
   }
 }
