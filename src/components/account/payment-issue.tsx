@@ -36,7 +36,7 @@ export function PaymentIssueNotice({ token, tenantId, team = false }: { token: s
         <p className="mt-1 text-sm text-muted">
           {gbpPence(issue.amountDuePence)} did not go through on {ukDay(issue.firstFailedAt)} (attempt {issue.attemptCount}).{" "}
           {issue.nextRetryAt ? `Stripe retries on ${ukDay(issue.nextRetryAt)}.` : "Stripe has no further retry scheduled."}
-          {issue.invoiceId ? ` Invoice ${issue.invoiceId}.` : ""} The customer was told we will be in touch. This clears by itself when Stripe collects the payment.
+          {issue.invoiceId ? ` Invoice ${issue.invoiceId}.` : ""} The customer sees a banner asking them to update their card. This clears by itself when Stripe collects the payment.
         </p>
       </div>
     );
