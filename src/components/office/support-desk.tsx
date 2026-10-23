@@ -9,7 +9,7 @@ const CHANGE_STATUSES: SupportStatus[] = ["submitted", "in_progress", "done", "d
 
 function NeedsReply() {
   return (
-    <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-[#d9a24b]/[.42] bg-[#d9a24b]/[.18] px-2.5 py-0.5 text-[11px] text-[#d9a24b]">
+    <span className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-[#d9a24b]/[.42] bg-[#d9a24b]/[.18] px-2.5 py-0.5 text-[11px] text-[#d9a24b]">
       <span className="h-1.5 w-1.5 rounded-full bg-current" />
       Needs reply
     </span>
@@ -51,20 +51,20 @@ function Table({ token, items, onChanged, showDealer, onOpen }: { token: string;
         <thead className="text-[12px] text-subtle">
           <tr className="border-b border-line">
             {showDealer ? <th className="px-4 py-2 font-normal">Dealer</th> : null}
-            <th className="px-4 py-2 font-normal">Type</th>
+            <th className="w-[150px] px-4 py-2 font-normal">Type</th>
             <th className="px-4 py-2 font-normal">Title</th>
-            <th className="px-4 py-2 font-normal">Needs</th>
+            <th className="whitespace-nowrap px-4 py-2 font-normal">Needs</th>
             <th className="px-4 py-2 font-normal">Status</th>
-            <th className="px-4 py-2 font-normal">Updated</th>
+            <th className="whitespace-nowrap px-4 py-2 font-normal">Updated</th>
           </tr>
         </thead>
         <tbody>
           {items.map((i) => (
             <tr key={i.id} className="cursor-pointer border-b border-line last:border-0 hover:bg-elevated/50" onClick={() => onOpen(i)}>
               {showDealer ? <td className="px-4 py-3">{i.tenant_name || `#${i.tenant_id}`}</td> : null}
-              <td className="px-4 py-3 text-muted">{i.kind === "ticket" ? `Ticket ${ticketRef(i.ref)}` : changeTypeLabel(i.change_type)}</td>
+              <td className="w-[150px] px-4 py-3 text-muted">{i.kind === "ticket" ? `Ticket ${ticketRef(i.ref)}` : changeTypeLabel(i.change_type)}</td>
               <td className="px-4 py-3 font-medium">{i.title}</td>
-              <td className="px-4 py-3">{i.needs_reply ? <NeedsReply /> : null}</td>
+              <td className="whitespace-nowrap px-4 py-3">{i.needs_reply ? <NeedsReply /> : null}</td>
               <td className="px-4 py-3">
                 <StatusSelect token={token} item={i} onChanged={onChanged} />
               </td>
@@ -111,12 +111,15 @@ const QUEUE_TABS = [
 ] as const;
 
 /** Office queue: every dealer's tickets and requests. */
-export function SupportQueue({ token }: { token: string }) {
-  const [data, setData] = useState<{ ready: boolean; items: SupportItem[] } | null>(null);
+/** `initial` skips the fetch; design previews and screenshots only. */
+export function SupportQueue({ token, initial }: { token: string; initial?: { ready: boolean; items: SupportItem[] } }) {
+  const [data, setData] = useState<{ ready: boolean; items: SupportItem[] } | null>(initial ?? null);
   const [tab, setTab] = useState<(typeof QUEUE_TABS)[number][0]>("open");
   const [open, setOpen] = useState<SupportItem | null>(null);
   const load = () => void listSupportQueue({ data: { token } }).then(setData).catch(() => setData({ ready: false, items: [] }));
-  useEffect(load, [token]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!initial) load();
+  }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
   const items = useMemo(() => {
     const all = data?.items ?? [];
     if (tab === "open") return all.filter((i) => isOpenStatus(i.status));
