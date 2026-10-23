@@ -650,7 +650,9 @@ function AccountAccess({
               <li key={m.id} className="flex items-center justify-between gap-3 border-t border-line py-2.5 text-sm">
                 <span className="min-w-0 truncate">{m.email}</span>
                 <span className="flex shrink-0 items-center gap-3">
-                  {m.status === "active" ? <Pill status="done" label="Manager" /> : <AmberPill>Invited</AmberPill>}
+                  <span className="inline-flex items-center whitespace-nowrap rounded-full border border-line bg-elevated px-2.5 py-0.5 text-[11px] text-muted">
+                    {m.status === "active" ? "Manager" : "Invited"}
+                  </span>
                   <button type="button" className="text-sm text-muted underline underline-offset-4" onClick={() => void remove(m)}>
                     Remove
                   </button>
