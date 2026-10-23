@@ -106,6 +106,7 @@ export function nextRenewal(goLiveAt: string, now: Date): string {
 }
 
 export const CHANGE_COPY = "Unlimited change requests, included in your plan.";
+export const STAFF_COPY = "Unlimited staff logins, included in your plan.";
 export const REPLY_TIME_COPY = "We usually reply within one working day.";
 
 /** en-GB gives "Sept"; house style is "Sep". */
@@ -139,10 +140,6 @@ export type BillingSummary = {
   /** When Stripe retries a failed payment, if it is retrying. */
   retryAt: string | null;
   canManage: boolean;
-  /** Seats bought on top of the plan (quantity of the extra seat price on the subscription). */
-  extraSeats: number;
-  /** Price of one extra seat a month, null when extra seats are not set up in Stripe. */
-  seatPricePence: number | null;
 };
 
 export function cardLabel(card: BillingSummary["card"]) {

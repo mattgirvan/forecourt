@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
-import { PLANS, gbpPence, normalizeBilling, normalizePlan } from "@/lib/catalog";
-import { rolesForPlan } from "@/lib/roles";
+import { PLANS, gbpPence, normalizePlan } from "@/lib/catalog";
 import { saveTenantFile } from "@/lib/server/portal";
 import {
   createSupportItem,
@@ -9,7 +8,6 @@ import {
   liveBillingSummary,
   liveSiteDetails,
   openBillingPortal,
-  setExtraSeats,
   replySupport,
   type SupportItem,
 } from "@/lib/server/live-view";
@@ -18,6 +16,7 @@ import {
   CHANGE_TYPES,
   PAYMENT_BANNER,
   REPLY_TIME_COPY,
+  STAFF_COPY,
   STATUS_LABEL,
   cardLabel,
   changeTypeLabel,
@@ -353,7 +352,6 @@ export type LiveViewData = { site: SiteDetails; bill: BillingSummary; support: {
 /** `initial` skips the fetches; used for design previews and screenshots only. */
 export function LiveView({ token, tenant, initial }: { token: string; tenant: LiveTenant; initial?: LiveViewData }) {
   const plan = normalizePlan(tenant.plan);
-  const billingKind = normalizeBilling(plan, tenant.billing);
   const [site, setSite] = useState<SiteDetails | null>(initial?.site ?? null);
   const [bill, setBill] = useState<BillingSummary | null>(initial?.bill ?? null);
   const [support, setSupport] = useState<{ ready: boolean; items: SupportItem[] } | null>(initial?.support ?? null);
@@ -521,13 +519,7 @@ export function LiveView({ token, tenant, initial }: { token: string; tenant: Li
           <p className={cn(hint, "mt-4")}>{CHANGE_COPY}</p>
         </section>
 
-        <Seats
-          token={token}
-          tenant={tenant}
-          base={rolesForPlan(plan, billingKind).length}
-          bill={bill}
-          onSeatsChanged={(extraSeats) => setBill((b) => (b ? { ...b, extraSeats } : b))}
-        />
+        <Seats token={token} tenant={tenant} />
       </div>
 
       {toast ? (
@@ -564,40 +556,8 @@ function initials(s: string) {
   );
 }
 
-/** Seats and staff. Self serve (Matt's default): saves the staff list on the file, as the People tab did. */
-function Seats({
-  token,
-  tenant,
-  base,
-  bill,
-  onSeatsChanged,
-}: {
-  token: string;
-  tenant: LiveTenant;
-  base: number;
-  bill: BillingSummary | null;
-  onSeatsChanged: (extra: number) => void;
-}) {
-  const extra = bill?.extraSeats ?? 0;
-  const total = base + extra;
-  const canBuy = Boolean(bill?.connected && bill.seatPricePence != null);
-  const [buying, setBuying] = useState(false);
-  const [want, setWant] = useState(1);
-  const [buyBusy, setBuyBusy] = useState(false);
-  const [buyErr, setBuyErr] = useState<string | null>(null);
-  async function buy() {
-    setBuyBusy(true);
-    setBuyErr(null);
-    try {
-      const r = await setExtraSeats({ data: { token, tenantId: tenant.id, quantity: extra + want } });
-      onSeatsChanged(r.extraSeats);
-      setBuying(false);
-    } catch (e) {
-      setBuyErr(e instanceof Error ? e.message : "Could not add seats.");
-    } finally {
-      setBuyBusy(false);
-    }
-  }
+/** Staff. Unlimited on every plan, no charge (Matt). Self serve: saves the staff list on the file, as the People tab did. */
+function Seats({ token, tenant }: { token: string; tenant: LiveTenant }) {
   const [members, setMembers] = useState<Member[]>(() => {
     try {
       const parsed = JSON.parse(tenant.staff_json || "[]") as Member[];
@@ -612,7 +572,6 @@ function Seats({
   const [err, setErr] = useState<string | null>(null);
   const owner = tenant.principal_name?.trim();
   const used = members.length + (owner ? 1 : 0);
-  const full = used >= total;
 
   async function save(next: Member[]) {
     setErr(null);
@@ -630,56 +589,18 @@ function Seats({
     <section className={cn(card, "lg:col-span-2")}>
       <CardHead
         eyebrowText="On the desk"
-        titleText="Seats and staff"
+        titleText="Staff"
         action={
-          <Button size="sm" variant="secondary" disabled={full} onClick={() => setAdding(true)}>
+          <Button size="sm" variant="secondary" onClick={() => setAdding(true)}>
             Add staff member
           </Button>
         }
       />
       <div className="mt-4 flex items-center justify-between text-sm">
-        <span className="text-muted">Seats used</span>
-        <span className="rounded-full border border-line bg-elevated px-2 py-0.5 text-[11px] text-muted">
-          {used} of {total}
-        </span>
+        <span className="text-muted">Staff on the desk</span>
+        <span className="rounded-full border border-line bg-elevated px-2 py-0.5 text-[11px] text-muted">{used}</span>
       </div>
-      <div className="mt-2 h-1 rounded-full bg-elevated">
-        <div className="h-1 rounded-full bg-muted" style={{ width: `${Math.min(100, (used / Math.max(total, 1)) * 100)}%` }} />
-      </div>
-      {extra ? <p className={cn(hint, "mt-2")}>Includes {extra} extra seat{extra === 1 ? "" : "s"} you've added.</p> : null}
-      {full ? <p className={cn(hint, "mt-2")}>All seats are in use. Remove someone{canBuy ? " or add more seats" : " or message us about more seats"}.</p> : null}
-      {canBuy ? (
-        <button type="button" className="mt-3 text-sm text-muted underline underline-offset-4" onClick={() => setBuying(true)}>
-          Add seats
-        </button>
-      ) : null}
-      <Drawer open={buying} onClose={() => setBuying(false)}>
-        <h2 className="text-xl font-semibold tracking-tight">Add seats</h2>
-        <p className={cn(hint, "mt-1")}>
-          {bill?.seatPricePence != null ? `${gbpPence(bill.seatPricePence)} a month per seat, added to your plan. ` : ""}You'll pay a part month on your next invoice.
-        </p>
-        <div className="mt-6 flex items-center gap-3">
-          <Button variant="secondary" size="sm" disabled={want <= 1} onClick={() => setWant(want - 1)} aria-label="One fewer">
-            -
-          </Button>
-          <span className="w-10 text-center text-xl font-semibold">{want}</span>
-          <Button variant="secondary" size="sm" disabled={want >= 20} onClick={() => setWant(want + 1)} aria-label="One more">
-            +
-          </Button>
-        </div>
-        <p className="mt-4 text-sm text-muted">
-          You'll have {total + want} seats{bill?.seatPricePence != null ? `, an extra ${gbpPence(bill.seatPricePence * want)} a month` : ""}.
-        </p>
-        {buyErr ? <p className="mt-2 text-sm text-muted">{buyErr}</p> : null}
-        <div className="mt-5 flex gap-2">
-          <Button disabled={buyBusy} onClick={() => void buy()}>
-            {buyBusy ? "Adding" : "Add seats"}
-          </Button>
-          <Button variant="secondary" onClick={() => setBuying(false)}>
-            Close
-          </Button>
-        </div>
-      </Drawer>
+      <p className={cn(hint, "mt-2")}>{STAFF_COPY}</p>
       <ul className="mt-3">
         {owner ? (
           <li className="flex items-center justify-between gap-3 border-b border-line py-3 text-sm">

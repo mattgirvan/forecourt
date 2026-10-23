@@ -9,7 +9,7 @@ const CHANGE_STATUSES: SupportStatus[] = ["submitted", "in_progress", "done", "d
 
 function NeedsReply() {
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full border border-[#d9a24b]/[.42] bg-[#d9a24b]/[.18] px-2.5 py-0.5 text-[11px] text-[#d9a24b]">
+    <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-[#d9a24b]/[.42] bg-[#d9a24b]/[.18] px-2.5 py-0.5 text-[11px] text-[#d9a24b]">
       <span className="h-1.5 w-1.5 rounded-full bg-current" />
       Needs reply
     </span>
@@ -68,7 +68,7 @@ function Table({ token, items, onChanged, showDealer, onOpen }: { token: string;
               <td className="px-4 py-3">
                 <StatusSelect token={token} item={i} onChanged={onChanged} />
               </td>
-              <td className="px-4 py-3 text-muted">{updatedWhen(i.updated_at)}</td>
+              <td className="whitespace-nowrap px-4 py-3 text-muted">{updatedWhen(i.updated_at)}</td>
             </tr>
           ))}
         </tbody>
