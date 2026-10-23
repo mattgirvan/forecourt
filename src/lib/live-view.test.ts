@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { addMonths, cardLabel, siteDetails, statusTone, validStatus, isOpenStatus, STATUS_LABEL, CHANGE_TYPES, updatedWhen } from "./live-view.ts";
+import { addMonths, cardLabel, siteDetails, statusTone, validStatus, isOpenStatus, STATUS_LABEL, CHANGE_TYPES, updatedWhen, ukDate } from "./live-view.ts";
 
 test("term end is go live plus contract months, clamped to month end", () => {
   assert.equal(addMonths("2026-09-14T10:00:00.000Z", 12).slice(0, 10), "2027-09-14");
@@ -33,6 +33,11 @@ test("card label and copy rules", () => {
   assert.equal(cardLabel(null), "None on file");
   const copy = [...Object.values(STATUS_LABEL), ...CHANGE_TYPES.flatMap((c) => [c.label, c.hint])].join(" ");
   assert.doesNotMatch(copy, /[\u2013\u2014]|glass|portal/i);
+});
+
+test("dates say Sep, never Sept", () => {
+  assert.equal(ukDate("2026-09-14T10:00:00Z"), "14 Sep 2026");
+  assert.equal(updatedWhen("2026-09-14T10:00:00Z", new Date("2026-10-23T12:00:00Z")), "14 Sep");
 });
 
 test("updated when", () => {

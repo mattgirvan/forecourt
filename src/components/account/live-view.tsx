@@ -16,6 +16,7 @@ import {
 import {
   CHANGE_COPY,
   CHANGE_TYPES,
+  PAYMENT_BANNER,
   REPLY_TIME_COPY,
   STATUS_LABEL,
   cardLabel,
@@ -162,7 +163,17 @@ export function ThreadDrawer({
   const meta = item.kind === "ticket" ? `${ticketRef(item.ref)} · Opened ${ukDate(item.created_at)}` : `${changeTypeLabel(item.change_type)} · ${ukDate(item.created_at)}`;
   return (
     <Drawer open onClose={onClose}>
-      <div className={hint}>{meta}</div>
+      <div className="flex items-start justify-between gap-3">
+        <div className={hint}>{meta}</div>
+        <button
+          type="button"
+          aria-label="Close"
+          onClick={onClose}
+          className="-mr-2 -mt-2 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-lg text-muted hover:bg-elevated hover:text-fg"
+        >
+          ×
+        </button>
+      </div>
       <div className="mt-1 flex items-start justify-between gap-3">
         <h2 className="text-xl font-semibold tracking-tight">{item.title}</h2>
         {statusControl ?? <Pill status={item.status} />}
@@ -400,10 +411,7 @@ export function LiveView({ token, tenant, initial }: { token: string; tenant: Li
         <div className="mt-6 flex flex-col gap-3 rounded-2xl border border-[#d9a24b]/40 bg-[#d9a24b]/10 p-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex gap-3">
             <span className="mt-1.5 hidden h-2 w-2 shrink-0 rounded-full bg-[#d9a24b] sm:block" />
-            <div>
-              <div className="text-sm font-medium">Your last payment didn't go through</div>
-              <p className="mt-1 text-sm text-muted">It happens. Your site is still live. Please update your card in billing and we'll try again automatically.</p>
-            </div>
+            <p className="text-sm">{PAYMENT_BANNER}</p>
           </div>
           <Button className="w-full sm:w-auto" disabled={portalBusy} onClick={() => void manageBilling()}>
             Manage billing
@@ -413,11 +421,11 @@ export function LiveView({ token, tenant, initial }: { token: string; tenant: Li
 
       <details className="group mt-6 rounded-2xl border border-line bg-surface px-4 py-3">
         <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm">
-          <span className="flex items-center gap-2">
-            <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[#4BA82E]/[.22] text-[10px] text-[#4BA82E]">✓</span>
+          <span className="flex min-w-0 items-start gap-2">
+            <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[#4BA82E]/[.22] text-[10px] text-[#4BA82E]">✓</span>
             Setup complete.{site?.goLiveAt ? ` Your site went live on ${ukDate(site.goLiveAt)}.` : ""}
           </span>
-          <span className={hint}>
+          <span className={cn(hint, "shrink-0 whitespace-nowrap")}>
             <span className="group-open:hidden">Show steps</span>
             <span className="hidden group-open:inline">Hide steps</span>
           </span>
@@ -467,7 +475,7 @@ export function LiveView({ token, tenant, initial }: { token: string; tenant: Li
             <Row k="Card">{bill ? cardLabel(bill.card) : <span className="text-subtle">Checking...</span>}</Row>
           </div>
           <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
-            <Button variant={failed ? "default" : "secondary"} className="w-full sm:w-auto" disabled={portalBusy} onClick={() => void manageBilling()}>
+            <Button variant="secondary" className="w-full sm:w-auto" disabled={portalBusy} onClick={() => void manageBilling()}>
               Manage billing
             </Button>
             <span className={hint}>Opens Stripe. We never see your card details.</span>
@@ -642,11 +650,11 @@ function Seats({
       {full ? <p className={cn(hint, "mt-2")}>All seats are in use. Remove someone{canBuy ? " or add more seats" : " or message us about more seats"}.</p> : null}
       {canBuy ? (
         <button type="button" className="mt-3 text-sm text-muted underline underline-offset-4" onClick={() => setBuying(true)}>
-          Add more seats
+          Add seats
         </button>
       ) : null}
       <Drawer open={buying} onClose={() => setBuying(false)}>
-        <h2 className="text-xl font-semibold tracking-tight">Add more seats</h2>
+        <h2 className="text-xl font-semibold tracking-tight">Add seats</h2>
         <p className={cn(hint, "mt-1")}>
           {bill?.seatPricePence != null ? `${gbpPence(bill.seatPricePence)} a month per seat, added to your plan. ` : ""}You'll pay a part month on your next invoice.
         </p>

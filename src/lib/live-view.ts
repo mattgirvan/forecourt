@@ -108,9 +108,15 @@ export function nextRenewal(goLiveAt: string, now: Date): string {
 export const CHANGE_COPY = "Unlimited change requests, included in your plan.";
 export const REPLY_TIME_COPY = "We usually reply within one working day.";
 
+/** en-GB gives "Sept"; house style is "Sep". */
+const sep = (s: string) => s.replace("Sept", "Sep");
+
+export const PAYMENT_BANNER =
+  "Your last payment didn't go through. It happens. Your site is still live. Update your card in billing and we'll try again automatically.";
+
 export function ukDate(iso: string | null | undefined) {
   if (!iso) return "";
-  return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/London" });
+  return sep(new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/London" }));
 }
 
 /** "Today, 09:12", "Yesterday" or "12 Oct". */
@@ -119,7 +125,7 @@ export function updatedWhen(iso: string, now = new Date()) {
   const key = (x: Date) => x.toLocaleDateString("en-GB", { timeZone: "Europe/London" });
   if (key(d) === key(now)) return `Today, ${d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" })}`;
   if (key(d) === key(new Date(now.getTime() - 86_400_000))) return "Yesterday";
-  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "Europe/London" });
+  return sep(d.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "Europe/London" }));
 }
 
 /** What Plan and billing shows. All read from Stripe, never typed in our UI. */
