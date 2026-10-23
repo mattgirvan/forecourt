@@ -7,7 +7,7 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { PLANS, monthTotalPence, normalizePlan } from "@/lib/catalog";
-import { EMAIL_FROM, EMAIL_REPLY_TO, balanceLinkEmail, monthlyRestartEmail, paymentFailedEmail, supportUpdateEmail, progressEmail, thankYouEmail, type PaymentKind } from "@/lib/email/templates";
+import { EMAIL_FROM, EMAIL_REPLY_TO, balanceLinkEmail, monthlyRestartEmail, paymentFailedEmail, supportUpdateEmail, managerInviteEmail, progressEmail, thankYouEmail, type PaymentKind } from "@/lib/email/templates";
 import { env } from "@/lib/env.server";
 import { BOOK_URL, customerStepNumber } from "@/lib/journey";
 import { SITE } from "@/lib/site";
@@ -482,6 +482,40 @@ export async function sendSupportUpdateEmail(input: {
     );
   } catch (err) {
     console.error("[email] support update failed", err);
+    return null;
+  }
+}
+
+/** Owner invited a manager. Goes to the invited address, deduped per invite. */
+export async function sendManagerInviteEmail(input: { tenantId: number; memberId: number; to: string; invitedBy: string }): Promise<DeliverResult | null> {
+  try {
+    const config = gateConfig();
+    if (config.mode === "off") return { sent: false, reason: "mode_off" };
+    const sb = serviceClient();
+    if (!sb) return null;
+    const t = await loadTenant(sb, input.tenantId);
+    if (!t) return null;
+    const mail = managerInviteEmail({ dealer: t.name || "your dealership", invitedBy: input.invitedBy, email: input.to, accountUrl: `${ACCOUNT_URL}?invite=1` });
+    return await deliverJourneyEmail(
+      { config, log: supabaseEmailLog(sb as unknown as EmailLogDb), send: resendSender(), logger: console },
+      {
+        dedupeKey: `manager-invite:${input.memberId}`,
+        tenantId: t.id,
+        kind: "manager_invite",
+        step: null,
+        recipient: input.to,
+        from: EMAIL_FROM,
+        replyTo: EMAIL_REPLY_TO,
+        subject: mail.subject,
+        html: mail.html,
+        text: mail.text,
+        recipientIsStaff: await isStaffEmail(sb, input.to),
+        stripeLivemode: null,
+        archived: Boolean(t.archived_at),
+      },
+    );
+  } catch (err) {
+    console.error("[email] manager invite failed", err);
     return null;
   }
 }

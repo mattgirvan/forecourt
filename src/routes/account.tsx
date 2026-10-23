@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { LiveView } from "@/components/account/live-view";
 import { isLiveTenant } from "@/lib/live-view";
+import { listManagedTenants } from "@/lib/server/members";
 import { useEffect, useState, type ReactNode } from "react";
 
 import { DealerPortal } from "@/components/account/portal";
@@ -107,6 +108,8 @@ function AccountInner() {
   const search = Route.useSearch();
   const token = useSbAccessToken();
   const [tenants, setTenants] = useState<TenantRow[]>([]);
+  // Accounts this user manages for an owner (manager-access.sql). Empty until the SQL runs.
+  const [managed, setManaged] = useState<Awaited<ReturnType<typeof listManagedTenants>>>([]);
   const [orders, setOrders] = useState<OrderRow[]>([]);
   const [activeId, setActiveId] = useState<number | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -173,6 +176,9 @@ function AccountInner() {
     ]);
     setTenants(t);
     setOrders(o);
+    void listManagedTenants({ data: { token } })
+      .then(setManaged)
+      .catch(() => setManaged([]));
     setTeam(me.team);
     const current = t.find((x) => x.id === activeId) ?? t[0];
     if (current) setActiveId(current.id);
@@ -391,6 +397,12 @@ function AccountInner() {
 
   if (showPortal && current && token && isLiveTenant(current)) {
     return <LiveView token={token} tenant={current} />;
+  }
+
+  // A manager with no account of their own: show the owner's account, read mostly.
+  const managedLive = managed.find((t) => isLiveTenant(t));
+  if (token && !team && live.length === 0 && managedLive && !search.plan && !wantCheckout) {
+    return <LiveView token={token} tenant={managedLive} role="manager" />;
   }
 
   if (showPortal && current && token) {

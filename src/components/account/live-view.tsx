@@ -14,6 +14,9 @@ import {
   CHANGE_COPY,
   CHANGE_TYPES,
   PAYMENT_BANNER,
+  PAYMENT_BANNER_MANAGER,
+  ACCESS_COPY,
+  MANAGER_COPY,
   REPLY_TIME_COPY,
   STAFF_COPY,
   STATUS_LABEL,
@@ -29,13 +32,14 @@ import {
   type SupportStatus,
 } from "@/lib/live-view";
 import { cn } from "@/lib/utils";
+import { inviteManager, listAccountMembers, removeAccountMember, type AccountMember } from "@/lib/server/members";
 
 export type LiveTenant = {
   id: number;
   name: string;
   plan: string;
   billing?: string | null;
-  principal_name?: string;
+  principal_name?: string | null;
   staff_json?: string;
 };
 
@@ -345,10 +349,17 @@ function ItemList({ items, empty, onOpen, ticket }: { items: SupportItem[]; empt
 }
 
 
-export type LiveViewData = { site: SiteDetails; bill: BillingSummary; support: { ready: boolean; items: SupportItem[] } };
+export type LiveViewData = {
+  site: SiteDetails;
+  bill: BillingSummary;
+  support: { ready: boolean; items: SupportItem[] };
+  members?: { ready: boolean; members: AccountMember[] };
+};
+export type LiveRole = "owner" | "manager";
 
 /** `initial` skips the fetches; used for design previews and screenshots only. */
-export function LiveView({ token, tenant, initial }: { token: string; tenant: LiveTenant; initial?: LiveViewData }) {
+export function LiveView({ token, tenant, initial, role = "owner" }: { token: string; tenant: LiveTenant; initial?: LiveViewData; role?: LiveRole }) {
+  const manager = role === "manager";
   const plan = normalizePlan(tenant.plan);
   const [site, setSite] = useState<SiteDetails | null>(initial?.site ?? null);
   const [bill, setBill] = useState<BillingSummary | null>(initial?.bill ?? null);
@@ -398,6 +409,7 @@ export function LiveView({ token, tenant, initial }: { token: string; tenant: Li
         {/* Always Live once live. Never changes with payment (Matt). */}
         <Pill status="done" label="Live" />
       </div>
+      {manager ? <p className="mt-3 text-sm text-muted">{MANAGER_COPY}</p> : null}
       <p className="mt-3 text-sm text-muted">
         {monthly ? `${gbpPence(monthly)} a month` : ""}
         {site?.renewsAt ? `${monthly ? " · " : ""}Renews ${ukDate(site.renewsAt)}` : ""}
@@ -407,11 +419,13 @@ export function LiveView({ token, tenant, initial }: { token: string; tenant: Li
         <div className="mt-6 flex flex-col gap-3 rounded-2xl border border-[#d9a24b]/40 bg-[#d9a24b]/10 p-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex gap-3">
             <span className="mt-1.5 hidden h-2 w-2 shrink-0 rounded-full bg-[#d9a24b] sm:block" />
-            <p className="text-sm">{PAYMENT_BANNER}</p>
+            <p className="text-sm">{manager ? PAYMENT_BANNER_MANAGER : PAYMENT_BANNER}</p>
           </div>
-          <Button className="w-full sm:w-auto" disabled={portalBusy} onClick={() => void manageBilling()}>
-            Manage billing
-          </Button>
+          {manager ? null : (
+            <Button className="w-full sm:w-auto" disabled={portalBusy} onClick={() => void manageBilling()}>
+              Manage billing
+            </Button>
+          )}
         </div>
       ) : null}
 
@@ -470,12 +484,16 @@ export function LiveView({ token, tenant, initial }: { token: string; tenant: Li
             </Row>
             <Row k="Card">{bill ? cardLabel(bill.card) : <span className="text-subtle">Checking...</span>}</Row>
           </div>
-          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
-            <Button variant="secondary" className="w-full sm:w-auto" disabled={portalBusy} onClick={() => void manageBilling()}>
-              Manage billing
-            </Button>
-            <span className={hint}>Opens Stripe. We never see your card details.</span>
-          </div>
+          {manager ? (
+            <p className={cn(hint, "mt-4")}>The account owner manages billing.</p>
+          ) : (
+            <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+              <Button variant="secondary" className="w-full sm:w-auto" disabled={portalBusy} onClick={() => void manageBilling()}>
+                Manage billing
+              </Button>
+              <span className={hint}>Opens Stripe. We never see your card details.</span>
+            </div>
+          )}
           {portalErr ? <p className="mt-2 text-sm text-muted">{portalErr}</p> : null}
         </section>
 
@@ -518,6 +536,7 @@ export function LiveView({ token, tenant, initial }: { token: string; tenant: Li
         </section>
 
         <DeskStaff domain={site?.domain ?? null} />
+        {manager ? null : <AccountAccess token={token} tenantId={tenant.id} initial={initial?.members} preview={Boolean(initial)} />}
       </div>
 
       {toast ? (
@@ -563,6 +582,108 @@ function DeskStaff({ domain }: { domain: string | null }) {
       />
       <p className="mt-4 text-sm text-muted">Managed in your desk. Open your desk, then Admin, to add or remove staff and send sign in codes.</p>
       <p className={cn(hint, "mt-2")}>{STAFF_COPY}</p>
+    </section>
+  );
+}
+
+function AccountAccess({
+  token,
+  tenantId,
+  initial,
+  preview,
+}: {
+  token: string;
+  tenantId: number;
+  initial?: { ready: boolean; members: AccountMember[] };
+  preview: boolean;
+}) {
+  const [data, setData] = useState<{ ready: boolean; members: AccountMember[] } | null>(initial ?? null);
+  const [email, setEmail] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const load = () =>
+    void listAccountMembers({ data: { token, tenantId } })
+      .then(setData)
+      .catch(() => setData({ ready: false, members: [] }));
+  useEffect(() => {
+    if (!preview) load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tenantId]);
+
+  async function invite() {
+    if (preview) return;
+    setBusy(true);
+    setMsg(null);
+    try {
+      const r = await inviteManager({ data: { token, tenantId, email } });
+      setMsg(r.emailed ? `Invite sent to ${email.trim().toLowerCase()}.` : "Added. They can sign in with that email now.");
+      setEmail("");
+      load();
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "Could not send the invite.");
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function remove(m: AccountMember) {
+    if (preview) return;
+    if (!window.confirm(`Remove ${m.email}? They lose access straight away.`)) return;
+    try {
+      await removeAccountMember({ data: { token, tenantId, memberId: m.id } });
+      load();
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "Could not remove them.");
+    }
+  }
+
+  const members = data?.members ?? [];
+  return (
+    <section className={cn(card, "lg:col-span-2")}>
+      <CardHead eyebrowText="Your Forecourt account" titleText="Account access" />
+      <p className="mt-4 text-sm text-muted">{ACCESS_COPY}</p>
+      {data && !data.ready ? (
+        <p className={cn(hint, "mt-4")}>Account access is not switched on yet. Message us and we will add them for you.</p>
+      ) : (
+        <>
+          <ul className="mt-4">
+            {members.map((m) => (
+              <li key={m.id} className="flex items-center justify-between gap-3 border-t border-line py-2.5 text-sm">
+                <span className="min-w-0 truncate">{m.email}</span>
+                <span className="flex shrink-0 items-center gap-3">
+                  <span className="inline-flex items-center whitespace-nowrap rounded-full border border-line bg-elevated px-2.5 py-0.5 text-[11px] text-muted">
+                    {m.status === "active" ? "Manager" : "Invited"}
+                  </span>
+                  <button type="button" className="text-sm text-muted underline underline-offset-4" onClick={() => void remove(m)}>
+                    Remove
+                  </button>
+                </span>
+              </li>
+            ))}
+            {members.length === 0 ? <li className="border-t border-line py-2.5 text-sm text-muted">Only you so far.</li> : null}
+          </ul>
+          <form
+            className="mt-4 flex flex-col gap-3 sm:flex-row"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void invite();
+            }}
+          >
+            <input
+              className={cn(input, "sm:flex-1")}
+              type="email"
+              required
+              placeholder="manager@yourdealership.co.uk"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              aria-label="Manager email"
+            />
+            <Button type="submit" className="w-full sm:w-auto" disabled={busy || !email.trim()}>
+              Invite manager
+            </Button>
+          </form>
+          {msg ? <p className={cn(hint, "mt-2")}>{msg}</p> : null}
+        </>
+      )}
     </section>
   );
 }
