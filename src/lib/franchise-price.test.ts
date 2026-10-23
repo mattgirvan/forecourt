@@ -28,3 +28,11 @@ test("franchise copy has no dashes and never says glass", () => {
     assert.ok(!/glass/i.test(s), s);
   }
 });
+
+test("plan cards say roles, not seats", () => {
+  assert.equal(PLANS.franchise.body, "Manufacturer feed, option codes, unlimited staff logins.");
+  assert.ok(PLANS.franchise.includes.includes("Every role: host, progressor, admin, accounts"));
+  for (const p of Object.values(PLANS)) {
+    for (const s of [p.body, p.why, p.tag, ...p.includes]) assert.ok(!/seat/i.test(s), s);
+  }
+});

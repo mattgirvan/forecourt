@@ -493,7 +493,7 @@ function AccountInner() {
             >
               <div className="text-sm font-medium">Subscribe</div>
               <div className="mt-1 text-xs text-muted">
-                {gbpPence(PLANS.site.setupPence)} setup + {gbpPence(PLANS.site.monthPence)}/month. Full site seats.
+                {gbpPence(PLANS.site.setupPence)} setup + {gbpPence(PLANS.site.monthPence)}/month. Every role, unlimited staff logins.
               </div>
             </button>
           </div>

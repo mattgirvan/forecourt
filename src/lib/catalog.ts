@@ -101,12 +101,12 @@ export const PLANS: Record<PlanId, Plan> = {
     contractMonths: 12,
     minSites: 1,
     sellNow: true,
-    body: "A franchise dealer. Manufacturer feed, option codes, extra seats. Twelve-month contract.",
+    body: "Manufacturer feed, option codes, unlimited staff logins.",
     why: "Manufacturer ingest is a real build. Twelve months from go live, billed monthly.",
     includes: [
       "One manufacturer brand",
       "Up to 5 sites included, then £100 a month per extra site",
-      "Every site seat: host, progressor, admin, accounts",
+      "Every role: host, progressor, admin, accounts",
       "Manufacturer ingest and locator mapping",
       "Billed monthly on a 12-month contract",
     ],
@@ -128,7 +128,7 @@ export const PLANS: Record<PlanId, Plan> = {
     includes: [
       "Every site on the contract",
       "Principal roll-up across the group",
-      "Seats scoped to site and franchise",
+      "Roles scoped to site and franchise",
       "£249 per site / month, 12-month contract",
     ],
   },
