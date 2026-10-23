@@ -87,7 +87,7 @@ export function DealerPortal({
             ["billing", "Billing"],
             ["messages", "Support"],
             ["notes", "Notes"],
-            ["people", "People"],
+            ...(tenant.stage === "live" || tenant.status === "live" ? [] : ([["people", "People"]] as const)),
           ] as const
         ).map(([id, label]) => (
           <button
@@ -481,7 +481,7 @@ function People({
 
   return (
     <div className="rounded-[1.75rem] border border-line bg-surface p-6 sm:p-8">
-      <h2 className="text-2xl font-semibold tracking-tight">Who’s on it</h2>
+      <h2 className="text-2xl font-semibold tracking-tight">Who should we set up on your desk?</h2>
       <p className="mt-2 text-sm text-muted">Names help us set up logins. Role is the seat, not the job title.</p>
       <label className="mt-6 block text-sm">
         Dealer principal

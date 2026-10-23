@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { PLANS, gbpPence, normalizePlan } from "@/lib/catalog";
-import { saveTenantFile } from "@/lib/server/portal";
 import {
   createSupportItem,
   listSupport,
@@ -345,7 +344,6 @@ function ItemList({ items, empty, onOpen, ticket }: { items: SupportItem[]; empt
   );
 }
 
-type Member = { name?: string; role?: string; email?: string };
 
 export type LiveViewData = { site: SiteDetails; bill: BillingSummary; support: { ready: boolean; items: SupportItem[] } };
 
@@ -519,7 +517,7 @@ export function LiveView({ token, tenant, initial }: { token: string; tenant: Li
           <p className={cn(hint, "mt-4")}>{CHANGE_COPY}</p>
         </section>
 
-        <Seats token={token} tenant={tenant} />
+        <DeskStaff domain={site?.domain ?? null} />
       </div>
 
       {toast ? (
@@ -545,135 +543,26 @@ export function LiveView({ token, tenant, initial }: { token: string; tenant: Li
   );
 }
 
-function initials(s: string) {
-  return (
-    s
-      .split(/[\s@.]+/)
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((w) => w[0]!.toUpperCase())
-      .join("") || "?"
-  );
-}
-
-/** Staff. Unlimited on every plan, no charge (Matt). Self serve: saves the staff list on the file, as the People tab did. */
-function Seats({ token, tenant }: { token: string; tenant: LiveTenant }) {
-  const [members, setMembers] = useState<Member[]>(() => {
-    try {
-      const parsed = JSON.parse(tenant.staff_json || "[]") as Member[];
-      return Array.isArray(parsed) ? parsed.filter((m) => (m.name || m.email || "").trim()) : [];
-    } catch {
-      return [];
-    }
-  });
-  const [adding, setAdding] = useState(false);
-  const [removing, setRemoving] = useState<number | null>(null);
-  const [form, setForm] = useState<Member>({ name: "", email: "", role: "sales" });
-  const [err, setErr] = useState<string | null>(null);
-  const owner = tenant.principal_name?.trim();
-  const used = members.length + (owner ? 1 : 0);
-
-  async function save(next: Member[]) {
-    setErr(null);
-    try {
-      await saveTenantFile({ data: { token, tenantId: tenant.id, staff_json: JSON.stringify(next) } });
-      setMembers(next);
-      return true;
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : "Could not save.");
-      return false;
-    }
-  }
-
+/** Desk staff live in the dealer's own desk (its Admin tab). Forecourt does not manage them. The desk has no /admin URL (Admin is an in app tab), so this opens the desk root. */
+function DeskStaff({ domain }: { domain: string | null }) {
+  const host = (domain ?? "").trim().replace(/^https?:\/\//, "").replace(/\/.*$/, "");
   return (
     <section className={cn(card, "lg:col-span-2")}>
       <CardHead
         eyebrowText="On the desk"
-        titleText="Staff"
+        titleText="Desk staff"
         action={
-          <Button size="sm" variant="secondary" onClick={() => setAdding(true)}>
-            Add staff member
-          </Button>
+          host ? (
+            <Button size="sm" variant="secondary" asChild>
+              <a href={`https://${host}/`} target="_blank" rel="noreferrer">
+                Open your desk
+              </a>
+            </Button>
+          ) : undefined
         }
       />
-      <div className="mt-4 flex items-center justify-between text-sm">
-        <span className="text-muted">Staff on the desk</span>
-        <span className="rounded-full border border-line bg-elevated px-2 py-0.5 text-[11px] text-muted">{used}</span>
-      </div>
+      <p className="mt-4 text-sm text-muted">Managed in your desk. Open your desk, then Admin, to add or remove staff and send sign in codes.</p>
       <p className={cn(hint, "mt-2")}>{STAFF_COPY}</p>
-      <ul className="mt-3">
-        {owner ? (
-          <li className="flex items-center justify-between gap-3 border-b border-line py-3 text-sm">
-            <span className="flex items-center gap-3">
-              <span className="flex h-8 w-8 items-center justify-center rounded-full border border-line text-[11px] text-muted">{initials(owner)}</span>
-              <span>
-                <span className="block font-medium">{owner}</span>
-                <span className={hint}>Owner</span>
-              </span>
-            </span>
-            <span className={hint}>You</span>
-          </li>
-        ) : null}
-        {members.map((m, i) => (
-          <li key={`${m.email}-${i}`} className="flex items-center justify-between gap-3 border-b border-line py-3 text-sm">
-            <span className="flex min-w-0 items-center gap-3">
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-line text-[11px] text-muted">{initials(m.name || m.email || "")}</span>
-              <span className="min-w-0">
-                <span className="block truncate font-medium">{m.name || m.email}</span>
-                <span className={hint}>{m.role || "Staff"}</span>
-              </span>
-            </span>
-            <button type="button" className="text-[12px] text-muted underline underline-offset-4" onClick={() => setRemoving(i)}>
-              Remove
-            </button>
-          </li>
-        ))}
-      </ul>
-      {err ? <p className="mt-2 text-sm text-muted">{err}</p> : null}
-
-      <Drawer open={adding} onClose={() => setAdding(false)}>
-        <h2 className="text-xl font-semibold tracking-tight">Add staff member</h2>
-        {(["name", "email", "role"] as const).map((f) => (
-          <label key={f} className="mt-4 block text-sm capitalize">
-            {f}
-            <input className={input} value={form[f] ?? ""} onChange={(e) => setForm({ ...form, [f]: e.target.value })} type={f === "email" ? "email" : "text"} />
-          </label>
-        ))}
-        <div className="mt-5 flex gap-2">
-          <Button
-            disabled={!form.name?.trim() || !form.email?.trim()}
-            onClick={() =>
-              void save([...members, form]).then((ok) => {
-                if (ok) {
-                  setAdding(false);
-                  setForm({ name: "", email: "", role: "sales" });
-                }
-              })
-            }
-          >
-            Send invite
-          </Button>
-          <Button variant="secondary" onClick={() => setAdding(false)}>
-            Close
-          </Button>
-        </div>
-      </Drawer>
-
-      {removing !== null ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" role="presentation" onClick={() => setRemoving(null)}>
-          <div role="dialog" aria-modal="true" className="w-full max-w-sm rounded-2xl border border-line-strong bg-surface p-5" onClick={(e) => e.stopPropagation()}>
-            <p className="text-sm">
-              Remove {members[removing]?.name || members[removing]?.email}? They'll lose access to the desk straight away.
-            </p>
-            <div className="mt-4 flex gap-2">
-              <Button onClick={() => void save(members.filter((_, j) => j !== removing)).then(() => setRemoving(null))}>Remove</Button>
-              <Button variant="secondary" onClick={() => setRemoving(null)}>
-                Keep
-              </Button>
-            </div>
-          </div>
-        </div>
-      ) : null}
     </section>
   );
 }
