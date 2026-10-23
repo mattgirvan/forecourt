@@ -56,8 +56,8 @@ function TrustPage() {
 
           <Section title="Staff only see what their seat allows">
             <p>
-              Seats are few on purpose. A showroom host is not an Administrator seat. The Forecourt team
-              uses a separate staff door, not a seat inside your desk.{" "}
+              Roles are few on purpose. A showroom host is not an Administrator role. The Forecourt team
+              uses a separate staff door, not a role inside your desk.{" "}
               <Link to="/pricing" className="underline-offset-4 hover:underline">
                 See who sees what on Pricing
               </Link>

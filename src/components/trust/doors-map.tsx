@@ -75,7 +75,7 @@ export function DoorsMap({
         })}
       </div>
       <p className="text-xs leading-relaxed text-subtle">
-        Forecourt team uses a separate staff door (the office). That is not an Administrator seat. Administrator is a seat inside your desk.
+        Forecourt team uses a separate staff door (the office). That is not an Administrator role. Administrator is a role inside your desk.
       </p>
     </div>
   );

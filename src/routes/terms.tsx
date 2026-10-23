@@ -47,7 +47,7 @@ function TermsPage() {
         <ul>
           <li>
             <strong>Site, 60-day trial</strong>: a paid pilot for one dealership. £1,500. Sales and
-            management seats. If you convert to a site subscription inside 60 days, that £1,500 comes off
+            management roles. If you convert to a site subscription inside 60 days, that £1,500 comes off
             setup. If you do not, the desk comes down. No refund once we have started standing it up.
           </li>
           <li>

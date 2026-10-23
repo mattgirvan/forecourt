@@ -38,7 +38,7 @@ Three platforms. **Rooftop is not a word we use** — it is site, franchise, or 
 | Package | Trial | Setup | Monthly | Contract |
 |---|---|---|---|---|
 | **Site** | £1,500 for 60 days, credited if they stay | £4,500 | £399 | Month to month after trial |
-| **Franchise** | None | £6,500 | £499 | 12 months |
+| **Franchise** | None | £6,500 | £899 flat (up to 5 sites, then £100 per extra site) | 12 months |
 | **Group** | None | £8,500 | £249 / site | 12 months |
 
 The 60-day trial is **site only**. Franchise and group are a build. We do not stand those up on a maybe.

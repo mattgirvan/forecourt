@@ -92,18 +92,21 @@ export const PLANS: Record<PlanId, Plan> = {
     name: "Franchise",
     tag: "One manufacturer brand",
     setupPence: 650_000,
-    monthPence: 49_900,
+    // Flat for the whole franchise, up to 5 sites. Extra sites (+£100 a month each,
+    // FRANCHISE_EXTRA_SITE_PENCE) are billed with the group build; checkout charges the flat line.
+    monthPence: 89_900,
     trialPence: null,
     perSite: false,
     trial: false,
     contractMonths: 12,
     minSites: 1,
     sellNow: true,
-    body: "A franchise dealer. Manufacturer feed, option codes, extra seats. Twelve-month contract.",
+    body: "Manufacturer feed, option codes, unlimited staff logins.",
     why: "Manufacturer ingest is a real build. Twelve months from go live, billed monthly.",
     includes: [
       "One manufacturer brand",
-      "Every site seat: host, progressor, admin, accounts",
+      "Up to 5 sites included, then £100 a month per extra site",
+      "Every role: host, progressor, admin, accounts",
       "Manufacturer ingest and locator mapping",
       "Billed monthly on a 12-month contract",
     ],
@@ -125,7 +128,7 @@ export const PLANS: Record<PlanId, Plan> = {
     includes: [
       "Every site on the contract",
       "Principal roll-up across the group",
-      "Seats scoped to site and franchise",
+      "Roles scoped to site and franchise",
       "£249 per site / month, 12-month contract",
     ],
   },
@@ -160,6 +163,10 @@ export function gbpPence(pence: number) {
     pence / 100,
   );
 }
+
+/** Franchise: sites included in the flat monthly price, and the price of each extra site. */
+export const FRANCHISE_INCLUDED_SITES = 5;
+export const FRANCHISE_EXTRA_SITE_PENCE = 10_000;
 
 export function monthTotalPence(plan: PlanId, siteCount = 1) {
   const p = PLANS[plan];
