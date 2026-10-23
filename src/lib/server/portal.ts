@@ -18,7 +18,8 @@ import {
   type SessionLike,
 } from "@/lib/server/refund-target";
 import { BALANCE_LINK_TITLE, ENDED_EVENT_TITLES } from "@/lib/server/resume-order";
-import { FLAG_HANDLED_TITLE, FLAG_TITLES, boardFlags, handledNote, type FlagKind } from "@/lib/server/payments";
+import { FLAG_HANDLED_TITLE, FLAG_TITLES, PAYMENT_FLAG_TITLES, boardFlags, handledNote, type FlagKind } from "@/lib/server/payments";
+import { missingTable, type OpenPaymentIssue } from "@/lib/server/payment-issues";
 
 export const whoAmI = createServerFn({ method: "POST" })
   .validator((d: { token: string }) => d)
@@ -114,7 +115,7 @@ export const listOfficeBoard = createServerFn({ method: "POST" })
         .from("build_events")
         .select("tenant_id, title, body, created_at")
         .in("tenant_id", ids)
-        .in("title", [FLAG_TITLES.duplicate_payment, FLAG_TITLES.similar_dealer, FLAG_HANDLED_TITLE])
+        .in("title", [FLAG_TITLES.duplicate_payment, FLAG_TITLES.similar_dealer, FLAG_HANDLED_TITLE, ...PAYMENT_FLAG_TITLES])
         .order("created_at", { ascending: true });
       flags = boardFlags((flagged ?? []) as { tenant_id: number; title: string | null; body: string | null; created_at: string }[]);
     }
@@ -851,4 +852,52 @@ export const markFlagHandled = createServerFn({ method: "POST" })
       /* best effort */
     }
     return { ok: true, message: body.replace(/\s*\[handled:[a-z_]+\]$/, "") };
+  });
+
+/**
+ * The open failed monthly payment on a site, or null. Customers read their
+ * own row through RLS (supabase/payment-issues.sql) and get the friendly
+ * fields only; staff also get the Stripe invoice id. Null until the table exists.
+ */
+export const openPaymentIssue = createServerFn({ method: "POST" })
+  .validator((d: { token: string; tenantId: number }) => d)
+  .handler(async ({ data }): Promise<OpenPaymentIssue | null> => {
+    const { sb, team } = await actor(data.token);
+    const { data: rows, error } = await sb
+      .from("payment_issues")
+      .select("stripe_invoice_id, amount_due_pence, attempt_count, next_retry_at, first_failed_at")
+      .eq("tenant_id", data.tenantId)
+      .is("recovered_at", null)
+      .order("first_failed_at", { ascending: false })
+      .limit(1);
+    if (error) {
+      if (!missingTable(error)) console.error("[billing] open payment issue lookup failed", error.message);
+      return null;
+    }
+    const r = (rows ?? [])[0] as
+      | { stripe_invoice_id: string; amount_due_pence: number; attempt_count: number; next_retry_at: string | null; first_failed_at: string }
+      | undefined;
+    if (!r) return null;
+    return {
+      firstFailedAt: r.first_failed_at,
+      nextRetryAt: r.next_retry_at,
+      amountDuePence: r.amount_due_pence,
+      attemptCount: r.attempt_count,
+      ...(team ? { invoiceId: r.stripe_invoice_id } : {}),
+    };
+  });
+
+/** Stripe Billing Portal session so a dealer can update their card. We never see card details. */
+export const openBillingPortal = createServerFn({ method: "POST" })
+  .validator((d: { token: string; tenantId: number }) => d)
+  .handler(async ({ data }): Promise<{ url: string }> => {
+    const { sb } = await actor(data.token);
+    const { data: t } = await sb.from("tenants").select("stripe_customer_id").eq("id", data.tenantId).maybeSingle();
+    const customer = (t as { stripe_customer_id?: string | null } | null)?.stripe_customer_id;
+    if (!customer) throw new Error("No billing account on file yet. Message us and we will sort it.");
+    const secret = stripeSecret();
+    if (!secret) throw new Error("Billing is not connected right now. Message us and we will sort it.");
+    const Stripe = (await import("stripe")).default;
+    const session = await new Stripe(secret).billingPortal.sessions.create({ customer, return_url: `${SITE.url}/account` });
+    return { url: session.url };
   });

@@ -23,22 +23,32 @@ export type BoardRow = {
   stage?: string | null;
   archived_at?: string | null;
   /** Payment flags staff should look at (duplicate payment, look-alike dealership). */
-  flags?: { duplicate: boolean; lookalike: boolean } | null;
+  flags?: { duplicate: boolean; lookalike: boolean; paymentFailed?: boolean } | null;
 };
 
 /** What each badge means, shown as text so it reads on touch screens too. */
 export const FLAG_EXPLAINERS = {
   duplicate: "A second payment came in for this site. See the note on the file.",
   lookalike: "This paid order looks like another dealership. See the note on the file.",
+  paymentFailed: "A monthly payment did not go through. Stripe is retrying. Get in touch with the dealer.",
 } as const;
 
 /** Small badges for payment flags. Shown on the list so they are seen even with emails off. */
 export function FlagBadges({ flags }: { flags?: BoardRow["flags"] }) {
-  if (!flags || (!flags.duplicate && !flags.lookalike)) return null;
-  const lines = [flags.duplicate ? FLAG_EXPLAINERS.duplicate : null, flags.lookalike ? FLAG_EXPLAINERS.lookalike : null].filter(Boolean);
+  if (!flags || (!flags.duplicate && !flags.lookalike && !flags.paymentFailed)) return null;
+  const lines = [
+    flags.paymentFailed ? FLAG_EXPLAINERS.paymentFailed : null,
+    flags.duplicate ? FLAG_EXPLAINERS.duplicate : null,
+    flags.lookalike ? FLAG_EXPLAINERS.lookalike : null,
+  ].filter(Boolean);
   return (
     <span className="mt-1.5 block">
       <span className="flex flex-wrap gap-1">
+        {flags.paymentFailed ? (
+          <Badge tone="warn" className="text-[11px]">
+            Payment failed
+          </Badge>
+        ) : null}
         {flags.duplicate ? (
           <Badge tone="warn" className="text-[11px]">
             Duplicate payment
