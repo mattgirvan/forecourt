@@ -153,3 +153,12 @@ export type SeatMember = { name: string; email: string; role: string };
 export function seatsUsed(members: SeatMember[]) {
   return members.filter((m) => (m.name || m.email).trim()).length;
 }
+
+/** Banner for a manager: they cannot open billing, so point them at the owner. */
+export const PAYMENT_BANNER_MANAGER =
+  "Your last payment didn't go through. It happens. Your site is still live. The account owner can update the card in billing and we'll try again automatically.";
+
+export const ACCESS_COPY =
+  "Managers see the plan, billing summary, tickets and change requests, and can raise and reply to them. Only you can manage billing or change who has access.";
+
+export const MANAGER_COPY = "You have manager access. Billing and account access are looked after by the account owner.";

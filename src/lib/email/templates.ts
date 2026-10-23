@@ -798,3 +798,29 @@ ${footer(reason, false)}`;
   const text = [`Update on your ${what}`, "", hello, "", intro, "", `Open your account: ${d.accountUrl}`, "", "Thanks,", "Matt Girvan", "Founder, Forecourt", ...textFooter(reason, false)].join("\n");
   return { subject, preheader, html: shell({ title: subject, preheader, rows }), text };
 }
+
+// ------------------------------------------------------ manager invite
+
+export type ManagerInviteData = { dealer: string; invitedBy: string; email: string; accountUrl: string };
+
+/** The owner invited someone to see the dealer's Forecourt account. */
+export function managerInviteEmail(d: ManagerInviteData): RenderedEmail {
+  const subject = `You're invited to the ${d.dealer} Forecourt account`;
+  const preheader = "See the plan, billing summary, tickets and change requests.";
+  const by = d.invitedBy ? `${d.invitedBy} has` : "The account owner has";
+  const intro = `${by} given you access to the ${d.dealer} Forecourt account. You can see the plan and billing summary, and open and reply to tickets and change requests.`;
+  const how = `Sign in with this email address (${d.email}). We'll send you a code, no password needed.`;
+  const reason = `You are getting this because someone at ${d.dealer} invited ${d.email}. If that was a mistake, you can ignore it.`;
+  const rows = `
+${header(`${d.dealer} · Account access`)}
+${row(`${h1("You're invited")}
+  ${p(esc(intro))}
+  ${p(esc(how))}
+  <div style="height:20px;line-height:20px;font-size:0;">&nbsp;</div>
+  ${buttonsRow(primaryButton(d.accountUrl, "Sign in"))}`, 0)}
+${row(contactCard(), 16)}
+${signoff("Thanks,")}
+${footer(reason, false)}`;
+  const text = ["You're invited", "", intro, "", how, "", `Sign in: ${d.accountUrl}`, "", "Thanks,", "Matt Girvan", "Founder, Forecourt", ...textFooter(reason, false)].join("\n");
+  return { subject, preheader, html: shell({ title: subject, preheader, rows }), text };
+}

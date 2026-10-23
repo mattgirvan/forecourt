@@ -53,8 +53,10 @@ async function loadTenant(token: string, tenantId: number) {
     .maybeSingle();
   if (error) throw new Error(error.message);
   const t = data as TenantRow | null;
-  if (!t || (!who.team && t.user_id !== who.userId)) throw new Error("No dealership on this account.");
-  return { who, t };
+  // RLS decides visibility: the owner, an active manager (manager-access.sql) or the team.
+  if (!t) throw new Error("No dealership on this account.");
+  const role: "team" | "owner" | "manager" = who.team ? "team" : t.user_id === who.userId ? "owner" : "manager";
+  return { who, t, role };
 }
 
 // ------------------------------------------------------------ site details
@@ -95,7 +97,7 @@ async function stripeClient(): Promise<StripeLike | null> {
 export const liveBillingSummary = createServerFn({ method: "POST" })
   .validator((d: { token: string; tenantId: number }) => d)
   .handler(async ({ data }): Promise<BillingSummary> => {
-    const { t } = await loadTenant(data.token, data.tenantId);
+    const { t, role } = await loadTenant(data.token, data.tenantId);
     const plan = normalizePlan(t.plan);
     const base: BillingSummary = {
       connected: false,
@@ -105,7 +107,7 @@ export const liveBillingSummary = createServerFn({ method: "POST" })
       card: null,
       pastDue: false,
       retryAt: null,
-      canManage: Boolean(t.stripe_customer_id),
+      canManage: Boolean(t.stripe_customer_id) && role !== "manager",
     };
     const stripe = await stripeClient();
     if (!stripe || !t.stripe_subscription_id) return base;
@@ -155,7 +157,8 @@ export const liveBillingSummary = createServerFn({ method: "POST" })
 export const openBillingPortal = createServerFn({ method: "POST" })
   .validator((d: { token: string; tenantId: number }) => d)
   .handler(async ({ data }): Promise<{ url: string }> => {
-    const { t } = await loadTenant(data.token, data.tenantId);
+    const { t, role } = await loadTenant(data.token, data.tenantId);
+    if (role === "manager") throw new Error("Only the account owner can manage billing.");
     if (!t.stripe_customer_id) throw new Error("No billing account on file yet. Message us and we will sort it.");
     const stripe = await stripeClient();
     if (!stripe) throw new Error("Billing is not connected right now. Message us and we will sort it.");
