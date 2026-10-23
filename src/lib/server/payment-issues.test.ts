@@ -135,11 +135,12 @@ test("board badge shows on failure and clears on recovery", () => {
   assert.equal(boardFlags([ev(PAYMENT_FAILED_TITLE, "2026-10-01"), ev(PAYMENT_RECOVERED_TITLE, "2026-10-02")])[1].paymentFailed, false);
 });
 
-test("customer email is calm: no dashes, no glass, no portal, says Stripe retries and we will be in touch", () => {
+test("customer email is calm: no dashes, no glass, no portal, asks for a card update and we will be in touch", () => {
   const m = paymentFailedEmail({ firstName: "Sam Smith", dealer: "Northbridge Motors", retryOn: "26 Oct 2026", accountUrl: "https://www.forecourt.me/account" });
   for (const body of [m.subject, m.text, m.html]) assert.doesNotMatch(body, /[\u2013\u2014]|glass|portal/i);
   assert.match(m.text, /Hi Sam,/);
-  assert.match(m.text, /try the card again automatically on 26 Oct 2026/);
+  assert.match(m.text, /Update your card in billing and we'll try again automatically\./);
+  assert.doesNotMatch(m.text + m.html, /Stripe will/);
   assert.match(m.text, /in touch personally/);
   assert.doesNotMatch(m.text, /suspend|overdue|final notice/i);
 });

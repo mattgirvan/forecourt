@@ -741,7 +741,7 @@ ${row(card(`${label("Monthly plan", C.amber)}
   ${h2(`${amount} a month`, 6)}
   ${p(`First month charged on ${esc(d.chargedOn)}. If this is not what you agreed, write back and we will put it right.`, { size: 14, top: 8 })}
   <div style="height:20px;line-height:20px;font-size:0;">&nbsp;</div>
-  ${buttonsRow(primaryButton(d.accountUrl, "Open your account"))}`), 24)}
+  ${buttonsRow(primaryButton(d.accountUrl, "Manage billing"))}`), 24)}
 ${row(contactCard(), 16)}
 ${signoff("Thanks,")}
 ${footer(reason, true)}`;
@@ -774,16 +774,14 @@ export type PaymentFailedData = {
   accountUrl: string;
 };
 
-/** A monthly card payment did not go through. Calm and personal: Stripe retries, we will be in touch. */
+/** A monthly card payment did not go through. Calm and personal: update the card in billing, we try again automatically. */
 export function paymentFailedEmail(d: PaymentFailedData): RenderedEmail {
   const first = (d.firstName ?? "").trim().split(/\s+/)[0] ?? "";
   const subject = "A quick note about your Forecourt payment";
-  const preheader = "Your latest monthly payment did not go through. Nothing for you to do right now.";
+  const preheader = "Your last payment didn't go through. Your site is still live.";
   const hello = first ? `Hi ${first},` : "Hi,";
   const intro = `Your latest monthly payment for ${d.dealer} did not go through. This happens from time to time, often when a card has been replaced or a bank is being extra careful, so please do not worry.`;
-  const retry = d.retryOn
-    ? `Stripe will try the card again automatically on ${d.retryOn}. Your desk keeps working as normal in the meantime.`
-    : "Stripe will try the card again automatically. Your desk keeps working as normal in the meantime.";
+  const retry = "Your site is still live. Update your card in billing and we'll try again automatically.";
   const touch = "Someone from our team will be in touch personally to help sort it out. If you would rather get ahead of it, just reply to this email.";
   const reason = `You are getting this because ${d.dealer} has a Forecourt plan.`;
   const rows = `
@@ -810,7 +808,7 @@ ${footer(reason, false)}`;
     "",
     touch,
     "",
-    `Open your account: ${d.accountUrl}`,
+    `Manage billing: ${d.accountUrl}`,
     "",
     "Thanks,",
     "Matt Girvan",

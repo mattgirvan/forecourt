@@ -886,3 +886,18 @@ export const openPaymentIssue = createServerFn({ method: "POST" })
       ...(team ? { invoiceId: r.stripe_invoice_id } : {}),
     };
   });
+
+/** Stripe Billing Portal session so a dealer can update their card. We never see card details. */
+export const openBillingPortal = createServerFn({ method: "POST" })
+  .validator((d: { token: string; tenantId: number }) => d)
+  .handler(async ({ data }): Promise<{ url: string }> => {
+    const { sb } = await actor(data.token);
+    const { data: t } = await sb.from("tenants").select("stripe_customer_id").eq("id", data.tenantId).maybeSingle();
+    const customer = (t as { stripe_customer_id?: string | null } | null)?.stripe_customer_id;
+    if (!customer) throw new Error("No billing account on file yet. Message us and we will sort it.");
+    const secret = stripeSecret();
+    if (!secret) throw new Error("Billing is not connected right now. Message us and we will sort it.");
+    const Stripe = (await import("stripe")).default;
+    const session = await new Stripe(secret).billingPortal.sessions.create({ customer, return_url: `${SITE.url}/account` });
+    return { url: session.url };
+  });

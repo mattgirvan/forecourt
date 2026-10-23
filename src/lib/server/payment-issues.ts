@@ -117,7 +117,7 @@ function money(p: number) {
 }
 
 function ukDay(iso: string) {
-  return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/London" });
+  return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/London" }).replace("Sept", "Sep");
 }
 
 export function failureFlag(tenantId: number, f: InvoiceFacts): IssueFlag {

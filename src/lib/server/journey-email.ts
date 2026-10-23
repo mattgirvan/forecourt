@@ -291,7 +291,7 @@ export async function sendMonthlyRestartEmail(input: {
       firstName: t.principal_name,
       dealer: t.name || "your dealership",
       monthlyPence: input.monthlyPence,
-      chargedOn: input.chargedAt.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/London" }),
+      chargedOn: input.chargedAt.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/London" }).replace("Sept", "Sep"),
       accountUrl: ACCOUNT_URL,
     });
     const { login, to } = await recipientFor(sb, t.user_id, t.email);
@@ -413,7 +413,7 @@ export async function sendPaymentFailedEmail(input: {
       firstName: t.principal_name,
       dealer: t.name || "your dealership",
       retryOn: input.nextRetryAt
-        ? new Date(input.nextRetryAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/London" })
+        ? new Date(input.nextRetryAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/London" }).replace("Sept", "Sep")
         : null,
       accountUrl: ACCOUNT_URL,
     });
