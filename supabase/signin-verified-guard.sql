@@ -174,6 +174,22 @@ create policy "dealer meetings" on meetings
     and exists (select 1 from tenants t where t.id = meetings.tenant_id and t.user_id = auth.uid())
   );
 
+-- From payment-issues.sql, word for word. Skipped until that table exists.
+do $guard$
+begin
+  if to_regclass('public.payment_issues') is not null then
+    execute 'drop policy if exists "dealer read payment issues" on payment_issues';
+    execute $p$
+create policy "dealer read payment issues" on payment_issues
+  for select using (
+    (select public.auth_email_verified())
+    and exists (select 1 from tenants t where t.id = payment_issues.tenant_id and t.user_id = auth.uid())
+  )
+$p$;
+  end if;
+end
+$guard$;
+
 commit;
 
 -- UNDO: run supabase/signin-verified-guard.rollback.sql. It puts the
