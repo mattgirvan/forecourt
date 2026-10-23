@@ -336,8 +336,11 @@ test("webhook cancels on subscription deleted and ignores other events", async (
   const del = hookDeps(m.store, { type: "customer.subscription.deleted", data: { object: { id: "sub_1" } } });
   assert.equal((await handleStripeWebhook(del.deps, "{}", "s")).status, 200);
   assert.deepEqual(m.calls, [{ op: "cancel", id: "sub_1" }]);
-  const other = hookDeps(null, { type: "invoice.paid", data: { object: {} } });
+  const other = hookDeps(null, { type: "invoice.created", data: { object: {} } });
   assert.deepEqual(await handleStripeWebhook(other.deps, "{}", "s"), { status: 200, body: "ignored" });
+  // Invoice events are handled now: with no database they answer 500 so Stripe retries.
+  const inv = hookDeps(null, { type: "invoice.payment_failed", data: { object: {} } });
+  assert.equal((await handleStripeWebhook(inv.deps, "{}", "s")).status, 500);
 });
 
 test("an order pointing at another account's site is never applied", async () => {

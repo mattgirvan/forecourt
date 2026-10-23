@@ -741,7 +741,7 @@ ${row(card(`${label("Monthly plan", C.amber)}
   ${h2(`${amount} a month`, 6)}
   ${p(`First month charged on ${esc(d.chargedOn)}. If this is not what you agreed, write back and we will put it right.`, { size: 14, top: 8 })}
   <div style="height:20px;line-height:20px;font-size:0;">&nbsp;</div>
-  ${buttonsRow(primaryButton(d.accountUrl, "Open your account"))}`), 24)}
+  ${buttonsRow(primaryButton(d.accountUrl, "Manage billing"))}`), 24)}
 ${row(contactCard(), 16)}
 ${signoff("Thanks,")}
 ${footer(reason, true)}`;
@@ -760,6 +760,60 @@ ${footer(reason, true)}`;
     "Matt Girvan",
     "Founder, Forecourt",
     ...textFooter(reason, true),
+  ].join("\n");
+  return { subject, preheader, html: shell({ title: subject, preheader, rows }), text };
+}
+
+// ------------------------------------------------------ payment did not go through
+
+export type PaymentFailedData = {
+  firstName?: string | null;
+  dealer: string;
+  /** Day Stripe will try again, e.g. "30 Oct 2026" (UK), or null. */
+  retryOn: string | null;
+  accountUrl: string;
+};
+
+/** A monthly card payment did not go through. Calm and personal: update the card in billing, we try again automatically. */
+export function paymentFailedEmail(d: PaymentFailedData): RenderedEmail {
+  const first = (d.firstName ?? "").trim().split(/\s+/)[0] ?? "";
+  const subject = "A quick note about your Forecourt payment";
+  const preheader = "Your last payment didn't go through. Your site is still live.";
+  const hello = first ? `Hi ${first},` : "Hi,";
+  const intro = `Your latest monthly payment for ${d.dealer} did not go through. This happens from time to time, often when a card has been replaced or a bank is being extra careful, so please do not worry.`;
+  const retry = "Your site is still live. Update your card in billing and we'll try again automatically.";
+  const touch = "Someone from our team will be in touch personally to help sort it out. If you would rather get ahead of it, just reply to this email.";
+  const reason = `You are getting this because ${d.dealer} has a Forecourt plan.`;
+  const rows = `
+${header(`${d.dealer} · Monthly plan`)}
+${row(`${h1("A quick note about your payment")}
+  ${p(esc(hello))}
+  ${p(esc(intro))}`, 0)}
+${row(card(`${label("What happens next", C.amber)}
+  ${p(esc(retry), { size: 14, top: 8 })}
+  ${p(esc(touch), { size: 14, top: 8 })}
+  <div style="height:20px;line-height:20px;font-size:0;">&nbsp;</div>
+  ${buttonsRow(primaryButton(d.accountUrl, "Open your account"))}`), 24)}
+${row(contactCard(), 16)}
+${signoff("Thanks,")}
+${footer(reason, false)}`;
+  const text = [
+    "A quick note about your payment",
+    "",
+    hello,
+    "",
+    intro,
+    "",
+    retry,
+    "",
+    touch,
+    "",
+    `Manage billing: ${d.accountUrl}`,
+    "",
+    "Thanks,",
+    "Matt Girvan",
+    "Founder, Forecourt",
+    ...textFooter(reason, false),
   ].join("\n");
   return { subject, preheader, html: shell({ title: subject, preheader, rows }), text };
 }

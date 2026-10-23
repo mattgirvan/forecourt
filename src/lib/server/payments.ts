@@ -11,6 +11,14 @@
 import { normalizePlan, type BillingKind, type PlanId } from "../catalog.ts";
 import { dealerMatchNote, similarPaidTenants, type MatchTenant } from "./dealer-match.ts";
 import { DUPLICATE_FLAG_TITLE } from "./refund-target.ts";
+import {
+  PAYMENT_FAILED_TITLE,
+  PAYMENT_RECOVERED_TITLE,
+  handleInvoiceEvent,
+  isInvoiceEvent,
+  type InvoiceDeps,
+  type InvoiceLike,
+} from "./payment-issues.ts";
 
 export type OrderRow = {
   id: number;
@@ -59,7 +67,7 @@ export type TenantRow = {
 /** Something staff must look at. Recorded on the file and, when email is on, sent to the team. */
 export type StaffFlag = {
   tenantId: number;
-  kind: "duplicate_payment" | "similar_dealer" | "balance_paid";
+  kind: "duplicate_payment" | "similar_dealer" | "balance_paid" | "payment_failed" | "payment_recovered";
   title: string;
   body: string;
   /** One flag per order and kind, so retries never repeat it. */
@@ -427,6 +435,8 @@ export type WebhookDeps = {
    * the webhook answer into an error; it must dedupe its own side effects.
    */
   onPaid?: (order: OrderRow, session: CheckoutSessionLike, event: WebhookEvent) => Promise<void>;
+  /** Failed and recovered monthly payments (invoice.* events). Without it they are ignored. */
+  invoices?: Omit<InvoiceDeps, "log" | "now" | "flagForStaff">;
 };
 
 export type WebhookResult = { status: number; body: string };
@@ -460,7 +470,8 @@ export async function handleStripeWebhook(
   const handled =
     event.type === "checkout.session.completed" ||
     event.type === "checkout.session.async_payment_succeeded" ||
-    event.type === "customer.subscription.deleted";
+    event.type === "customer.subscription.deleted" ||
+    isInvoiceEvent(event.type);
   if (!handled) return { status: 200, body: "ignored" };
 
   const store = deps.store;
@@ -472,6 +483,17 @@ export async function handleStripeWebhook(
   }
 
   try {
+    if (isInvoiceEvent(event.type)) {
+      if (!deps.invoices) {
+        log.warn(`[stripe-webhook] ${event.type} received but invoice handling is not wired; ignored`);
+        return { status: 200, body: "ignored" };
+      }
+      return await handleInvoiceEvent(
+        { ...deps.invoices, flagForStaff: (f) => store.flagForStaff(f), log, now: deps.now },
+        event.type,
+        event.data.object as unknown as InvoiceLike,
+      );
+    }
     if (event.type === "customer.subscription.deleted") {
       const sub = event.data.object as { id?: string };
       if (sub.id) await store.cancelBySubscription(sub.id);
@@ -552,7 +574,10 @@ export const FLAG_TITLES = {
   similar_dealer: "Paid order looks like an existing dealership",
 } as const;
 
-export type BoardFlags = { duplicate: boolean; lookalike: boolean };
+export type BoardFlags = { duplicate: boolean; lookalike: boolean; paymentFailed?: boolean };
+
+/** Timeline titles the office list reads for the failed payment badge. */
+export const PAYMENT_FLAG_TITLES = [PAYMENT_FAILED_TITLE, PAYMENT_RECOVERED_TITLE] as const;
 export type FlagKind = keyof typeof FLAG_TITLES;
 
 /** Timeline title when an owner marks a flag as dealt with. Clears its badge. */
@@ -577,8 +602,12 @@ export function boardFlags(
     const dup = e.title === FLAG_TITLES.duplicate_payment;
     const look = e.title === FLAG_TITLES.similar_dealer;
     const handled = e.title === FLAG_HANDLED_TITLE;
-    if (!dup && !look && !handled) continue;
+    const failed = e.title === PAYMENT_FAILED_TITLE;
+    const recovered = e.title === PAYMENT_RECOVERED_TITLE;
+    if (!dup && !look && !handled && !failed && !recovered) continue;
     const f = (out[e.tenant_id] ??= { duplicate: false, lookalike: false });
+    if (failed) f.paymentFailed = true;
+    if (recovered) f.paymentFailed = false;
     if (dup) f.duplicate = true;
     if (look) f.lookalike = true;
     if (handled && (e.body ?? "").includes(handledTag("duplicate_payment"))) f.duplicate = false;
