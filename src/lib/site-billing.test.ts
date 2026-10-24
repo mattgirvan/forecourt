@@ -49,7 +49,7 @@ test("breakdown shows each site and what it adds", () => {
   assert.equal(f.rows[5].included, undefined);
   assert.equal(siteBreakdown("group", sites).rows[0].note, "");
   assert.equal(f.rows[6].pence, 0);
-  assert.match(f.rows[6].note, /go live day/);
+  assert.equal(f.rows[6].note, "");
   assert.match(f.rows[7].note, /not billed from the next period/);
   assert.equal(siteBreakdown("group", sites).total, 149_400);
 });
@@ -84,4 +84,22 @@ test("totals copy", () => {
   const f = linesFor("franchise", 7);
   assert.equal(lineLabel(f[0]), "Franchise, up to 5 sites");
   assert.equal(lineLabel(f[1]), "2 extra sites at £100");
+});
+
+test("Atlas copy: go live and archive confirms use real totals, period end from the billing start day", async () => {
+  const { goLiveConfirmCopy, archiveConfirmCopy, periodEndFrom, totalIf } = await import("./site-billing.ts");
+  const sites: BillingSite[] = [
+    { code: "N", name: "Ridgeway North", status: "live" },
+    { code: "S", name: "Ridgeway South", status: "live" },
+    { code: "R", name: "Ridgeway Retail", status: "setting_up" },
+  ];
+  assert.equal(totalIf("group", sites, "R", "live"), 74_700);
+  assert.equal(goLiveConfirmCopy("Ridgeway Retail", 49_800, 74_700), "Put Ridgeway Retail live? From today the bill goes up by £249 to £747 a month. The part month is added to the next invoice.");
+  assert.equal(goLiveConfirmCopy("Ridgeway South", 49_800, 49_800), "Put Ridgeway South live? The bill stays at £498 a month.");
+  const end = periodEndFrom("2026-08-31T10:00:00Z", new Date("2026-10-24T07:00:00Z"));
+  assert.equal(end, "2026-10-31T10:00:00.000Z");
+  assert.equal(periodEndFrom("2026-01-31T10:00:00Z", new Date("2026-02-10T00:00:00Z")), "2026-02-28T10:00:00.000Z");
+  assert.equal(periodEndFrom(null), null);
+  assert.equal(archiveConfirmCopy("Ridgeway North", 74_700, 49_800, end), "Archive Ridgeway North? The bill goes down by one site from 31 Oct 2026, the end of this billing period. We don't refund part months. New monthly total: £498.");
+  assert.equal(archiveConfirmCopy("Ridgeway North", 49_800, 49_800, null), "Archive Ridgeway North? The bill stays at £498 a month. We don't refund part months.");
 });
