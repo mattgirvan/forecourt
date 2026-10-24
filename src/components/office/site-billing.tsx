@@ -3,7 +3,7 @@ import { gbpPence } from "@/lib/catalog";
 import { listOfficeSiteBilling, setSiteState } from "@/lib/server/site-billing-server";
 import { archiveConfirmCopy, goLiveConfirmCopy, lineLabel, totalIf } from "@/lib/site-billing";
 import { SiteAmount, SitePill } from "@/components/account/site-billing";
-import { Row, Rows, Section } from "@/components/ui/section";
+import { OverflowMenu, Row, Rows, Section } from "@/components/ui/section";
 
 export type OfficeSiteBillingRow = Awaited<ReturnType<typeof listOfficeSiteBilling>>[number];
 
@@ -74,8 +74,10 @@ export function OfficeSiteBilling({
   return (
     <div className="fc-section-stack" data-testid="office-site-billing">
       <p className="text-sm text-muted">
-        Setting up and archived sites are not billed. Group bills at least 2 sites.{" "}
-        {dry ? "Billing sync is in dry run. Sites change state here, and archiving or restoring in the desk updates the bill. Stripe is not changed." : "Going live or archiving a site updates Stripe."}
+        Setting up and archived sites are not billed. Group bills at least 2 sites.
+        <span className="mt-1 block text-xs text-subtle" data-testid="site-billing-hint">
+          {dry ? "Billing sync is in dry run. Stripe is not changed." : "Going live or archiving a site updates Stripe."}
+        </span>
       </p>
       {notice ? (
         <p role="status" className="rounded-xl border border-line bg-elevated px-3 py-2 text-sm" data-testid="site-notice">
@@ -106,17 +108,26 @@ export function OfficeSiteBilling({
                 }
                 trailing={
                   <>
-                    {a.canChange && onChange && r.status !== "archived" ? (
+                    {a.canChange && onChange && r.status === "setting_up" ? (
                       <button
                         type="button"
                         className="fc-tap inline-flex w-[5.25rem] shrink-0 items-center justify-center rounded-xl border border-line bg-elevated px-2.5 text-xs font-medium hover:text-fg disabled:opacity-50"
                         disabled={busy}
-                        onClick={() => setPending({ tenantId: a.id, code: r.code, name: r.name, plan: a.plan, to: r.status === "live" ? "archived" : "live" })}
+                        onClick={() => setPending({ tenantId: a.id, code: r.code, name: r.name, plan: a.plan, to: "live" })}
                       >
-                        {r.status === "live" ? "Archive" : "Go live"}
+                        Go live
                       </button>
-                    ) : a.canChange && onChange ? (
-                      <span className="w-[5.25rem] shrink-0" />
+                    ) : a.canChange && onChange && r.status === "live" ? (
+                      <OverflowMenu
+                        label={`More for ${r.name}`}
+                        items={[
+                          {
+                            label: "Archive",
+                            disabled: busy,
+                            onSelect: () => setPending({ tenantId: a.id, code: r.code, name: r.name, plan: a.plan, to: "archived" }),
+                          },
+                        ]}
+                      />
                     ) : null}
                   </>
                 }

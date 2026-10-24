@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
+import { Row, Rows } from "@/components/ui/section";
+import { PillRow } from "@/components/ui/pill-row";
 import { ThreadDrawer, Pill } from "@/components/account/live-view";
 import { listSupport, listSupportQueue, setSupportStatus, type SupportItem } from "@/lib/server/live-view";
 import { STATUS_LABEL, changeTypeLabel, isOpenStatus, ticketRef, updatedWhen, type SupportStatus } from "@/lib/live-view";
-import { cn } from "@/lib/utils";
 
 const TICKET_STATUSES: SupportStatus[] = ["open", "in_progress", "resolved"];
 const CHANGE_STATUSES: SupportStatus[] = ["submitted", "in_progress", "done", "declined"];
@@ -23,7 +24,7 @@ function StatusSelect({ token, item, onChanged }: { token: string; item: Support
     <select
       aria-label="Status"
       disabled={busy}
-      className="h-8 rounded-full border border-line bg-elevated px-2 text-[12px]"
+      className="h-11 rounded-full border border-line bg-elevated px-3 text-[13px] md:h-8 md:px-2 md:text-[12px]"
       value={item.status}
       onClick={(e) => e.stopPropagation()}
       onChange={(e) => {
@@ -46,7 +47,27 @@ function StatusSelect({ token, item, onChanged }: { token: string; item: Support
 function Table({ token, items, onChanged, showDealer, onOpen }: { token: string; items: SupportItem[]; onChanged: () => void; showDealer?: boolean; onOpen: (i: SupportItem) => void }) {
   if (!items.length) return <p className="mt-4 text-sm text-muted">Nothing here.</p>;
   return (
-    <div className="mt-4 overflow-x-auto rounded-2xl border border-line">
+    <>
+    <Rows as="ul" className="mt-4 md:hidden">
+      {items.map((i) => (
+        <Row as="li" key={i.id} tone={i.needs_reply ? "action" : "default"} className="!items-start flex-col !gap-2">
+          <button type="button" className="fc-row-btn w-full" onClick={() => onOpen(i)}>
+            <span className="min-w-0 flex-1">
+              <span className="fc-row-title block whitespace-normal">{i.title}</span>
+              <span className="fc-row-sub block">
+                {showDealer ? `${i.tenant_name || `#${i.tenant_id}`}, ` : ""}
+                {i.kind === "ticket" ? `Ticket ${ticketRef(i.ref)}` : changeTypeLabel(i.change_type)}, {updatedWhen(i.updated_at)}
+              </span>
+            </span>
+          </button>
+          <div className="flex w-full flex-wrap items-center gap-2">
+            {i.needs_reply ? <NeedsReply /> : null}
+            <StatusSelect token={token} item={i} onChanged={onChanged} />
+          </div>
+        </Row>
+      ))}
+    </Rows>
+    <div className="mt-4 hidden overflow-x-auto rounded-2xl border border-line md:block">
       <table className="w-full min-w-[640px] text-left text-sm">
         <thead className="text-[12px] text-subtle">
           <tr className="border-b border-line">
@@ -74,6 +95,7 @@ function Table({ token, items, onChanged, showDealer, onOpen }: { token: string;
         </tbody>
       </table>
     </div>
+    </>
   );
 }
 
@@ -139,14 +161,18 @@ export function SupportQueue({ token, initial }: { token: string; initial?: { re
   const replyCount = data.items.filter((i) => i.needs_reply).length;
   return (
     <div>
-      <div className="flex flex-wrap gap-1.5">
-        {QUEUE_TABS.map(([id, label]) => (
-          <button key={id} type="button" onClick={() => setTab(id)} className={cn("h-8 rounded-full px-3 text-[12px]", tab === id ? "bg-fg text-accent-fg" : "bg-elevated text-muted")}>
-            {label}
-            {id === "reply" && replyCount ? ` (${replyCount})` : ""}
-          </button>
-        ))}
-      </div>
+      <PillRow
+        label="Ticket filters"
+        size="sm"
+        value={tab}
+        onChange={setTab}
+        options={QUEUE_TABS.map(([id, label]) => ({
+          id,
+          label,
+          count: id === "reply" && replyCount ? replyCount : null,
+          countTone: "action" as const,
+        }))}
+      />
       <Table token={token} items={items} onChanged={load} showDealer onOpen={setOpen} />
       <ThreadDrawer
         team

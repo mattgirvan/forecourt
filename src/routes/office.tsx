@@ -1,4 +1,5 @@
 import { PlanChangePanel } from "@/components/account/plan-change";
+import { PillRow } from "@/components/ui/pill-row";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { OfficeSiteBillingPanel } from "@/components/office/site-billing";
 import { Chip, OverflowMenu, Row, Rows, Section, SectionStack } from "@/components/ui/section";
@@ -34,7 +35,6 @@ import { OfficeMigrationPanel } from "@/components/office/migration-panel";
 import { getMigration } from "@/lib/server/migration-server";
 import { accountStatusLabel, type Tracker } from "@/lib/migration";
 import { useWhoAmI } from "@/lib/who-am-i";
-import { cn } from "@/lib/utils";
 import { SupportPane, SupportQueue } from "@/components/office/support-desk";
 
 type OfficeTab = "customers" | "queue" | "staff" | "security" | "sites";
@@ -487,30 +487,20 @@ function TenantFile({ token, tenantId, onSaved }: { token: string; tenantId: num
       ) : null}
       <FileFlags key={`flags-${tenantId}`} token={token} tenantId={tenantId} owner={owner} onChanged={onSaved} />
 
-      <div className="mt-6 flex flex-wrap gap-1.5">
-        {(
-          [
-            ["build", "Build"],
-            ["file", "File"],
-            ["billing", "Billing"],
-            ["requests", "Tickets and requests"],
-            ["support", "Old messages"],
-            ["notes", "Notes"],
-          ] as const
-        ).map(([id, label]) => (
-          <button
-            key={id}
-            type="button"
-            onClick={() => setPane(id)}
-            className={cn(
-              "h-9 rounded-full px-4 text-[13px]",
-              pane === id ? "bg-fg text-accent-fg" : "bg-elevated text-muted",
-            )}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      <PillRow
+        className="mt-6"
+        label="Dealer file sections"
+        value={pane}
+        onChange={setPane}
+        options={[
+          { id: "build", label: "Build" },
+          { id: "file", label: "File" },
+          { id: "billing", label: "Billing" },
+          { id: "requests", label: "Tickets and requests" },
+          { id: "support", label: "Old messages" },
+          { id: "notes", label: "Notes" },
+        ]}
+      />
 
       {pane === "build" && (
         <div className="mt-6">
