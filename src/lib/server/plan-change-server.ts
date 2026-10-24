@@ -10,7 +10,16 @@ import { createServerFn } from "@tanstack/react-start";
 import { normalizePlan, type PlanId } from "@/lib/catalog";
 import { clampSiteCount } from "@/lib/plan-shape";
 import { SITE } from "@/lib/site";
-import { planChangeDryRunMessage, quotePlanChange, type PlanChangeQuote } from "@/lib/plan-change";
+import { currentMonthlyPence, type StripePriceItem } from "@/lib/current-price";
+import {
+  PLAN_CHANGE_NOT_RECORDED,
+  planChangeDryRunMessage,
+  planChangeOfficeRecordedMessage,
+  planChangeRecordedMessage,
+  quotePlanChange,
+  type PlanChangeOutcome,
+  type PlanChangeQuote,
+} from "@/lib/plan-change";
 import { planMove } from "@/lib/plan-change-rules";
 import { markRequestExpired, markRequestPaid, OPEN_STATUSES, startRequest, type SessionLike } from "@/lib/server/plan-change-request";
 import { applyPlanChange, planChangeMessage, upgradeCheckoutParams, type PlanChangeDeps, type ScheduleLike } from "@/lib/server/plan-change-sync";
@@ -97,7 +106,32 @@ async function quoteFor(sb: SupabaseClient, t: TenantRow, to: PlanId, stripe: St
       /* preview without the period */
     }
   }
-  return quotePlanChange({ from: normalizePlan(t.plan), to, live: await liveCount(sb, t), periodStart: start, periodEnd: end });
+  return quotePlanChange({
+    from: normalizePlan(t.plan),
+    to,
+    live: await liveCount(sb, t),
+    periodStart: start,
+    periodEnd: end,
+    currentMonthlyPence: currentMonthlyPence(await currentItem(t), normalizePlan(t.plan), t.site_count),
+  });
+}
+
+/**
+ * The Stripe price item, read only, exactly as the account header reads it
+ * (liveBillingSummary), so the sheet and the header show the same price.
+ * Not tied to PLAN_CHANGE_SYNC: it never writes.
+ */
+async function currentItem(t: TenantRow): Promise<StripePriceItem> {
+  if (!t.stripe_subscription_id) return null;
+  try {
+    const stripe = await stripeClient();
+    if (!stripe) return null;
+    const sub = await stripe.subscriptions.retrieve(t.stripe_subscription_id);
+    const item = sub.items?.data?.[0];
+    return { unitPence: item?.price?.unit_amount ?? null, quantity: item?.quantity ?? 1 };
+  } catch {
+    return null;
+  }
 }
 
 export const previewPlanChange = createServerFn({ method: "POST" })
@@ -116,15 +150,25 @@ export const requestPlanChange = createServerFn({ method: "POST" })
     const mode = planChangeMode();
     const stripe = mode === "live" ? await stripeClient() : null;
     const q = await quoteFor(admin, t, data.to, stripe);
-    if (q.direction === "same") return { message: "Already on that plan.", url: null as string | null, mode };
-    if (mode !== "live") {
-      return {
-        message: planChangeDryRunMessage(q),
-        url: null as string | null,
-        mode,
-      };
-    }
     const actorEmail = who.email ?? "unknown";
+    const reply = (outcome: PlanChangeOutcome, message: string, url: string | null = null) => ({ outcome, message, url, mode });
+    if (q.direction === "same") return reply("unchanged", "Already on that plan.");
+    if (mode !== "live") {
+      // Sync is off: nothing is charged and the plan stays put. The request is
+      // noted on the file so the team can apply it, and the caller is told so.
+      const recorded = await noteOk(
+        admin,
+        t.id,
+        "Plan change requested",
+        `Move from ${q.from} to ${q.to} asked for in ${data.from === "office" ? "the Office" : "the account"}. Plan sync is off, so nothing was charged or changed. ${planChangeDryRunMessage(q)}`,
+        actorEmail,
+      );
+      if (!recorded) return reply("failed", PLAN_CHANGE_NOT_RECORDED);
+      return reply(
+        "recorded",
+        data.from === "office" ? planChangeOfficeRecordedMessage(q) : planChangeRecordedMessage(q),
+      );
+    }
     const live = await liveCount(admin, t);
     // PR 3: route by the PR 1 price rules, not plan rank.
     const move = planMove({ from: q.from, to: q.to, live });
@@ -178,7 +222,7 @@ export const requestPlanChange = createServerFn({ method: "POST" })
       move,
       row,
     );
-    if (started.kind === "refused") return { message: started.message, url: null as string | null, mode };
+    if (started.kind === "refused") return reply("failed", started.message);
     if (started.kind === "checkout" || started.kind === "requested") {
       // Migration tracker (PR 8): open at "requested" and email the admin and hello@.
       const mig = await readMigration(admin, started.changeId);
@@ -187,10 +231,10 @@ export const requestPlanChange = createServerFn({ method: "POST" })
       }
       if (started.kind === "checkout") {
         await note(admin, t.id, "Plan change requested", `Waiting for the setup difference (${move.setupDuePence / 100} GBP).`, actorEmail);
-        return { message: "Pay the setup difference to send your request.", url: started.url, mode };
+        return reply("checkout", "Pay the setup difference to send your request.", started.url ?? null);
       }
       await note(admin, t.id, "Plan change requested", "No setup difference. Waiting for the team.", actorEmail);
-      return { message: "Request sent. Nothing to pay now. We will be in touch to set up your change.", url: null as string | null, mode };
+      return reply("recorded", "Request sent. Nothing to pay now. We will be in touch to set up your change.");
     }
     const result = await applyPlanChange(planChangeDeps(stripe), {
       subscriptionId: t.stripe_subscription_id,
@@ -218,7 +262,7 @@ export const requestPlanChange = createServerFn({ method: "POST" })
         await sendAccountEventEmail({ tenantId: t.id, ...migrationEvent({ changeId: mig.id, from: q.from, to: q.to, stage: "requested", upgrade: false, periodEnd: effectiveAt }) });
       }
       await note(admin, t.id, "Account type change booked", message, actorEmail);
-      return { message, url: null as string | null, mode };
+      return reply("scheduled", message);
     }
     if (ok) {
       // Matt: on a downgrade the plan name changes now, the price at period end.
@@ -230,14 +274,24 @@ export const requestPlanChange = createServerFn({ method: "POST" })
       if (mig && (await setMigrationStage(admin, mig, "switched", { effective_at: q.periodEnd ? new Date(q.periodEnd).toISOString() : null }))) {
         await sendAccountEventEmail({ tenantId: t.id, ...migrationEvent({ changeId: mig.id, from: q.from, to: q.to, stage: "requested", upgrade: false, periodEnd: q.periodEnd ? new Date(q.periodEnd).toISOString() : null }) });
         await note(admin, t.id, "Account type changed", message, actorEmail);
-        return { message, url: null as string | null, mode };
+        return reply(q.effective === "period_end" ? "scheduled" : "applied", message);
       }
       const when = q.effective === "period_end" ? (q.periodEnd ? `from ${new Date(q.periodEnd).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/London" })}` : "from your next bill") : "pro-rated on your next bill";
       await sendAccountEventEmail({ tenantId: t.id, ...planChangedEvent({ tenantId: t.id, changeKey: `${t.id}:${q.from}-${q.to}:${new Date().toISOString().slice(0, 10)}`, from: q.from, to: q.to, newMonthlyPence: q.newMonthlyPence, when }) });
     }
     await note(admin, t.id, "Account type changed", message, actorEmail);
-    return { message, url: null as string | null, mode };
+    return reply(ok ? (q.effective === "period_end" ? "scheduled" : "applied") : "failed", message);
   });
+
+/** Like note(), but says whether the row was written. */
+async function noteOk(sb: SupabaseClient, tenantId: number, title: string, body: string, actorEmail: string): Promise<boolean> {
+  try {
+    const { error } = await sb.from("build_events").insert({ tenant_id: tenantId, kind: "note", title, body, visibility: "internal", actor_email: actorEmail });
+    return !error;
+  } catch {
+    return false;
+  }
+}
 
 async function note(sb: SupabaseClient, tenantId: number, title: string, body: string, actorEmail: string) {
   try {
