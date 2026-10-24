@@ -193,9 +193,12 @@ export function totalIf(plan: PlanId, sites: BillingSite[], code: string, to: Si
 
 const whole = (p: number) => `£${(p / 100).toLocaleString("en-GB", { minimumFractionDigits: p % 100 ? 2 : 0, maximumFractionDigits: 2 })}`;
 
-export function goLiveConfirmCopy(name: string, before: number, after: number): string {
+export function goLiveConfirmCopy(name: string, before: number, after: number, plan?: PlanId): string {
   const up = after - before;
-  if (up <= 0) return `Put ${name} live? The bill stays at ${whole(after)} a month.`;
+  if (up <= 0) {
+    const why = plan === "group" ? ", because Group already bills a 2 site minimum" : plan === "franchise" ? ", because Franchise includes up to 5 sites" : "";
+    return `Put ${name} live? The bill stays at ${whole(after)} a month${why}.`;
+  }
   return `Put ${name} live? From today the bill goes up by ${whole(up)} to ${whole(after)} a month. The part month is added to the next invoice.`;
 }
 
