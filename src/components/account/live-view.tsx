@@ -678,7 +678,7 @@ export function LiveView({
                 <Row k="Price">
                   {bill ? (
                     <>
-                      {monthly ? `${gbpPence(monthly)} a month` : ""}
+                      {monthly ? `${gbpPence(monthly)} a month inc. VAT` : ""}
                       {pending ? (
                         <span className="mt-0.5 block text-xs text-subtle">{pending.hint}</span>
                       ) : null}
