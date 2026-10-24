@@ -1,5 +1,6 @@
 import { BRANDS, type BrandId } from "@/lib/brands";
 import { SITE } from "@/lib/site";
+import { multiBrand, shapeGaps } from "@/lib/plan-shape";
 import { FEATURES, INGEST, defaultFeaturesFor, normalizeBilling, normalizePlan, type BillingKind, type PlanId } from "@/lib/catalog";
 
 /**
@@ -161,6 +162,29 @@ export function applyBrand(pack: TenantPack, id: string): TenantPack {
   };
 }
 
+/** Every brand on the pack: the main one (desk colours) first, then the rest (Group only). */
+export function brandsOf(pack: TenantPack): string[] {
+  return [...new Set([pack.franchise.id, ...(pack.franchises ?? []).map((f) => f.id)].filter(Boolean))];
+}
+
+/**
+ * Brand picker. Site and Franchise: one brand, picking replaces it.
+ * Group: chips toggle; the first brand sets the desk colours.
+ */
+export function pickBrand(pack: TenantPack, id: string, plan: PlanId): TenantPack {
+  if (!multiBrand(plan)) return { ...applyBrand(pack, id), franchises: [] };
+  // The empty pack starts on Independent, which counts as nothing picked yet for a group.
+  const untouched = pack.franchise.id === "independent" && (pack.franchises ?? []).length === 0;
+  const cur = untouched ? [] : brandsOf(pack);
+  const next = cur.includes(id) ? cur.filter((b) => b !== id) : [...cur, id];
+  const [main, ...rest] = next;
+  const word = (b: string) => (BRANDS as Record<string, { word: string }>)[b]?.word ?? b.toUpperCase();
+  return {
+    ...applyBrand(pack, main ?? "independent"),
+    franchises: rest.map((b) => ({ id: b, word: word(b), sites: (pack.franchises ?? []).find((f) => f.id === b)?.sites })),
+  };
+}
+
 export function parseSites(raw: unknown): string[] {
   if (Array.isArray(raw)) return raw.map(String).filter(Boolean);
   if (typeof raw !== "string") return ["Main"];
@@ -269,19 +293,18 @@ export function tenantJson(pack: TenantPack) {
 export const PACK_GAP_TIPS = {
   domain: "Add the web address for your desk.",
   logo: "Add your logo (SVG or PNG).",
-  franchise: "Pick your franchise colours.",
-  staff: "Add at least one staff seat.",
+  franchise: "Pick your brand colours.",
+  staff: "Add at least one person to the desk.",
   name: "Add your site name.",
   legal: "Add the legal entity name.",
   contact: "Add a phone number and inbox.",
   sites: "Add at least one site.",
   sitesGroup: "Add two or more sites for a group.",
   ingest: "Choose how stock will come in.",
-  staffRoles: "Staff seats on a trial need a trial role (sales, management, host, or progressor).",
+  staffRoles: "Staff on a trial need a trial role (sales, management, host, or progressor).",
 } as const;
 
-export const PACK_GAPS_SUMMARY = "Add a web address and at least one staff seat before we can build.";
-export const PACK_LOCKED_HELPER = "We'll unlock this when the pack has everything needed to build your desk.";
+export const PACK_GAPS_SUMMARY = "Add a web address and at least one person to the desk before we can build.";
 export const PACK_READY_HELPER = "Pack looks ready. Send it when you want us to build.";
 
 const TRIAL_ROLE_IDS = new Set(["sales", "management", "host", "progressor"]);
@@ -308,6 +331,8 @@ export function packGaps(
     gaps.push(PACK_GAP_TIPS.staffRoles);
   }
   if (!INGEST.some((i) => i.id === pack.ingest)) gaps.push(PACK_GAP_TIPS.ingest);
+  // Plan shape (PR 9): Site one site and one brand, Franchise one brand, Group two or more brands.
+  for (const g of shapeGaps(plan, sites, brandsOf(pack))) if (!gaps.includes(g)) gaps.push(g);
   return gaps;
 }
 
@@ -318,8 +343,24 @@ export function packGapsTip(gaps: string[]): string | null {
   return PACK_GAPS_SUMMARY;
 }
 
-export function packGapsHelper(gaps: string[]): string {
-  return gaps.length === 0 ? PACK_READY_HELPER : PACK_LOCKED_HELPER;
+/** Office pack hint (Atlas QA): live and specific; null hides it. tokenConfigured null = still checking. */
+export const PACK_HINTS = {
+  domain: "Add a web address before we can build.",
+  staff: "Add at least one person to the desk before we can build.",
+  token: "We'll unlock this once the build token is set.",
+} as const;
+
+export function packHint(pack: TenantPack, tokenConfigured: boolean | null): string | null {
+  const out: string[] = [];
+  if (!pack.domain.trim()) out.push(PACK_HINTS.domain);
+  if (!pack.staff.some((s) => s.name.trim() && s.email.includes("@"))) out.push(PACK_HINTS.staff);
+  if (out.length === 0 && tokenConfigured === false) out.push(PACK_HINTS.token);
+  return out.length ? out.join(" ") : null;
+}
+
+/** Ready line only. While gaps remain the live packHint is the one hint (Atlas QA: no generic second hint). */
+export function packGapsHelper(gaps: string[]): string | null {
+  return gaps.length === 0 ? PACK_READY_HELPER : null;
 }
 
 export function brandOptions() {
@@ -367,7 +408,7 @@ export const GO_LIVE_STEPS = [
   {
     id: "brand",
     label: "Brand pack received",
-    waiting: "We're applying your logo and franchise colours.",
+    waiting: "We're applying your logo and brand colours.",
     cta: null as string | null,
   },
   {

@@ -84,7 +84,7 @@ export const ROLES = [
     id: "principal",
     label: "Principal",
     title: "Dealer principal / group",
-    sees: "Every site, every franchise on the contract. Totals.",
+    sees: "Every site, every brand on the contract. Totals.",
     cannot: "Nothing on the floor they cannot already see as management.",
     packages: ["group"] as PlanId[],
     trial: false,
@@ -126,11 +126,12 @@ export type StaffSeat = {
 
 export const ROLE_RULES = [
   "The 60-day trial is Site only: sales, management, host, progressor. Not administrator or accounts.",
-  "A job title is a label. The role is the seat. Host, receptionist, greeter → host.",
+  "A job title is a label. The role is what counts. Host, receptionist, greeter → host.",
   "Accountant does not get a finance product. They get GP read and a CSV.",
   "Progressor is the locator tab with stock. Not a second app.",
   "Say Administrator role (inside the desk), never bare Admin. Forecourt team is a separate staff door.",
-  "Franchise is one manufacturer brand on a 12-month contract. No trial.",
-  "Multi-franchise is Group: one contract, roles scoped to site and franchise.",
-  "Do not let a client invent roles. If it is not in this list, it is a title on an existing seat.",
+  "Site is one brand and one site.",
+  "Franchise is one manufacturer brand on a 12-month contract, one or more sites. No trial.",
+  "More than one brand is Group: one contract, two or more brands and sites, roles scoped to site and brand.",
+  "Do not let a client invent roles. If it is not in this list, it is a title on an existing role.",
 ] as const;

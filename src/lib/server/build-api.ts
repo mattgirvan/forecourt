@@ -86,9 +86,8 @@ export async function executeSendToBuild(
   const gaps = packGaps(pack, plan, billing);
   if (gaps.length) {
     throw new Error(
-      gaps.length === 1
-        ? gaps[0]!
-        : "Add a web address and at least one staff seat before we can build.",
+      // Every gap, so a plan shape gap (one site on Site, brands on Group) is never hidden.
+      gaps.join(" "),
     );
   }
 

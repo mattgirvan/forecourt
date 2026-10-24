@@ -2,7 +2,7 @@
  * Group build PR 3: per-site billing maths. Pure, no Stripe, no database.
  *
  * Group: one line, £249 x live sites.
- * Franchise: £899 flat (covers up to 5 live sites) plus "Extra site" £100 x max(0, live - 5).
+ * Franchise: £899 flat (covers up to 5 live sites) plus "Franchise extra site" £100 x max(0, live - 5).
  * Site: unchanged, never touched by site events.
  * Only sites that have gone live count. Setting up and archived sites never do.
  * Removing or archiving a site lowers the quantity with no proration, so it takes
@@ -107,7 +107,7 @@ export function linesFor(plan: PlanId, live: number): BillingLine[] {
   if (plan === "franchise") {
     const lines: BillingLine[] = [{ key: "franchise_base", label: `Franchise, up to ${FRANCHISE_INCLUDED_SITES} sites`, unitPence: FRANCHISE_BASE_PENCE, quantity: 1 }];
     const extra = franchiseExtraSites(n);
-    if (extra > 0) lines.push({ key: "franchise_extra", label: "Extra site", unitPence: FRANCHISE_EXTRA_SITE_PENCE, quantity: extra });
+    if (extra > 0) lines.push({ key: "franchise_extra", label: "Franchise extra site", unitPence: FRANCHISE_EXTRA_SITE_PENCE, quantity: extra });
     return lines;
   }
   return [];
@@ -139,7 +139,7 @@ export function siteBreakdown(plan: PlanId, sites: BillingSite[]): { rows: SiteB
     if (plan === "franchise") {
       return liveIndex <= FRANCHISE_INCLUDED_SITES
         ? { code: s.code, name: s.name, status: s.status, note: "", pence: 0, included: true }
-        : { code: s.code, name: s.name, status: s.status, note: "Extra site", pence: FRANCHISE_EXTRA_SITE_PENCE };
+        : { code: s.code, name: s.name, status: s.status, note: "Franchise extra site", pence: FRANCHISE_EXTRA_SITE_PENCE };
     }
     return { code: s.code, name: s.name, status: s.status, note: "", pence: 0 };
   });
@@ -156,13 +156,13 @@ function gbpWhole(pence: number) {
   return `£${(pence / 100).toLocaleString("en-GB", { maximumFractionDigits: 2 })}`;
 }
 
-/** Totals copy: "3 live sites at £249", "2 extra sites at £100", "Franchise, up to 5 sites". */
+/** Totals copy: "3 live sites at £249", "2 Franchise extra sites at £100", "Franchise, up to 5 sites". */
 export function lineLabel(l: BillingLine): string {
   if (l.key === "group_site") {
     if (l.live != null && l.live < l.quantity) return `${l.quantity} site minimum at ${gbpWhole(l.unitPence)} (${l.live} live)`;
     return `${l.quantity} live ${l.quantity === 1 ? "site" : "sites"} at ${gbpWhole(l.unitPence)}`;
   }
-  if (l.key === "franchise_extra") return `${l.quantity} extra ${l.quantity === 1 ? "site" : "sites"} at ${gbpWhole(l.unitPence)}`;
+  if (l.key === "franchise_extra") return `${l.quantity} Franchise extra ${l.quantity === 1 ? "site" : "sites"} at ${gbpWhole(l.unitPence)}`;
   return l.label;
 }
 

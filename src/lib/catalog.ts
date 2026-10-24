@@ -92,8 +92,7 @@ export const PLANS: Record<PlanId, Plan> = {
     name: "Franchise",
     tag: "One manufacturer brand",
     setupPence: 650_000,
-    // Flat for the whole franchise, up to 5 sites. Extra sites (+£100 a month each,
-    // FRANCHISE_EXTRA_SITE_PENCE) are billed with the group build; checkout charges the flat line.
+    // £899 a month covers up to 5 sites; each site beyond 5 adds FRANCHISE_EXTRA_SITE_PENCE (see monthTotalPence).
     monthPence: 89_900,
     trialPence: null,
     perSite: false,
@@ -123,12 +122,12 @@ export const PLANS: Record<PlanId, Plan> = {
     contractMonths: 12,
     minSites: 2,
     sellNow: true,
-    body: "A motor group. Every site, every franchise, one picture of the pipeline.",
+    body: "A motor group. Every site, every brand, one picture of the pipeline.",
     why: "A group is a project. Monthly billing starts the day your desks go live.",
     includes: [
       "Every site on the contract",
       "Principal roll-up across the group",
-      "Roles scoped to site and franchise",
+      "Roles scoped to site and brand",
       "£249 per site / month, 12-month contract",
     ],
   },
@@ -168,10 +167,17 @@ export function gbpPence(pence: number) {
 export const FRANCHISE_INCLUDED_SITES = 5;
 export const FRANCHISE_EXTRA_SITE_PENCE = 10_000;
 
+/** Franchise sites billed on top of the flat price: everything past the first 5. */
+export function franchiseExtraSites(siteCount: number) {
+  return Math.max(0, Math.floor(siteCount) - FRANCHISE_INCLUDED_SITES);
+}
+
 export function monthTotalPence(plan: PlanId, siteCount = 1) {
   const p = PLANS[plan];
   const n = Math.max(p.minSites, siteCount);
-  return p.perSite ? p.monthPence * n : p.monthPence;
+  if (p.perSite) return p.monthPence * n;
+  if (plan === "franchise") return p.monthPence + franchiseExtraSites(n) * FRANCHISE_EXTRA_SITE_PENCE;
+  return p.monthPence;
 }
 
 export function setupDuePence(plan: PlanId, billing: BillingKind, convertFromTrial = false) {

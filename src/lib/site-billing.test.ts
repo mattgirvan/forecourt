@@ -45,7 +45,7 @@ test("breakdown shows each site and what it adds", () => {
   assert.equal(amountLabel(f.rows[7]), "Not billed");
   assert.equal(amountLabel(siteBreakdown("group", sites).rows[0]), "£249");
   assert.equal(f.rows[0].included, true);
-  assert.equal(f.rows[5].note, "Extra site");
+  assert.equal(f.rows[5].note, "Franchise extra site");
   assert.equal(f.rows[5].included, undefined);
   assert.equal(siteBreakdown("group", sites).rows[0].note, "");
   assert.equal(f.rows[6].pence, 0);
@@ -83,7 +83,7 @@ test("totals copy", () => {
   assert.equal(lineLabel(linesFor("group", 2)[0]), "2 live sites at £249");
   const f = linesFor("franchise", 7);
   assert.equal(lineLabel(f[0]), "Franchise, up to 5 sites");
-  assert.equal(lineLabel(f[1]), "2 extra sites at £100");
+  assert.equal(lineLabel(f[1]), "2 Franchise extra sites at £100");
 });
 
 test("Atlas copy: go live and archive confirms use real totals, period end from the billing start day", async () => {

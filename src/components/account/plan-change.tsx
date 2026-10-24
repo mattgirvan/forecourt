@@ -5,7 +5,7 @@ import { quoteLines, type PlanChangeQuote } from "@/lib/plan-change";
 import { previewPlanChange, requestPlanChange } from "@/lib/server/plan-change-server";
 
 const ORDER: PlanId[] = ["site", "franchise", "group"];
-const LABEL: Record<PlanId, string> = { site: "Site (Dealer)", franchise: "Franchise", group: "Group" };
+const LABEL: Record<PlanId, string> = { site: "Site", franchise: "Franchise", group: "Group" };
 
 /** Change account type. Customer (live accounts) and Office use the same panel. */
 export function PlanChangePanel({ token, tenantId, plan, where }: { token: string; tenantId: number; plan: PlanId; where: "account" | "office" }) {
