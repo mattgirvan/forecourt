@@ -96,5 +96,22 @@ test("QA: pill tone, cancel email, office trim wording, daily check", async () =
   const cron = readFileSync("src/lib/server/migration-cron.ts", "utf8");
   assert.match(cron, /MIGRATION_CRON_SECRET/);
   assert.match(cron, /timingSafeEqual/);
+  assert.match(cron, /rpc\("migration_cron_secret_matches"/);
+  assert.doesNotMatch(cron, /MIGRATION_CRON_SECRET is not set/, "env var is optional now");
   assert.match(readFileSync("src/lib/server/migration-store.ts", "utf8"), /eq\("migration_stage", row\.migration_stage\)/);
+});
+
+test("downgrade keeps the current price until the period end, with a hint", async () => {
+  const { downgradePrice } = await import("./migration.ts");
+  const mk = (from: "site" | "franchise" | "group", to: "site" | "franchise" | "group", stage = "requested") =>
+    trackerFor({ id: 9, from_plan: from, to_plan: to, status: "applied", migration_stage: stage, migration_cancelled_at: null, effective_at: "2026-11-14T10:00:00Z", stage_times: {}, created_at: "2026-10-20T10:00:00Z" } as unknown as MigrationRow);
+  const now = new Date("2026-10-24T09:00:00Z");
+  const g2s = downgradePrice(mk("group", "site"), { monthlyPence: 39_900 }, 3, now)!;
+  assert.equal(g2s.currentPence, 74_700);
+  assert.equal(g2s.hint, "£399 a month from 14 Nov 2026");
+  assert.equal(downgradePrice(mk("franchise", "site"), { monthlyPence: 89_900 }, 1, now)!.currentPence, 89_900);
+  assert.equal(downgradePrice(mk("group", "franchise"), { monthlyPence: 89_900 }, 3, now)!.hint, "£899 a month from 14 Nov 2026");
+  assert.equal(downgradePrice(mk("site", "group"), { monthlyPence: 74_700 }, 3, now), null, "upgrades unchanged");
+  assert.equal(downgradePrice(mk("group", "site"), { monthlyPence: 39_900 }, 3, new Date("2026-11-15T00:00:00Z")), null, "after period end");
+  assert.equal(downgradePrice(mk("group", "site", "priced"), { monthlyPence: 39_900 }, 3, now), null, "price step done");
 });
