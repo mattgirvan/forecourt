@@ -27,7 +27,7 @@ test("upgrade Site to Group at half period: £4,000 setup now, half the monthly 
   assert.equal(q.proratedPence, Math.round((49_800 - 39_900) / 2));
   assert.equal(q.effective, "after_payment");
   assert.match(quoteLines(q).join("\n"), /^Setup difference, paid now: £4,000\nPart month for the rest of this month, added to your next bill: £49\.50\nGroup starts as soon as the setup payment goes through\. Your new monthly total is £498\.$/);
-  assert.equal(planChangeDryRunMessage(q, new Date("2026-10-24T09:00:00Z")), "Dry run. Nothing is charged and the plan is unchanged. The customer would pay the setup difference first, then pay £498 a month from 24 Oct 2026.");
+  assert.equal(planChangeDryRunMessage(q, new Date("2026-10-24T09:00:00Z")), "Dry run. Nothing is charged and the plan is unchanged. The customer would pay the setup difference first, then pay £498 a month from the day the setup payment goes through.");
 });
 
 test("upgrade Franchise to Group: £2,000 setup difference", () => {

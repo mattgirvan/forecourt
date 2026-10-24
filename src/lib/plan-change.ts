@@ -111,7 +111,7 @@ export function ukDay(iso: string | number | Date): string {
 export function planChangeDryRunMessage(q: PlanChangeQuote, now: Date = new Date()): string {
   const head = "Dry run. Nothing is charged and the plan is unchanged.";
   const monthly = gbp(q.newMonthlyPence);
-  if (q.direction === "upgrade") return `${head} The customer would pay the setup difference first, then pay ${monthly} a month from ${ukDay(now)}.`;
+  if (q.direction === "upgrade") return `${head} The customer would pay the setup difference first, then pay ${monthly} a month from the day the setup payment goes through.`;
   const when = q.effective === "period_end" && q.periodEnd ? ukDay(q.periodEnd) : q.effective === "period_end" ? "their next bill" : ukDay(now);
   return `${head} The customer would pay ${monthly} a month from ${when}.`;
 }

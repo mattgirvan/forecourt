@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { PLANS, type PlanId } from "@/lib/catalog";
 import { quoteLines, type PlanChangeQuote } from "@/lib/plan-change";
@@ -105,9 +106,9 @@ export function PlanChangeView({
             ))}
           </ul>
           <div className="mt-4 flex flex-wrap gap-2">
-            <button type="button" disabled={busy} onClick={() => void confirm()} className="rounded-full bg-accent px-4 py-1.5 text-sm font-medium text-accent-fg disabled:opacity-50">
+            <Button disabled={busy} onClick={() => void confirm()}>
               {quote.direction === "upgrade" ? `Pay £${(quote.setupDiffPence / 100).toLocaleString("en-GB")} and switch` : `Switch to ${PLANS[quote.to].name}`}
-            </button>
+            </Button>
             <button type="button" disabled={busy} onClick={() => { setQuote(null); setTo(null); }} className="rounded-full border border-line px-4 py-1.5 text-sm">
               Cancel
             </button>
