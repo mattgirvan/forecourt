@@ -7,14 +7,15 @@ import { PaymentIssueNotice } from "@/components/account/payment-issue";
 import { useEffect, useMemo, useState } from "react";
 import { Notes, Thread } from "@/components/account/portal";
 import { OrderBuild } from "@/components/build/order-desk";
-import { BoardStats, CustomerTable, type BoardRow } from "@/components/office/board";
+import { OfficeOverview } from "@/components/office/overview";
+import { BoardStats, CustomerTable, FLAG_EXPLAINERS, type BoardRow } from "@/components/office/board";
 import { FileFlags } from "@/components/office/file-flags";
 import { ResumeOrder } from "@/components/office/resume-order";
 import { StaffPanel } from "@/components/office/staff-panel";
 import { SignInMethods } from "@/components/account/sign-in-methods";
 import { SiteShell } from "@/components/site-shell";
 import { AppShell, type ShellNavItem } from "@/components/app-shell";
-import { ChevronLeft, LifeBuoy, MapPin, Store, Users } from "lucide-react";
+import { ChevronLeft, LayoutGrid, LifeBuoy, MapPin, Store, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SignInGate, useSbAccessToken } from "@/lib/sb-session";
 import { getSb } from "@/lib/sb";
@@ -37,10 +38,11 @@ import { accountStatusLabel, type Tracker } from "@/lib/migration";
 import { useWhoAmI } from "@/lib/who-am-i";
 import { SupportPane, SupportQueue } from "@/components/office/support-desk";
 
-type OfficeTab = "customers" | "queue" | "staff" | "security" | "sites";
+type OfficeTab = "overview" | "customers" | "queue" | "staff" | "security" | "sites";
 type OfficeSearch = { id?: number; tab?: OfficeTab };
 
 const TAB_LABEL: Record<OfficeTab, string> = {
+  overview: "Overview",
   customers: "Dealers",
   queue: "Tickets",
   sites: "Sites",
@@ -52,7 +54,7 @@ export const Route = createFileRoute("/office")({
   validateSearch: (raw: Record<string, unknown>): OfficeSearch => {
     const n = typeof raw.id === "string" ? Number(raw.id) : typeof raw.id === "number" ? raw.id : undefined;
     const tab: OfficeTab | undefined =
-      raw.tab === "staff" || raw.tab === "queue" || raw.tab === "customers" || raw.tab === "security" || raw.tab === "sites" ? raw.tab : undefined;
+      raw.tab === "overview" || raw.tab === "staff" || raw.tab === "queue" || raw.tab === "customers" || raw.tab === "security" || raw.tab === "sites" ? raw.tab : undefined;
     const out: OfficeSearch = {};
     if (typeof n === "number" && Number.isFinite(n)) out.id = n;
     if (tab) out.tab = tab;
@@ -91,7 +93,7 @@ function OfficeInner() {
   const [err, setErr] = useState<string | null>(null);
   const [q, setQ] = useState("");
   const [showArchived, setShowArchived] = useState(false);
-  const tab: OfficeTab = search.tab ?? "customers";
+  const tab: OfficeTab = search.tab ?? "overview";
 
   async function reload() {
     if (!token) return;
@@ -214,10 +216,11 @@ function OfficeInner() {
   }
 
   const nav: ShellNavItem[] = [
+    { key: "overview", label: "Overview", icon: LayoutGrid, to: "/office", search: { tab: "overview" }, bottom: true },
     { key: "customers", label: "Dealers", icon: Store, to: "/office", search: { tab: "customers" }, count: rows.length, bottom: true },
     { key: "queue", label: "Tickets", icon: LifeBuoy, to: "/office", search: { tab: "queue" }, bottom: true },
     { key: "sites", label: "Sites", icon: MapPin, to: "/office", search: { tab: "sites" }, bottom: true },
-    { key: "staff", label: "Team", icon: Users, to: "/office", search: { tab: "staff" }, bottom: true },
+    { key: "staff", label: "Team", icon: Users, to: "/office", search: { tab: "staff" } },
   ];
 
   return (
@@ -233,7 +236,7 @@ function OfficeInner() {
       ]}
     >
     <div className="mx-auto max-w-5xl px-4 py-8 sm:px-8">
-      <div>
+      <div className={tab === "overview" && !search.id ? "sr-only" : undefined}>
         <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--fc-text-faint)]">Office</p>
         <h1 className="mt-1 text-[26px] font-semibold tracking-tight sm:text-[34px]">
           {search.id ? "Dealer file" : TAB_LABEL[tab]}
@@ -275,6 +278,15 @@ function OfficeInner() {
           </div>
           <SignInMethods embedded />
         </div>
+      )}
+
+      {tab === "overview" && !search.id && (
+        <OfficeOverview
+          rows={rows}
+          firstName={(me.name || "").split(/\s+/)[0] ?? ""}
+          onOpen={(id) => go({ tab: "customers", id })}
+          onSearch={() => go({ tab: "customers" })}
+        />
       )}
 
       {tab === "customers" && !search.id && (
@@ -320,7 +332,12 @@ function OfficeInner() {
             All dealers
           </button>
           <div className="mt-2">
-            <TenantFile token={token} tenantId={search.id} onSaved={() => void reload()} />
+            <TenantFile
+              token={token}
+              tenantId={search.id}
+              paymentFailed={!!rows.find((r) => r.id === search.id)?.flags?.paymentFailed}
+              onSaved={() => void reload()}
+            />
           </div>
         </div>
       )}
@@ -329,7 +346,7 @@ function OfficeInner() {
   );
 }
 
-function TenantFile({ token, tenantId, onSaved }: { token: string; tenantId: number; onSaved: () => void }) {
+function TenantFile({ token, tenantId, paymentFailed = false, onSaved }: { token: string; tenantId: number; paymentFailed?: boolean; onSaved: () => void }) {
   const { me } = useWhoAmI();
   const owner = me?.role === "owner";
   const [file, setFile] = useState<Awaited<ReturnType<typeof getTenantFile>> | null>(null);
@@ -491,6 +508,11 @@ function TenantFile({ token, tenantId, onSaved }: { token: string; tenantId: num
           }}
         />
         </div>
+      ) : null}
+      {paymentFailed ? (
+        <p className="mt-4 rounded-[var(--fc-r-md)] border border-[rgba(227,169,79,0.45)] bg-[var(--fc-amber-tint)] px-4 py-3 text-sm text-fg" data-testid="file-payment-failed">
+          {FLAG_EXPLAINERS.paymentFailed}
+        </p>
       ) : null}
       <FileFlags key={`flags-${tenantId}`} token={token} tenantId={tenantId} owner={owner} onChanged={onSaved} />
 

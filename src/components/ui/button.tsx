@@ -11,6 +11,7 @@ const buttonVariants = cva(
         default: "bg-fg text-accent-fg hover:opacity-90 active:scale-[0.98]",
         secondary:
           "bg-transparent text-fg border border-line-strong hover:bg-elevated",
+        action: "bg-[var(--fc-amber)] text-[var(--fc-amber-ink)] font-semibold hover:opacity-90 active:scale-[0.98]",
         ghost: "text-muted hover:text-fg hover:bg-elevated",
         danger: "bg-bad/15 text-bad border border-bad/30 hover:bg-bad/25",
       },
