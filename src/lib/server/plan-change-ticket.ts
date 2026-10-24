@@ -60,8 +60,50 @@ export function ticketDetails(c: TicketChange): string {
   return lines.join(" ");
 }
 
+/**
+ * Waiting on customer (staff never pay): a request with a setup difference opens the
+ * same plan_change ticket while it is pending_payment, with no action for staff
+ * (needs_reply false) and this title suffix. The suffix is the marker: paid swaps it
+ * for the normal ticket, cancelled or expired closes it, each with a conditional
+ * update on the waiting title, so retries never repeat or undo anything.
+ */
+export const WAITING_SUFFIX = ", waiting on customer";
+export const NOT_PAID_SUFFIX = ", not paid";
+export const WAITING_LABEL = "Waiting on customer";
+
+export function officeFileLink(tenantId: number): string {
+  return `/office?tab=customers&id=${tenantId}&pane=billing`;
+}
+
+export function waitingTicketTitle(c: Pick<TicketChange, "from_plan" | "to_plan">): string {
+  return `${ticketTitle(c)}${WAITING_SUFFIX}`;
+}
+
+export function waitingTicketDetails(c: TicketChange): string {
+  return [
+    `${WAITING_LABEL}. Move from ${name(c.from_plan)} to ${name(c.to_plan)}.`,
+    `Setup difference of ${gbp(c.setup_diff_pence)} (inc. VAT) to be paid by the customer, from the emailed link or Pay on their account.`,
+    `New monthly price ${gbp(c.new_monthly_pence)} (inc. VAT) from the go live day.`,
+    "Nothing to do yet. This ticket moves on by itself when the setup difference is paid, and closes if the request is cancelled or expires.",
+    "The dealer file and tracker are under Billing.",
+  ].join(" ");
+}
+
+export function notPaidDetails(c: TicketChange, reason: "cancelled" | "expired"): string {
+  return `Closed: the setup difference of ${gbp(c.setup_diff_pence)} (inc. VAT) was not paid and the request ${reason === "expired" ? "expired" : "was cancelled"}. The plan is unchanged. Nothing to do.`;
+}
+
+/** True for a plan change ticket still waiting on the customer to pay. */
+export function isWaitingTicket(i: { change_type?: string | null; title: string; status: string }): boolean {
+  return i.change_type === "plan_change" && i.status === "submitted" && i.title.endsWith(WAITING_SUFFIX);
+}
+
+const waitingDue = (c: TicketChange) => c.status === "pending_payment" && (c.setup_diff_pence ?? 0) > 0;
+
 export type TicketDeps = {
-  insertItem: (row: { tenant_id: number; kind: "change"; change_type: "plan_change"; title: string; details: string; status: "submitted"; needs_reply: true; created_by: string }) => Promise<{ id: number } | null>;
+  insertItem: (row: { tenant_id: number; kind: "change"; change_type: "plan_change"; title: string; details: string; status: "submitted"; needs_reply: boolean; created_by: string }) => Promise<{ id: number } | null>;
+  /** Paid: swap the waiting ticket for the normal one, only while it still has the waiting title. */
+  promote?: (itemId: number, waitingTitle: string, patch: { title: string; details: string; needs_reply: true }) => Promise<boolean>;
   /** Set support_item_id only if it is still empty. True when this call won. */
   link: (changeId: number, itemId: number) => Promise<boolean>;
   /** Drop an item that lost the link race. */
@@ -70,17 +112,27 @@ export type TicketDeps = {
 
 /** Open the ticket once. Returns the linked item id, or null when not due. Never throws. */
 export async function openTicket(deps: TicketDeps, c: TicketChange): Promise<number | null> {
-  if (!(TICKET_STATUSES as readonly string[]).includes(c.status)) return null;
-  if (c.support_item_id) return c.support_item_id;
+  const waiting = waitingDue(c);
+  if (!waiting && !(TICKET_STATUSES as readonly string[]).includes(c.status)) return null;
+  if (c.support_item_id) {
+    if (!waiting && deps.promote) {
+      try {
+        await deps.promote(c.support_item_id, waitingTicketTitle(c), { title: ticketTitle(c), details: ticketDetails(c), needs_reply: true });
+      } catch {
+        /* the ticket is there either way */
+      }
+    }
+    return c.support_item_id;
+  }
   try {
     const item = await deps.insertItem({
       tenant_id: c.tenant_id,
       kind: "change",
       change_type: "plan_change",
-      title: ticketTitle(c),
-      details: ticketDetails(c),
+      title: waiting ? waitingTicketTitle(c) : ticketTitle(c),
+      details: waiting ? waitingTicketDetails(c) : ticketDetails(c),
       status: "submitted",
-      needs_reply: true,
+      needs_reply: !waiting,
       created_by: c.requested_by ?? "",
     });
     if (!item) return null;
@@ -89,6 +141,26 @@ export async function openTicket(deps: TicketDeps, c: TicketChange): Promise<num
     return null;
   } catch {
     return null;
+  }
+}
+
+export type CloseDeps = {
+  /** Close only while the ticket still has the waiting title. True when this call won. */
+  close: (itemId: number, waitingTitle: string, patch: { status: "declined"; title: string; details: string; needs_reply: false }) => Promise<boolean>;
+};
+
+/** Cancelled or expired before payment: close the waiting ticket once. Never throws. */
+export async function closeWaitingTicket(deps: CloseDeps, c: TicketChange, reason: "cancelled" | "expired"): Promise<boolean> {
+  if (!c.support_item_id) return false;
+  try {
+    return await deps.close(c.support_item_id, waitingTicketTitle(c), {
+      status: "declined",
+      title: `${ticketTitle(c)}${NOT_PAID_SUFFIX}`,
+      details: notPaidDetails(c, reason),
+      needs_reply: false,
+    });
+  } catch {
+    return false;
   }
 }
 

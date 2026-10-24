@@ -8,6 +8,7 @@ import { TicketPane } from "@/components/office/ticket-pane";
 import { cn } from "@/lib/utils";
 import { PlanChangeTicketActions } from "@/components/office/plan-change-ticket";
 import type { PlanChangeTicketView } from "@/lib/server/plan-change-staff";
+import { WAITING_LABEL, isWaitingTicket } from "@/lib/server/plan-change-ticket";
 import { STATUS_LABEL, isOpenStatus, itemTypeLabel, lastLine, updatedWhen, type SupportStatus } from "@/lib/live-view";
 
 const TICKET_STATUSES: SupportStatus[] = ["open", "in_progress", "resolved"];
@@ -19,8 +20,16 @@ function NeedsReply() {
 
 const isPlanChange = (i: SupportItem) => i.change_type === "plan_change";
 
+/** Grey, not amber: staff have nothing to do until the customer pays. */
+function Waiting() {
+  return (
+    <Chip data-testid="ticket-waiting-on-customer">{WAITING_LABEL}</Chip>
+  );
+}
+
 function StatusSelect({ token, item, onChanged }: { token: string; item: SupportItem; onChanged: () => void }) {
   const [busy, setBusy] = useState(false);
+  if (isWaitingTicket(item)) return <Waiting />;
   // A plan change ticket moves with Apply or Reject, never by hand.
   if (isPlanChange(item)) return <Pill status={item.status} />;
   const opts = item.kind === "ticket" ? TICKET_STATUSES : CHANGE_STATUSES;
@@ -97,7 +106,7 @@ function Table({
             </span>
           </button>
           {compact ? (
-            i.needs_reply ? <NeedsReply /> : null
+            i.needs_reply ? <NeedsReply /> : isWaitingTicket(i) ? <Waiting /> : null
           ) : (
             <div className="flex w-full flex-wrap items-center gap-2">
               {i.needs_reply ? <NeedsReply /> : null}
@@ -165,7 +174,7 @@ export function SupportPane({ token, tenantId }: { token: string; tenantId: numb
         token={token}
         onClose={() => setOpenId(null)}
         onChanged={load}
-        statusControl={open ? <StatusSelect token={token} item={open} onChanged={load} /> : undefined}
+        statusControl={open && !isWaitingTicket(open) ? <StatusSelect token={token} item={open} onChanged={load} /> : undefined}
         extra={open && isPlanChange(open) ? <PlanChangeTicketActions token={token} itemId={open.id} onChanged={load} /> : undefined}
       />
     </div>
@@ -267,7 +276,7 @@ export function SupportQueue({
               token={token}
               onBack={back}
               onChanged={load}
-              statusControl={<StatusSelect token={token} item={thread} onChanged={load} />}
+              statusControl={isWaitingTicket(thread) ? undefined : <StatusSelect token={token} item={thread} onChanged={load} />}
               extra={
                 isPlanChange(thread) ? (
                   <PlanChangeTicketActions token={token} itemId={thread.id} onChanged={load} initial={initialPlanChange?.[thread.id]} initialNotice={initialPlanChangeNotice} />

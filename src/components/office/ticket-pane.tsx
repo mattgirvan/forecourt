@@ -7,6 +7,7 @@ import { replySupport, setSupportStatus, type SupportItem } from "@/lib/server/l
 import { isOpenStatus, updatedWhen } from "@/lib/live-view";
 import { ticketChip, ticketMeta } from "@/lib/ticket-view";
 import { cn } from "@/lib/utils";
+import { isWaitingTicket } from "@/lib/server/plan-change-ticket";
 
 /**
  * Ticket detail (redesign slice 12). Desktop: sits beside the list, which
@@ -95,7 +96,7 @@ export function TicketPane({
             Mark solved
           </button>
         ) : null}
-        <Link className="fc-tix-act fc-press" to="/office" search={{ tab: "customers", id: item.tenant_id }}>
+        <Link className="fc-tix-act fc-press" to="/office" search={isWaitingTicket(item) ? { tab: "customers", id: item.tenant_id, pane: "billing" } : { tab: "customers", id: item.tenant_id }}>
           Open dealer file
         </Link>
         {statusControl}
