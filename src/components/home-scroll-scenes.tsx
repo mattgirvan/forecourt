@@ -123,6 +123,7 @@ function FakeCursor({ innerRef, down }: { innerRef: React.Ref<HTMLDivElement>; d
   return (
     <div ref={innerRef} className="scene-cursor" data-down={down ? "1" : "0"} aria-hidden>
       <span className="scene-cursor-ring" />
+      <span className={cn("scene-tap scene-cursor-tap", down && "is-on")} />
       <svg width="22" height="22" viewBox="0 0 22 22" className="scene-cursor-arrow">
         <path
           d="M2 1.5v16.2l4.3-4 3 6.6 2.7-1.2-3-6.5h6z"
@@ -192,7 +193,7 @@ const TEAM = [
   { name: "Aisha Khan", note: "Out on a test drive", role: "Sales" },
   { name: "Ross McLean", note: "Hit target again", role: "Sales", target: true },
   { name: "Megan Doyle", note: "Owns the kettle", role: "Admin" },
-  { name: "Tom Fairbairn", note: "Under a Kodiaq", role: "Workshop" },
+  { name: "Tom Fairbairn", note: "Under a family SUV", role: "Workshop" },
 ] as const;
 
 const ROLE_OPTIONS = ["Sales", "Management", "Admin", "Workshop"] as const;
@@ -266,7 +267,7 @@ function TeamScene() {
           <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3.5 sm:px-5">
             <div>
               <div className="text-[15px] font-semibold">Team</div>
-              <div className="font-mono text-[11px] text-[var(--shell-text-faint)]">5 people · Northbridge Motors</div>
+              <div className="font-mono text-[11px] text-[var(--shell-text-faint)]">5 people, Northbridge Motors</div>
             </div>
             <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-[12px] font-semibold text-[var(--shell-text-dim)]">
               <UserPlus size={13} /> Invite
@@ -351,7 +352,7 @@ const LOC_STYLE: Record<Loc, { bg: string; fg: string }> = {
   Bodyshop: { bg: "rgba(155,111,196,0.26)", fg: "#e2d4f2" },
   Workshop: { bg: "rgba(91,142,200,0.28)", fg: "#c9dcf0" },
   "Prep Carpark": { bg: "rgba(34,211,238,0.18)", fg: "#7ee8f6" },
-  "Forecourt 1st Row": { bg: "rgba(251,146,60,0.22)", fg: "#fdab6c" },
+  "Forecourt 1st Row": { bg: "rgba(129,140,248,0.24)", fg: "#c7d2fe" },
   Showroom: { bg: "rgba(75,168,46,0.28)", fg: "#a8ec8c" },
   "Not set": { bg: "rgba(250,204,21,0.2)", fg: "#fde047" },
 };
@@ -359,12 +360,12 @@ const LOC_STYLE: Record<Loc, { bg: string; fg: string }> = {
 const MENU_LOCS: Loc[] = ["Bodyshop", "Workshop", "Prep Carpark", "Forecourt 1st Row", "Showroom"];
 
 const STOCK: { model: string; trim: string; reg: string; loc: Loc; keys: string; fan: number }[] = [
-  { model: "Octavia Estate", trim: "SE L", reg: "SV74 KDX", loc: "Showroom", keys: "Box 4", fan: -13 },
-  { model: "Kodiaq", trim: "Sportline", reg: "SK24 OYH", loc: "Bodyshop", keys: "Box 9", fan: -10 },
-  { model: "Enyaq", trim: "85 Edition", reg: "SY25 FWN", loc: "Workshop", keys: "Box 11", fan: -7 },
-  { model: "Elroq", trim: "60 SE", reg: "SV75 UJR", loc: "Not set", keys: "Box 2", fan: -5 },
-  { model: "Fabia", trim: "Colour Edition", reg: "SA73 PLE", loc: "Prep Carpark", keys: "Prep", fan: -3 },
-  { model: "Karoq", trim: "SE Drive", reg: "SJ24 NRV", loc: "Forecourt 1st Row", keys: "Box 7", fan: -2 },
+  { model: "Ford Puma", trim: "ST-Line", reg: "LD74 DMA", loc: "Showroom", keys: "Box 4", fan: -13 },
+  { model: "Kia Sportage", trim: "GT-Line", reg: "MA24 DMB", loc: "Bodyshop", keys: "Box 9", fan: -10 },
+  { model: "Hyundai Ioniq 5", trim: "Premium", reg: "YK25 DMC", loc: "Workshop", keys: "Box 11", fan: -7 },
+  { model: "VW ID.3", trim: "Pro", reg: "BD75 DMD", loc: "Not set", keys: "Box 2", fan: -5 },
+  { model: "Vauxhall Corsa", trim: "Design", reg: "GL73 DME", loc: "Prep Carpark", keys: "Prep", fan: -3 },
+  { model: "Toyota C-HR", trim: "Hybrid", reg: "WR24 DMF", loc: "Forecourt 1st Row", keys: "Box 7", fan: -2 },
 ];
 
 function LocPill({ loc, className, innerRef }: { loc: Loc; className?: string; innerRef?: React.Ref<HTMLSpanElement> }) {
@@ -439,13 +440,13 @@ function StockScene() {
         ref={stageRef}
         className="desk-shell scene-card relative w-full max-w-[540px]"
         role="img"
-        aria-label="Stock list with a location and keys pill per car. The Elroq's location changes from Not set to Showroom."
+        aria-label="Stock list with a location and keys pill per car. The VW ID.3's location changes from Not set to Showroom."
       >
         <div aria-hidden>
           <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3.5 sm:px-5">
             <div>
               <div className="text-[15px] font-semibold">Stock</div>
-              <div className="font-mono text-[11px] text-[var(--shell-text-faint)]">{set ? "6 cars · all placed" : "6 cars · 1 without a home"}</div>
+              <div className="font-mono text-[11px] text-[var(--shell-text-faint)]">{set ? "6 cars, all placed" : "6 cars, 1 without a home"}</div>
             </div>
             <span className="rounded-full bg-white/5 px-3 py-1.5 font-mono text-[11px] text-[var(--shell-text-dim)]">
               Newest first
@@ -652,21 +653,21 @@ function CustomerScene() {
           <div className="scene-compact-hide mb-2.5 text-lg font-medium">Welcome back, Jamie</div>
           <div className="shell-glass customer-header-card scene-compact-pad mb-3 rounded-[24px] p-5 sm:mb-4 sm:p-7">
             <div className="mb-1.5 flex flex-wrap items-start justify-between gap-2">
-              <div className="shell-eyebrow font-mono text-xs tracking-widest">ORD-2071 · Finance · New</div>
+              <div className="shell-eyebrow font-mono text-xs tracking-widest">ORD-2071, Finance, New</div>
               <div
                 className="rounded-[9px] px-2.5 py-0.5 font-mono text-xs font-bold tracking-widest"
                 style={{ background: "var(--shell-accent)", color: "var(--shell-accent-ink)" }}
               >
-                SV75 LRQ
+                LN75 DMG
               </div>
             </div>
             <div className="mb-1 flex items-center gap-3">
               <span className="flex size-11 shrink-0 items-center justify-center rounded-full" style={{ background: "rgba(255,255,255,0.08)" }}>
                 <Car size={18} color="var(--shell-text-faint)" />
               </span>
-              <div className="text-[20px] leading-tight font-medium text-[#F6F5F1]">Elroq 85 Edition</div>
+              <div className="text-[20px] leading-tight font-medium text-[#F6F5F1]">Kia EV3 Air</div>
             </div>
-            <div className="scene-compact-hide mb-1.5 font-mono text-[11.5px] text-[#7C8F84]">VIN: TMBJR7NY0TF048213</div>
+            <div className="scene-compact-hide mb-1.5 font-mono text-[11.5px] text-[#7C8F84]">VIN: DEMO0000000000001</div>
             <div className="scene-compact-hide mb-4 text-sm text-[#9FB0A6]">Timiano Green</div>
             <div
               className="scene-short-hide flex items-center gap-3.5 rounded-[14px] px-4 py-2.5 sm:py-3"
@@ -771,7 +772,7 @@ function NudgeScene() {
             <div className="min-w-0">
               <div className="truncate text-[15px] font-semibold">Priya Shah</div>
               <div className="text-[12px] text-[var(--shell-text-faint)]">
-                Enyaq 85 Edition · <span className="whitespace-nowrap">SY25 PSH</span>
+                BMW iX1 xDrive30, <span className="whitespace-nowrap">CA25 DMH</span>
               </div>
             </div>
             <span className="scene-chip shrink-0">Handover Sat 10:00</span>
@@ -847,9 +848,9 @@ function NudgeScene() {
 /* ------------------------------------------------------------------ */
 
 const V5_CHASES = [
-  { name: "Hannah Wallace", px: "SF17 KLM", car: "Octavia Estate SE L", date: "12 Sep" },
-  { name: "Gregor Munro", px: "SN19 XRD", car: "Kodiaq SE Drive", date: "16 Sep" },
-  { name: "Leah Robertson", px: "SA66 TWN", car: "Fabia SE", date: "19 Sep" },
+  { name: "Hannah Wallace", px: "BX17 DMJ", car: "VW Golf Estate Life", date: "12 Sep" },
+  { name: "Gregor Munro", px: "NA19 DMK", car: "Nissan Qashqai N-Connecta", date: "16 Sep" },
+  { name: "Leah Robertson", px: "OU66 DML", car: "Toyota Yaris Design", date: "19 Sep" },
 ] as const;
 
 // Tick order: middle, top, bottom, so the cursor actually travels.
@@ -940,7 +941,7 @@ function ChaseScene() {
                         <div className="min-w-0 flex-1">
                           <div className="text-[13px] font-semibold">{c.name}</div>
                           <div className="text-[11.5px] leading-snug text-[var(--mist)]">
-                            Chase PX V5 · PX {c.px} · {c.car}
+                            Chase PX V5, PX {c.px}, {c.car}
                           </div>
                         </div>
                         <div className="shrink-0 font-mono text-[11px] text-[var(--mist)]">{c.date}</div>
@@ -963,7 +964,7 @@ function ChaseScene() {
 
         <div aria-hidden className="desk-shell scene-digest">
           <div className="flex items-center gap-2 text-[12px] font-semibold">
-            <Mail size={13} /> Daily digest · 8:00am
+            <Mail size={13} /> Daily digest, 8:00am
           </div>
           <div className="mt-2 flex items-baseline justify-between gap-3 text-[12px] text-[var(--shell-text-dim)]">
             PX V5s to collect
@@ -986,26 +987,26 @@ function ChaseScene() {
 /* ------------------------------------------------------------------ */
 
 const QUOTE_BRIEF =
-  "Family of four and a spaniel. Wants an SUV, around £350 a month. Likes the Kodiaq Edition X and Karoq Sportline.";
+  "Family of four and a spaniel. Wants an SUV, around £350 a month. Likes the Škoda Kodiaq and the Ford Kuga.";
 const QUOTE_HEADLINE = "Room for four, the dog and the weekend bags.";
 
 /** Rows the fill seeds: two named in the brief, one picked from stock. Finance is never filled. */
 const QUOTE_CARS = [
   {
-    name: "Škoda Kodiaq Edition X",
-    engine: "1.5 TSI e-TEC 150 PS DSG · 7 seats",
+    name: "Škoda Kodiaq SE L 1.5 TSI",
+    engine: "Automatic, 7 seats",
     tagline: "Seven seats, room for the dog.",
     monthly: "£367",
   },
   {
-    name: "Škoda Karoq Sportline Edition",
-    engine: "1.5 TSI 150 PS DSG",
+    name: "Ford Kuga ST-Line 1.5 EcoBoost",
+    engine: "Automatic",
     tagline: "Same big boot, easier to park.",
     monthly: "£338",
   },
   {
-    name: "Škoda Enyaq 85 SE L",
-    engine: "Electric · 286 PS · from stock",
+    name: "Nissan Ariya Engage",
+    engine: "Electric, long range, from stock",
     tagline: "Electric, and charged at home.",
     monthly: "£359",
   },
@@ -1119,13 +1120,13 @@ function QuoteScene() {
         ref={stageRef}
         className="desk-shell scene-card relative w-full max-w-[540px]"
         role="img"
-        aria-label="Proposal form. A short customer brief is typed and Fill story is pressed. Three Škoda vehicle rows and the proposal story fill in. A salesperson then types each monthly figure by hand."
+        aria-label="Proposal form. A short customer brief is typed and Fill story is pressed. Three vehicle rows and the proposal story fill in. A salesperson then types each monthly figure by hand."
       >
         <div aria-hidden className="scene-quote-body px-4 py-3.5 sm:px-5 sm:py-4">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <div className="text-[15px] font-semibold">New proposal</div>
-              <div className="truncate font-mono text-[11px] text-[var(--shell-text-faint)]">Laura Bennett · PCP<span className="hidden sm:inline"> · Aisha Khan</span></div>
+              <div className="truncate font-mono text-[11px] text-[var(--shell-text-faint)]">Laura Bennett, PCP<span className="hidden sm:inline">, Aisha Khan</span></div>
             </div>
             <span className="scene-quote-ghost shrink-0">
               <Sparkles size={13} />
@@ -1211,7 +1212,7 @@ function QuoteScene() {
             <div className="mt-2.5">
               <div className="scene-quote-label">Stock cars (optional)</div>
               <span className="scene-quote-chip">
-                <Car size={12} /> Enyaq 85 SE L · SY25 KTE
+                <Car size={12} /> Nissan Ariya, EF25 DMN
               </span>
             </div>
             <div className="mt-2.5">
@@ -1456,7 +1457,7 @@ function OverviewScene() {
             <strong className="text-white tabular-nums">
               <CountUp value={data.total} />
             </strong>{" "}
-            deals counted · <strong className="text-white tabular-nums"><CountUp value={data.bev} /></strong> BEV
+            deals counted, <strong className="text-white tabular-nums"><CountUp value={data.bev} /></strong> BEV
           </div>
 
           <div className="shell-glass mt-2.5 rounded-[16px] px-3.5 py-2.5">
@@ -1492,10 +1493,10 @@ function OverviewScene() {
 type TransitStatus = "Ordered" | "At port" | "On the lorry" | "In stock";
 
 const TRANSIT: { model: string; trim: string; reg: string; status: TransitStatus; eta: string; target?: boolean }[] = [
-  { model: "Hatchback", trim: "SE Petrol", reg: "AB12 CDE", status: "On the lorry", eta: "Due Thu" },
-  { model: "Estate", trim: "Sport Hybrid", reg: "XY34 ZZZ", status: "At port", eta: "Lorry booked", target: true },
-  { model: "Compact SUV", trim: "Electric", reg: "QQ00 TST", status: "At port", eta: "Waiting for lorry" },
-  { model: "Large SUV", trim: "Diesel Auto", reg: "DM99 OOO", status: "Ordered", eta: "Build week 48" },
+  { model: "Vauxhall Corsa", trim: "Griffin", reg: "KM74 DMP", status: "On the lorry", eta: "Due Thu" },
+  { model: "Škoda Octavia Estate", trim: "SE L", reg: "DY25 DMR", status: "At port", eta: "Lorry booked", target: true },
+  { model: "Hyundai Kona", trim: "Electric", reg: "HN75 DMS", status: "At port", eta: "Waiting for lorry" },
+  { model: "BMW X5", trim: "xDrive30d", reg: "PE24 DMT", status: "Ordered", eta: "Build week 48" },
 ];
 
 /** Target car path, in scroll progress: at port, on the lorry, arrived. */

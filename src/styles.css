@@ -825,9 +825,9 @@
   }
 }
 @media (max-width: 767px) {
-  /* Mobile header carries a second nav row (about 114px tall); keep eyebrows clear of it. */
+  /* Mobile header carries a second nav row (about 114px tall); keep eyebrows 24px clear of it. */
   .scene-sticky {
-    padding-top: 7.75rem;
+    padding-top: 9.25rem;
   }
 }
 @media (max-width: 1023px) {
@@ -1462,6 +1462,10 @@
   }
   .scene-nudge-grid > .shell-glass > div:first-child {
     margin-bottom: 0;
+  }
+  /* Stock rows tighten so the list clears the 24px eyebrow gap on 667px phones. */
+  .scene-stock-list .scene-row {
+    padding-block: 8px;
   }
 }
 
@@ -4183,9 +4187,21 @@
   pointer-events: none;
   display: none;
 }
+.scene-cursor-tap {
+  left: 2px;
+  top: 1.5px;
+}
 @media (max-width: 1023px) {
   .scene-group-card .scene-cursor {
     display: none;
+  }
+  /* Every other scene: the pointer becomes a tap ripple at the tap point. */
+  .scene-cursor-arrow,
+  .scene-cursor-ring {
+    display: none;
+  }
+  .scene-cursor {
+    filter: none;
   }
   .scene-tap {
     display: block;
@@ -4208,13 +4224,6 @@
   .scene-tap {
     display: none !important;
     animation: none !important;
-  }
-}
-@media (max-width: 767px) {
-  /* Keep at least 24px between the sticky tab bar and these eyebrows. */
-  #scene-transit .scene-sticky,
-  #scene-group .scene-sticky {
-    padding-top: 9.25rem;
   }
 }
 @media (max-width: 767px) and (prefers-reduced-motion: reduce) {
