@@ -4,11 +4,11 @@ import { amountLabel, lineLabel, linesFor, liveSiteCount, monthlyPence, paidSlot
 
 const live = (n: number): BillingSite[] => Array.from({ length: n }, (_, i) => ({ code: `S${i}`, name: `Site ${i}`, status: "live" }));
 
-test("group: £249 x live sites at 0, 1, 5, 6 and 12", () => {
-  for (const [n, pence] of [[0, 0], [1, 24_900], [5, 124_500], [6, 149_400], [12, 298_800]] as const) {
+test("group: £249 x live sites, minimum 2, at 0, 1, 2, 5, 6 and 12", () => {
+  for (const [n, qty, pence] of [[0, 2, 49_800], [1, 2, 49_800], [2, 2, 49_800], [5, 5, 124_500], [6, 6, 149_400], [12, 12, 298_800]] as const) {
     const lines = linesFor("group", n);
     assert.equal(lines.length, 1);
-    assert.equal(lines[0].quantity, n);
+    assert.equal(lines[0].quantity, qty);
     assert.equal(monthlyPence(lines), pence, `group ${n}`);
   }
 });
@@ -79,7 +79,8 @@ test("parses tenants.sites JSON, plain names count as live", () => {
 
 test("totals copy", () => {
   assert.equal(lineLabel(linesFor("group", 3)[0]), "3 live sites at £249");
-  assert.equal(lineLabel(linesFor("group", 1)[0]), "1 live site at £249");
+  assert.equal(lineLabel(linesFor("group", 1)[0]), "2 site minimum at £249 (1 live)");
+  assert.equal(lineLabel(linesFor("group", 2)[0]), "2 live sites at £249");
   const f = linesFor("franchise", 7);
   assert.equal(lineLabel(f[0]), "Franchise, up to 5 sites");
   assert.equal(lineLabel(f[1]), "2 extra sites at £100");

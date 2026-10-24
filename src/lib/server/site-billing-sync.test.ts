@@ -91,9 +91,20 @@ test("set to cancel, ended and unrecognised subscriptions are left alone", async
 });
 
 test("trialing subscription: quantity follows sites without any proration", async () => {
-  const { subs, calls } = fake({ ...groupSub(2), status: "trialing" });
-  await syncSiteBilling({ subscriptions: subs }, { tenantId: 1, plan: "group", subscriptionId: "sub_g", sites: sites(1), event: goLive("S0") });
-  assert.deepEqual(calls[0].params, { items: [{ id: "si_g", quantity: 1 }], proration_behavior: "none" });
+  const { subs, calls } = fake({ ...groupSub(5), status: "trialing" });
+  await syncSiteBilling({ subscriptions: subs }, { tenantId: 1, plan: "group", subscriptionId: "sub_g", sites: sites(3), event: goLive("S0") });
+  assert.deepEqual(calls[0].params, { items: [{ id: "si_g", quantity: 3 }], proration_behavior: "none" });
+});
+
+test("group never drops below the 2 site minimum", async () => {
+  const { subs, calls } = fake(groupSub(3));
+  const gone = (c: string): BillingSite => ({ code: c, name: c, status: "archived", liveAt: "2026-09-01T00:00:00Z", archivedAt: "2026-10-10T00:00:00Z" });
+  const r = await syncSiteBilling({ subscriptions: subs }, { tenantId: 1, plan: "group", subscriptionId: "sub_g", sites: [...sites(1), gone("A"), gone("B")], event: archive("B") });
+  assert.equal(r.changed && r.to, 2);
+  assert.deepEqual(calls[0].params, { items: [{ id: "si_g", quantity: 2 }], proration_behavior: "none" });
+  const again = fake(groupSub(2));
+  assert.deepEqual(await syncSiteBilling({ subscriptions: again.subs }, { tenantId: 1, plan: "group", subscriptionId: "sub_g", sites: sites(1), event: goLive("S0") }), { changed: false, reason: "already_in_step" });
+  assert.equal(again.calls.length, 0);
 });
 
 test("franchise: 5 live sites never touch the subscription", async () => {

@@ -12,6 +12,7 @@ import {
   FRANCHISE_BASE_PENCE,
   GROUP_SITE_PENCE,
   franchiseExtraSites,
+  groupQuantity,
   liveSiteCount,
   paidSlotsThisPeriod,
   prorationFor,
@@ -140,8 +141,8 @@ export async function syncSiteBilling(
       if (!item || item === "ambiguous") return { changed: false, reason: "unrecognised_items" };
       line = "group_site";
       from = item.quantity ?? 1;
-      to = live;
-      paidQty = paid;
+      to = groupQuantity(live);
+      paidQty = groupQuantity(paid);
       change = { id: item.id, quantity: to };
     } else {
       const base = findItem(items, "franchise_base", FRANCHISE_BASE_PENCE);
@@ -192,4 +193,28 @@ export function siteSyncMessage(r: SiteSyncResult): string {
     stripe_error: "Stripe update failed, nothing changed. Staff to retry.",
   };
   return why[r.reason] + (r.detail ? ` ${r.detail}` : "");
+}
+
+export type SiteBillingMode = "live" | "dry_run";
+
+/** Only the exact value "on" lets site billing change Stripe. */
+export function siteBillingModeFrom(value: string | null | undefined): SiteBillingMode {
+  return value === "on" ? "live" : "dry_run";
+}
+
+/** Reads still go to Stripe; the update is only recorded in `sent`. */
+export function dryRunSubs(real: SiteSubsLike | null, sent: ItemChange[][]): SiteSubsLike | null {
+  if (!real) return null;
+  return {
+    retrieve: (id) => real.retrieve(id),
+    update: async (_id, params) => {
+      sent.push(params.items);
+      return {};
+    },
+  };
+}
+
+export function modeMessage(mode: SiteBillingMode, result: SiteSyncResult): string {
+  const msg = siteSyncMessage(result);
+  return mode === "dry_run" && result.changed ? `Dry run, Stripe not changed. Would have: ${msg}` : msg;
 }

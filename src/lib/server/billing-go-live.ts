@@ -34,6 +34,14 @@ export async function startMonthlyForTenant(
       .maybeSingle();
     // Callers pass the status from before they marked the site live.
     const tenantStatus = opts.priorStatus !== undefined ? opts.priorStatus : ((t?.status as string | null) ?? null);
+    // Group and Franchise: line the site count up before the trial ends, so the
+    // first bill is right (Group minimum 2). No tenant_sites rows: nothing runs.
+    try {
+      const { trueUpSiteBilling } = await import("@/lib/server/site-billing-server");
+      await trueUpSiteBilling(sb, tenantId, actorEmail);
+    } catch (err) {
+      console.error("[billing] site count true up failed for tenant", tenantId, err);
+    }
     const secret = stripeSecret();
     const Stripe = secret ? (await import("stripe")).default : null;
     const stripe = Stripe && secret ? new Stripe(secret) : null;

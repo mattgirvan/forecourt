@@ -22,10 +22,17 @@ export type BillingSite = {
 };
 
 export type LineKey = "group_site" | "franchise_base" | "franchise_extra";
-export type BillingLine = { key: LineKey; label: string; unitPence: number; quantity: number };
+export type BillingLine = { key: LineKey; label: string; unitPence: number; quantity: number; live?: number };
 
 export const GROUP_SITE_PENCE = PLANS.group.monthPence;
 export const FRANCHISE_BASE_PENCE = PLANS.franchise.monthPence;
+/** Group bills at least this many sites (Matt, 24 Oct 2026). */
+export const GROUP_MIN_SITES = PLANS.group.minSites;
+
+/** Group quantity for a live count: never below the minimum. */
+export function groupQuantity(live: number): number {
+  return Math.max(GROUP_MIN_SITES, Math.max(0, Math.floor(live)));
+}
 
 function iso(v: unknown): string | null {
   return typeof v === "string" && v ? v : null;
@@ -90,7 +97,7 @@ export function franchiseExtraSites(live: number): number {
 /** The recurring lines a plan should carry for a number of live sites. Site plan returns [] (never touched). */
 export function linesFor(plan: PlanId, live: number): BillingLine[] {
   const n = Math.max(0, Math.floor(live));
-  if (plan === "group") return [{ key: "group_site", label: "Per site", unitPence: GROUP_SITE_PENCE, quantity: n }];
+  if (plan === "group") return [{ key: "group_site", label: "Per site", unitPence: GROUP_SITE_PENCE, quantity: groupQuantity(n), live: n }];
   if (plan === "franchise") {
     const lines: BillingLine[] = [{ key: "franchise_base", label: `Franchise, up to ${FRANCHISE_INCLUDED_SITES} sites`, unitPence: FRANCHISE_BASE_PENCE, quantity: 1 }];
     const extra = franchiseExtraSites(n);
@@ -145,7 +152,10 @@ function gbpWhole(pence: number) {
 
 /** Totals copy: "3 live sites at £249", "2 extra sites at £100", "Franchise, up to 5 sites". */
 export function lineLabel(l: BillingLine): string {
-  if (l.key === "group_site") return `${l.quantity} live ${l.quantity === 1 ? "site" : "sites"} at ${gbpWhole(l.unitPence)}`;
+  if (l.key === "group_site") {
+    if (l.live != null && l.live < l.quantity) return `${l.quantity} site minimum at ${gbpWhole(l.unitPence)} (${l.live} live)`;
+    return `${l.quantity} live ${l.quantity === 1 ? "site" : "sites"} at ${gbpWhole(l.unitPence)}`;
+  }
   if (l.key === "franchise_extra") return `${l.quantity} extra ${l.quantity === 1 ? "site" : "sites"} at ${gbpWhole(l.unitPence)}`;
   return l.label;
 }
