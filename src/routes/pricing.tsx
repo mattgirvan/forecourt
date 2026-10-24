@@ -89,6 +89,8 @@ export function PricingPage() {
         <Reveal className="mt-8">
           <AfterYouPayStrip />
         </Reveal>
+
+        <SwitchingPlans />
       </div>
 
       <ContactPromo
@@ -120,5 +122,32 @@ export function PricingPage() {
         <p className="mx-auto mt-4 max-w-lg text-center text-xs text-subtle">{LEGAL.vat}</p>
       </div>
     </SiteShell>
+  );
+}
+
+function SwitchingPlans() {
+  const { site, franchise, group } = PLANS;
+  const points = [
+    `You can move between ${site.name}, ${franchise.name} and ${group.name} at any time. Moving up part way through a month? The part month is added to your next bill.`,
+    `Moving up? You pay the difference in setup fee up front. Setup is ${gbpPence(site.setupPence)} for ${site.name}, ${gbpPence(franchise.setupPence)} for ${franchise.name} and ${gbpPence(group.setupPence)} for ${group.name}.`,
+    "Moving down? There is no refund on the setup fee, and the lower monthly price starts at the end of your current billing period.",
+    "Adding sites never comes with a setup fee.",
+    `A ${site.name} account covers one brand. For more than one brand, you need ${group.name}.`,
+  ];
+  return (
+    <Reveal className="mt-16">
+      <section aria-labelledby="switching-plans" className="rounded-[1.75rem] border border-line bg-surface p-6 sm:p-8">
+        <h2 id="switching-plans" className="text-2xl font-semibold tracking-tight">
+          Switching plans
+        </h2>
+        <ul className="mt-6 space-y-2 text-[15px] leading-relaxed text-muted">
+          {points.map((line) => (
+            <li key={line} className="border-b border-line py-2 last:border-b-0">
+              {line}
+            </li>
+          ))}
+        </ul>
+      </section>
+    </Reveal>
   );
 }
