@@ -214,7 +214,12 @@ export function dryRunSubs(real: SiteSubsLike | null, sent: ItemChange[][]): Sit
   };
 }
 
-export function modeMessage(mode: SiteBillingMode, result: SiteSyncResult): string {
+export function modeMessage(mode: SiteBillingMode, result: SiteSyncResult, totalPence?: number): string {
   const msg = siteSyncMessage(result);
-  return mode === "dry_run" && result.changed ? `Dry run, Stripe not changed. Would have: ${msg}` : msg;
+  if (mode !== "dry_run" || !result.changed) return msg;
+  const unit = result.line === "group_site" ? "£249" : "£100";
+  const what = result.line === "group_site" ? `${result.to} ${result.to === 1 ? "site" : "sites"}` : `${result.to} extra ${result.to === 1 ? "site" : "sites"}`;
+  const when = result.proration === "none" ? "from the next billing period" : "from today";
+  const total = totalPence != null ? `£${(totalPence / 100).toLocaleString("en-GB")}` : null;
+  return `Dry run. Stripe is not changed. This would bill ${what} at ${unit}${total ? `, so ${total} a month ${when}` : ` ${when}`}.`;
 }

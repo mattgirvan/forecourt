@@ -126,7 +126,7 @@ export function siteBreakdown(plan: PlanId, sites: BillingSite[]): { rows: SiteB
   const lines = linesFor(plan, live);
   let liveIndex = 0;
   const rows = sites.map((s): SiteBillRow => {
-    if (s.status === "setting_up") return { code: s.code, name: s.name, status: s.status, note: "Setting up, billing starts on its go live day", pence: 0 };
+    if (s.status === "setting_up") return { code: s.code, name: s.name, status: s.status, note: "", pence: 0 };
     if (s.status === "archived") return { code: s.code, name: s.name, status: s.status, note: "Archived, not billed from the next period", pence: 0 };
     liveIndex += 1;
     if (plan === "group") return { code: s.code, name: s.name, status: s.status, note: "", pence: GROUP_SITE_PENCE };
@@ -158,4 +158,49 @@ export function lineLabel(l: BillingLine): string {
   }
   if (l.key === "franchise_extra") return `${l.quantity} extra ${l.quantity === 1 ? "site" : "sites"} at ${gbpWhole(l.unitPence)}`;
   return l.label;
+}
+
+/**
+ * End of the current monthly period, from the day monthly billing started
+ * (the go live "Monthly billing started" timeline entry). Stripe bills on the
+ * same day each month, clamped to the month's last day. No Stripe call.
+ */
+export function periodEndFrom(anchorIso: string | null | undefined, now: Date = new Date()): string | null {
+  if (!anchorIso) return null;
+  const a = new Date(anchorIso);
+  if (Number.isNaN(a.getTime())) return null;
+  const at = (months: number) => {
+    const y = a.getUTCFullYear();
+    const m = a.getUTCMonth() + months;
+    const last = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
+    return new Date(Date.UTC(y, m, Math.min(a.getUTCDate(), last), a.getUTCHours(), a.getUTCMinutes(), a.getUTCSeconds()));
+  };
+  for (let i = 1; i < 1200; i++) {
+    const d = at(i);
+    if (d.getTime() > now.getTime()) return d.toISOString();
+  }
+  return null;
+}
+
+export function ukDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/London" }).replace("Sept", "Sep");
+}
+
+/** What the month would cost if one site moved to a new state. */
+export function totalIf(plan: PlanId, sites: BillingSite[], code: string, to: SiteStatus): number {
+  return siteBreakdown(plan, sites.map((s) => (s.code === code ? { ...s, status: to } : s))).total;
+}
+
+const whole = (p: number) => `£${(p / 100).toLocaleString("en-GB", { minimumFractionDigits: p % 100 ? 2 : 0, maximumFractionDigits: 2 })}`;
+
+export function goLiveConfirmCopy(name: string, before: number, after: number): string {
+  const up = after - before;
+  if (up <= 0) return `Put ${name} live? The bill stays at ${whole(after)} a month.`;
+  return `Put ${name} live? From today the bill goes up by ${whole(up)} to ${whole(after)} a month. The part month is added to the next invoice.`;
+}
+
+export function archiveConfirmCopy(name: string, before: number, after: number, periodEnd: string | null): string {
+  const when = periodEnd ? `${ukDate(periodEnd)}, the end of this billing period` : "the end of this billing period";
+  if (after >= before) return `Archive ${name}? The bill stays at ${whole(after)} a month. We don't refund part months.`;
+  return `Archive ${name}? The bill goes down by one site from ${when}. We don't refund part months. New monthly total: ${whole(after)}.`;
 }

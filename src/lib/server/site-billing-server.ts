@@ -23,7 +23,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServerFn } from "@tanstack/react-start";
 import { normalizePlan } from "@/lib/catalog";
 import { actor, sbAdmin, siteBillingSyncFlag, stripeSecret } from "@/lib/server/staff-actor";
-import { parseBillingSites, siteBreakdown, type BillingSite, type SiteStatus } from "@/lib/site-billing";
+import { parseBillingSites, periodEndFrom, siteBreakdown, type BillingSite, type SiteStatus } from "@/lib/site-billing";
 import { siteSyncMessage, syncSiteBilling, type SiteSubsLike, type SiteSyncResult } from "@/lib/server/site-billing-sync";
 import { missingTable } from "@/lib/server/payment-issues";
 import {
@@ -110,7 +110,7 @@ export async function changeSiteState(
       event: { code: input.code, from, to: input.to },
     },
   );
-  const message = withMode(mode, result);
+  const message = withMode(mode, result, siteBreakdown(normalizePlan(t.plan as string), sites).total);
   try {
     await sb.from("site_billing_events").update({ result: result.changed ? "changed" : result.reason, detail: message }).eq("event_key", eventKey);
     await sb.from("build_events").insert({
@@ -212,6 +212,12 @@ export const listOfficeSiteBilling = createServerFn({ method: "POST" })
       } else if (!missingTable(res.error)) throw new Error(res.error.message);
     }
     const mode = siteBillingMode();
+    // Period end from the go live "Monthly billing started" entry; no Stripe call.
+    const anchors = new Map<number, string>();
+    if (ids.length) {
+      const ev = await sb.from("build_events").select("tenant_id, created_at").in("tenant_id", ids).eq("title", "Monthly billing started").order("created_at", { ascending: true });
+      for (const e of (ev.data ?? []) as { tenant_id: number; created_at: string }[]) if (!anchors.has(e.tenant_id)) anchors.set(e.tenant_id, e.created_at);
+    }
     return (tenants ?? []).map((t) => {
       const plan = normalizePlan(t.plan as string);
       const own = siteRows.filter((r) => r.tenant_id === t.id);
@@ -224,6 +230,8 @@ export const listOfficeSiteBilling = createServerFn({ method: "POST" })
         hasSubscription: Boolean(t.stripe_subscription_id),
         mode,
         canChange: own.length > 0,
+        periodEnd: periodEndFrom(anchors.get(t.id as number) ?? null),
+        billingSites: sites,
         source: own.length ? "tenant_sites" : fromTable ? "tenants.sites (no site rows yet)" : "tenants.sites",
         ...siteBreakdown(plan, sites),
       };
