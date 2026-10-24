@@ -9,6 +9,12 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { advance, trackerFor, type MigrationRow, type MigrationStage } from "@/lib/migration";
 
 export const MIGRATION_COLS = "id, tenant_id, from_plan, to_plan, status, direction, setup_diff_pence, new_monthly_pence, migration_stage, stage_times, effective_at, go_live_at, migration_cancelled_at, created_at";
+/** started_from comes from plan-change-office-pay.sql. Until it runs, reads retry without it. */
+export const MIGRATION_COLS_OFFICE = `${MIGRATION_COLS}, started_from`;
+async function tolerant<T>(run: (cols: string) => PromiseLike<{ data: T; error: unknown }>): Promise<{ data: T; error: unknown }> {
+  const first = await run(MIGRATION_COLS_OFFICE);
+  return first.error ? run(MIGRATION_COLS) : first;
+}
 export type StoredMigration = MigrationRow & { tenant_id: number; direction: string; setup_diff_pence: number; new_monthly_pence: number };
 
 /** Move a plan change to `stage`. Returns false when the columns are missing or the write failed. */
@@ -27,7 +33,7 @@ export async function setMigrationStage(sb: SupabaseClient, row: StoredMigration
 
 export async function readMigration(sb: SupabaseClient, changeId: number): Promise<StoredMigration | null> {
   try {
-    const { data, error } = await sb.from("plan_changes").select(MIGRATION_COLS).eq("id", changeId).maybeSingle();
+    const { data, error } = await tolerant((c) => sb.from("plan_changes").select(c).eq("id", changeId).maybeSingle());
     return error ? null : ((data as StoredMigration | null) ?? null);
   } catch {
     return null;
@@ -37,18 +43,18 @@ export async function readMigration(sb: SupabaseClient, changeId: number): Promi
 /** The account's open migration, newest first; null when there is none or the SQL is not run yet. */
 export async function openMigrationFor(sb: SupabaseClient, tenantId: number): Promise<StoredMigration | null> {
   try {
-    const { data, error } = await sb
+    const { data, error } = await tolerant((c) => sb
       .from("plan_changes")
-      .select(MIGRATION_COLS)
+      .select(c)
       .eq("tenant_id", tenantId)
       .not("migration_stage", "is", null)
       .neq("migration_stage", "complete")
       .is("migration_cancelled_at", null)
       .in("status", ["pending_payment", "paid", "requested", "applied", "scheduled"])
       .order("created_at", { ascending: false })
-      .limit(1);
+      .limit(1));
     if (error) return null;
-    const row = ((data ?? [])[0] as StoredMigration | undefined) ?? null;
+    const row = ((data ?? [])[0] as unknown as StoredMigration | undefined) ?? null;
     return row && trackerFor(row)?.open ? row : null;
   } catch {
     return null;
@@ -57,15 +63,15 @@ export async function openMigrationFor(sb: SupabaseClient, tenantId: number): Pr
 
 export async function openMigrations(sb: SupabaseClient): Promise<StoredMigration[]> {
   try {
-    const { data, error } = await sb
+    const { data, error } = await tolerant((c) => sb
       .from("plan_changes")
-      .select(MIGRATION_COLS)
+      .select(c)
       .not("migration_stage", "is", null)
       .neq("migration_stage", "complete")
       .is("migration_cancelled_at", null)
       .in("status", ["pending_payment", "paid", "requested", "applied", "scheduled"])
-      .order("created_at", { ascending: false });
-    return error ? [] : ((data ?? []) as StoredMigration[]);
+      .order("created_at", { ascending: false }));
+    return error ? [] : ((data ?? []) as unknown as StoredMigration[]);
   } catch {
     return [];
   }

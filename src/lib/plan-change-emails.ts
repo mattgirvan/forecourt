@@ -7,12 +7,12 @@
 import { PLANS, type PlanId } from "./catalog.ts";
 import { ukDate, type AccountEvent } from "./account-events.ts";
 
-export type PlanChangeEmailStage = "received" | "receipt" | "applied" | "scheduled" | "rejected" | "reminder";
+export type PlanChangeEmailStage = "received" | "receipt" | "applied" | "scheduled" | "rejected" | "reminder" | "payment_link";
 export type PlanChangeEmail = AccountEvent & { office: boolean; link?: { url: string; label: string } };
 
-export const PLAN_CHANGE_EMAIL_STAGES: readonly PlanChangeEmailStage[] = ["received", "receipt", "applied", "scheduled", "rejected", "reminder"];
+export const PLAN_CHANGE_EMAIL_STAGES: readonly PlanChangeEmailStage[] = ["received", "receipt", "applied", "scheduled", "rejected", "reminder", "payment_link"];
 /** Office copies: each request and each payment confirmation. */
-const OFFICE_COPY: Record<PlanChangeEmailStage, boolean> = { received: true, receipt: true, applied: false, scheduled: false, rejected: false, reminder: false };
+const OFFICE_COPY: Record<PlanChangeEmailStage, boolean> = { received: true, receipt: true, applied: false, scheduled: false, rejected: false, reminder: false, payment_link: true };
 
 export function planChangeKey(changeId: number, stage: PlanChangeEmailStage): string {
   return `plan-change:${changeId}:${stage}`;
@@ -35,6 +35,8 @@ export type PlanChangeEmailInput = {
   goLiveAt?: string | null;
   invoiceUrl?: string | null;
   refunded?: boolean;
+  /** payment_link: the Stripe Checkout page the Forecourt team opened for the customer. */
+  payUrl?: string | null;
 };
 
 export function planChangeEmail(d: PlanChangeEmailInput): PlanChangeEmail {
@@ -99,6 +101,16 @@ export function planChangeEmail(d: PlanChangeEmailInput): PlanChangeEmail {
         `You started a move from ${from} to ${to}, but the setup difference${setup ? ` of ${setup}` : ""} was not paid, so your request was not sent.`,
         "Nothing has changed on your account. You can start again any time under Plan in your account.",
       ];
+      break;
+    case "payment_link":
+      title = "Your plan change is ready to pay";
+      lines = [
+        `The Forecourt team has set up your move from ${from} to ${to}. To get it started, pay the setup difference${setup ? ` of ${setup}` : ""}.`,
+        `Your new price${monthly ? ` of ${monthly}` : ""} starts from the day your change goes live. The part month is added to your next bill.`,
+        "If the payment link has stopped working, open your account and press Pay under Plan. It opens a fresh page for the same amount.",
+        "Paying by bank transfer instead? Reply to this email and we will mark it as paid when it arrives.",
+      ];
+      if (d.payUrl) link = { url: d.payUrl, label: "Pay the setup difference" };
       break;
   }
   return { kind: "plan_change", title, lines, dedupe: planChangeKey(d.changeId, d.stage), office: OFFICE_COPY[d.stage], ...(link ? { link } : {}) };

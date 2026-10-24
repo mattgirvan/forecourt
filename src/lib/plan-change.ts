@@ -150,7 +150,7 @@ export function planChangeDryRunMessage(q: PlanChangeQuote, now: Date = new Date
  * What the server says happened after "Move to" or "Pay". The panel always
  * shows one of these, so a confirm can never end in silence.
  */
-export type PlanChangeOutcome = "applied" | "scheduled" | "checkout" | "recorded" | "unchanged" | "in_progress" | "failed";
+export type PlanChangeOutcome = "applied" | "scheduled" | "checkout" | "awaiting_customer" | "recorded" | "unchanged" | "in_progress" | "failed";
 export type PlanChangeTone = "success" | "pending" | "info" | "error";
 export type PlanChangeFeedback = { tone: PlanChangeTone; title: string; body: string; link?: { word: string; href: string } };
 
@@ -178,6 +178,7 @@ const TITLES: Record<PlanChangeOutcome, (to: string) => string> = {
   applied: (to) => `Moved to ${to}`,
   scheduled: (to) => `Move to ${to} booked`,
   checkout: () => "Opening the setup payment",
+  awaiting_customer: () => "Awaiting customer payment",
   recorded: () => "Request recorded, we will apply it",
   unchanged: (to) => `Already on ${to}`,
   in_progress: () => "Plan change in progress",
@@ -188,6 +189,7 @@ const TONE: Record<PlanChangeOutcome, PlanChangeTone> = {
   applied: "success",
   scheduled: "success",
   checkout: "pending",
+  awaiting_customer: "pending",
   recorded: "pending",
   unchanged: "pending",
   in_progress: "info",
@@ -246,4 +248,24 @@ export function monthlyMoveLine(q: PlanChangeQuote): string {
         : "from today";
   if (next < now) return `Your monthly price drops to ${gbp(next)} ${when}`;
   return `Your monthly price stays at ${gbp(next)}`;
+}
+
+/** Office started a change with a setup difference: staff never pay, the customer gets the link. */
+export function officePaymentLinkMessage(q: Pick<PlanChangeQuote, "to" | "setupDiffPence">, emailed: boolean): string {
+  const amount = gbp(q.setupDiffPence);
+  return emailed
+    ? `We emailed the account admin a link to pay the ${amount} setup difference (inc. VAT) for the move to ${PLAN_NAME[q.to]}, with a copy to hello@. The request shows as Awaiting customer payment until they pay, or an owner marks it as paid.`
+    : `Request saved as Awaiting customer payment for the move to ${PLAN_NAME[q.to]}. The email did not go, so ask the admin to open their account and press Pay, or resend from the file.`;
+}
+
+/** Confirm sheet for Mark as paid. Owner only; the server checks again. */
+export function markPaidSheet(d: { from: string; to: string; setupDiffPence: number }) {
+  return {
+    title: `Mark ${gbp(d.setupDiffPence)} as paid?`,
+    body: `Only for money that reached us another way, like a bank transfer. This records you and the time, closes the customer's open payment page, and sends the move from ${d.from} to ${d.to} to the team as paid, with the invoice and ticket as normal.`,
+    confirmLabel: "Mark as paid",
+    cancelLabel: "Not yet",
+    // Neutral white primary: recording money is not a customer action (Atlas).
+    tone: "neutral" as const,
+  };
 }
