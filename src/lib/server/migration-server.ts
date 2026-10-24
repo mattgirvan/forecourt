@@ -11,22 +11,11 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServerFn } from "@tanstack/react-start";
 import { normalizePlan } from "@/lib/catalog";
 import { migrationEvent } from "@/lib/account-events";
-import { isUpgrade, officeCanMark, priceDue, trackerFor, type MigrationStage, type Tracker } from "@/lib/migration";
+import { isUpgrade, officeCanMark, trackerFor, type MigrationStage, type Tracker } from "@/lib/migration";
 import { openMigrationFor, openMigrations, setMigrationStage, type StoredMigration } from "@/lib/server/migration-store";
 import { sendAccountEventEmail } from "@/lib/server/journey-email";
 import { actor, sbAdmin } from "@/lib/server/staff-actor";
-
-/** Downgrade price step: moves on by itself once the period end has passed. */
-async function catchUp(sb: SupabaseClient, row: StoredMigration): Promise<StoredMigration> {
-  const t = trackerFor(row);
-  if (!t || !priceDue(t)) return row;
-  if (!(await setMigrationStage(sb, row, "priced"))) return row;
-  await sendAccountEventEmail({
-    tenantId: row.tenant_id,
-    ...migrationEvent({ changeId: row.id, from: t.from, to: t.to, stage: "priced", upgrade: false, newMonthlyPence: Number(row.new_monthly_pence) || 0 }),
-  });
-  return { ...row, migration_stage: "priced", stage_times: { ...(row.stage_times ?? {}), priced: new Date().toISOString() } };
-}
+import { catchUp } from "@/lib/server/migration-catchup";
 
 export const getMigration = createServerFn({ method: "POST" })
   .validator((d: { token: string; tenantId: number }) => d)

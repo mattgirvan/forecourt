@@ -30,6 +30,7 @@ import { Route as ForPhotoStatusRouteImport } from './routes/for/photo-status'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as ApiBuildSendRouteImport } from './routes/api/build/send'
 import { Route as ApiBuildTokenStatusRouteImport } from './routes/api/build/token-status'
+import { Route as ApiCronMigrationsRouteImport } from './routes/api/cron/migrations'
 import { Route as ApiDeskEventsRouteImport } from './routes/api/desk/events'
 import { Route as ApiStripeWebhookRouteImport } from './routes/api/stripe/webhook'
 
@@ -138,6 +139,11 @@ const ApiBuildTokenStatusRoute = ApiBuildTokenStatusRouteImport.update({
   path: '/api/build/token-status',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiCronMigrationsRoute = ApiCronMigrationsRouteImport.update({
+  id: '/api/cron/migrations',
+  path: '/api/cron/migrations',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiDeskEventsRoute = ApiDeskEventsRouteImport.update({
   id: '/api/desk/events',
   path: '/api/desk/events',
@@ -171,6 +177,7 @@ export interface FileRoutesByFullPath {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/build/send': typeof ApiBuildSendRoute
   '/api/build/token-status': typeof ApiBuildTokenStatusRoute
+  '/api/cron/migrations': typeof ApiCronMigrationsRoute
   '/api/desk/events': typeof ApiDeskEventsRoute
   '/api/stripe/webhook': typeof ApiStripeWebhookRoute
 }
@@ -196,6 +203,7 @@ export interface FileRoutesByTo {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/build/send': typeof ApiBuildSendRoute
   '/api/build/token-status': typeof ApiBuildTokenStatusRoute
+  '/api/cron/migrations': typeof ApiCronMigrationsRoute
   '/api/desk/events': typeof ApiDeskEventsRoute
   '/api/stripe/webhook': typeof ApiStripeWebhookRoute
 }
@@ -222,6 +230,7 @@ export interface FileRoutesById {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/build/send': typeof ApiBuildSendRoute
   '/api/build/token-status': typeof ApiBuildTokenStatusRoute
+  '/api/cron/migrations': typeof ApiCronMigrationsRoute
   '/api/desk/events': typeof ApiDeskEventsRoute
   '/api/stripe/webhook': typeof ApiStripeWebhookRoute
 }
@@ -249,6 +258,7 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/api/build/send'
     | '/api/build/token-status'
+    | '/api/cron/migrations'
     | '/api/desk/events'
     | '/api/stripe/webhook'
   fileRoutesByTo: FileRoutesByTo
@@ -274,6 +284,7 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/api/build/send'
     | '/api/build/token-status'
+    | '/api/cron/migrations'
     | '/api/desk/events'
     | '/api/stripe/webhook'
   id:
@@ -299,6 +310,7 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/api/build/send'
     | '/api/build/token-status'
+    | '/api/cron/migrations'
     | '/api/desk/events'
     | '/api/stripe/webhook'
   fileRoutesById: FileRoutesById
@@ -325,6 +337,7 @@ export interface RootRouteChildren {
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiBuildSendRoute: typeof ApiBuildSendRoute
   ApiBuildTokenStatusRoute: typeof ApiBuildTokenStatusRoute
+  ApiCronMigrationsRoute: typeof ApiCronMigrationsRoute
   ApiDeskEventsRoute: typeof ApiDeskEventsRoute
   ApiStripeWebhookRoute: typeof ApiStripeWebhookRoute
 }
@@ -478,6 +491,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiBuildTokenStatusRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/cron/migrations': {
+      id: '/api/cron/migrations'
+      path: '/api/cron/migrations'
+      fullPath: '/api/cron/migrations'
+      preLoaderRoute: typeof ApiCronMigrationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/desk/events': {
       id: '/api/desk/events'
       path: '/api/desk/events'
@@ -517,6 +537,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiBuildSendRoute: ApiBuildSendRoute,
   ApiBuildTokenStatusRoute: ApiBuildTokenStatusRoute,
+  ApiCronMigrationsRoute: ApiCronMigrationsRoute,
   ApiDeskEventsRoute: ApiDeskEventsRoute,
   ApiStripeWebhookRoute: ApiStripeWebhookRoute,
 }
