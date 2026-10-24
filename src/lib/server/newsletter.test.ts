@@ -18,7 +18,7 @@ import {
 
 const config: NewsletterConfig = {
   apiKey: "re_test_fake",
-  audienceId: "aud_test",
+  segmentId: "seg_test",
   secret: "test-secret-0123456789abcdef",
   from: "Forecourt <hello@forecourt.me>",
   replyTo: "hello@forecourt.me",
@@ -58,7 +58,7 @@ test("confirm tokens expire, unsubscribe tokens do not", () => {
   assert.equal(verifyToken(config.secret!, u, "u", now + 10 * 365 * 86400_000).ok, true);
 });
 
-test("subscribe sends one confirmation and never touches the audience", async () => {
+test("subscribe sends one confirmation and never touches contacts", async () => {
   const m = mockFetch();
   const r = await handleSubscribe({ email: " A@B.com ", consent: true }, "1.1.1.1", deps(m.f));
   assert.equal(r.status, 200);
@@ -101,30 +101,36 @@ test("rate limits: per IP refuses, per address looks like success", async () => 
 
 test("missing env is a friendly 503, never a throw", async () => {
   const m = mockFetch();
-  const r = await handleSubscribe({ email: "a@b.com", consent: true }, "ip", deps(m.f, { config: { ...config, audienceId: undefined } }));
+  const r = await handleSubscribe({ email: "a@b.com", consent: true }, "ip", deps(m.f, { config: { ...config, segmentId: undefined } }));
   assert.equal(r.status, 503);
   assert.equal(r.body.message, MSG.notReady);
   assert.equal(await handleToken("x", "c", deps(m.f, { config: { ...config, secret: undefined } })), "unavailable");
 });
 
 test("same answer whether or not the address is already subscribed", async () => {
-  // Subscribe never reads the audience, so the reply cannot differ.
+  // Subscribe never reads contacts, so the reply cannot differ.
   const a = await handleSubscribe({ email: "new@b.com", consent: true }, "ip", deps(mockFetch().f));
   const b = await handleSubscribe({ email: "old@b.com", consent: true }, "ip", deps(mockFetch().f));
   assert.deepEqual(a, b);
 });
 
-test("confirm patches to subscribed, creates when missing, is idempotent", async () => {
+test("confirm patches to subscribed, adds to segment, creates when missing, is idempotent", async () => {
   const t = signToken(config.secret!, "a@b.com", "c");
   const existing = mockFetch();
   assert.equal(await handleToken(t, "c", deps(existing.f)), "ok");
   assert.equal(existing.calls[0].method, "PATCH");
   assert.deepEqual(existing.calls[0].body, { unsubscribed: false });
-  assert.match(existing.calls[0].url, /\/audiences\/aud_test\/contacts\/a%40b\.com$/);
+  assert.match(existing.calls[0].url, /api\.resend\.com\/contacts\/a%40b\.com$/);
+  assert.equal(existing.calls[1].method, "POST");
+  assert.match(existing.calls[1].url, /\/contacts\/a%40b\.com\/segments\/seg_test$/);
+  assert.ok(existing.calls.every((c) => !/audiences/.test(c.url)), "never uses the deprecated Audiences API");
   const fresh = mockFetch((c) => (c.method === "PATCH" ? 404 : 200));
   assert.equal(await handleToken(t, "c", deps(fresh.f)), "ok");
   assert.equal(fresh.calls[1].method, "POST");
-  assert.deepEqual(fresh.calls[1].body, { email: "a@b.com", unsubscribed: false });
+  assert.match(fresh.calls[1].url, /api\.resend\.com\/contacts$/);
+  assert.deepEqual(fresh.calls[1].body, { email: "a@b.com", unsubscribed: false, segments: [{ id: "seg_test" }] });
+  const already = mockFetch((c) => (c.url.includes("/segments/") ? 409 : 200));
+  assert.equal(await handleToken(t, "c", deps(already.f)), "ok");
   assert.equal(await handleToken(t, "c", deps(existing.f)), "ok");
 });
 
