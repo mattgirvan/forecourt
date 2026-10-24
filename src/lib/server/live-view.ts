@@ -7,6 +7,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { PLANS, monthTotalPence, normalizePlan } from "@/lib/catalog";
 import { SITE } from "@/lib/site";
+import { currentMonthlyPence } from "@/lib/current-price";
 import {
   isChangeType,
   isOpenStatus,
@@ -102,7 +103,7 @@ export const liveBillingSummary = createServerFn({ method: "POST" })
     const base: BillingSummary = {
       connected: false,
       planName: `Forecourt ${PLANS[plan].name}`,
-      monthlyPence: monthTotalPence(plan, t.site_count ?? 1),
+      monthlyPence: currentMonthlyPence(null, plan, t.site_count),
       nextPaymentAt: null,
       card: null,
       pastDue: false,
@@ -137,7 +138,7 @@ export const liveBillingSummary = createServerFn({ method: "POST" })
       return {
         ...base,
         connected: true,
-        monthlyPence: unit != null ? unit * qty : base.monthlyPence,
+        monthlyPence: currentMonthlyPence({ unitPence: unit, quantity: qty }, plan, t.site_count),
         nextPaymentAt: sub.status === "trialing" && sub.trial_end ? new Date(sub.trial_end * 1000).toISOString() : periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
         card,
         pastDue: sub.status === "past_due" || sub.status === "unpaid" || failed,
