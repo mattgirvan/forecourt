@@ -176,6 +176,9 @@ test("Atlas copy: pay line before payment, booked line on a drop", () => {
   assert.match(paidStep.line, /^The one-off setup difference of £2,000 \(inc\. VAT\) has gone through/);
   const down = trackerFor(flowRow("franchise", "site", "down", 0, 39900, { effective_at: "2026-11-14T00:00:00Z" }))!;
   const sw = down.steps.find((s) => s.stage === "switched")!;
-  assert.equal(sw.title, "Plan change booked");
-  assert.match(sw.line, /end of your billing period, 14 Nov 2026\.$/);
+  assert.equal(sw.todoTitle, "Plan change booked");
+  assert.match(sw.todo!, /end of your billing period, 14 Nov 2026\.$/);
+  assert.equal(sw.title, "Plan switched to Site");
+  assert.equal(sw.line, "Your account is now on Site. Your price stays the same until the end of your billing period, 14 Nov 2026.");
+  assert.equal(down.steps.find((s) => s.stage === "setup")!.title, "Sites trimmed to one");
 });

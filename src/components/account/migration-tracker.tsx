@@ -55,8 +55,7 @@ export function MigrationTracker({
             </span>
             <span className="min-w-0 flex-1">
               <span className={cn("block", s.state === "next" && "text-muted")}>
-                {s.title}
-                {trimmedToday(s, tracker) ? " today" : ""}
+                {s.state !== "done" && s.todoTitle ? s.todoTitle : s.title}
               </span>
               <span className="block text-[12px] text-subtle">
                 {s.state !== "done" && s.todo ? s.todo : s.line}
@@ -127,9 +126,3 @@ export function RequestCard({ tracker }: { tracker: Tracker }) {
   );
 }
 
-/** A trim on a price drop is done by hand by the team on the day they mark it, not at period end. */
-function trimmedToday(s: Tracker["steps"][number], tracker: Tracker): boolean {
-  if (s.stage !== "setup" || s.state !== "done" || !s.at || tracker.rise) return false;
-  if (["site_to_franchise", "site_to_group", "franchise_to_group"].includes(tracker.scenario)) return false;
-  return ukDay(s.at) === ukDay(new Date().toISOString());
-}

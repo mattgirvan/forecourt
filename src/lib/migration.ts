@@ -37,6 +37,8 @@ export type MigrationStep = {
   email: boolean;
   /** Line shown while the step is not done yet, when it differs from the done line. */
   todo?: string;
+  /** Title shown while the step is not done yet, when it differs from the done title. */
+  todoTitle?: string;
 };
 
 export function scenarioFor(from: PlanId, to: PlanId): MigrationScenario | null {
@@ -192,7 +194,15 @@ export function stepsFor(row: Pick<MigrationRow, "direction" | "setup_diff_pence
   out.push(
     rise
       ? { stage: "switched", title: `${name} goes live`, line: `From the day your change goes live, your new price${price ? ` of ${price}` : ""} starts. The part month is added to your next bill.`, by: "forecourt", email: false }
-      : { stage: "switched", title: "Plan change booked", line: `Your account moves to ${name} when the team applies your change. Your price stays the same until the end of your billing period${row.effective_at ? `, ${ukDay(row.effective_at)}` : ""}.`, by: "forecourt", email: false },
+      : {
+          stage: "switched",
+          title: `Plan switched to ${name}`,
+          line: `Your account is now on ${name}. Your price stays the same until the end of your billing period${row.effective_at ? `, ${ukDay(row.effective_at)}` : ""}.`,
+          todoTitle: "Plan change booked",
+          todo: `Your account moves to ${name} when the team applies your change. Your price stays the same until the end of your billing period${row.effective_at ? `, ${ukDay(row.effective_at)}` : ""}.`,
+          by: "forecourt",
+          email: false,
+        },
   );
   out.push(SCENARIOS[scenario].find((x) => x.stage === "setup")!);
   if (!rise)
