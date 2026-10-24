@@ -86,7 +86,7 @@ export function PlanChangeView({
             disabled={busy || p === plan}
             onClick={() => void pick(p)}
             className={`rounded-full border px-4 py-1.5 text-sm ${
-              (to ?? plan) === p ? "border-fg bg-fg text-accent-fg" : "border-line bg-elevated text-muted hover:text-fg"
+              (to ?? plan) === p ? "border-fg bg-transparent font-medium text-fg ring-1 ring-fg" : "border-line bg-elevated text-muted hover:text-fg"
             } disabled:cursor-default`}
           >
             {LABEL[p]}
@@ -109,9 +109,9 @@ export function PlanChangeView({
             <Button disabled={busy} onClick={() => void confirm()}>
               {quote.direction === "upgrade" ? `Pay £${(quote.setupDiffPence / 100).toLocaleString("en-GB")} and switch` : `Switch to ${PLANS[quote.to].name}`}
             </Button>
-            <button type="button" disabled={busy} onClick={() => { setQuote(null); setTo(null); }} className="rounded-full border border-line px-4 py-1.5 text-sm">
+            <Button variant="secondary" disabled={busy} onClick={() => { setQuote(null); setTo(null); }}>
               Cancel
-            </button>
+            </Button>
           </div>
         </div>
       ) : null}
