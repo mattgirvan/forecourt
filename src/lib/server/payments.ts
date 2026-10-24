@@ -439,6 +439,8 @@ export type WebhookDeps = {
   invoices?: Omit<InvoiceDeps, "log" | "now" | "flagForStaff">;
   /** Paid setup difference for an account type change (metadata kind plan_change). */
   planChange?: (session: CheckoutSessionLike) => Promise<WebhookResult>;
+  /** customer.subscription.updated: lands a booked plan change when its schedule fires. */
+  planSchedule?: (subscriptionId: string) => Promise<WebhookResult>;
 };
 
 export type WebhookResult = { status: number; body: string };
@@ -473,6 +475,7 @@ export async function handleStripeWebhook(
     event.type === "checkout.session.completed" ||
     event.type === "checkout.session.async_payment_succeeded" ||
     event.type === "customer.subscription.deleted" ||
+    (event.type === "customer.subscription.updated" && !!deps.planSchedule) ||
     isInvoiceEvent(event.type);
   if (!handled) return { status: 200, body: "ignored" };
 
@@ -495,6 +498,10 @@ export async function handleStripeWebhook(
         event.type,
         event.data.object as unknown as InvoiceLike,
       );
+    }
+    if (event.type === "customer.subscription.updated") {
+      const id = (event.data.object as { id?: string }).id;
+      return id && deps.planSchedule ? await deps.planSchedule(id) : { status: 200, body: "ignored" };
     }
     if (event.type === "customer.subscription.deleted") {
       const sub = event.data.object as { id?: string };

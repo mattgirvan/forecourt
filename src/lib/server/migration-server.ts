@@ -67,10 +67,22 @@ export const markMigration = createServerFn({ method: "POST" })
       const at = new Date().toISOString();
       const patch: Record<string, unknown> = { migration_cancelled_at: at };
       if (r.status === "pending_payment") patch.status = "cancelled";
+      // PR 2: a booked change is cancelled by releasing its Stripe schedule.
+      const scheduleId = (row as { stripe_schedule_id?: string | null }).stripe_schedule_id ?? null;
+      if (r.status === "scheduled") {
+        if (scheduleId) {
+          const { planChangeDeps, planChangeMode, stripeForPlanChange } = await import("@/lib/server/plan-change-server");
+          const { releasePlanChangeSchedule } = await import("@/lib/server/plan-change-sync");
+          const stripe = planChangeMode() === "live" ? await stripeForPlanChange() : null;
+          const rel = await releasePlanChangeSchedule(planChangeDeps(stripe), scheduleId, r.id);
+          if (!rel.released) throw new Error(`Could not release the Stripe schedule (${rel.reason}). Nothing was cancelled.`);
+        }
+        patch.status = "cancelled";
+      }
       const { error } = await sb.from("plan_changes").update(patch).eq("id", r.id);
       if (error) throw new Error(error.message);
       await sendAccountEventEmail({ tenantId: r.tenant_id, ...migrationEvent({ ...base, stage: "cancelled" }) });
-      await audit(sb, r.tenant_id, "Migration cancelled", `Tracker closed by ${who.email ?? "Office"}. The plan and Stripe were not changed.`, who.email);
+      await audit(sb, r.tenant_id, "Migration cancelled", `Tracker closed by ${who.email ?? "Office"}. ${r.status === "scheduled" ? "The booked change was released." : "The plan and Stripe were not changed."}`, who.email);
       return { message: "Cancelled. The account is back to Live. The plan and Stripe were not changed." };
     }
     const target = data.action as MigrationStage;

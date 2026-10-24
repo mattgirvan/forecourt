@@ -9,6 +9,7 @@
  * fallback only. Fails closed on any RPC error. Safe to run any number of
  * times: the stage write only wins once and email_log dedupes the email.
  */
+import { finishDueScheduledChanges } from "@/lib/server/plan-change-schedule";
 import { timingSafeEqual } from "node:crypto";
 import { openMigrations } from "@/lib/server/migration-store";
 import { catchUp } from "@/lib/server/migration-catchup";
@@ -54,11 +55,13 @@ export async function handleMigrationCron(request: Request): Promise<Response> {
   const header = request.headers.get("authorization");
   const ok = cronAuthorised(header, process.env.MIGRATION_CRON_SECRET) || (await vaultAuthorised(sb, header));
   if (!ok) return jsonResponse({ error: "Not allowed." }, 401);
+  // Backup for the webhook: land booked plan changes whose period end has passed.
+  const landed = await finishDueScheduledChanges(sb);
   const rows = await openMigrations(sb);
   let moved = 0;
   for (const r of rows) {
     const after = await catchUp(sb, r);
     if (after.migration_stage !== r.migration_stage) moved++;
   }
-  return jsonResponse({ checked: rows.length, moved });
+  return jsonResponse({ checked: rows.length, moved, landed });
 }
