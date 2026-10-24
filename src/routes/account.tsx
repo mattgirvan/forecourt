@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { staffAccountRedirect } from "@/lib/staff-nav";
+import { planFromParam, staffAccountRedirect } from "@/lib/staff-nav";
 import { LiveView } from "@/components/account/live-view";
 import { isLiveTenant } from "@/lib/live-view";
 import { listManagedTenants } from "@/lib/server/members";
@@ -63,7 +63,9 @@ type Search = {
 
 export const Route = createFileRoute("/account")({
   validateSearch: (raw: Record<string, unknown>): Search => ({
-    plan: isPlanId(raw.plan) ? raw.plan : undefined,
+    // Any plan param counts as asking for a plan, so staff skip the Office redirect.
+    // An unknown value falls back to Site, the default plan, instead of being dropped.
+    plan: planFromParam(raw.plan, isPlanId, "site"),
     billing: isBillingKind(raw.billing) ? raw.billing : undefined,
     checkout: typeof raw.checkout === "string" ? raw.checkout : undefined,
     paid: typeof raw.paid === "string" ? raw.paid : undefined,

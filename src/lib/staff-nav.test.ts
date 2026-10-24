@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { headerAccountLink, staffAccountRedirect } from "./staff-nav.ts";
+import { headerAccountLink, planFromParam, staffAccountRedirect } from "./staff-nav.ts";
 
 test("staff get Office, everyone else keeps Account", () => {
   assert.deepEqual(headerAccountLink(true), { to: "/office", label: "Office" });
@@ -24,4 +24,16 @@ test("header and account use the shared helpers with a replace redirect", () => 
   assert.match(account, /staffAccountRedirect\(/);
   assert.match(account, /replace: true/);
   assert.doesNotMatch(account, /on the team\./);
+});
+
+test("any plan param on /account counts as a plan, so staff skip the redirect", () => {
+  const isPlan = (v: unknown): v is "site" | "group" | "franchise" => v === "site" || v === "group" || v === "franchise";
+  assert.equal(planFromParam(undefined, isPlan, "site"), undefined);
+  assert.equal(planFromParam("group", isPlan, "site"), "group");
+  assert.equal(planFromParam("foo", isPlan, "site"), "site");
+  assert.equal(planFromParam("", isPlan, "site"), "site");
+  for (const raw of ["site", "group", "franchise", "foo", ""]) {
+    assert.equal(staffAccountRedirect({ team: true, tenantCount: 0, plan: planFromParam(raw, isPlan, "site") }), false);
+  }
+  assert.match(readFileSync("src/routes/account.tsx", "utf8"), /plan: planFromParam\(raw\.plan, isPlanId, "site"\)/);
 });

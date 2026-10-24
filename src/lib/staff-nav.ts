@@ -10,6 +10,16 @@ export function headerAccountLink(team: boolean | undefined): HeaderAccountLink 
 }
 
 /**
+ * Reads the plan param on /account. Any value present counts as asking for a
+ * plan: known ids pass through, anything else becomes "site", the default.
+ * Absent stays undefined.
+ */
+export function planFromParam<P extends string>(raw: unknown, isPlan: (v: unknown) => v is P, fallback: P): P | undefined {
+  if (raw === undefined || raw === null) return undefined;
+  return isPlan(raw) ? raw : fallback;
+}
+
+/**
  * True when /account should send a staff member straight to /office (with a
  * replace). This is exactly when the interstitial used to show: staff with no
  * dealer accounts of their own, not asking for a plan or checkout.
