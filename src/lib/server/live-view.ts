@@ -21,6 +21,7 @@ import {
 } from "@/lib/live-view";
 import { actor, sbAdmin, stripeSecret } from "@/lib/server/staff-actor";
 import { sendStaffAlert, sendSupportUpdateEmail } from "@/lib/server/journey-email";
+import { customerHiddenIds } from "@/lib/server/plan-change-ticket";
 
 const ACCOUNT_URL = `${SITE.url}/account`;
 
@@ -185,11 +186,35 @@ export type SupportItem = {
   updated_at: string;
   messages: SupportMessage[];
   tenant_name?: string | null;
+  /** Plan change ticket whose request is still pending_payment (staff have no action). */
+  waiting_on_customer?: boolean;
   /** Office queue only: latest message body, for the row preview. */
   last_line?: string | null;
 };
 
 const ITEM_COLS = "id, ref, tenant_id, kind, change_type, title, details, link, status, needs_reply, created_at, updated_at";
+
+/** Linked plan_changes rows for these plan change tickets. Null on error. */
+async function linkedChanges(sb: Awaited<ReturnType<typeof actor>>["sb"], ids: number[]) {
+  if (!ids.length) return [];
+  try {
+    const { data, error } = await (sbAdmin() ?? sb).from("plan_changes").select("support_item_id, status, setup_diff_pence").in("support_item_id", ids);
+    return error ? null : ((data ?? []) as { support_item_id: number | null; status: string; setup_diff_pence: number | null }[]);
+  } catch {
+    return null;
+  }
+}
+
+/** Ticket ids whose linked plan change still waits on the customer. Empty on any error. */
+async function waitingOnCustomer(sb: Awaited<ReturnType<typeof actor>>["sb"], ids: number[]): Promise<Set<number>> {
+  if (!ids.length) return new Set();
+  try {
+    const { data, error } = await sb.from("plan_changes").select("support_item_id").in("support_item_id", ids).eq("status", "pending_payment").gt("setup_diff_pence", 0);
+    return error ? new Set() : new Set((data ?? []).map((r) => (r as { support_item_id: number }).support_item_id));
+  } catch {
+    return new Set();
+  }
+}
 
 export const listSupport = createServerFn({ method: "POST" })
   .validator((d: { token: string; tenantId: number }) => d)
@@ -200,7 +225,15 @@ export const listSupport = createServerFn({ method: "POST" })
       if (missingTable(error)) return { ready: false, items: [] };
       throw new Error(error.message);
     }
-    const items = (rows ?? []) as Omit<SupportItem, "messages">[];
+    let items = (rows ?? []) as Omit<SupportItem, "messages">[];
+    if (!who.team) {
+      // Server side: a plan change ticket with an unpaid setup difference never reaches the customer.
+      const pcIds = items.filter((i) => i.change_type === "plan_change").map((i) => i.id);
+      const linked = await linkedChanges(who.sb, pcIds);
+      // Fail closed: if the lookup fails, hide every plan change ticket rather than leak one.
+      const hide = linked ? customerHiddenIds(linked) : new Set(pcIds);
+      items = items.filter((i) => !hide.has(i.id));
+    }
     const ids = items.map((i) => i.id);
     const byItem: Record<number, SupportMessage[]> = {};
     if (ids.length) {
@@ -212,7 +245,8 @@ export const listSupport = createServerFn({ method: "POST" })
         .order("created_at", { ascending: true });
       for (const m of (msgs ?? []) as (SupportMessage & { item_id: number })[]) (byItem[m.item_id] ??= []).push(m);
     }
-    return { ready: true, items: items.map((i) => ({ ...i, messages: byItem[i.id] ?? [] })) };
+    const waiting = await waitingOnCustomer(who.sb, items.filter((i) => i.change_type === "plan_change").map((i) => i.id));
+    return { ready: true, items: items.map((i) => ({ ...i, waiting_on_customer: waiting.has(i.id), messages: byItem[i.id] ?? [] })) };
   });
 
 export const createSupportItem = createServerFn({ method: "POST" })
@@ -267,12 +301,20 @@ async function loadItem(sb: Awaited<ReturnType<typeof actor>>["sb"], itemId: num
   return data as Omit<SupportItem, "messages">;
 }
 
+/** Customers cannot reach a hidden plan change ticket by id either (reply, status). */
+async function assertCustomerCanSee(sb: Awaited<ReturnType<typeof actor>>["sb"], item: Omit<SupportItem, "messages">) {
+  if (item.change_type !== "plan_change") return;
+  const linked = await linkedChanges(sb, [item.id]);
+  if (!linked || customerHiddenIds(linked).has(item.id)) throw new Error("That ticket is not on this account.");
+}
+
 /** Add a message. A dealer reply reopens a resolved ticket (database trigger). Staff can post internal notes. */
 export const replySupport = createServerFn({ method: "POST" })
   .validator((d: { token: string; itemId: number; body: string; internal?: boolean }) => d)
   .handler(async ({ data }) => {
     const who = await actor(data.token);
     const item = await loadItem(who.sb, data.itemId);
+    if (!who.team) await assertCustomerCanSee(who.sb, item);
     const body = data.body.trim().slice(0, 10000);
     if (!body) throw new Error("Write a reply first.");
     const internal = Boolean(who.team && data.internal);
@@ -346,10 +388,12 @@ export const listSupportQueue = createServerFn({ method: "POST" })
         .order("created_at", { ascending: false });
       for (const m of (msgs ?? []) as { item_id: number; body: string }[]) if (!(m.item_id in last)) last[m.item_id] = m.body;
     }
+    const waiting = await waitingOnCustomer(who.sb, list.filter((i) => i.change_type === "plan_change").map((i) => i.id));
     return {
       ready: true,
       items: list.map(({ tenants, ...i }) => ({
         ...i,
+        waiting_on_customer: waiting.has(i.id),
         tenant_name: tenants?.name ?? null,
         last_line: last[i.id] ?? null,
         messages: [],

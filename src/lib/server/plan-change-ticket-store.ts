@@ -5,7 +5,7 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { normalizePlan } from "@/lib/catalog";
-import { openTicket, type TicketChange } from "@/lib/server/plan-change-ticket";
+import { WAITING_TICKET_GUARD, closeWaitingTicket, openTicket, type TicketChange } from "@/lib/server/plan-change-ticket";
 
 export const TICKET_CHANGE_COLS =
   "id, tenant_id, from_plan, to_plan, status, direction, setup_diff_pence, new_monthly_pence, effective_at, support_item_id, payment_intent_id, stripe_schedule_id, requested_by, go_live_at";
@@ -36,7 +36,39 @@ export async function openTicketFor(sb: SupabaseClient, changeId: number): Promi
         return !error && (data ?? []).length > 0;
       },
       removeItem: async (itemId) => void (await sb.from("support_items").delete().eq("id", itemId)),
+      promote: async (itemId, patch) => {
+        const { data, error } = await sb
+          .from("support_items")
+          .update({ ...patch, updated_at: new Date().toISOString() })
+          .eq("id", itemId)
+          .eq("status", WAITING_TICKET_GUARD.status)
+          .eq("needs_reply", WAITING_TICKET_GUARD.needs_reply)
+          .select("id");
+        return !error && (data ?? []).length > 0;
+      },
     },
     c,
+  );
+}
+
+/** Cancelled or expired before payment: close the waiting ticket. Never throws. */
+export async function closeWaitingTicketFor(sb: SupabaseClient, changeId: number, reason: "cancelled" | "expired"): Promise<boolean> {
+  const c = await readTicketChange(sb, changeId);
+  if (!c) return false;
+  return closeWaitingTicket(
+    {
+      close: async (itemId, patch) => {
+        const { data, error } = await sb
+          .from("support_items")
+          .update({ ...patch, updated_at: new Date().toISOString() })
+          .eq("id", itemId)
+          .eq("status", WAITING_TICKET_GUARD.status)
+          .eq("needs_reply", WAITING_TICKET_GUARD.needs_reply)
+          .select("id");
+        return !error && (data ?? []).length > 0;
+      },
+    },
+    c,
+    reason,
   );
 }

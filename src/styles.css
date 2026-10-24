@@ -3972,6 +3972,23 @@
   }
 }
 
+/* Tickets list: cards on phones, the table on desktop, never both (Atlas). Plain CSS, since
+   .fc-rows sets display outside the utilities layer and beat md:hidden. */
+.fc-tix-table {
+  display: none;
+}
+@media (min-width: 768px) {
+  .fc-rows.fc-tix-cards {
+    display: none;
+  }
+  .fc-tix-table {
+    display: block;
+  }
+}
+/* 16px of clear space between the last message and the reply dock: the pane's 14px gap plus 2px. */
+.fc-tix-thread {
+  padding-bottom: 2px;
+}
 /* Scenes: stock in transit + group sites (home-scroll-scenes.tsx) */
 .scene-transit-row {
   align-items: flex-start;
