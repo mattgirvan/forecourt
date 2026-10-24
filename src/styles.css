@@ -4187,9 +4187,21 @@
   pointer-events: none;
   display: none;
 }
+.scene-cursor-tap {
+  left: 2px;
+  top: 1.5px;
+}
 @media (max-width: 1023px) {
   .scene-group-card .scene-cursor {
     display: none;
+  }
+  /* Every other scene: the pointer becomes a tap ripple at the tap point. */
+  .scene-cursor-arrow,
+  .scene-cursor-ring {
+    display: none;
+  }
+  .scene-cursor {
+    filter: none;
   }
   .scene-tap {
     display: block;

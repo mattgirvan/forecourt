@@ -123,6 +123,7 @@ function FakeCursor({ innerRef, down }: { innerRef: React.Ref<HTMLDivElement>; d
   return (
     <div ref={innerRef} className="scene-cursor" data-down={down ? "1" : "0"} aria-hidden>
       <span className="scene-cursor-ring" />
+      <span className={cn("scene-tap scene-cursor-tap", down && "is-on")} />
       <svg width="22" height="22" viewBox="0 0 22 22" className="scene-cursor-arrow">
         <path
           d="M2 1.5v16.2l4.3-4 3 6.6 2.7-1.2-3-6.5h6z"
@@ -351,7 +352,7 @@ const LOC_STYLE: Record<Loc, { bg: string; fg: string }> = {
   Bodyshop: { bg: "rgba(155,111,196,0.26)", fg: "#e2d4f2" },
   Workshop: { bg: "rgba(91,142,200,0.28)", fg: "#c9dcf0" },
   "Prep Carpark": { bg: "rgba(34,211,238,0.18)", fg: "#7ee8f6" },
-  "Forecourt 1st Row": { bg: "rgba(251,146,60,0.22)", fg: "#fdab6c" },
+  "Forecourt 1st Row": { bg: "rgba(129,140,248,0.24)", fg: "#c7d2fe" },
   Showroom: { bg: "rgba(75,168,46,0.28)", fg: "#a8ec8c" },
   "Not set": { bg: "rgba(250,204,21,0.2)", fg: "#fde047" },
 };
@@ -362,9 +363,9 @@ const STOCK: { model: string; trim: string; reg: string; loc: Loc; keys: string;
   { model: "Compact estate", trim: "1.5 petrol", reg: "SV74 KDX", loc: "Showroom", keys: "Box 4", fan: -13 },
   { model: "Family SUV", trim: "1.5 petrol", reg: "SK24 OYH", loc: "Bodyshop", keys: "Box 9", fan: -10 },
   { model: "Electric SUV", trim: "Long range", reg: "SY25 FWN", loc: "Workshop", keys: "Box 11", fan: -7 },
-  { model: "Electric hatch", trim: "Standard range", reg: "SV75 UJR", loc: "Not set", keys: "Box 2", fan: -5 },
+  { model: "Electric hatch", trim: "", reg: "SV75 UJR", loc: "Not set", keys: "Box 2", fan: -5 },
   { model: "Small hatch", trim: "1.0 petrol", reg: "SA73 PLE", loc: "Prep Carpark", keys: "Prep", fan: -3 },
-  { model: "Compact SUV", trim: "1.5 petrol", reg: "SJ24 NRV", loc: "Forecourt 1st Row", keys: "Box 7", fan: -2 },
+  { model: "Compact SUV", trim: "1.5", reg: "SJ24 NRV", loc: "Forecourt 1st Row", keys: "Box 7", fan: -2 },
 ];
 
 function LocPill({ loc, className, innerRef }: { loc: Loc; className?: string; innerRef?: React.Ref<HTMLSpanElement> }) {
