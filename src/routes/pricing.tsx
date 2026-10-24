@@ -129,8 +129,7 @@ function SwitchingPlans() {
   const { site, franchise, group } = PLANS;
   const points = [
     `You can move between ${site.name}, ${franchise.name} and ${group.name} at any time from your account.`,
-    "Moving to a pricier plan? The new price starts the day your change goes live, and the part month is added to your next bill.",
-    `Moving up? You pay the difference in setup fee up front. Setup is ${gbpPence(site.setupPence)} for ${site.name}, ${gbpPence(franchise.setupPence)} for ${franchise.name} and ${gbpPence(group.setupPence)} for ${group.name}.`,
+    "Moving to a pricier plan? You pay the difference in setup fee up front. The new price starts the day your change goes live, and the part month is added to your next bill.",
     "Moving to a cheaper plan? The lower price starts at the end of your current billing period. There is no refund on the setup fee.",
     "Adding sites never comes with a setup fee.",
     `A ${site.name} account covers one brand. For more than one brand, you need ${group.name}.`,
