@@ -244,7 +244,7 @@ export const requestPlanChange = createServerFn({ method: "POST" })
         // Separate write so a database without plan-change-flow.sql still records the row.
         await admin.from("plan_changes").update({ effective_at: effectiveAt }).eq("id", started.changeId);
         await note(admin, t.id, "Plan change requested", `Plan sync is off. The team applies this at period end${effectiveAt ? ` (${effectiveAt.slice(0, 10)})` : ""}.`, actorEmail);
-        return reply("recorded", mode !== "live" && data.from === "office" ? planChangeOfficeRecordedMessage(q) : "Request sent. Nothing to pay. Your new price starts at the end of this billing period.");
+        return reply("recorded", mode !== "live" && data.from === "office" ? planChangeOfficeRecordedMessage(q) : "Request sent. Nothing to pay. Your plan switches when the team applies your change. Your new price starts at the end of this billing period.");
       }
       await note(admin, t.id, "Plan change requested", "No setup difference. Waiting for the team.", actorEmail);
       return reply("recorded", mode !== "live" && data.from === "office" ? planChangeOfficeRecordedMessage(q) : "Request sent. Nothing to pay now. We will be in touch to set up your change.");
@@ -398,3 +398,73 @@ export async function expirePlanChange(sb: SupabaseClient, session: SessionLike)
     session,
   );
 }
+
+/**
+ * PR 6: the account owner resumes the setup difference payment for their own
+ * request. Same routing as PR 3: Checkout runs whether or not PLAN_CHANGE_SYNC is on.
+ */
+export const resumePlanChangePayment = createServerFn({ method: "POST" })
+  .validator((d: { token: string; tenantId: number; changeId: number }) => d)
+  .handler(async ({ data }): Promise<{ ok: boolean; url: string | null; message: string }> => {
+    const who = await actor(data.token);
+    const admin = sbAdmin();
+    if (!admin) return { ok: false, url: null, message: "Payments are not set up here." };
+    const { data: tr } = await who.sb.from("tenants").select("id, user_id, stripe_customer_id, email").eq("id", data.tenantId).maybeSingle();
+    const t = tr as { id: number; user_id: string | null; stripe_customer_id: string | null; email: string | null } | null;
+    const stripe = await stripeClient();
+    const back = `${SITE.url}/account?tab=billing`;
+    const { resumePayment } = await import("@/lib/server/plan-change-resume");
+    const loadChange = async (id: number) => {
+      const { data: row } = await admin.from("plan_changes").select("id, tenant_id, status, from_plan, to_plan, setup_diff_pence, checkout_session_id").eq("id", id).maybeSingle();
+      return (row as (import("@/lib/server/plan-change-resume").ResumeChange & { from_plan: string; to_plan: string }) | null) ?? null;
+    };
+    try {
+      const r = await resumePayment(
+        {
+          loadChange,
+          retrieveSession: async (id) => {
+            if (!stripe) return null;
+            try {
+              const s = await stripe.checkout.sessions.retrieve(id);
+              return { id: s.id, status: s.status ?? null, url: s.url ?? null };
+            } catch {
+              return null;
+            }
+          },
+          createCheckout: async (c, idempotencyKey) => {
+            if (!stripe || !t) throw new Error("Stripe is not set up here.");
+            const full = await loadChange(c.id);
+            const session = await stripe.checkout.sessions.create(
+              upgradeCheckoutParams({
+                tenantId: t.id,
+                changeId: c.id,
+                from: normalizePlan(full?.from_plan ?? "site"),
+                to: normalizePlan(full?.to_plan ?? "site"),
+                setupDiffPence: c.setup_diff_pence,
+                customer: t.stripe_customer_id,
+                email: t.email,
+                successUrl: `${back}&plan_change=paid`,
+                cancelUrl: back,
+              }) as never,
+              { idempotencyKey },
+            );
+            return { id: session.id, url: session.url };
+          },
+          swapSession: async (id, oldId, newId) => {
+            let q = admin.from("plan_changes").update({ checkout_session_id: newId }).eq("id", id).eq("status", "pending_payment");
+            q = oldId ? q.eq("checkout_session_id", oldId) : q.is("checkout_session_id", null);
+            const { data: won, error } = await q.select("id");
+            return !error && (won ?? []).length > 0;
+          },
+          expireSession: async (id) => {
+            if (stripe) await stripe.checkout.sessions.expire(id);
+          },
+        },
+        { changeId: data.changeId, tenantId: data.tenantId, callerUserId: who.userId ?? null, ownerUserId: t?.user_id ?? null },
+      );
+      if (r.ok && !r.reused) await note(admin, data.tenantId, "Payment page reopened", "The owner reopened the setup difference payment. A new Checkout page replaced the old one.", who.email ?? "owner");
+      return r.ok ? { ok: true, url: r.url, message: "" } : { ok: false, url: null, message: r.message };
+    } catch (e) {
+      return { ok: false, url: null, message: e instanceof Error ? `Could not open the payment page: ${e.message}` : "Could not open the payment page." };
+    }
+  });

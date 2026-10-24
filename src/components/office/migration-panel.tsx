@@ -8,8 +8,8 @@ import { markMigration } from "@/lib/server/migration-server";
 export function OfficeMigrationPanel({ token, tracker, onChanged, preview = false }: { token: string; tracker: Tracker; onChanged: () => void; preview?: boolean }) {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
-  const next = nextStage(tracker.scenario, tracker.stage);
-  const canMark = next ? officeCanMark(tracker.scenario, tracker.stage, next) : false;
+  const next = nextStage(tracker.scenario, tracker.stage, tracker.steps);
+  const canMark = next ? officeCanMark(tracker.scenario, tracker.stage, next, tracker.steps) : false;
   const nextStep = tracker.steps.find((s) => s.stage === next);
 
   async function act(action: "setup" | "complete" | "cancel") {
