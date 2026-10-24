@@ -21,6 +21,7 @@ import { JourneyNow } from "@/components/journey/after-you-pay";
 import { PaymentIssueNotice } from "@/components/account/payment-issue";
 import { accountSitesSummary } from "@/lib/sites";
 import { SiteBillingSummary } from "@/components/account/site-billing";
+import { Chip, Row, Rows, Section } from "@/components/ui/section";
 import { PlanChangePanel } from "@/components/account/plan-change";
 
 type Tenant = {
@@ -136,7 +137,7 @@ export function DealerPortal({
           />
         )}
         {tab === "billing" && (
-          <div className="space-y-6">
+          <div className="fc-section-stack">
             <SiteBillingSummary plan={plan} sites={tenant.sites} />
             {tenant.status === "live" && <PlanChangePanel token={token} tenantId={tenant.id} plan={plan} where="account" />}
             <Billing token={token} tenant={tenant} converting={converting} onConvert={onConvert} />
@@ -256,50 +257,57 @@ function Billing({
   const remaining = setupDuePence(plan, "subscription", true);
 
   return (
-    <div className="rounded-[1.75rem] border border-line bg-surface p-6 sm:p-8">
-      <h2 className="text-2xl font-semibold tracking-tight">Receipts</h2>
-      <p className="mt-2 text-sm text-muted">What you’ve paid, and what’s next.</p>
+    <Section eyebrow="Billing" title="Receipts" rail="slate" count={rows.length || null}>
+      <p className="text-sm text-muted">What you’ve paid, and what’s next.</p>
       {billing === "trial" && onConvert && (
-        <div className="mt-6 rounded-2xl border border-line p-4">
-          <div className="text-sm font-medium">Stay on Site</div>
-          <p className="mt-1 text-sm text-muted">
-            Remaining setup {gbpPence(remaining)}.{" "}
-            {tenant.stage === "live" || tenant.status === "live"
-              ? `Then ${gbpPence(PLANS.site.monthPence)} a month from today.`
-              : monthlyStartSentence(PLANS.site.monthPence)}{" "}
-            The trial fee comes off.
-          </p>
-          <Button className="mt-4" onClick={onConvert} disabled={converting}>
+        <Row tone="action" className="mt-4 flex-col !items-stretch sm:flex-row sm:!items-center">
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-semibold">Stay on Site</div>
+            <p className="mt-1 text-sm text-muted">
+              Remaining setup {gbpPence(remaining)}.{" "}
+              {tenant.stage === "live" || tenant.status === "live"
+                ? `Then ${gbpPence(PLANS.site.monthPence)} a month from today.`
+                : monthlyStartSentence(PLANS.site.monthPence)}{" "}
+              The trial fee comes off.
+            </p>
+          </div>
+          <Button className="min-h-11 shrink-0" onClick={onConvert} disabled={converting}>
             Convert trial
           </Button>
-        </div>
+        </Row>
       )}
       {err && <p className="mt-4 text-sm text-muted">{err}</p>}
       {rows.length === 0 && !err ? (
-        <p className="mt-6 text-sm text-muted">No receipts yet.</p>
+        <p className="mt-4 text-sm text-muted">No receipts yet.</p>
       ) : (
-        <ul className="mt-6 space-y-2">
+        <Rows as="ul" className="mt-4">
           {rows.map((r) => (
-            <li key={r.id} className="flex items-center justify-between gap-3 border-b border-line py-3 text-sm">
-              <div>
-                <div>{r.label}</div>
-                <div className="text-xs text-subtle">
-                  {r.date ? new Date(r.date).toLocaleDateString("en-GB") : ""} · {r.status}
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <span>{r.amount}</span>
-                {r.url && (
-                  <a href={r.url} target="_blank" rel="noreferrer" className="text-xs text-muted underline-offset-4 hover:underline">
-                    Receipt
-                  </a>
-                )}
-              </div>
-            </li>
+            <Row
+              as="li"
+              key={r.id}
+              title={r.label}
+              sub={`${r.date ? new Date(r.date).toLocaleDateString("en-GB") : ""}${r.date ? ", " : ""}${r.status}`}
+              trailing={
+                <>
+                  <span className="tabular-nums">{r.amount}</span>
+                  {r.status === "paid" ? <Chip tone="live">Paid</Chip> : null}
+                  {r.url && (
+                    <a
+                      href={r.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="fc-tap inline-flex items-center justify-center text-xs text-muted underline-offset-4 hover:underline"
+                    >
+                      Receipt
+                    </a>
+                  )}
+                </>
+              }
+            />
           ))}
-        </ul>
+        </Rows>
       )}
-    </div>
+    </Section>
   );
 }
 

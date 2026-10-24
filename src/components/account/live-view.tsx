@@ -32,6 +32,7 @@ import {
   type SupportStatus,
 } from "@/lib/live-view";
 import { cn } from "@/lib/utils";
+import { Row as FcRow, Rows, Section } from "@/components/ui/section";
 import { MigrationPill, MigrationTracker } from "@/components/account/migration-tracker";
 import { getMigration } from "@/lib/server/migration-server";
 import { accountStatusLabel, downgradePrice, type Tracker } from "@/lib/migration";
@@ -56,7 +57,6 @@ const SETUP_STEPS = [
   "Final check and go live",
 ];
 
-const card = "rounded-[1.25rem] sm:rounded-[1.75rem] border border-line bg-surface p-5 sm:p-7";
 const eyebrow = "text-[12px] text-subtle";
 const title = "mt-1 text-[1.35rem] font-semibold tracking-tight";
 const hint = "text-[12px] text-subtle";
@@ -88,12 +88,7 @@ function AmberPill({ children }: { children: ReactNode }) {
 }
 
 function Row({ k, children }: { k: string; children: ReactNode }) {
-  return (
-    <div className="flex items-center justify-between gap-4 border-b border-line py-3 text-sm">
-      <span className="text-muted">{k}</span>
-      <span className="text-right">{children}</span>
-    </div>
-  );
+  return <FcRow className="fc-row-kv" title={k} trailing={<span>{children}</span>} />;
 }
 
 export function Drawer({ open, onClose, children }: { open: boolean; onClose: () => void; children: ReactNode }) {
@@ -108,18 +103,6 @@ export function Drawer({ open, onClose, children }: { open: boolean; onClose: ()
       >
         {children}
       </div>
-    </div>
-  );
-}
-
-function CardHead({ eyebrowText, titleText, action }: { eyebrowText: string; titleText: string; action?: ReactNode }) {
-  return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-      <div>
-        <div className={eyebrow}>{eyebrowText}</div>
-        <h2 className={title}>{titleText}</h2>
-      </div>
-      {action ? <div className="[&>button]:w-full sm:[&>button]:w-auto">{action}</div> : null}
     </div>
   );
 }
@@ -465,13 +448,12 @@ export function LiveView({ token, tenant, initial, role = "owner" }: { token: st
         </ul>
       </details>
 
-      <div className="mt-4 grid gap-4 lg:grid-cols-2">
-        <section className={card}>
-          <CardHead eyebrowText="Your site" titleText="Site details" />
-          <div className="mt-4">
+      <div className="mt-[18px] grid gap-[18px] lg:grid-cols-2">
+        <Section eyebrow="Your site" title="Site details" rail="blue">
+          <Rows>
             <Row k="Web address">
               {site?.domain ? (
-                <a className="underline underline-offset-4" href={`https://${site.domain}`} target="_blank" rel="noreferrer">
+                <a className="fc-tap inline-flex items-center underline underline-offset-4" href={`https://${site.domain}`} target="_blank" rel="noreferrer">
                   {site.domain}
                 </a>
               ) : (
@@ -480,13 +462,12 @@ export function LiveView({ token, tenant, initial, role = "owner" }: { token: st
             </Row>
             <Row k="Went live">{site ? ukDate(site.goLiveAt) || "Checking..." : "Checking..."}</Row>
             {site?.renewsAt ? <Row k="Renews">{ukDate(site.renewsAt)}</Row> : null}
-          </div>
+          </Rows>
           {site?.renewsAt ? <p className={cn(hint, "mt-3")}>Your plan renews every 12 months. Message us if you'd like to talk about it.</p> : null}
-        </section>
+        </Section>
 
-        <section className={cn(card)}>
-          <CardHead eyebrowText="Plan and billing" titleText={bill?.planName ?? `Forecourt ${PLANS[plan].name}`} />
-          <div className="mt-4">
+        <Section eyebrow="Plan and billing" title={bill?.planName ?? `Forecourt ${PLANS[plan].name}`} rail="teal">
+          <Rows>
             <Row k="Price">
               {bill ? (
                 <>
@@ -507,7 +488,7 @@ export function LiveView({ token, tenant, initial, role = "owner" }: { token: st
               )}
             </Row>
             <Row k="Card">{bill ? cardLabel(bill.card) : <span className="text-subtle">Checking...</span>}</Row>
-          </div>
+          </Rows>
           {manager ? (
             <p className={cn(hint, "mt-4")}>The account owner manages billing.</p>
           ) : (
@@ -519,18 +500,18 @@ export function LiveView({ token, tenant, initial, role = "owner" }: { token: st
             </div>
           )}
           {portalErr ? <p className="mt-2 text-sm text-muted">{portalErr}</p> : null}
-        </section>
+        </Section>
 
-        <section className={card}>
-          <CardHead
-            eyebrowText="Support"
-            titleText="Tickets"
-            action={
-              <Button size="sm" onClick={() => setNewKind("ticket")}>
-                New ticket
-              </Button>
-            }
-          />
+        <Section
+          eyebrow="Support"
+          title="Tickets"
+          rail="violet"
+          actions={
+                <Button size="sm" onClick={() => setNewKind("ticket")}>
+                  New ticket
+                </Button>
+          }
+        >
           <ItemList
             ticket
             items={tickets}
@@ -538,18 +519,18 @@ export function LiveView({ token, tenant, initial, role = "owner" }: { token: st
             empty="No tickets yet. If anything looks off on your site, message us and we'll pick it up."
           />
           <p className={cn(hint, "mt-4")}>{REPLY_TIME_COPY}</p>
-        </section>
+        </Section>
 
-        <section className={card}>
-          <CardHead
-            eyebrowText="Your site"
-            titleText="Change requests"
-            action={
-              <Button size="sm" onClick={() => setNewKind("change")}>
-                Request a change
-              </Button>
-            }
-          />
+        <Section
+          eyebrow="Your site"
+          title="Change requests"
+          rail="violet"
+          actions={
+                <Button size="sm" onClick={() => setNewKind("change")}>
+                  Request a change
+                </Button>
+          }
+        >
           <ItemList
             ticket={false}
             items={changes}
@@ -557,7 +538,7 @@ export function LiveView({ token, tenant, initial, role = "owner" }: { token: st
             empty="Nothing requested yet. Want a new page or a tweak? Tell us what you have in mind."
           />
           <p className={cn(hint, "mt-4")}>{CHANGE_COPY}</p>
-        </section>
+        </Section>
 
         <DeskStaff domain={site?.domain ?? null} />
         {manager ? null : <AccountAccess token={token} tenantId={tenant.id} initial={initial?.members} preview={Boolean(initial)} />}
@@ -590,23 +571,24 @@ export function LiveView({ token, tenant, initial, role = "owner" }: { token: st
 function DeskStaff({ domain }: { domain: string | null }) {
   const host = (domain ?? "").trim().replace(/^https?:\/\//, "").replace(/\/.*$/, "");
   return (
-    <section className={cn(card, "lg:col-span-2")}>
-      <CardHead
-        eyebrowText="On the desk"
-        titleText="Desk staff"
-        action={
-          host ? (
-            <Button size="sm" variant="secondary" asChild>
-              <a href={`https://${host}/`} target="_blank" rel="noreferrer">
-                Open your desk
-              </a>
-            </Button>
-          ) : undefined
-        }
-      />
-      <p className="mt-4 text-sm text-muted">Managed in your desk. Open your desk, then Admin, to add or remove staff and send sign in codes.</p>
+    <Section
+      className="lg:col-span-2"
+      eyebrow="On the desk"
+      title="Desk staff"
+      rail="slate"
+      actions={
+        host ? (
+          <Button size="sm" variant="secondary" asChild>
+            <a href={`https://${host}/`} target="_blank" rel="noreferrer">
+              Open your desk
+            </a>
+          </Button>
+        ) : undefined
+      }
+    >
+      <p className="text-sm text-muted">Managed in your desk. Open your desk, then Admin, to add or remove staff and send sign in codes.</p>
       <p className={cn(hint, "mt-2")}>{STAFF_COPY}</p>
-    </section>
+    </Section>
   );
 }
 
@@ -662,9 +644,8 @@ function AccountAccess({
 
   const members = data?.members ?? [];
   return (
-    <section className={cn(card, "lg:col-span-2")}>
-      <CardHead eyebrowText="Your Forecourt account" titleText="Account access" />
-      <p className="mt-4 text-sm text-muted">{ACCESS_COPY}</p>
+    <Section className="lg:col-span-2" eyebrow="Your Forecourt account" title="Account access" rail="slate">
+      <p className="text-sm text-muted">{ACCESS_COPY}</p>
       {data && !data.ready ? (
         <p className={cn(hint, "mt-4")}>Account access is not switched on yet. Message us and we will add them for you.</p>
       ) : (
@@ -677,7 +658,7 @@ function AccountAccess({
                   <span className="inline-flex items-center whitespace-nowrap rounded-full border border-line bg-elevated px-2.5 py-0.5 text-[11px] text-muted">
                     {m.status === "active" ? "Manager" : "Invited"}
                   </span>
-                  <button type="button" className="text-sm text-muted underline underline-offset-4" onClick={() => void remove(m)}>
+                  <button type="button" className="fc-tap inline-flex items-center justify-center px-2 text-sm text-muted underline underline-offset-4" onClick={() => void remove(m)}>
                     Remove
                   </button>
                 </span>
@@ -708,6 +689,6 @@ function AccountAccess({
           {msg ? <p className={cn(hint, "mt-2")}>{msg}</p> : null}
         </>
       )}
-    </section>
+    </Section>
   );
 }
