@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { OfficeSiteBillingPanel } from "@/components/office/site-billing";
 import { PaymentIssueNotice } from "@/components/account/payment-issue";
 import { useEffect, useMemo, useState } from "react";
 import { Notes, Thread } from "@/components/account/portal";
@@ -29,12 +30,13 @@ import { useWhoAmI } from "@/lib/who-am-i";
 import { cn } from "@/lib/utils";
 import { SupportPane, SupportQueue } from "@/components/office/support-desk";
 
-type OfficeTab = "customers" | "queue" | "staff" | "security";
+type OfficeTab = "customers" | "queue" | "staff" | "security" | "sites";
 type OfficeSearch = { id?: number; tab?: OfficeTab };
 
 const TAB_LABEL: Record<OfficeTab, string> = {
   customers: "Customers",
   queue: "Queue",
+  sites: "Sites",
   staff: "Staff",
   security: "Sign-in & security",
 };
@@ -43,7 +45,7 @@ export const Route = createFileRoute("/office")({
   validateSearch: (raw: Record<string, unknown>): OfficeSearch => {
     const n = typeof raw.id === "string" ? Number(raw.id) : typeof raw.id === "number" ? raw.id : undefined;
     const tab: OfficeTab | undefined =
-      raw.tab === "staff" || raw.tab === "queue" || raw.tab === "customers" || raw.tab === "security" ? raw.tab : undefined;
+      raw.tab === "staff" || raw.tab === "queue" || raw.tab === "customers" || raw.tab === "security" || raw.tab === "sites" ? raw.tab : undefined;
     const out: OfficeSearch = {};
     if (typeof n === "number" && Number.isFinite(n)) out.id = n;
     if (tab) out.tab = tab;
@@ -201,7 +203,7 @@ function OfficeInner() {
           <h1 className="mt-2 text-4xl font-semibold tracking-tight">Office</h1>
         </div>
         <div className="flex flex-wrap gap-1.5">
-          {(["customers", "queue", "staff", "security"] as const).map((id) => (
+          {(["customers", "queue", "sites", "staff", "security"] as const).map((id) => (
             <button
               key={id}
               type="button"
@@ -227,6 +229,12 @@ function OfficeInner() {
             members={staff}
             onChange={() => void reload()}
           />
+        </div>
+      )}
+
+      {tab === "sites" && !search.id && token && (
+        <div className="mt-10">
+          <OfficeSiteBillingPanel token={token} />
         </div>
       )}
 
