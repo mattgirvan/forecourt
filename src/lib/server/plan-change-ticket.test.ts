@@ -188,3 +188,12 @@ test("Office wiring: plan change tickets use the shared confirm sheet and hide t
   const server = readFileSync(new URL("./plan-change-server.ts", import.meta.url), "utf8");
   assert.equal(server.match(/openTicketFor\(/g)?.length, 3, "requested, booked and paid open the ticket");
 });
+
+test("setup difference uses the real catalog: Site £4,500 to Franchise £6,500 is £2,000", async () => {
+  const { PLANS } = await import("../catalog.ts");
+  const { planMove } = await import("../plan-change-rules.ts");
+  assert.equal(PLANS.site.setupPence, 450_000);
+  assert.equal(PLANS.franchise.setupPence, 650_000);
+  const m = planMove({ from: "site", to: "franchise", live: 1 });
+  assert.equal(m.setupDuePence, 200_000);
+});

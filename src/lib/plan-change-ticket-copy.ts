@@ -37,7 +37,7 @@ export function rejectSheet(v: TicketSheetView) {
       ? `Refunds the ${v.setupPaid} setup difference to their card and closes the request. The plan stays on ${v.from}. This cannot be undone.`
       : `Closes the request. Nothing was charged and the plan stays on ${v.from}.`,
     confirmLabel: v.setupPaid ? "Reject and refund" : "Reject",
-    cancelLabel: "Keep it",
+    cancelLabel: "Keep request",
     tone: "danger" as const,
   };
 }

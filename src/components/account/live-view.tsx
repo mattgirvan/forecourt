@@ -168,7 +168,7 @@ export function ThreadDrawer({
   const meta =
     item.kind === "ticket"
       ? `${ticketRef(item.ref)} · Opened ${ukDate(item.created_at)}`
-      : `${changeTypeLabel(item.change_type)} · ${ukDate(item.created_at)}`;
+      : `${changeTypeLabel(item.change_type)}${item.change_type === "plan_change" ? "," : " ·"} ${ukDate(item.created_at)}`;
   return (
     <Drawer open onClose={onClose}>
       <div className="flex items-start justify-between gap-3">
