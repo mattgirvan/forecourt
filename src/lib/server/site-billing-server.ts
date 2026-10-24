@@ -26,7 +26,6 @@ import { actor, sbAdmin, siteBillingSyncFlag, stripeSecret } from "@/lib/server/
 import { parseBillingSites, periodEndFrom, siteBreakdown, type BillingSite, type SiteStatus } from "@/lib/site-billing";
 import { siteSyncMessage, syncSiteBilling, type SiteSubsLike, type SiteSyncResult } from "@/lib/server/site-billing-sync";
 import { missingTable } from "@/lib/server/payment-issues";
-import { sendAccountEventEmail } from "@/lib/server/journey-email";
 import { siteArchivedEvent, siteLiveEvent } from "@/lib/account-events";
 import {
   dryRunSubs,
@@ -194,6 +193,9 @@ export async function changeSiteState(
       input.to === "live"
         ? siteLiveEvent({ tenantId: input.tenantId, eventKey, siteName: site.name, billing: result.changed ? `Billing: ${siteSyncMessage(result)}` : "Your monthly bill does not change." })
         : siteArchivedEvent({ tenantId: input.tenantId, siteCode: input.code, siteName: site.name, billing: "", periodEnd: billing.periodEnd, at: now });
+    // Loaded here, not at the top: this module is imported by the Office client, and the email
+    // engine pulls in server only code (node:module createRequire) that breaks the browser in dev.
+    const { sendAccountEventEmail } = await import("@/lib/server/journey-email");
     await sendAccountEventEmail({ tenantId: input.tenantId, ...ev });
   }
   return { result, message, mode, billing };
