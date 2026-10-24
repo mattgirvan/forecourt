@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useState } from "react";
 import { gbpPence } from "@/lib/catalog";
 import { listOfficeSiteBilling, setSiteState } from "@/lib/server/site-billing-server";
-import { lineLabel } from "@/lib/site-billing";
+import { archiveConfirmCopy, goLiveConfirmCopy, lineLabel, totalIf } from "@/lib/site-billing";
 import { SiteAmount, SitePill } from "@/components/account/site-billing";
 
 export type OfficeSiteBillingRow = Awaited<ReturnType<typeof listOfficeSiteBilling>>[number];
@@ -36,10 +36,9 @@ export function OfficeSiteBillingPanel({ token }: { token: string }) {
 type Change = (tenantId: number, code: string, to: "live" | "archived") => Promise<string>;
 type Pending = { tenantId: number; code: string; name: string; to: "live" | "archived"; plan: string };
 
-function confirmCopy(p: Pending) {
-  if (p.to === "archived") return `Archive ${p.name}? It stops being billed from the next bill. The current month is not refunded.`;
-  if (p.plan === "franchise") return `Put ${p.name} live? If it is past the included sites it is billed from today, with the part month on the next bill.`;
-  return `Put ${p.name} live? It is billed at £249 a month from today, with the part month on the next bill.`;
+function confirmCopy(p: Pending, a: OfficeSiteBillingRow) {
+  const after = totalIf(a.plan, a.billingSites, p.code, p.to);
+  return p.to === "archived" ? archiveConfirmCopy(p.name, a.total, after, a.periodEnd) : goLiveConfirmCopy(p.name, a.total, after);
 }
 
 /** Each Group and Franchise account, its sites, what they are billed, and Go live or Archive. */
@@ -74,8 +73,8 @@ export function OfficeSiteBilling({
   return (
     <div className="space-y-4" data-testid="office-site-billing">
       <p className="text-sm text-muted">
-        Only live sites are billed. Group bills at least 2 sites.{" "}
-        {dry ? "Billing sync is in dry run: sites change state here, Stripe is not changed." : "Going live or archiving a site updates Stripe."}
+        Setting up and archived sites are not billed. Group bills at least 2 sites.{" "}
+        {dry ? "Billing sync is in dry run. Sites change state here and Stripe is not changed." : "Going live or archiving a site updates Stripe."}
       </p>
       {notice ? (
         <p role="status" className="rounded-xl border border-line bg-elevated px-3 py-2 text-sm" data-testid="site-notice">
@@ -123,8 +122,8 @@ export function OfficeSiteBilling({
               </li>
               {pending && pending.tenantId === a.id && pending.code === r.code ? (
                 <li className="rounded-xl border border-line bg-elevated p-3 text-sm" data-testid="site-confirm">
-                  <p>{confirmCopy(pending)}</p>
-                  {dry ? <p className="mt-1 text-xs text-subtle">Dry run: Stripe will not be changed.</p> : null}
+                  <p>{confirmCopy(pending, a)}</p>
+                  {dry ? <p className="mt-1 text-xs text-subtle">Dry run. Stripe is not changed.</p> : null}
                   <div className="mt-2 flex gap-2">
                     <button type="button" className="rounded-full bg-accent px-3 py-1 text-xs font-medium text-accent-fg disabled:opacity-50" disabled={busy} onClick={() => void run()}>
                       {pending.to === "live" ? "Yes, go live" : "Yes, archive"}

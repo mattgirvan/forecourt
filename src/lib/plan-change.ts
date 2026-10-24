@@ -91,15 +91,27 @@ export function quoteLines(q: PlanChangeQuote): string[] {
   if (q.direction === "upgrade") {
     return [
       `Setup difference, paid now: ${gbp(q.setupDiffPence)}`,
-      `Pro-rated for the rest of this month, on your next bill: ${gbp(q.proratedPence)}`,
-      `New monthly: ${gbp(q.newMonthlyPence)} (was ${gbp(q.oldMonthlyPence)})`,
-      `${name(q.to)} turns on once the setup payment succeeds.`,
+      `Part month for the rest of this month, added to your next bill: ${gbp(q.proratedPence)}`,
+      `${name(q.to)} starts as soon as the setup payment goes through. Your new monthly total is ${gbp(q.newMonthlyPence)}.`,
     ];
   }
-  const when = q.effective === "period_end" ? (q.periodEnd ? `from ${new Date(q.periodEnd).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/London" }).replace("Sept", "Sep")}` : "from your next bill") : "now";
+  const when = q.effective === "period_end" ? (q.periodEnd ? `from ${ukDay(q.periodEnd)}` : "from your next bill") : "now";
   return [
     "No setup refund.",
-    q.effective === "now" ? `Pro-rated credit on your next bill: ${gbp(-q.proratedPence)}` : "Nothing extra to pay this month.",
+    q.effective === "now" ? `Pro-rated credit on your next bill: ${gbp(-q.proratedPence)}` : "Nothing extra to pay this month, and no refund for part months.",
     `New monthly: ${gbp(q.newMonthlyPence)} (was ${gbp(q.oldMonthlyPence)}), ${when}`,
   ];
+}
+
+export function ukDay(iso: string | number | Date): string {
+  return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/London" }).replace("Sept", "Sep");
+}
+
+/** Office dry run message for a plan change. Nothing is charged. */
+export function planChangeDryRunMessage(q: PlanChangeQuote, now: Date = new Date()): string {
+  const head = "Dry run. Nothing is charged and the plan is unchanged.";
+  const monthly = gbp(q.newMonthlyPence);
+  if (q.direction === "upgrade") return `${head} The customer would pay the setup difference first, then pay ${monthly} a month from ${ukDay(now)}.`;
+  const when = q.effective === "period_end" && q.periodEnd ? ukDay(q.periodEnd) : q.effective === "period_end" ? "their next bill" : ukDay(now);
+  return `${head} The customer would pay ${monthly} a month from ${when}.`;
 }

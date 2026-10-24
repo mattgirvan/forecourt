@@ -35,7 +35,7 @@ test("dry run reads the subscription but never sends the update", async () => {
   assert.equal(calls.length, 0);
   assert.deepEqual(sent, [[{ id: "si_g", quantity: 3 }]]);
   assert.ok(r.changed);
-  assert.match(modeMessage("dry_run", r), /^Dry run, Stripe not changed\. Would have: /);
+  assert.equal(modeMessage("dry_run", r, 74_700), "Dry run. Stripe is not changed. This would bill 3 sites at £249, so £747 a month from the next billing period.");
   assert.doesNotMatch(modeMessage("live", r), /Dry run/);
   assert.equal(dryRunSubs(null, sent), null);
 });

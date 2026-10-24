@@ -63,7 +63,7 @@ export function SiteBillingSummary({ plan, sites }: { plan: PlanId; sites: unkno
         </div>
       </dl>
       <p className="mt-4 text-xs text-subtle">
-        Adding a site has no setup fee. A new site starts billing on its go live day. An archived site stops billing at the end of the current billing period.
+        Adding a site has no setup fee. The monthly fee starts at go live or 180 days after payment, whichever comes first. An archived site comes off your bill at the end of this billing period, with no refund for part months. You can restore it within 30 days.
       </p>
     </div>
   );

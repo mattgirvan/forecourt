@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { changeDirection, quoteLines, quotePlanChange, planMonthlyPence, DOWNGRADE_TIMING } from "./plan-change.ts";
+import { changeDirection, planChangeDryRunMessage, quoteLines, quotePlanChange, planMonthlyPence, DOWNGRADE_TIMING } from "./plan-change.ts";
 
 const START = 1_000_000;
 const END = START + 30 * 86_400;
@@ -26,7 +26,8 @@ test("upgrade Site to Group at half period: £4,000 setup now, half the monthly 
   assert.equal(q.newMonthlyPence, 49_800);
   assert.equal(q.proratedPence, Math.round((49_800 - 39_900) / 2));
   assert.equal(q.effective, "after_payment");
-  assert.match(quoteLines(q).join("\n"), /Setup difference, paid now: £4,000\n.*£49\.50\nNew monthly: £498 \(was £399\)\nGroup turns on once the setup payment succeeds\./);
+  assert.match(quoteLines(q).join("\n"), /^Setup difference, paid now: £4,000\nPart month for the rest of this month, added to your next bill: £49\.50\nGroup starts as soon as the setup payment goes through\. Your new monthly total is £498\.$/);
+  assert.equal(planChangeDryRunMessage(q, new Date("2026-10-24T09:00:00Z")), "Dry run. Nothing is charged and the plan is unchanged. The customer would pay the setup difference first, then pay £498 a month from 24 Oct 2026.");
 });
 
 test("upgrade Franchise to Group: £2,000 setup difference", () => {
@@ -37,7 +38,8 @@ test("downgrade: no setup refund, period end by default, nothing pro-rated", () 
   assert.equal(DOWNGRADE_TIMING, "period_end");
   const q = quotePlanChange({ from: "group", to: "site", live: 3, periodStart: START, periodEnd: END, now: HALF });
   assert.deepEqual([q.setupDiffPence, q.dueNowPence, q.proratedPence, q.effective], [0, 0, 0, "period_end"]);
-  assert.match(quoteLines(q).join("\n"), /^No setup refund\.\nNothing extra to pay this month\.\nNew monthly: £399 \(was £747\), from 11 Feb 1970/);
+  assert.match(quoteLines(q).join("\n"), /^No setup refund\.\nNothing extra to pay this month, and no refund for part months\.\nNew monthly: £399 \(was £747\), from 11 Feb 1970/);
+  assert.equal(planChangeDryRunMessage(q), "Dry run. Nothing is charged and the plan is unchanged. The customer would pay £399 a month from 11 Feb 1970.");
 });
 
 test("downgrade with the switch on now: pro-rated credit", () => {
