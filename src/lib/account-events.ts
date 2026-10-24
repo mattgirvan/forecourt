@@ -40,14 +40,13 @@ export function planChangedEvent(d: { tenantId: number; changeKey: string; from:
   };
 }
 
-export function monthlyStartedEvent(d: { tenantId: number; subscriptionId: string }): AccountEvent {
+export function monthlyStartedEvent(d: { tenantId: number; subscriptionId: string; totalPence?: number | null; startedAt?: string | Date }): AccountEvent {
+  const on = ukDate(new Date(d.startedAt ?? Date.now()).toISOString());
+  const plan = d.totalPence != null ? `Your monthly plan of ${money(d.totalPence)} a month started on ${on}.` : `Your monthly plan started on ${on}.`;
   return {
     kind: "monthly_started",
     title: "Monthly billing has started",
-    lines: [
-      "Your monthly plan has started. It starts at go live or 180 days after payment, whichever comes first, and your desk is now live.",
-      "Receipts are in your account under Billing.",
-    ],
+    lines: [`${plan} The monthly fee starts at go live or 180 days after payment, whichever comes first.`, "Receipts are in your account under Billing."],
     dedupe: `monthly-started:tenant:${d.tenantId}:sub:${d.subscriptionId}`,
   };
 }
@@ -74,7 +73,12 @@ export function managerRemovedEvent(d: { tenantId: number; memberId: number; ema
  * A site was added in the desk. The price preview says what it adds once it
  * goes live (setting up sites are not billed). Sent from the desk event hook.
  */
-export function siteAddedEvent(d: { tenantId: number; eventKey: string; siteName: string; addsPence: number; totalAfterPence: number }): AccountEvent {
+/** One key per site add, whoever sends it (Office or the desk hook), so it emails once. */
+export function siteAddedKey(tenantId: number, siteCode: string): string {
+  return `site-added:${tenantId}:${siteCode.trim().toLowerCase()}`;
+}
+
+export function siteAddedEvent(d: { tenantId: number; siteCode: string; siteName: string; addsPence: number; totalAfterPence: number }): AccountEvent {
   const preview =
     d.addsPence > 0
       ? `From its go live day this adds ${money(d.addsPence)} a month, bringing your monthly total to ${money(d.totalAfterPence)}. Until then it is not billed.`
@@ -83,6 +87,6 @@ export function siteAddedEvent(d: { tenantId: number; eventKey: string; siteName
     kind: "site_added",
     title: `${d.siteName} added`,
     lines: [`${d.siteName} was added to your Forecourt desk. Adding a site has no setup fee.`, preview],
-    dedupe: `site-added:${d.eventKey}`,
+    dedupe: siteAddedKey(d.tenantId, d.siteCode),
   };
 }

@@ -66,7 +66,19 @@ export async function startMonthlyForTenant(
   const message = monthlyStartMessage(result);
   if (result.started) {
     const { sendAccountEventEmail } = await import("@/lib/server/journey-email");
-    await sendAccountEventEmail({ tenantId, ...monthlyStartedEvent({ tenantId, subscriptionId: result.subscriptionId }) });
+    let totalPence: number | null = null;
+    try {
+      const { data: tt } = await sb.from("tenants").select("plan, site_count, sites").eq("id", tenantId).maybeSingle();
+      const plan = normalizePlan((tt?.plan as string) ?? "site");
+      if (plan === "group" || plan === "franchise") {
+        const { siteBreakdown, parseBillingSites } = await import("@/lib/site-billing");
+        const { data: rows } = await sb.from("tenant_sites").select("code, name, status").eq("tenant_id", tenantId);
+        totalPence = siteBreakdown(plan, rows?.length ? (rows as never) : parseBillingSites(tt?.sites)).total;
+      } else totalPence = monthTotalPence(plan, (tt?.site_count as number | null) ?? 1);
+    } catch {
+      totalPence = null;
+    }
+    await sendAccountEventEmail({ tenantId, ...monthlyStartedEvent({ tenantId, subscriptionId: result.subscriptionId, totalPence }) });
   }
   try {
     await sb.from("build_events").insert({
