@@ -4,7 +4,9 @@
  * Upgrade: the setup difference is paid up front and the new plan only turns
  * on once that payment succeeds. The monthly change is pro-rated.
  * Downgrade: no setup refund. DOWNGRADE_TIMING decides when the new price
- * applies. Provisional, pending Matt: "period_end".
+ * applies. Confirmed by Matt: "period_end". Moving down to Site partway through a
+ * 12-month Franchise or Group contract switches to the Site price at the end of
+ * the current billing period; the customer does not have to finish the 12 months.
  */
 import { PLANS, type PlanId } from "./catalog.ts";
 import { linesFor, monthlyPence, type BillingLine } from "./site-billing.ts";
