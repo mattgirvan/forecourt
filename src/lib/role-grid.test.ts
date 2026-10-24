@@ -91,3 +91,9 @@ test("styles.css braces balance (merge guard)", () => {
   const css = readFileSync("src/styles.css", "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
   assert.equal((css.match(/\{/g) ?? []).length, (css.match(/\}/g) ?? []).length);
 });
+
+test("phone grid: sticky permission column and right edge fade", () => {
+  const css = readFileSync("src/styles.css", "utf8");
+  assert.match(css, /\.fc-role-grid tbody th \{\s*position: sticky;\s*left: 0;/);
+  assert.match(css, /\.fc-role-grid-frame\[data-more\]::after \{\s*opacity: 1;/);
+});
