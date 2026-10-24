@@ -22,3 +22,12 @@ test("a paid plan change session goes to the plan change handler, never the orde
 test("unwired plan change answers 500 so Stripe retries", async () => {
   assert.equal((await handleStripeWebhook(deps(), "{}", "sig")).status, 500);
 });
+
+test("subscription updated goes to the booked plan change handler when wired, ignored when not", async () => {
+  const ev = { id: "evt_2", type: "customer.subscription.updated", data: { object: { id: "sub_1" } } };
+  const seen: string[] = [];
+  const wired: WebhookDeps = { ...deps(), constructEvent: () => ev as never, planSchedule: async (id) => { seen.push(id); return { status: 200, body: "booked plan change landed" }; } };
+  assert.deepEqual(await handleStripeWebhook(wired, "{}", "sig"), { status: 200, body: "booked plan change landed" });
+  assert.deepEqual(seen, ["sub_1"]);
+  assert.deepEqual(await handleStripeWebhook({ ...deps(), constructEvent: () => ev as never }, "{}", "sig"), { status: 200, body: "ignored" });
+});

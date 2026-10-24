@@ -55,6 +55,13 @@ export const Route = createFileRoute("/api/stripe/webhook")({
                   return completePaidPlanChange(sb, session as never, planChangeDeps(stripe));
                 }
               : undefined,
+            // Booked plan change (price drop or equal swap) landing when its schedule fires.
+            planSchedule: sb
+              ? async (subscriptionId) => {
+                  const { finishForSubscription } = await import("@/lib/server/plan-change-schedule");
+                  return finishForSubscription(sb, subscriptionId);
+                }
+              : undefined,
             // Failed and recovered monthly payments (invoice.* events).
             invoices: sb
               ? {
