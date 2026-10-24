@@ -43,11 +43,11 @@ test("receipt links the Checkout invoice and shows the setup difference", () => 
   const e = planChangeEmail({ ...base, stage: "receipt", invoiceUrl: "https://invoice.stripe.com/i/x" });
   assert.match(e.lines[0], /£2,000 \(inc\. VAT\)/);
   assert.deepEqual(e.link, { url: "https://invoice.stripe.com/i/x", label: "View your invoice" });
-  const html = accountEventEmail({ firstName: "Matt", dealer: "Skoda Aberdeen", title: e.title, lines: e.lines, accountUrl: "https://www.forecourt.me/account", link: e.link }).html;
+  const html = accountEventEmail({ firstName: "Matt", dealer: "Kelso Autos", title: e.title, lines: e.lines, accountUrl: "https://www.forecourt.me/account", link: e.link }).html;
   assert.match(html, /invoice\.stripe\.com\/i\/x/);
   assert.match(html, /View your invoice/);
   assert.doesNotMatch(html, /#d9a24b/i, "no amber button");
-  const subj = accountEventEmail({ firstName: null, dealer: "Skoda Aberdeen", title: e.title, lines: e.lines, accountUrl: "https://x" }).subject;
+  const subj = accountEventEmail({ firstName: null, dealer: "Kelso Autos", title: e.title, lines: e.lines, accountUrl: "https://x" }).subject;
   assert.equal(subj, "Forecourt: Payment received for your plan change");
   assert.equal(planChangeEmail({ ...base, stage: "receipt" }).link, undefined);
 });

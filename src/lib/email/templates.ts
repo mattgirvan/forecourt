@@ -260,7 +260,8 @@ function footer(reason: string, receipt: boolean) {
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td height="1" bgcolor="${C.line}" style="height:1px;background:${C.line};font-size:0;line-height:0;">&nbsp;</td></tr></table>
   <div style="margin-top:18px;font-family:${SANS};font-size:12px;line-height:18px;color:${C.subtle};">
     ${esc(reason)}${receipt ? " Your Stripe receipt is sent separately." : ""}<br>
-    Matthew Girvan, trading as Forecourt · <a href="${SITE}" style="color:${C.subtle};">forecourt.me</a> · <a href="${SITE}/terms" style="color:${C.subtle};">Terms</a> · <a href="${SITE}/privacy" style="color:${C.subtle};">Privacy</a>
+    Matthew Girvan, trading as Forecourt<br>
+    <a href="${SITE}" style="color:${C.subtle};">forecourt.me</a>&nbsp;&nbsp;&nbsp;<a href="${SITE}/terms" style="color:${C.subtle};">Terms</a>&nbsp;&nbsp;&nbsp;<a href="${SITE}/privacy" style="color:${C.subtle};">Privacy</a>
   </div>
 </td></tr>`;
 }
@@ -272,7 +273,7 @@ function textFooter(reason: string, receipt: boolean) {
     "",
     "--",
     reason + (receipt ? " Your Stripe receipt is sent separately." : ""),
-    "Matthew Girvan, trading as Forecourt · forecourt.me",
+    "Matthew Girvan, trading as Forecourt, forecourt.me",
   ];
 }
 
@@ -616,7 +617,7 @@ export function progressEmail(d: ProgressData): RenderedEmail | null {
   const secondary = cta.href === d.bookUrl ? ghostButton(d.accountUrl, "Open your account") : ghostButton(d.bookUrl, "Book a call");
 
   const rows = `
-${header(`${d.dealer} · Update`)}
+${header(`${d.dealer}, Update`)}
 ${row(`${h1(copy.headline)}
   ${p(esc(intro))}`, 0)}
 ${row(progressBar(n), 24)}
@@ -689,7 +690,7 @@ export function balanceLinkEmail(d: BalanceLinkData): RenderedEmail {
   const pay = safeUrl(d.payUrl) ?? d.accountUrl;
   const reason = `You are getting this because ${d.dealer} has a Forecourt desk in progress.`;
   const rows = `
-${header(`${d.dealer} · Balance`)}
+${header(`${d.dealer}, Balance`)}
 ${row(`${h1(`${amount} to pay`)}
   ${p(esc(hello))}
   ${p(esc(intro))}`, 0)}
@@ -738,7 +739,7 @@ export function monthlyRestartEmail(d: MonthlyRestartData): RenderedEmail {
   const intro = `As agreed, your ${amount} a month Forecourt plan for ${d.dealer} has restarted. We charged ${amount} for the first month to the card on file on ${d.chargedOn}. After that it is ${amount} each month. Your receipt is in your account.`;
   const reason = `You are getting this because ${d.dealer} has a Forecourt plan.`;
   const rows = `
-${header(`${d.dealer} · Monthly plan`)}
+${header(`${d.dealer}, Monthly plan`)}
 ${row(`${h1(`${amount} charged`)}
   ${p(esc(hello))}
   ${p(esc(intro))}`, 0)}
@@ -790,7 +791,7 @@ export function paymentFailedEmail(d: PaymentFailedData): RenderedEmail {
   const touch = "Someone from our team will be in touch personally to help sort it out. If you would rather get ahead of it, just reply to this email.";
   const reason = `You are getting this because ${d.dealer} has a Forecourt plan.`;
   const rows = `
-${header(`${d.dealer} · Monthly plan`)}
+${header(`${d.dealer}, Monthly plan`)}
 ${row(`${h1("A quick note about your payment")}
   ${p(esc(hello))}
   ${p(esc(intro))}`, 0)}
@@ -845,7 +846,7 @@ export function supportUpdateEmail(d: SupportUpdateData): RenderedEmail {
   const intro = `There is an update on your ${what} "${d.title}". ${d.line}`;
   const reason = `You are getting this because ${d.dealer} has a Forecourt plan.`;
   const rows = `
-${header(`${d.dealer} · Support`)}
+${header(`${d.dealer}, Support`)}
 ${row(`${h1(`Update on your ${what}`)}
   ${p(esc(hello))}
   ${p(esc(intro))}
@@ -871,7 +872,7 @@ export function managerInviteEmail(d: ManagerInviteData): RenderedEmail {
   const how = `Sign in with this email address (${d.email}). We'll send you a code, no password needed.`;
   const reason = `You are getting this because someone at ${d.dealer} invited ${d.email}. If that was a mistake, you can ignore it.`;
   const rows = `
-${header(`${d.dealer} · Account access`)}
+${header(`${d.dealer}, Account access`)}
 ${row(`${h1("You're invited")}
   ${p(esc(intro))}
   ${p(esc(how))}
@@ -899,7 +900,7 @@ export function accountEventEmail(d: AccountEventData): RenderedEmail {
   const extraUrl = d.link ? safeUrl(d.link.url) : null;
   const extra = d.link && extraUrl ? { url: extraUrl, label: d.link.label } : null;
   const rows = `
-${header(`${d.dealer} · Account`)}
+${header(`${d.dealer}, Account`)}
 ${row(`${h1(d.title)}
   ${p(esc(hello))}
   ${d.lines.map((l) => p(esc(l))).join("\n  ")}
