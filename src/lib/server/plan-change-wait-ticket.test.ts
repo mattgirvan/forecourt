@@ -7,6 +7,7 @@ import {
   closeWaitingTicket,
   customerHiddenIds,
   hiddenFromCustomer,
+  isWaitingSystemMessage,
   isWaitingTicket,
   officeFileLink,
   openTicket,
@@ -201,4 +202,16 @@ test("detail chip reads Waiting on customer in grey from the flag", async () => 
   assert.deepEqual(ticketChip({ status: "submitted", needs_reply: false, change_type: "plan_change", waiting_on_customer: true }), { tone: "neutral", label: "Waiting on customer" });
   assert.equal(ticketChip({ status: "submitted", needs_reply: true, change_type: "plan_change", waiting_on_customer: false }).tone, "action");
   assert.notEqual(ticketChip({ status: "submitted", needs_reply: false, change_type: "plan_change" }).label, "Waiting on customer");
+});
+
+test("Office thread hides only the waiting system message; other messages and the list preview stay", () => {
+  const t = { change_type: "plan_change", status: "submitted", waiting_on_customer: true, details: waitingTicketDetails(base) };
+  assert.equal(isWaitingSystemMessage(t), true);
+  assert.equal(isWaitingSystemMessage({ ...t, waiting_on_customer: false }), false, "once paid the details show again");
+  assert.equal(isWaitingSystemMessage({ ...t, details: "Move from Site to Group." }), false);
+  assert.equal(isWaitingSystemMessage({ ...t, change_type: null }), false);
+  const pane = readFileSync("src/components/office/ticket-pane.tsx", "utf8");
+  assert.match(pane, /\{item\.details && !isWaitingSystemMessage\(item\) \? \(/);
+  assert.match(pane, /item\.messages\.map\(/);
+  assert.doesNotMatch(readFileSync("src/components/office/support-desk.tsx", "utf8"), /isWaitingSystemMessage/, "the list preview keeps it");
 });

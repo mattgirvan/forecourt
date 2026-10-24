@@ -7,7 +7,7 @@ import { replySupport, setSupportStatus, type SupportItem } from "@/lib/server/l
 import { isOpenStatus, updatedWhen } from "@/lib/live-view";
 import { ticketChip, ticketMeta } from "@/lib/ticket-view";
 import { cn } from "@/lib/utils";
-import { isWaitingTicket } from "@/lib/server/plan-change-ticket";
+import { isWaitingSystemMessage, isWaitingTicket } from "@/lib/server/plan-change-ticket";
 
 /**
  * Ticket detail (redesign slice 12). Desktop: sits beside the list, which
@@ -108,7 +108,7 @@ export function TicketPane({
       ) : null}
       {extra ? <div className="fc-tix-extra">{extra}</div> : null}
       <ol className="fc-tix-thread" aria-label="Messages">
-        {item.details ? (
+        {item.details && !isWaitingSystemMessage(item) ? (
           <li className="fc-msg is-them">
             <div className="fc-msg-by">
               {item.tenant_name || "Dealer"}, {updatedWhen(item.created_at)}

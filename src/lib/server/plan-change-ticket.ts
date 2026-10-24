@@ -77,6 +77,14 @@ export function officeFileLink(tenantId: number): string {
 }
 
 /** The system message on a waiting ticket (Atlas wording). */
+const WAITING_MARKER = "Nothing to do yet. The customer pays ";
+
+/** The waiting system message on a waiting ticket. The Office pane shows it in the grey box, so the
+ *  thread skips it (it is not from the dealer); the Tickets list keeps it as the row preview. */
+export function isWaitingSystemMessage(i: { change_type?: string | null; status: string; waiting_on_customer?: boolean; details?: string | null }): boolean {
+  return isWaitingTicket(i) && !!i.details?.startsWith(WAITING_MARKER);
+}
+
 export function waitingTicketDetails(c: Pick<TicketChange, "setup_diff_pence">): string {
   return `Nothing to do yet. The customer pays ${gbp(c.setup_diff_pence)} (inc. VAT) from the email or their account, then this moves on by itself. It closes if the request is cancelled or expires.`;
 }
