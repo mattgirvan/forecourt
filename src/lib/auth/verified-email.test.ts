@@ -221,6 +221,7 @@ describe("auth invariant: every token-to-user lookup is the guarded one", () => 
     const known: Record<string, string> = {
       [STAFF_ACTOR]: "the guarded user client",
       "src/lib/server/desk-scaffold.ts": "GitHub API token, not a sign-in",
+      "src/lib/server/migration-cron.ts": "pg_cron shared secret (MIGRATION_CRON_SECRET), not a sign-in",
       "src/lib/auth/client.ts": "template preview gate (VITE_AUTH_ENABLED), not Supabase",
       "src/lib/auth/verify.server.ts": "template preview gate (VITE_AUTH_ENABLED), not Supabase",
       "src/lib/app-data/client.server.ts": "template connector gate token, not a sign-in",

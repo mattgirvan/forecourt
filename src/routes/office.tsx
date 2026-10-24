@@ -14,7 +14,7 @@ import { SiteShell } from "@/components/site-shell";
 import { Button } from "@/components/ui/button";
 import { SignInGate, useSbAccessToken } from "@/lib/sb-session";
 import { getSb } from "@/lib/sb";
-import { normalizeBilling, normalizePlan } from "@/lib/catalog";
+import { PLANS, normalizeBilling, normalizePlan } from "@/lib/catalog";
 import { goLiveConfirm } from "@/lib/server/build";
 import {
   getTenantFile,
@@ -444,7 +444,7 @@ function TenantFile({ token, tenantId, onSaved }: { token: string; tenantId: num
       </p>
       <h2 className="mt-2 text-4xl font-semibold tracking-tight">{file.name}</h2>
       <p className="mt-2 text-sm text-muted">
-        {plan} · {file.email || "no inbox"} · {file.phone || "no phone"}
+        {PLANS[plan].name} · {file.email || "no inbox"} · {file.phone || "no phone"}
         {file.archived_at ? " · archived" : ""}
       </p>
       <div className="mt-3">

@@ -217,3 +217,11 @@ export function advance(row: MigrationRow, stage: MigrationStage, at: string): {
   times[stage] ??= at;
   return { migration_stage: stage, stage_times: times, completed_at: stage === "complete" ? at : null };
 }
+
+/** Pill colour: amber only while the customer must pay the setup difference, green on Complete, grey otherwise. */
+export function migrationTone(tracker: Tracker | null | undefined): "amber" | "green" | "grey" {
+  const now = tracker?.steps.find((s) => s.state === "now");
+  if (!now && tracker?.steps.every((s) => s.state === "done")) return "green";
+  return now?.stage === "paid" ? "amber" : "grey";
+}
+

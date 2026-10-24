@@ -413,7 +413,7 @@ export function LiveView({ token, tenant, initial, role = "owner" }: { token: st
       <div className="mt-2 flex flex-wrap items-center gap-3">
         <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">{tenant.name || "Your dealership"}</h1>
         {/* Live once live, never changed by payment (Matt). Migration only while an account type change is open. */}
-        {accountStatusLabel(migration) === "Migration" ? <MigrationPill /> : <Pill status="done" label="Live" />}
+        {accountStatusLabel(migration) === "Migration" ? <MigrationPill tracker={migration} /> : <Pill status="done" label="Live" />}
       </div>
       {manager ? <p className="mt-3 text-sm text-muted">{MANAGER_COPY}</p> : null}
       <p className="mt-3 text-sm text-muted">

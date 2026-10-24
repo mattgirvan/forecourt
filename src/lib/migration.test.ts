@@ -74,3 +74,27 @@ test("emails: one dedupe key per change and stage, honest lines", () => {
     assert.doesNotMatch(e.title + e.lines.join(" "), /[–—]|glass/i);
   }
 });
+
+test("QA: pill tone, cancel email, office trim wording, daily check", async () => {
+  const { migrationTone } = await import("./migration.ts");
+  const { migrationEvent } = await import("./account-events.ts");
+  const { readFileSync } = await import("node:fs");
+  const row = (from: string, to: string, stage: string, status = "applied") => trackerFor({ id: 1, from_plan: from, to_plan: to, status, migration_stage: stage, stage_times: {}, effective_at: null, created_at: "2026-10-20T09:00:00Z" } as never)!;
+  assert.equal(migrationTone(row("site", "franchise", "requested", "pending_payment")), "amber");
+  assert.equal(migrationTone(row("site", "franchise", "switched")), "grey");
+  assert.equal(migrationTone(row("group", "site", "setup", "scheduled")), "grey");
+  assert.equal(migrationTone(row("site", "group", "complete")), "green");
+  for (const [from, to] of [["group", "site"], ["site", "group"], ["franchise", "group"]] as const) {
+    const ev = migrationEvent({ changeId: 3, from, to, stage: "cancelled", upgrade: to === "group", newMonthlyPence: 0 });
+    const body = JSON.stringify(ev);
+    assert.equal((body.match(/Reply to this email/g) ?? []).length <= 1, true, body);
+    assert.ok(body.includes("Nothing about your plan or billing was changed by closing it."));
+  }
+  const ui = readFileSync("src/components/account/migration-tracker.tsx", "utf8");
+  assert.match(ui, /Archive the sites to drop in the customer's desk, then mark this step done\./);
+  assert.doesNotMatch(ui, /state === "now" && "border border-\[#d9a24b\]/);
+  const cron = readFileSync("src/lib/server/migration-cron.ts", "utf8");
+  assert.match(cron, /MIGRATION_CRON_SECRET/);
+  assert.match(cron, /timingSafeEqual/);
+  assert.match(readFileSync("src/lib/server/migration-store.ts", "utf8"), /eq\("migration_stage", row\.migration_stage\)/);
+});

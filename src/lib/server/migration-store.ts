@@ -15,8 +15,11 @@ export type StoredMigration = MigrationRow & { tenant_id: number; direction: str
 export async function setMigrationStage(sb: SupabaseClient, row: StoredMigration, stage: MigrationStage, extra: Record<string, unknown> = {}): Promise<boolean> {
   try {
     const at = new Date().toISOString();
-    const { error } = await sb.from("plan_changes").update({ ...advance(row, stage, at), ...extra }).eq("id", row.id);
-    return !error;
+    // Only moves on from the stage this row was read at, so two runs (page view and the
+    // daily check) cannot both win and both send the email.
+    const q = sb.from("plan_changes").update({ ...advance(row, stage, at), ...extra }).eq("id", row.id);
+    const { data, error } = await (row.migration_stage ? q.eq("migration_stage", row.migration_stage) : q.is("migration_stage", null)).select("id");
+    return !error && (data ?? []).length > 0;
   } catch {
     return false;
   }

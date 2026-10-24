@@ -225,7 +225,7 @@ export function migrationEvent(d: {
     },
     cancelled: {
       title: `Move to ${to} cancelled`,
-      lines: [`We closed the tracker for your move from ${from} to ${to}. Your account is back to Live.`, "Nothing about your plan or billing was changed by closing it. Reply to this email if that is not what you expected."],
+      lines: [`We closed the tracker for your move from ${from} to ${to}. Your account is back to Live.`, "Nothing about your plan or billing was changed by closing it."],
     },
   };
   return { kind: "account_migration", ...map[d.stage], dedupe: migrationKey(d.changeId, d.stage) };
