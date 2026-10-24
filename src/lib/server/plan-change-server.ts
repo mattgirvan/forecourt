@@ -20,7 +20,7 @@ import {
   type PlanChangeOutcome,
   type PlanChangeQuote,
 } from "@/lib/plan-change";
-import { applyPlanChange, planChangeMessage, upgradeCheckoutParams, type PlanChangeDeps } from "@/lib/server/plan-change-sync";
+import { applyPlanChange, planChangeMessage, upgradeCheckoutParams, type PlanChangeDeps, type ScheduleLike } from "@/lib/server/plan-change-sync";
 import { siteBillingModeFrom, type SiteSubLike } from "@/lib/server/site-billing-sync";
 import { migrationEvent, planChangedEvent } from "@/lib/account-events";
 import { readMigration, setMigrationStage } from "@/lib/server/migration-store";
@@ -40,6 +40,9 @@ async function stripeClient() {
   return new Stripe(secret);
 }
 
+/** Stripe client for plan change work (null without a key). */
+export const stripeForPlanChange = stripeClient;
+
 type StripeLike = NonNullable<Awaited<ReturnType<typeof stripeClient>>>;
 
 export function planChangeDeps(stripe: StripeLike | null): PlanChangeDeps {
@@ -48,6 +51,13 @@ export function planChangeDeps(stripe: StripeLike | null): PlanChangeDeps {
       ? {
           retrieve: async (id) => (await stripe.subscriptions.retrieve(id)) as unknown as SiteSubLike,
           update: (id, params, options) => stripe.subscriptions.update(id, params as never, options),
+        }
+      : null,
+    schedules: stripe
+      ? {
+          create: async (params, options) => (await stripe.subscriptionSchedules.create(params, options)) as unknown as ScheduleLike,
+          update: (id, params, options) => stripe.subscriptionSchedules.update(id, params as never, options),
+          release: (id, options) => stripe.subscriptionSchedules.release(id, {}, options),
         }
       : null,
     productFor: async (plan) => {
@@ -204,11 +214,25 @@ export const requestPlanChange = createServerFn({ method: "POST" })
     });
     const message = planChangeMessage(result, q.from, q.to);
     const ok = result.applied || result.reason === "no_subscription";
+    // PR 2: a price drop or equal swap is booked for period end. The plan flips
+    // when the schedule fires (webhook) or the cron sees the date pass.
+    const booked = (result.applied && result.mode === "scheduled") || (!result.applied && result.reason === "no_subscription");
+    const effectiveAt = result.applied && result.mode === "scheduled" ? result.effectiveAt : q.periodEnd ? new Date(q.periodEnd).toISOString() : null;
     const { data: dn } = await admin
       .from("plan_changes")
-      .insert({ ...row, status: ok ? (q.effective === "period_end" ? "scheduled" : "applied") : "failed", message, applied_at: ok ? new Date().toISOString() : null })
+      .insert({ ...row, status: ok ? (booked ? "scheduled" : "applied") : "failed", message, applied_at: ok && !booked ? new Date().toISOString() : null })
       .select("id")
       .single();
+    if (ok && booked && dn?.id) {
+      // Separate write so a database without plan-change-flow.sql still records the row.
+      await admin.from("plan_changes").update({ effective_at: effectiveAt, ...(result.applied && result.mode === "scheduled" ? { stripe_schedule_id: result.scheduleId } : {}) }).eq("id", dn.id);
+      const mig = await readMigration(admin, dn.id as number);
+      if (mig && (await setMigrationStage(admin, mig, "requested", { effective_at: effectiveAt }))) {
+        await sendAccountEventEmail({ tenantId: t.id, ...migrationEvent({ changeId: mig.id, from: q.from, to: q.to, stage: "requested", upgrade: false, periodEnd: effectiveAt }) });
+      }
+      await note(admin, t.id, "Account type change booked", message, actorEmail);
+      return reply("scheduled", message);
+    }
     if (ok) {
       // Matt: on a downgrade the plan name changes now, the price at period end.
       // site_count follows the plan shape (PR 9): Site is 1, Group at least 2.
