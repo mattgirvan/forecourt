@@ -25,7 +25,13 @@ import { applyPlanChange, planChangeMessage, upgradeCheckoutParams, type PlanCha
 import { siteBillingModeFrom, type SiteSubLike } from "@/lib/server/site-billing-sync";
 import { migrationEvent, planChangedEvent } from "@/lib/account-events";
 import { readMigration, setMigrationStage } from "@/lib/server/migration-store";
-import { sendAccountEventEmail } from "@/lib/server/journey-email";
+import { openTicketFor } from "@/lib/server/plan-change-ticket-store";
+// Loaded on use, not at the top: the account and Office clients import this module, and the
+// email engine pulls in server only code (node:module createRequire) that breaks the browser in dev.
+async function sendAccountEventEmail(ev: Parameters<typeof import("@/lib/server/journey-email").sendAccountEventEmail>[0]) {
+  const m = await import("@/lib/server/journey-email");
+  return m.sendAccountEventEmail(ev);
+}
 import { actor, planChangeSyncFlag, sbAdmin, stripeSecret } from "@/lib/server/staff-actor";
 
 type TenantRow = { id: number; plan: string; status: string | null; site_count: number | null; stripe_subscription_id: string | null; stripe_customer_id: string | null; email: string | null };
@@ -220,6 +226,8 @@ export const requestPlanChange = createServerFn({ method: "POST" })
         await note(admin, t.id, "Plan change requested", `Waiting for the setup difference (${move.setupDuePence / 100} GBP).`, actorEmail);
         return reply("checkout", "Pay the setup difference to send your request.", started.url ?? null);
       }
+      // PR 4: a £0 request or a drop goes straight to a staff ticket. Paid ones open it from the webhook.
+      if (started.kind === "requested") await openTicketFor(admin, started.changeId);
       if (started.deferred) {
         const effectiveAt = q.periodEnd ? new Date(q.periodEnd).toISOString() : null;
         // Separate write so a database without plan-change-flow.sql still records the row.
@@ -255,6 +263,7 @@ export const requestPlanChange = createServerFn({ method: "POST" })
       if (mig && (await setMigrationStage(admin, mig, "requested", { effective_at: effectiveAt }))) {
         await sendAccountEventEmail({ tenantId: t.id, ...migrationEvent({ changeId: mig.id, from: q.from, to: q.to, stage: "requested", upgrade: false, periodEnd: effectiveAt }) });
       }
+      await openTicketFor(admin, dn.id as number);
       await note(admin, t.id, "Account type change booked", message, actorEmail);
       return reply("scheduled", message);
     }
@@ -318,6 +327,7 @@ export async function completePaidPlanChange(
       },
       afterPaid: async (id, tenantId) => {
         await note(sb, tenantId, "Setup difference paid", "Plan change request is now with the team. The plan has not changed yet.", "stripe");
+        await openTicketFor(sb, id);
         const mig = await readMigration(sb, id);
         if (mig && (await setMigrationStage(sb, mig, "paid"))) {
           await sendAccountEventEmail({ tenantId, ...migrationEvent({ changeId: id, from: normalizePlan(mig.from_plan), to: normalizePlan(mig.to_plan), stage: "paid", upgrade: true, newMonthlyPence: Number(mig.new_monthly_pence) || 0 }) });

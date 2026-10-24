@@ -40,6 +40,8 @@ export const CHANGE_TYPES: readonly { id: ChangeType; label: string; hint: strin
 ];
 
 export function changeTypeLabel(t: string | null | undefined) {
+  // Opened by the plan change flow, never picked by a customer.
+  if (t === "plan_change") return "Plan change";
   return CHANGE_TYPES.find((c) => c.id === t)?.label ?? "Other";
 }
 

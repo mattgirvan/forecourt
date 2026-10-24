@@ -4,6 +4,8 @@ import { Row, Rows } from "@/components/ui/section";
 import { PillRow } from "@/components/ui/pill-row";
 import { ThreadDrawer, Pill } from "@/components/account/live-view";
 import { listSupport, listSupportQueue, setSupportStatus, type SupportItem } from "@/lib/server/live-view";
+import { PlanChangeTicketActions } from "@/components/office/plan-change-ticket";
+import type { PlanChangeTicketView } from "@/lib/server/plan-change-staff";
 import { STATUS_LABEL, changeTypeLabel, isOpenStatus, ticketRef, updatedWhen, type SupportStatus } from "@/lib/live-view";
 
 const TICKET_STATUSES: SupportStatus[] = ["open", "in_progress", "resolved"];
@@ -13,8 +15,12 @@ function NeedsReply() {
   return <Chip tone="action">Needs reply</Chip>;
 }
 
+const isPlanChange = (i: SupportItem) => i.change_type === "plan_change";
+
 function StatusSelect({ token, item, onChanged }: { token: string; item: SupportItem; onChanged: () => void }) {
   const [busy, setBusy] = useState(false);
+  // A plan change ticket moves with Apply or Reject, never by hand.
+  if (isPlanChange(item)) return <Pill status={item.status} />;
   const opts = item.kind === "ticket" ? TICKET_STATUSES : CHANGE_STATUSES;
   return (
     <select
@@ -115,6 +121,7 @@ export function SupportPane({ token, tenantId }: { token: string; tenantId: numb
         onClose={() => setOpenId(null)}
         onChanged={load}
         statusControl={open ? <StatusSelect token={token} item={open} onChanged={load} /> : undefined}
+        extra={open && isPlanChange(open) ? <PlanChangeTicketActions token={token} itemId={open.id} onChanged={load} /> : undefined}
       />
     </div>
   );
@@ -130,10 +137,22 @@ const QUEUE_TABS = [
 
 /** Office queue: every dealer's tickets and requests. */
 /** `initial` skips the fetch; design previews and screenshots only. */
-export function SupportQueue({ token, initial }: { token: string; initial?: { ready: boolean; items: SupportItem[] } }) {
+export function SupportQueue({
+  token,
+  initial,
+  initialPlanChange,
+  initialOpen,
+  initialPlanChangeNotice,
+}: {
+  token: string;
+  initial?: { ready: boolean; items: SupportItem[] };
+  initialPlanChange?: Record<number, PlanChangeTicketView>;
+  initialOpen?: SupportItem;
+  initialPlanChangeNotice?: { tone: "done" | "manual" | "error"; text: string };
+}) {
   const [data, setData] = useState<{ ready: boolean; items: SupportItem[] } | null>(initial ?? null);
   const [tab, setTab] = useState<(typeof QUEUE_TABS)[number][0]>("open");
-  const [open, setOpen] = useState<SupportItem | null>(null);
+  const [open, setOpen] = useState<SupportItem | null>(initialOpen ?? null);
   const load = () => void listSupportQueue({ data: { token } }).then(setData).catch(() => setData({ ready: false, items: [] }));
   useEffect(() => {
     if (!initial) load();
@@ -150,6 +169,7 @@ export function SupportQueue({ token, initial }: { token: string; initial?: { re
   const [thread, setThread] = useState<SupportItem | null>(null);
   useEffect(() => {
     if (!open) return setThread(null);
+    if (initial) return setThread(open);
     void listSupport({ data: { token, tenantId: open.tenant_id } }).then((r) => setThread(r.items.find((i) => i.id === open.id) ?? null));
   }, [open, token, data]);
   if (!data) return <p className="text-sm text-muted">Loading.</p>;
@@ -177,6 +197,11 @@ export function SupportQueue({ token, initial }: { token: string; initial?: { re
         onClose={() => setOpen(null)}
         onChanged={load}
         statusControl={thread ? <StatusSelect token={token} item={thread} onChanged={load} /> : <Pill status="open" />}
+        extra={
+          thread && isPlanChange(thread) ? (
+            <PlanChangeTicketActions token={token} itemId={thread.id} onChanged={load} initial={initialPlanChange?.[thread.id]} initialNotice={initialPlanChangeNotice} />
+          ) : undefined
+        }
       />
     </div>
   );

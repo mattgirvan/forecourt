@@ -175,7 +175,7 @@ export type SupportItem = {
   ref: number;
   tenant_id: number;
   kind: SupportKind;
-  change_type: ChangeType | null;
+  change_type: ChangeType | "plan_change" | null;
   title: string;
   details: string;
   link: string;
