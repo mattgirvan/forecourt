@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { Chip } from "@/components/ui/chip";
 import { Button } from "@/components/ui/button";
 import { PLANS, gbpPence, normalizePlan } from "@/lib/catalog";
 import {
@@ -61,30 +62,15 @@ const eyebrow = "text-[12px] text-subtle";
 const title = "mt-1 text-[1.35rem] font-semibold tracking-tight";
 const hint = "text-[12px] text-subtle";
 
+/** Support status: done is green, in progress is grey with a ring, the rest grey. */
 export function Pill({ status, label }: { status: SupportStatus; label?: string }) {
   const tone = statusTone(status);
-  return (
-    <span
-      className={cn(
-        "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px]",
-        tone === "done" && "border-[#4BA82E]/40 bg-[#4BA82E]/[.22] text-[#4BA82E]/[.85]",
-        tone === "strong" && "border-line-strong bg-elevated text-fg",
-        tone === "neutral" && "border-line bg-elevated text-muted",
-      )}
-    >
-      <span className="h-1.5 w-1.5 rounded-full bg-current" />
-      {label ?? STATUS_LABEL[status]}
-    </span>
-  );
+  return <Chip tone={tone === "done" ? "live" : tone === "strong" ? "progress" : "neutral"}>{label ?? STATUS_LABEL[status]}</Chip>;
 }
 
+/** A payment the customer has to sort out. */
 function AmberPill({ children }: { children: ReactNode }) {
-  return (
-    <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-[#d9a24b]/[.42] bg-[#d9a24b]/[.18] px-2.5 py-0.5 text-[11px] text-[#d9a24b]">
-      <span className="h-1.5 w-1.5 rounded-full bg-current" />
-      {children}
-    </span>
-  );
+  return <Chip tone="action">{children}</Chip>;
 }
 
 function Row({ k, children }: { k: string; children: ReactNode }) {
@@ -430,7 +416,7 @@ export function LiveView({ token, tenant, initial, role = "owner" }: { token: st
       <details className="group mt-6 rounded-2xl border border-line bg-surface px-4 py-3">
         <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-sm">
           <span className="flex min-w-0 items-start gap-2">
-            <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[#4BA82E]/[.22] text-[10px] text-[#4BA82E]">✓</span>
+            <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[var(--fc-live-tint)] text-[10px] text-[var(--fc-live)]">✓</span>
             Setup complete.{site?.goLiveAt ? ` Your site went live on ${ukDate(site.goLiveAt)}.` : ""}
           </span>
           <span className={cn(hint, "shrink-0 whitespace-nowrap")}>

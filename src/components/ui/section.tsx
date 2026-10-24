@@ -104,10 +104,7 @@ export function Row({
   );
 }
 
-/** Small status chip. Amber only for action, green for done, paid and Live, grey otherwise. */
-export function Chip({ tone = "neutral", children }: { tone?: "neutral" | "action" | "live" | "progress"; children: ReactNode }) {
-  return <span className={cn("fc-chip", tone !== "neutral" && `is-${tone}`)}>{children}</span>;
-}
+export { Chip } from "@/components/ui/chip";
 
 export type MenuItem = { label: string; onSelect: () => void; disabled?: boolean; danger?: boolean };
 

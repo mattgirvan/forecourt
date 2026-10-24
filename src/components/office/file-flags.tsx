@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Badge } from "@/components/ui/badge";
+import { Chip } from "@/components/ui/chip";
 import { Button } from "@/components/ui/button";
 import { FLAG_EXPLAINERS } from "@/components/office/board";
 import { fileFlags, markFlagHandled } from "@/lib/server/portal";
@@ -44,9 +44,9 @@ export function FileFlags({ token, tenantId, owner, onChanged }: { token: string
     <div className="mt-4 space-y-3 rounded-2xl border border-line-strong p-4">
       {open.duplicate ? (
         <div>
-          <Badge tone="warn" className="text-[11px]">
+          <Chip tone="action">
             Duplicate payment
-          </Badge>
+          </Chip>
           <p className="mt-1.5 text-sm text-muted">
             {FLAG_EXPLAINERS.duplicate} Refund the duplicate in Stripe and cancel its subscription there, not with Office Refund. The first button checks both in Stripe before it clears the flag.
           </p>
@@ -66,9 +66,9 @@ export function FileFlags({ token, tenantId, owner, onChanged }: { token: string
       ) : null}
       {open.lookalike ? (
         <div>
-          <Badge tone="neutral" className="text-[11px]">
+          <Chip>
             Looks like another dealer
-          </Badge>
+          </Chip>
           <p className="mt-1.5 text-sm text-muted">{FLAG_EXPLAINERS.lookalike}</p>
           {owner ? (
             <div className="mt-2">

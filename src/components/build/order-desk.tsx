@@ -742,7 +742,7 @@ function TokenConfiguredDot({
         title={title}
       >
         <span
-          className={cn("size-1.5 rounded-full", configured ? "bg-emerald-500" : "bg-amber-500")}
+          className={cn("size-1.5 rounded-full", configured ? "bg-[var(--fc-live)]" : "bg-[var(--fc-neutral-text)]")}
           aria-hidden
         />
         Token {configured ? "configured" : "missing"}

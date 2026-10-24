@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Chip } from "@/components/ui/chip";
 import { Row, Rows } from "@/components/ui/section";
 import { PillRow } from "@/components/ui/pill-row";
 import { ThreadDrawer, Pill } from "@/components/account/live-view";
@@ -9,12 +10,7 @@ const TICKET_STATUSES: SupportStatus[] = ["open", "in_progress", "resolved"];
 const CHANGE_STATUSES: SupportStatus[] = ["submitted", "in_progress", "done", "declined"];
 
 function NeedsReply() {
-  return (
-    <span className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-[#d9a24b]/[.42] bg-[#d9a24b]/[.18] px-2.5 py-0.5 text-[11px] text-[#d9a24b]">
-      <span className="h-1.5 w-1.5 rounded-full bg-current" />
-      Needs reply
-    </span>
-  );
+  return <Chip tone="action">Needs reply</Chip>;
 }
 
 function StatusSelect({ token, item, onChanged }: { token: string; item: SupportItem; onChanged: () => void }) {

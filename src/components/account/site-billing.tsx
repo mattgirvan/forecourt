@@ -1,23 +1,14 @@
 import { gbpPence, type PlanId } from "@/lib/catalog";
+import { Chip } from "@/components/ui/chip";
 import { amountLabel, lineLabel, parseBillingSites, siteBreakdown, type SiteBillRow, type SiteStatus } from "@/lib/site-billing";
 import { cn } from "@/lib/utils";
 import { Row, Rows, Section } from "@/components/ui/section";
 
 const STATUS: Record<string, string> = { live: "Live", setting_up: "Setting up", archived: "Archived" };
 
-/** Live is green, matching the account Live pill. Setting up and Archived stay grey. */
+/** Live is green. Setting up and Archived stay grey. */
 export function SitePill({ status }: { status: SiteStatus }) {
-  return (
-    <span
-      className={cn(
-        "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px]",
-        status === "live" ? "border-[#4BA82E]/40 bg-[#4BA82E]/[.22] text-[#4BA82E]/[.85]" : "border-line bg-elevated text-subtle",
-      )}
-    >
-      {status === "live" && <span className="h-1.5 w-1.5 rounded-full bg-current" />}
-      {STATUS[status]}
-    </span>
-  );
+  return <Chip tone={status === "live" ? "live" : "neutral"}>{STATUS[status]}</Chip>;
 }
 
 /** Amount column: "Included" and "Not billed" in grey, prices in full. */
