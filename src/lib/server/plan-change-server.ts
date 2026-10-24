@@ -11,6 +11,8 @@ import { normalizePlan, type PlanId } from "@/lib/catalog";
 import { clampSiteCount } from "@/lib/plan-shape";
 import { SITE } from "@/lib/site";
 import { planChangeDryRunMessage, quotePlanChange, type PlanChangeQuote } from "@/lib/plan-change";
+import { planMove } from "@/lib/plan-change-rules";
+import { markRequestExpired, markRequestPaid, OPEN_STATUSES, startRequest, type SessionLike } from "@/lib/server/plan-change-request";
 import { applyPlanChange, planChangeMessage, upgradeCheckoutParams, type PlanChangeDeps, type ScheduleLike } from "@/lib/server/plan-change-sync";
 import { siteBillingModeFrom, type SiteSubLike } from "@/lib/server/site-billing-sync";
 import { migrationEvent, planChangedEvent } from "@/lib/account-events";
@@ -123,49 +125,78 @@ export const requestPlanChange = createServerFn({ method: "POST" })
       };
     }
     const actorEmail = who.email ?? "unknown";
+    const live = await liveCount(admin, t);
+    // PR 3: route by the PR 1 price rules, not plan rank.
+    const move = planMove({ from: q.from, to: q.to, live });
     const row = {
       tenant_id: t.id,
       from_plan: q.from,
       to_plan: q.to,
-      direction: q.direction,
-      setup_diff_pence: q.setupDiffPence,
-      prorated_pence: q.proratedPence,
-      new_monthly_pence: q.newMonthlyPence,
-      effective: q.effective,
+      direction: move.direction,
+      setup_diff_pence: move.setupDuePence,
+      prorated_pence: 0,
+      new_monthly_pence: move.newMonthlyPence,
+      effective: move.monthlyStarts,
       requested_by: actorEmail,
     };
-    if (q.direction === "upgrade") {
-      if (!stripe) throw new Error("Stripe is not set up here.");
-      const { data: ins, error } = await admin.from("plan_changes").insert({ ...row, status: "pending_payment" }).select("id").single();
-      if (error) throw new Error(error.code === "23505" ? "There is already an upgrade waiting for payment." : error.message);
-      const back = data.from === "office" ? `${SITE.url}/office` : `${SITE.url}/account?tab=billing`;
-      const session = await stripe.checkout.sessions.create(
-        upgradeCheckoutParams({
-          tenantId: t.id,
-          changeId: ins.id as number,
-          from: q.from,
-          to: q.to,
-          setupDiffPence: q.setupDiffPence,
-          customer: t.stripe_customer_id,
-          email: t.email,
-          successUrl: `${back}${back.includes("?") ? "&" : "?"}plan_change=paid`,
-          cancelUrl: back,
-        }) as never,
-        { idempotencyKey: `plan-change-checkout:${ins.id}` },
-      );
-      await admin.from("plan_changes").update({ checkout_session_id: session.id }).eq("id", ins.id);
+    const back = data.from === "office" ? `${SITE.url}/office` : `${SITE.url}/account?tab=billing`;
+    const started = await startRequest(
+      {
+        findOpen: async (tenantId) => {
+          const { data: open } = await admin.from("plan_changes").select("id, status").eq("tenant_id", tenantId).in("status", [...OPEN_STATUSES]).limit(1);
+          return (open?.[0] as { id: number; status: string } | undefined) ?? null;
+        },
+        insert: async (r) => {
+          const { data: ins, error } = await admin.from("plan_changes").insert(r).select("id").single();
+          if (error) {
+            if (error.code === "23505") return "duplicate";
+            throw new Error(error.message);
+          }
+          return { id: ins.id as number };
+        },
+        setSession: async (id, sessionId) => void (await admin.from("plan_changes").update({ checkout_session_id: sessionId }).eq("id", id)),
+        cancel: async (id, message) => void (await admin.from("plan_changes").update({ status: "cancelled", message }).eq("id", id)),
+        createCheckout: async (changeId, idempotencyKey) => {
+          if (!stripe) throw new Error("Stripe is not set up here.");
+          const session = await stripe.checkout.sessions.create(
+            upgradeCheckoutParams({
+              tenantId: t.id,
+              changeId,
+              from: q.from,
+              to: q.to,
+              setupDiffPence: move.setupDuePence,
+              customer: t.stripe_customer_id,
+              email: t.email,
+              successUrl: `${back}${back.includes("?") ? "&" : "?"}plan_change=paid`,
+              cancelUrl: back,
+            }) as never,
+            { idempotencyKey },
+          );
+          return { id: session.id, url: session.url };
+        },
+      },
+      move,
+      row,
+    );
+    if (started.kind === "refused") return { message: started.message, url: null as string | null, mode };
+    if (started.kind === "checkout" || started.kind === "requested") {
       // Migration tracker (PR 8): open at "requested" and email the admin and hello@.
-      const mig = await readMigration(admin, ins.id as number);
+      const mig = await readMigration(admin, started.changeId);
       if (mig && (await setMigrationStage(admin, mig, "requested"))) {
-        await sendAccountEventEmail({ tenantId: t.id, ...migrationEvent({ changeId: mig.id, from: q.from, to: q.to, stage: "requested", upgrade: true, setupDiffPence: q.setupDiffPence }) });
+        await sendAccountEventEmail({ tenantId: t.id, ...migrationEvent({ changeId: mig.id, from: q.from, to: q.to, stage: "requested", upgrade: move.direction === "up", setupDiffPence: move.setupDuePence }) });
       }
-      return { message: "Pay the setup difference to switch plan.", url: session.url, mode };
+      if (started.kind === "checkout") {
+        await note(admin, t.id, "Plan change requested", `Waiting for the setup difference (${move.setupDuePence / 100} GBP).`, actorEmail);
+        return { message: "Pay the setup difference to send your request.", url: started.url, mode };
+      }
+      await note(admin, t.id, "Plan change requested", "No setup difference. Waiting for the team.", actorEmail);
+      return { message: "Request sent. Nothing to pay now. We will be in touch to set up your change.", url: null as string | null, mode };
     }
     const result = await applyPlanChange(planChangeDeps(stripe), {
       subscriptionId: t.stripe_subscription_id,
       from: q.from,
       to: q.to,
-      live: await liveCount(admin, t),
+      live,
       key: `${t.id}:${q.from}-${q.to}:${Date.now()}`,
     });
     const message = planChangeMessage(result, q.from, q.to);
@@ -217,49 +248,62 @@ async function note(sb: SupabaseClient, tenantId: number, title: string, body: s
 }
 
 /**
- * Stripe webhook: the setup difference was paid. Turns the new plan on.
- * Safe to retry: an applied row is left alone.
+ * Stripe webhook: the setup difference was paid. Marks the request paid and
+ * moves the tracker on. PR 3: never switches the plan; staff apply it (PR 4).
+ * Safe to retry: only the first call moves pending_payment to paid.
  */
 export async function completePaidPlanChange(
   sb: SupabaseClient,
-  session: { id: string; amount_total?: number | null; metadata?: Record<string, string> | null },
-  deps: PlanChangeDeps,
+  session: SessionLike,
+  _deps?: PlanChangeDeps,
 ): Promise<{ status: number; body: string }> {
-  const changeId = Number(session.metadata?.change_id);
-  const tenantId = Number(session.metadata?.tenant_id);
-  if (!Number.isInteger(changeId) || !Number.isInteger(tenantId)) return { status: 422, body: "not applied: bad plan change metadata" };
-  const { data: pc } = await sb.from("plan_changes").select("*").eq("id", changeId).maybeSingle();
-  if (!pc || pc.tenant_id !== tenantId) return { status: 422, body: "not applied: plan change not found" };
-  if (pc.status === "applied") return { status: 200, body: "plan change already applied" };
-  if (pc.status !== "pending_payment") return { status: 200, body: `plan change ${pc.status}` };
-  if ((session.amount_total ?? -1) !== pc.setup_diff_pence) return { status: 422, body: "not applied: amount does not match" };
-  const { data: t } = await sb.from("tenants").select("id, plan, status, site_count, stripe_subscription_id").eq("id", tenantId).maybeSingle();
-  if (!t) return { status: 422, body: "not applied: account not found" };
-  const from = normalizePlan(pc.from_plan as string);
-  const to = normalizePlan(pc.to_plan as string);
-  const result = await applyPlanChange(deps, {
-    subscriptionId: (t.stripe_subscription_id as string | null) ?? null,
-    from,
-    to,
-    live: await liveCount(sb, t as TenantRow),
-    key: `paid:${session.id}`,
-  });
-  const message = planChangeMessage(result, from, to);
-  if (!result.applied && result.reason !== "no_subscription") {
-    // Stays pending_payment so Stripe's retry can apply it.
-    await sb.from("plan_changes").update({ message, checkout_session_id: session.id }).eq("id", changeId);
-    await note(sb, tenantId, "Setup difference paid, plan change failed", message, "stripe");
-    return { status: 500, body: "plan change failed, Stripe will retry" };
-  }
-  await sb.from("tenants").update({ plan: to, site_count: clampSiteCount(to, (t.site_count as number | null) ?? 1) }).eq("id", tenantId);
-  await sb.from("plan_changes").update({ status: "applied", message, applied_at: new Date().toISOString(), checkout_session_id: session.id }).eq("id", changeId);
-  await note(sb, tenantId, "Account type changed", `Setup difference paid. ${message}`, "stripe");
-  // Migration tracker (PR 8): paid and switched together. Falls back to the PR 5 email without the SQL.
-  const mig = await readMigration(sb, changeId);
-  if (mig && (await setMigrationStage(sb, mig, "switched"))) {
-    await sendAccountEventEmail({ tenantId, ...migrationEvent({ changeId, from, to, stage: "paid", upgrade: true, newMonthlyPence: Number(pc.new_monthly_pence) || 0 }) });
-    return { status: 200, body: "plan change applied" };
-  }
-  await sendAccountEventEmail({ tenantId, ...planChangedEvent({ tenantId, changeKey: `paid:${changeId}`, from, to, newMonthlyPence: Number(pc.new_monthly_pence) || 0, when: "pro-rated on your next bill" }) });
-  return { status: 200, body: "plan change applied" };
+  return markRequestPaid(
+    {
+      load: async (id) => {
+        const { data } = await sb.from("plan_changes").select("id, tenant_id, status, setup_diff_pence").eq("id", id).maybeSingle();
+        return (data as { id: number; tenant_id: number; status: string; setup_diff_pence: number } | null) ?? null;
+      },
+      claimPaid: async (id, patch) => {
+        const { data, error } = await sb.from("plan_changes").update({ status: "paid", ...patch }).eq("id", id).eq("status", "pending_payment").select("id");
+        if (error) throw new Error(error.message);
+        return (data ?? []).length > 0;
+      },
+      afterPaid: async (id, tenantId) => {
+        await note(sb, tenantId, "Setup difference paid", "Plan change request is now with the team. The plan has not changed yet.", "stripe");
+        const mig = await readMigration(sb, id);
+        if (mig && (await setMigrationStage(sb, mig, "paid"))) {
+          await sendAccountEventEmail({ tenantId, ...migrationEvent({ changeId: id, from: normalizePlan(mig.from_plan), to: normalizePlan(mig.to_plan), stage: "paid", upgrade: true, newMonthlyPence: Number(mig.new_monthly_pence) || 0 }) });
+        }
+      },
+    },
+    session,
+  );
+}
+
+/** Stripe webhook: Checkout expired or the payment failed. Cancels the request. */
+export async function expirePlanChange(sb: SupabaseClient, session: SessionLike): Promise<{ status: number; body: string }> {
+  return markRequestExpired(
+    {
+      cancelPending: async (id, sessionId) => {
+        const { data, error } = await sb
+          .from("plan_changes")
+          .update({ status: "cancelled", message: "Checkout expired before payment." })
+          .eq("id", id)
+          .eq("status", "pending_payment")
+          .eq("checkout_session_id", sessionId)
+          .select("id");
+        if (error) throw new Error(error.message);
+        return (data ?? []).length > 0;
+      },
+      afterExpired: async (id, tenantId) => {
+        await note(sb, tenantId, "Plan change cancelled", "Checkout expired before the setup difference was paid. The plan is unchanged.", "stripe");
+        try {
+          await sb.from("plan_changes").update({ migration_cancelled_at: new Date().toISOString() }).eq("id", id);
+        } catch {
+          /* tracker SQL not run */
+        }
+      },
+    },
+    session,
+  );
 }

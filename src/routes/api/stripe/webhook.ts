@@ -55,6 +55,13 @@ export const Route = createFileRoute("/api/stripe/webhook")({
                   return completePaidPlanChange(sb, session as never, planChangeDeps(stripe));
                 }
               : undefined,
+            // Plan change Checkout expired or failed: cancel the request.
+            planChangeExpired: sb
+              ? async (session) => {
+                  const { expirePlanChange } = await import("@/lib/server/plan-change-server");
+                  return expirePlanChange(sb, session as never);
+                }
+              : undefined,
             // Booked plan change (price drop or equal swap) landing when its schedule fires.
             planSchedule: sb
               ? async (subscriptionId) => {

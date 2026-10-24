@@ -163,8 +163,8 @@ export function upgradeCheckoutParams(input: {
           currency: "gbp",
           unit_amount: input.setupDiffPence,
           product_data: {
-            name: `Forecourt ${PLANS[input.to].name} (setup difference)`,
-            description: `Moving from ${PLANS[input.from].name} to ${PLANS[input.to].name}. ${PLANS[input.to].name} turns on once this is paid.`,
+            name: `Forecourt ${PLANS[input.to].name} setup difference, inc. VAT`,
+            description: `Moving from ${PLANS[input.from].name} to ${PLANS[input.to].name}. Once this is paid, our team sets up your change.`,
           },
         },
       },
