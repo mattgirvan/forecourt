@@ -1,9 +1,9 @@
+import { BOOKING_URL } from "@/lib/journey";
 import { Link } from "@tanstack/react-router";
 import { ArrowRight } from "lucide-react";
 import { Reveal } from "@/components/reveal";
 import { SiteShell } from "@/components/site-shell";
 import { Button } from "@/components/ui/button";
-import { SITE } from "@/lib/site";
 
 export type PhrasePoint = {
   title: string;
@@ -61,7 +61,7 @@ export function PhrasePage({ eyebrow, h1, lead, points, ctaLabel, links }: Phras
             style={{ backgroundColor: "#D9A24B" }}
             asChild
           >
-            <a href={`${SITE.url}/`}>
+            <a href={BOOKING_URL} target="_blank" rel="noopener noreferrer">
               {ctaLabel} <ArrowRight className="size-4" />
             </a>
           </Button>

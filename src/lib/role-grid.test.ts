@@ -105,4 +105,12 @@ test("homepage tabs: no See it working link, mobile tabs fit and are 44px", () =
   assert.match(header, /flex-auto px-2/);
   assert.doesNotMatch(header, /overflow-x-auto/);
   assert.match(header, /min-h-11/);
+  const phrase = readFileSync("src/components/for/phrase-page.tsx", "utf8");
+  assert.match(phrase, /href=\{BOOKING_URL\}/);
+  assert.doesNotMatch(phrase, /SITE\.url\}\/`\}>/);
+  for (const f of ["photo-status", "key-locator", "beside-crm"]) {
+    const page = readFileSync(`src/routes/for/${f}.tsx`, "utf8");
+    assert.match(page, /ctaLabel="Book a call"/);
+    assert.doesNotMatch(page, /Visit forecourt\.me/);
+  }
 });
