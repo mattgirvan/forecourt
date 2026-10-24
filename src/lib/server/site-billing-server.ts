@@ -148,13 +148,10 @@ export async function changeSiteState(
     /* best effort */
   }
   if (input.to === "live" || input.to === "archived") {
-    const ev = (input.to === "live" ? siteLiveEvent : siteArchivedEvent)({
-      tenantId: input.tenantId,
-      eventKey,
-      siteName: site.name,
-      billing: input.to === "archived" ? "" : result.changed ? `Billing: ${siteSyncMessage(result)}` : "Your monthly bill does not change.",
-      periodEnd: input.to === "archived" ? await periodEndFor(sb, input.tenantId) : null,
-    });
+    const ev =
+      input.to === "live"
+        ? siteLiveEvent({ tenantId: input.tenantId, eventKey, siteName: site.name, billing: result.changed ? `Billing: ${siteSyncMessage(result)}` : "Your monthly bill does not change." })
+        : siteArchivedEvent({ tenantId: input.tenantId, siteCode: input.code, siteName: site.name, billing: "", periodEnd: await periodEndFor(sb, input.tenantId), at: now });
     await sendAccountEventEmail({ tenantId: input.tenantId, ...ev });
   }
   return { result, message, mode };

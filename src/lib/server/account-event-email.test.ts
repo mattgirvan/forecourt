@@ -73,20 +73,20 @@ test("a staff admin address still gets the office copy", async () => {
 test("event words and keys: stable, no dashes", () => {
   const all = [
     siteLiveEvent({ tenantId: 7, eventKey: "k1", siteName: "Ridgeway North", billing: "Billing: x" }),
-    siteArchivedEvent({ tenantId: 7, eventKey: "k2", siteName: "Ridgeway South", billing: "Your monthly bill does not change." }),
+    siteArchivedEvent({ tenantId: 7, siteCode: "B", siteName: "Ridgeway South", billing: "Your monthly bill does not change.", at: "2026-10-24T09:00:00Z" }),
     planChangedEvent({ tenantId: 7, changeKey: "paid:9", from: "site", to: "group", newMonthlyPence: 74_700, when: "pro-rated on your next bill" }),
     monthlyStartedEvent({ tenantId: 7, subscriptionId: "sub_1" }),
     managerAddedEvent({ tenantId: 7, memberId: 3, email: "m@x.example", by: "o@x.example" }),
     managerRemovedEvent({ tenantId: 7, memberId: 3, email: "m@x.example", by: "o@x.example" }),
   ];
-  assert.deepEqual(all.map((e) => e.dedupe), ["site-live:k1", "site-archived:k2", "plan-changed:paid:9", "monthly-started:tenant:7:sub:sub_1", "access-added:7:3", "access-removed:7:3"]);
+  assert.deepEqual(all.map((e) => e.dedupe), ["site-live:k1", "site-archived:7:b:2026-10-24", "plan-changed:paid:9", "monthly-started:tenant:7:sub:sub_1", "access-added:7:3", "access-removed:7:3"]);
   assert.equal(all[2].lines[1], "New monthly: £747, pro-rated on your next bill.");
   for (const e of all) assert.doesNotMatch(e.title + e.lines.join(" "), /[\u2013\u2014]/);
 });
 
 const src = (p: string) => readFileSync(new URL(`../../../${p}`, import.meta.url), "utf8");
 test("every event is wired to sendAccountEventEmail, and existing customer emails copy hello@", () => {
-  assert.match(src("src/lib/server/site-billing-server.ts"), /siteLiveEvent : siteArchivedEvent[\s\S]*sendAccountEventEmail/);
+  assert.match(src("src/lib/server/site-billing-server.ts"), /siteArchivedEvent\(\{[\s\S]*sendAccountEventEmail/);
   assert.match(src("src/lib/server/billing-go-live.ts"), /sendAccountEventEmail\(\{ tenantId, \.\.\.monthlyStartedEvent/);
   assert.equal(src("src/lib/server/plan-change-server.ts").match(/planChangedEvent\(/g)?.length, 2);
   const m = src("src/lib/server/members.ts");
@@ -99,8 +99,8 @@ test("every event is wired to sendAccountEventEmail, and existing customer email
 
 test("Atlas wording: archived, billing started and site added", async () => {
   const { siteAddedEvent } = await import("../account-events.ts");
-  const a = siteArchivedEvent({ tenantId: 7, eventKey: "k", siteName: "Ridgeway South", billing: "", periodEnd: "2026-11-14T10:00:00Z" });
-  assert.deepEqual(a.lines, ["Ridgeway South has been archived.", "Your bill goes down by one site from 14 Nov 2026, the end of this billing period. We don't refund part months. You can restore it within 30 days."]);
+  const a = siteArchivedEvent({ tenantId: 7, siteCode: "B", siteName: "Ridgeway South", billing: "", periodEnd: "2026-11-14T10:00:00Z" });
+  assert.deepEqual(a.lines, ["Ridgeway South has been archived. Your bill goes down by one site from 14 Nov 2026. We don't refund part months. You can restore it in your desk within 30 days."]);
   assert.equal(
     monthlyStartedEvent({ tenantId: 7, subscriptionId: "s", totalPence: 74_700, startedAt: "2026-10-24T09:00:00Z" }).lines[0],
     "Your monthly plan of £747 a month started on 24 Oct 2026. The monthly fee starts at go live or 180 days after payment, whichever comes first.",
@@ -108,4 +108,23 @@ test("Atlas wording: archived, billing started and site added", async () => {
   const s = siteAddedEvent({ tenantId: 7, siteCode: "E", siteName: "Ridgeway East", addsPence: 24_900, totalAfterPence: 74_700 });
   assert.equal(s.dedupe, "site-added:7:e");
   assert.equal(s.lines[1], "From its go live day this adds £249 a month, bringing your monthly total to £747. Until then it is not billed.");
+});
+
+test("one event, one email: added and archived share one dedupe key per site whichever path sends", async () => {
+  const { siteAddedEvent, siteAddedKey, siteArchivedKey } = await import("../account-events.ts");
+  const at = "2026-10-24T09:00:00Z";
+  const office = siteArchivedEvent({ tenantId: 7, siteCode: "B", siteName: "Ridgeway South", billing: "", at });
+  assert.equal(office.dedupe, siteArchivedKey(7, " b ", "2026-10-24T22:30:00Z"), "same London day, any case or spacing");
+  assert.notEqual(office.dedupe, siteArchivedKey(7, "B", "2026-10-25T09:00:00Z"), "a later archive is a new event");
+  const added = siteAddedEvent({ tenantId: 7, siteCode: "E", siteName: "Ridgeway East", addsPence: 24_900, totalAfterPence: 74_700 });
+  assert.equal(added.dedupe, siteAddedKey(7, "e"));
+  // email_log dedupe: a key already sent is skipped, so the second path never emails.
+  const log = new Set<string>();
+  let emails = 0;
+  for (const k of [office.dedupe, siteArchivedKey(7, "B", at), added.dedupe, siteAddedKey(7, "E")]) {
+    if (log.has(k)) continue;
+    log.add(k);
+    emails++;
+  }
+  assert.equal(emails, 2);
 });

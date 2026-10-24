@@ -19,7 +19,9 @@ No SQL needed: email_log already exists (supabase/email-log.sql).
 | Paid order, thank you | existing thank you | yes | team alert only on flags | Existed, unchanged |
 | Duplicate or look-alike payment | existing staff alert | no (staff only) | team list | Existed, unchanged |
 | Site added | admin + hello@ (builder `siteAddedEvent`, with price preview) | | `site-added:{tenant}:{site code}` (siteAddedKey, shared with #55) | Builder only in this PR. Sites are added in the desk, so the trigger is the desk event hook in #55. |
-| Site removed (archived) | admin + hello@ | | `site-archived:{key}` | Sent from Office Archive. Says the bill goes down from the period end date, no part month refunds, restore within 30 days. |
+| Site removed (archived) | admin + hello@ | | `site-archived:{tenant}:{code}:{London day}` (`siteArchivedKey`, shared with the desk archive in #55) | Sent from Office Archive. "{site} has been archived. Your bill goes down by one site from {date}. We don't refund part months. You can restore it in your desk within 30 days." One archive is one email whichever path sends it. |
 | Site restored | none | | | Gap in this PR: restore does not exist anywhere yet. The desk 0006 has no restore and Office refuses archived to any other state. The 30 day restore promised in the copy is built in the desk in #55, with its email. Office has no restore action. |
 | Desk staff site access change | none | | | Gap: happens in each desk database, which cannot reach the app email engine. |
 | Payment recovered after a failure | none | | | Gap: not in scope list, flag only. |
+
+Outlook dark mode: the amber CTA override ([data-ogsb] .cta-td, [data-ogsc] .cta-a) is only emitted when the email has an amber CTA. Account event emails use the neutral "Open your account" button and carry no amber override.

@@ -72,6 +72,11 @@ function safeUrl(url: string | null | undefined): string | null {
 function shell({ title, preheader, rows }: { title: string; preheader: string; rows: string }) {
   // Spacer characters stop the body text leaking into the inbox preview.
   const spacer = "&#847;&zwnj;&nbsp;".repeat(80);
+  // Outlook dark mode keeps the amber CTA amber. Only emails that carry an amber CTA get it;
+  // account event emails use the neutral button, so they carry no amber override at all.
+  const ctaOverride = rows.includes('class="cta-td"')
+    ? `  [data-ogsb] .cta-td{background-color:${C.amber}!important}\n  [data-ogsc] .cta-a{color:${C.ink}!important}\n`
+    : "";
   return `<!doctype html>
 <html lang="en-GB" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
 <head>
@@ -89,9 +94,7 @@ function shell({ title, preheader, rows }: { title: string; preheader: string; r
   :root{color-scheme:dark;supported-color-schemes:dark}
   body{margin:0;padding:0;background:${C.bg};}
   a[x-apple-data-detectors]{color:inherit!important;text-decoration:none!important;font:inherit!important}
-  [data-ogsb] .cta-td{background-color:${C.amber}!important}
-  [data-ogsc] .cta-a{color:${C.ink}!important}
-  [data-ogsb] .bg-body{background-color:${C.bg}!important}
+${ctaOverride}  [data-ogsb] .bg-body{background-color:${C.bg}!important}
   [data-ogsb] .bg-card{background-color:${C.card}!important}
   @media (max-width:480px){
     .px{padding-left:20px!important;padding-right:20px!important}
