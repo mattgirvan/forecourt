@@ -32,7 +32,7 @@ function KeyLocatorPage() {
           line: "Stock book stays in your CRM. Key location lives on the floor screen next to it.",
         },
       ]}
-      ctaLabel="See it working on forecourt.me"
+      ctaLabel="Book a call"
       links={[
         { to: "/for/beside-crm", label: "Beside your CRM" },
         { to: "/how", label: "How it works" },

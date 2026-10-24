@@ -138,11 +138,11 @@ export function HomeCrmComparison() {
             </Link>
           </p>
           <a
-            href="/#showcase"
+            href="/how"
             className="mt-5 inline-flex h-12 items-center justify-center gap-2 rounded-full px-6 text-sm font-semibold text-[#0a0b0a] transition-[opacity,transform] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] hover:opacity-90 active:scale-[0.98]"
             style={{ backgroundColor: "#D9A24B" }}
           >
-            See it working
+            How it works
             <ArrowRight className="size-4" />
           </a>
         </Reveal>

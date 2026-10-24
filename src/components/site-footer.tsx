@@ -26,9 +26,6 @@ export function SiteFooter() {
           <Link to="/" className="hover:text-fg">
             Product
           </Link>
-          <Link to="/" hash="showcase" className="hover:text-fg">
-            See it working
-          </Link>
           <Link to="/how" className="hover:text-fg">
             How it works
           </Link>

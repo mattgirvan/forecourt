@@ -97,3 +97,20 @@ test("phone grid: sticky permission column and right edge fade", () => {
   assert.match(css, /\.fc-role-grid tbody th \{\s*position: sticky;\s*left: 0;/);
   assert.match(css, /\.fc-role-grid-frame\[data-more\]::after \{\s*opacity: 1;/);
 });
+
+test("homepage tabs: no See it working link, mobile tabs fit and are 44px", () => {
+  const files = ["src/routes/index.tsx", "src/components/site-footer.tsx", "src/components/site-header.tsx", "src/components/home-crm-comparison.tsx", "src/routes/how.tsx", "src/components/for/phrase-page.tsx"];
+  for (const f of files) assert.doesNotMatch(readFileSync(f, "utf8"), /See it working/);
+  const header = readFileSync("src/components/site-header.tsx", "utf8");
+  assert.match(header, /flex-auto px-2/);
+  assert.doesNotMatch(header, /overflow-x-auto/);
+  assert.match(header, /min-h-11/);
+  const phrase = readFileSync("src/components/for/phrase-page.tsx", "utf8");
+  assert.match(phrase, /href=\{BOOKING_URL\}/);
+  assert.doesNotMatch(phrase, /SITE\.url\}\/`\}>/);
+  for (const f of ["photo-status", "key-locator", "beside-crm"]) {
+    const page = readFileSync(`src/routes/for/${f}.tsx`, "utf8");
+    assert.match(page, /ctaLabel="Book a call"/);
+    assert.doesNotMatch(page, /Visit forecourt\.me/);
+  }
+});

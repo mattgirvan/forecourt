@@ -29,7 +29,7 @@ function BesideCrmPage() {
         { title: "Customer live order track and customer to-do list" },
         { title: "Staff to-dos, hosts and progressors, daily digests" },
       ]}
-      ctaLabel="See it working on forecourt.me"
+      ctaLabel="Book a call"
       links={[
         { to: "/how", label: "How it works" },
         { to: "/pricing", label: "Pricing" },
