@@ -34,7 +34,7 @@ import {
 import { cn } from "@/lib/utils";
 import { MigrationPill, MigrationTracker } from "@/components/account/migration-tracker";
 import { getMigration } from "@/lib/server/migration-server";
-import { accountStatusLabel, type Tracker } from "@/lib/migration";
+import { accountStatusLabel, downgradePrice, type Tracker } from "@/lib/migration";
 import { inviteManager, listAccountMembers, removeAccountMember, type AccountMember } from "@/lib/server/members";
 
 export type LiveTenant = {
@@ -44,6 +44,7 @@ export type LiveTenant = {
   billing?: string | null;
   principal_name?: string | null;
   staff_json?: string;
+  site_count?: number | null;
 };
 
 const SETUP_STEPS = [
@@ -405,7 +406,9 @@ export function LiveView({ token, tenant, initial, role = "owner" }: { token: st
     }
   }
 
-  const monthly = bill?.monthlyPence ?? null;
+  // Open downgrade: keep the current price until the period end, hint the new one (Atlas QA).
+  const pending = bill ? downgradePrice(migration, bill, tenant.site_count ?? 1) : null;
+  const monthly = pending ? pending.currentPence : (bill?.monthlyPence ?? null);
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
@@ -484,7 +487,16 @@ export function LiveView({ token, tenant, initial, role = "owner" }: { token: st
         <section className={cn(card)}>
           <CardHead eyebrowText="Plan and billing" titleText={bill?.planName ?? `Forecourt ${PLANS[plan].name}`} />
           <div className="mt-4">
-            <Row k="Price">{bill ? (monthly ? `${gbpPence(monthly)} a month` : "") : <span className="text-subtle">Checking...</span>}</Row>
+            <Row k="Price">
+              {bill ? (
+                <>
+                  {monthly ? `${gbpPence(monthly)} a month` : ""}
+                  {pending ? <span className="mt-0.5 block text-xs text-subtle">{pending.hint}</span> : null}
+                </>
+              ) : (
+                <span className="text-subtle">Checking...</span>
+              )}
+            </Row>
             <Row k="Next payment">
               {!bill ? (
                 <span className="text-subtle">Checking...</span>

@@ -13,7 +13,7 @@
  * Requested, plan switched (now), sites or brands trimmed, price change at
  * period end, complete. No payment and no refund.
  */
-import { PLANS, type PlanId } from "./catalog.ts";
+import { PLANS, monthTotalPence, type PlanId } from "./catalog.ts";
 
 export type MigrationStage = "requested" | "paid" | "switched" | "setup" | "priced" | "complete";
 export const MIGRATION_STAGES: MigrationStage[] = ["requested", "paid", "switched", "setup", "priced", "complete"];
@@ -225,3 +225,31 @@ export function migrationTone(tracker: Tracker | null | undefined): "amber" | "g
   return now?.stage === "paid" ? "amber" : "grey";
 }
 
+
+/**
+ * Price shown during an open downgrade (Group to Site, Franchise to Site, Group to Franchise).
+ * tenants.plan switches at request, but the price only changes at the billing period end, so the
+ * header and Price row keep the current price and a hint gives the new one:
+ * "£399 a month from 14 Nov 2026". Upgrades and closed trackers: null (show the bill as is).
+ * current: live billing when it still differs from the target, otherwise the catalog price of the old plan.
+ */
+export function downgradePrice(
+  tracker: Tracker | null | undefined,
+  bill: { monthlyPence: number | null; nextPaymentAt?: string | null } | null | undefined,
+  siteCount: number,
+  now: Date = new Date(),
+): { currentPence: number; nextPence: number; hint: string } | null {
+  if (!tracker || !tracker.open || isUpgrade(tracker.scenario)) return null;
+  const reached = tracker.steps.find((s) => s.stage === "priced")?.state === "done";
+  if (reached) return null;
+  const endIso = tracker.effectiveAt ?? bill?.nextPaymentAt ?? null;
+  if (endIso && new Date(endIso).getTime() <= now.getTime()) return null;
+  const nextPence = monthTotalPence(tracker.to, siteCount);
+  const live = bill?.monthlyPence ?? null;
+  const currentPence = live != null && live !== nextPence ? live : monthTotalPence(tracker.from, siteCount);
+  const gbp = (p: number) => `£${(p / 100).toLocaleString("en-GB", { minimumFractionDigits: p % 100 ? 2 : 0, maximumFractionDigits: 2 })}`;
+  const day = endIso
+    ? new Date(endIso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/London" }).replace("Sept", "Sep")
+    : "";
+  return { currentPence, nextPence, hint: `${gbp(nextPence)} a month${day ? ` from ${day}` : " from your next billing date"}` };
+}
