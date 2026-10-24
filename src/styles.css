@@ -3482,3 +3482,297 @@
   overflow: visible;
   text-overflow: clip;
 }
+
+/* Redesign 12: Tickets list with the ticket open beside it (desktop) or full screen (mobile). */
+.fc-tix {
+  display: block;
+  min-width: 0;
+}
+.fc-tix-list {
+  min-width: 0;
+}
+.fc-tix-row-on {
+  outline: 2px solid rgba(255, 255, 255, 0.55);
+  outline-offset: -2px;
+}
+.fc-tix-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+  animation: fc-rise var(--fc-m-surface) backwards;
+}
+.fc-tix-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.fc-tix-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 12px 0 8px;
+  margin-left: -8px;
+  border-radius: 999px;
+  color: var(--fc-text);
+  background: none;
+  border: 0;
+}
+.fc-tix-back svg {
+  width: 20px;
+  height: 20px;
+}
+.fc-tix-meta {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--fc-t-small);
+  color: var(--fc-text-faint);
+}
+.fc-tix-titlebar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.fc-tix-title {
+  margin: 0;
+  font-size: 22px;
+  line-height: 1.25;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+  outline: none;
+}
+.fc-tix-actions {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  margin: 0 -14px;
+  padding: 0 14px;
+}
+.fc-tix-actions::-webkit-scrollbar {
+  display: none;
+}
+.fc-tix-act {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 999px;
+  border: 1px solid var(--fc-panel-border);
+  background: var(--fc-row);
+  color: var(--fc-text);
+  font-size: 14px;
+  white-space: nowrap;
+}
+.fc-tix-actions select {
+  flex: none;
+  height: 44px;
+}
+.fc-tix-link {
+  font-size: 14px;
+  color: var(--fc-text-dim);
+  text-decoration: underline;
+  overflow-wrap: anywhere;
+}
+.fc-tix-thread {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.fc-msg {
+  max-width: 88%;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid var(--fc-panel-border);
+  background: var(--fc-row);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.fc-msg p {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.fc-msg.is-them {
+  align-self: flex-start;
+}
+/* Our replies are tinted blue. */
+.fc-msg.is-us {
+  align-self: flex-end;
+  background: rgba(79, 134, 232, 0.16);
+  border-color: rgba(79, 134, 232, 0.4);
+}
+.fc-msg.is-note {
+  border-style: dashed;
+  background: var(--fc-row);
+  border-color: var(--fc-panel-border);
+}
+.fc-msg-by {
+  margin-bottom: 4px;
+  font-size: var(--fc-t-micro);
+  color: var(--fc-text-faint);
+}
+/* Reply dock: solid, never see through. */
+.fc-tix-dock {
+  position: sticky;
+  bottom: 12px;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border-radius: var(--fc-r-lg);
+  border: 1px solid var(--fc-panel-border);
+  background: var(--fc-solid);
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.4);
+}
+.fc-tix-input {
+  width: 100%;
+  min-height: 64px;
+  resize: vertical;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--fc-panel-border);
+  background: var(--fc-solid-2);
+  color: var(--fc-text);
+  font-size: 16px;
+}
+.fc-tix-dock-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.fc-tix-dock-row button {
+  min-height: 44px;
+}
+.fc-tix-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  font-size: 14px;
+  color: var(--fc-text-dim);
+}
+.fc-tix-note {
+  padding: 0 8px 0 0;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.fc-tix-note {
+  white-space: nowrap;
+}
+.fc-tix-note[aria-checked="true"] {
+  color: var(--fc-text);
+}
+/* Toggle in the Roles switch style: 44px target, green when on, knob slides with transform. */
+.fc-note-toggle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+}
+.fc-note-toggle::before {
+  content: "";
+  width: 36px;
+  height: 20px;
+  border-radius: 999px;
+  background: var(--fc-solid-2);
+  border: 1px solid var(--fc-panel-border);
+}
+.fc-note-toggle[data-on]::before {
+  background: #3fae6a;
+  border-color: transparent;
+}
+.fc-note-toggle-knob {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -15px;
+  border-radius: 999px;
+  background: #fff;
+  opacity: 0.7;
+  transition: transform 0.2s ease;
+}
+.fc-note-toggle[data-on] .fc-note-toggle-knob {
+  transform: translateX(16px);
+  opacity: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .fc-note-toggle-knob {
+    transition: none;
+  }
+}
+.fc-tix-err {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(220, 80, 80, 0.14);
+  color: #f3b4b4;
+  font-size: 13px;
+}
+@media (max-width: 1023px) {
+  /* Full screen ticket: the list steps aside and comes back where it was. */
+  .fc-tix.has-open .fc-tix-list {
+    display: none;
+  }
+}
+@media (max-width: 720px) {
+  .fc-tix-dock {
+    bottom: calc(var(--fc-bnav-h) + var(--fc-bnav-gap) + 8px + env(safe-area-inset-bottom));
+  }
+}
+@media (min-width: 1024px) {
+  .fc-tix.has-open {
+    display: grid;
+    grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);
+    gap: 18px;
+    align-items: start;
+  }
+  .fc-tix-back-label {
+    display: none;
+  }
+  .fc-tix-back {
+    padding: 0;
+    justify-content: center;
+    margin-left: 0;
+  }
+  .fc-tix-pane {
+    position: sticky;
+    top: 16px;
+    padding: 18px;
+    border-radius: 26px;
+    border: 1px solid var(--fc-panel-border);
+    background: var(--fc-solid);
+  }
+  .fc-tix-actions {
+    flex-wrap: wrap;
+    margin: 0;
+    padding: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fc-tix-detail {
+    animation: fc-fade-in 200ms backwards;
+  }
+}
+@media (max-width: 1023px) {
+  .fc-tix-pane {
+    scroll-margin-top: 72px;
+  }
+}
