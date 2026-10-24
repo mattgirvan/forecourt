@@ -1463,6 +1463,10 @@
   .scene-nudge-grid > .shell-glass > div:first-child {
     margin-bottom: 0;
   }
+  /* Stock rows tighten so the list clears the 24px eyebrow gap on 667px phones. */
+  .scene-stock-list .scene-row {
+    padding-block: 8px;
+  }
 }
 
 /* Very short phones: open the stock location menu upwards so Showroom stays on screen. */
