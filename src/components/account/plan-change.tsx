@@ -85,7 +85,7 @@ export function PlanChangeView({
             aria-checked={(to ?? plan) === p}
             disabled={busy || p === plan}
             onClick={() => void pick(p)}
-            className={`rounded-full border px-4 py-1.5 text-sm ${
+            className={`min-h-11 rounded-full border px-4 py-1.5 text-sm ${
               (to ?? plan) === p ? "border-fg bg-transparent font-medium text-fg ring-1 ring-fg" : "border-line bg-elevated text-muted hover:text-fg"
             } disabled:cursor-default`}
           >
