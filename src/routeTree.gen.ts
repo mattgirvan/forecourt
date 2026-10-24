@@ -33,8 +33,10 @@ import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as ApiBuildSendRouteImport } from './routes/api/build/send'
 import { Route as ApiBuildTokenStatusRouteImport } from './routes/api/build/token-status'
 import { Route as ApiCronMigrationsRouteImport } from './routes/api/cron/migrations'
+import { Route as ApiCronNewsletterRouteImport } from './routes/api/cron/newsletter'
 import { Route as ApiDeskEventsRouteImport } from './routes/api/desk/events'
 import { Route as ApiNewsletterConfirmRouteImport } from './routes/api/newsletter/confirm'
+import { Route as ApiNewsletterMonthlyDraftRouteImport } from './routes/api/newsletter/monthly-draft'
 import { Route as ApiNewsletterSubscribeRouteImport } from './routes/api/newsletter/subscribe'
 import { Route as ApiNewsletterUnsubscribeRouteImport } from './routes/api/newsletter/unsubscribe'
 import { Route as ApiStripeWebhookRouteImport } from './routes/api/stripe/webhook'
@@ -159,6 +161,11 @@ const ApiCronMigrationsRoute = ApiCronMigrationsRouteImport.update({
   path: '/api/cron/migrations',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiCronNewsletterRoute = ApiCronNewsletterRouteImport.update({
+  id: '/api/cron/newsletter',
+  path: '/api/cron/newsletter',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiDeskEventsRoute = ApiDeskEventsRouteImport.update({
   id: '/api/desk/events',
   path: '/api/desk/events',
@@ -169,6 +176,12 @@ const ApiNewsletterConfirmRoute = ApiNewsletterConfirmRouteImport.update({
   path: '/api/newsletter/confirm',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiNewsletterMonthlyDraftRoute =
+  ApiNewsletterMonthlyDraftRouteImport.update({
+    id: '/api/newsletter/monthly-draft',
+    path: '/api/newsletter/monthly-draft',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiNewsletterSubscribeRoute = ApiNewsletterSubscribeRouteImport.update({
   id: '/api/newsletter/subscribe',
   path: '/api/newsletter/subscribe',
@@ -211,8 +224,10 @@ export interface FileRoutesByFullPath {
   '/api/build/send': typeof ApiBuildSendRoute
   '/api/build/token-status': typeof ApiBuildTokenStatusRoute
   '/api/cron/migrations': typeof ApiCronMigrationsRoute
+  '/api/cron/newsletter': typeof ApiCronNewsletterRoute
   '/api/desk/events': typeof ApiDeskEventsRoute
   '/api/newsletter/confirm': typeof ApiNewsletterConfirmRoute
+  '/api/newsletter/monthly-draft': typeof ApiNewsletterMonthlyDraftRoute
   '/api/newsletter/subscribe': typeof ApiNewsletterSubscribeRoute
   '/api/newsletter/unsubscribe': typeof ApiNewsletterUnsubscribeRoute
   '/api/stripe/webhook': typeof ApiStripeWebhookRoute
@@ -242,8 +257,10 @@ export interface FileRoutesByTo {
   '/api/build/send': typeof ApiBuildSendRoute
   '/api/build/token-status': typeof ApiBuildTokenStatusRoute
   '/api/cron/migrations': typeof ApiCronMigrationsRoute
+  '/api/cron/newsletter': typeof ApiCronNewsletterRoute
   '/api/desk/events': typeof ApiDeskEventsRoute
   '/api/newsletter/confirm': typeof ApiNewsletterConfirmRoute
+  '/api/newsletter/monthly-draft': typeof ApiNewsletterMonthlyDraftRoute
   '/api/newsletter/subscribe': typeof ApiNewsletterSubscribeRoute
   '/api/newsletter/unsubscribe': typeof ApiNewsletterUnsubscribeRoute
   '/api/stripe/webhook': typeof ApiStripeWebhookRoute
@@ -274,8 +291,10 @@ export interface FileRoutesById {
   '/api/build/send': typeof ApiBuildSendRoute
   '/api/build/token-status': typeof ApiBuildTokenStatusRoute
   '/api/cron/migrations': typeof ApiCronMigrationsRoute
+  '/api/cron/newsletter': typeof ApiCronNewsletterRoute
   '/api/desk/events': typeof ApiDeskEventsRoute
   '/api/newsletter/confirm': typeof ApiNewsletterConfirmRoute
+  '/api/newsletter/monthly-draft': typeof ApiNewsletterMonthlyDraftRoute
   '/api/newsletter/subscribe': typeof ApiNewsletterSubscribeRoute
   '/api/newsletter/unsubscribe': typeof ApiNewsletterUnsubscribeRoute
   '/api/stripe/webhook': typeof ApiStripeWebhookRoute
@@ -307,8 +326,10 @@ export interface FileRouteTypes {
     | '/api/build/send'
     | '/api/build/token-status'
     | '/api/cron/migrations'
+    | '/api/cron/newsletter'
     | '/api/desk/events'
     | '/api/newsletter/confirm'
+    | '/api/newsletter/monthly-draft'
     | '/api/newsletter/subscribe'
     | '/api/newsletter/unsubscribe'
     | '/api/stripe/webhook'
@@ -338,8 +359,10 @@ export interface FileRouteTypes {
     | '/api/build/send'
     | '/api/build/token-status'
     | '/api/cron/migrations'
+    | '/api/cron/newsletter'
     | '/api/desk/events'
     | '/api/newsletter/confirm'
+    | '/api/newsletter/monthly-draft'
     | '/api/newsletter/subscribe'
     | '/api/newsletter/unsubscribe'
     | '/api/stripe/webhook'
@@ -369,8 +392,10 @@ export interface FileRouteTypes {
     | '/api/build/send'
     | '/api/build/token-status'
     | '/api/cron/migrations'
+    | '/api/cron/newsletter'
     | '/api/desk/events'
     | '/api/newsletter/confirm'
+    | '/api/newsletter/monthly-draft'
     | '/api/newsletter/subscribe'
     | '/api/newsletter/unsubscribe'
     | '/api/stripe/webhook'
@@ -401,8 +426,10 @@ export interface RootRouteChildren {
   ApiBuildSendRoute: typeof ApiBuildSendRoute
   ApiBuildTokenStatusRoute: typeof ApiBuildTokenStatusRoute
   ApiCronMigrationsRoute: typeof ApiCronMigrationsRoute
+  ApiCronNewsletterRoute: typeof ApiCronNewsletterRoute
   ApiDeskEventsRoute: typeof ApiDeskEventsRoute
   ApiNewsletterConfirmRoute: typeof ApiNewsletterConfirmRoute
+  ApiNewsletterMonthlyDraftRoute: typeof ApiNewsletterMonthlyDraftRoute
   ApiNewsletterSubscribeRoute: typeof ApiNewsletterSubscribeRoute
   ApiNewsletterUnsubscribeRoute: typeof ApiNewsletterUnsubscribeRoute
   ApiStripeWebhookRoute: typeof ApiStripeWebhookRoute
@@ -578,6 +605,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiCronMigrationsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/cron/newsletter': {
+      id: '/api/cron/newsletter'
+      path: '/api/cron/newsletter'
+      fullPath: '/api/cron/newsletter'
+      preLoaderRoute: typeof ApiCronNewsletterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/desk/events': {
       id: '/api/desk/events'
       path: '/api/desk/events'
@@ -590,6 +624,13 @@ declare module '@tanstack/react-router' {
       path: '/api/newsletter/confirm'
       fullPath: '/api/newsletter/confirm'
       preLoaderRoute: typeof ApiNewsletterConfirmRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/newsletter/monthly-draft': {
+      id: '/api/newsletter/monthly-draft'
+      path: '/api/newsletter/monthly-draft'
+      fullPath: '/api/newsletter/monthly-draft'
+      preLoaderRoute: typeof ApiNewsletterMonthlyDraftRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/newsletter/subscribe': {
@@ -641,8 +682,10 @@ const rootRouteChildren: RootRouteChildren = {
   ApiBuildSendRoute: ApiBuildSendRoute,
   ApiBuildTokenStatusRoute: ApiBuildTokenStatusRoute,
   ApiCronMigrationsRoute: ApiCronMigrationsRoute,
+  ApiCronNewsletterRoute: ApiCronNewsletterRoute,
   ApiDeskEventsRoute: ApiDeskEventsRoute,
   ApiNewsletterConfirmRoute: ApiNewsletterConfirmRoute,
+  ApiNewsletterMonthlyDraftRoute: ApiNewsletterMonthlyDraftRoute,
   ApiNewsletterSubscribeRoute: ApiNewsletterSubscribeRoute,
   ApiNewsletterUnsubscribeRoute: ApiNewsletterUnsubscribeRoute,
   ApiStripeWebhookRoute: ApiStripeWebhookRoute,

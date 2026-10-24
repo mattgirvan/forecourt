@@ -3,6 +3,8 @@ import { env } from "@/lib/env.server";
 import { SITE } from "@/lib/site";
 import { jsonResponse } from "@/lib/server/build-api";
 import { resendKey } from "@/lib/server/resend-key";
+import { sbAdmin } from "@/lib/server/staff-actor";
+import { recordConfirmed } from "@/lib/server/newsletter-sequence-store";
 import {
   handleSubscribe,
   handleToken,
@@ -14,6 +16,10 @@ import {
 
 const ipLimited = makeLimiter(8, 15 * 60 * 1000);
 const emailLimited = makeLimiter(3, 60 * 60 * 1000);
+
+export function newsletterConfig(): Deps["config"] {
+  return deps().config;
+}
 
 function deps(): Deps {
   return {
@@ -30,6 +36,7 @@ function deps(): Deps {
     fetch: (u, i) => fetch(u, i),
     ipLimited,
     emailLimited,
+    onConfirmed: (email, at) => recordConfirmed(sbAdmin(), email, at),
   };
 }
 

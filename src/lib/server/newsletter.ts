@@ -225,6 +225,11 @@ export type Deps = {
   now?: () => number;
   ipLimited: (key: string) => boolean;
   emailLimited: (key: string) => boolean;
+  /**
+   * Record the confirm time for the launch sequence. Best effort: a failure
+   * never fails the confirm. Must never overwrite an earlier confirm time.
+   */
+  onConfirmed?: (email: string, at: number) => Promise<void>;
 };
 
 export type Result = { status: number; body: { ok: boolean; message: string } };
@@ -256,9 +261,18 @@ export async function handleToken(token: unknown, p: Purpose, d: Deps): Promise<
   if (!configured(d.config)) return "unavailable";
   const v = verifyToken(d.config.secret!, token, p, d.now?.() ?? Date.now());
   if (!v.ok) return v.reason;
+  let ok: boolean;
   try {
-    return (await setSubscribed(d.config, v.email, p === "u", d.fetch)) ? "ok" : "error";
+    ok = await setSubscribed(d.config, v.email, p === "u", d.fetch);
   } catch {
     return "error";
   }
+  if (ok && p === "c" && d.onConfirmed) {
+    try {
+      await d.onConfirmed(v.email, d.now?.() ?? Date.now());
+    } catch {
+      /* the cron backfills from the contact's created_at */
+    }
+  }
+  return ok ? "ok" : "error";
 }
