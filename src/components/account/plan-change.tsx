@@ -5,6 +5,7 @@ import { useEffect, useRef, useState, type Ref } from "react";
 import { FRANCHISE_INCLUDED_SITES, PLANS, gbpPence, type PlanId } from "@/lib/catalog";
 import {
   planChangeErrorFeedback,
+  monthlyMoveLine,
   planChangeFeedback,
   type PlanChangeFeedback,
   type PlanChangeQuote,
@@ -75,9 +76,9 @@ export function changeRows(
       { label: `${to} setup`, value: money(PLANS[q.to].setupPence) },
       { label: "Setup difference, paid today", value: money(q.setupDiffPence), strong: true },
       {
-        label: "New monthly price",
+        label: monthlyMoveLine(q),
         value: `${money(q.newMonthlyPence)}/mo`,
-        sub: `Was ${money(q.oldMonthlyPence)}`,
+        sub: `Was ${money(q.currentMonthlyPence)}`,
       },
       {
         label: `Part month${q.periodEnd ? ` to ${formatUkDate(q.periodEnd)}` : ""}`,
@@ -90,9 +91,10 @@ export function changeRows(
     const until = q.periodEnd ? formatUkDate(q.periodEnd) : "the end of this billing period";
     return [
       { label: "Setup refund", value: "None" },
-      { label: `Your price until ${until}`, value: `${money(q.oldMonthlyPence)}/mo`, strong: true },
+      { label: `Your price until ${until}`, value: `${money(q.currentMonthlyPence)}/mo`, strong: true },
       {
-        label: q.effective === "now" ? `${to} from today` : `${to} from ${until}`,
+        label: monthlyMoveLine(q),
+        sub: `${to} plan`,
         value: `${money(q.newMonthlyPence)}/mo`,
       },
       ...(q.effective === "now"
@@ -108,8 +110,8 @@ export function changeHint(q: PlanChangeQuote): string {
     return `${LABEL[q.to]} starts as soon as the setup payment goes through. Adding more sites later never has a setup fee.`;
   if (q.direction === "downgrade")
     return q.effective === "period_end"
-      ? "Moving down keeps your current price until the end of the billing period. There is no setup refund and no refund for part months."
-      : "Moving down has no setup refund. The difference for the rest of this month comes off your next bill.";
+      ? "You keep your current price until the end of the billing period. No setup refund, and no refund for part months."
+      : "No setup refund. The difference for the rest of this month comes off your next bill.";
   return "";
 }
 
@@ -290,7 +292,7 @@ export function PlanChangeView({
                     as="li"
                     key={r.label}
                     title={
-                      <span className={r.strong ? "font-semibold" : "font-normal"}>{r.label}</span>
+                      <span className={cn("fc-change-label", r.strong ? "font-semibold" : "font-normal")}>{r.label}</span>
                     }
                     sub={r.sub}
                     trailing={<span className="font-semibold tabular-nums">{r.value}</span>}

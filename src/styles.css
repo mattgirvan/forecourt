@@ -3211,6 +3211,7 @@
 }
 .fc-pc-feedback.is-error .fc-pc-feedback-dot {
   background: var(--fc-text);
+}
 
 /* Redesign 8: confirm sheets (replace the browser confirm box) */
 .fc-confirm-wrap {
@@ -3289,4 +3290,11 @@
   .fc-confirm-sheet {
     animation: fc-fade-in 120ms linear both;
   }
+}
+/* "What changes" rows: the price move line wraps instead of cutting off. */
+.fc-change-sheet .fc-row-title:has(.fc-change-label),
+.fc-change-label {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
 }

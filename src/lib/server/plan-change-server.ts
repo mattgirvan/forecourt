@@ -10,6 +10,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { normalizePlan, type PlanId } from "@/lib/catalog";
 import { clampSiteCount } from "@/lib/plan-shape";
 import { SITE } from "@/lib/site";
+import { currentMonthlyPence, type StripePriceItem } from "@/lib/current-price";
 import {
   PLAN_CHANGE_NOT_RECORDED,
   planChangeDryRunMessage,
@@ -93,7 +94,32 @@ async function quoteFor(sb: SupabaseClient, t: TenantRow, to: PlanId, stripe: St
       /* preview without the period */
     }
   }
-  return quotePlanChange({ from: normalizePlan(t.plan), to, live: await liveCount(sb, t), periodStart: start, periodEnd: end });
+  return quotePlanChange({
+    from: normalizePlan(t.plan),
+    to,
+    live: await liveCount(sb, t),
+    periodStart: start,
+    periodEnd: end,
+    currentMonthlyPence: currentMonthlyPence(await currentItem(t), normalizePlan(t.plan), t.site_count),
+  });
+}
+
+/**
+ * The Stripe price item, read only, exactly as the account header reads it
+ * (liveBillingSummary), so the sheet and the header show the same price.
+ * Not tied to PLAN_CHANGE_SYNC: it never writes.
+ */
+async function currentItem(t: TenantRow): Promise<StripePriceItem> {
+  if (!t.stripe_subscription_id) return null;
+  try {
+    const stripe = await stripeClient();
+    if (!stripe) return null;
+    const sub = await stripe.subscriptions.retrieve(t.stripe_subscription_id);
+    const item = sub.items?.data?.[0];
+    return { unitPence: item?.price?.unit_amount ?? null, quantity: item?.quantity ?? 1 };
+  } catch {
+    return null;
+  }
 }
 
 export const previewPlanChange = createServerFn({ method: "POST" })

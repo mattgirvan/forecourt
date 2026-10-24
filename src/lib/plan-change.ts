@@ -41,6 +41,12 @@ export type PlanChangeQuote = {
   setupDiffPence: number;
   oldMonthlyPence: number;
   newMonthlyPence: number;
+  /**
+   * What the customer pays a month today, the same figure as the account
+   * header. Display only ("Your price until", "Was"); the maths above uses
+   * oldMonthlyPence from the live site count.
+   */
+  currentMonthlyPence: number;
   /** Pro-rated charge (positive) or credit (negative) for the rest of this period. */
   proratedPence: number;
   /** Paid today before the change turns on. */
@@ -57,6 +63,7 @@ export function quotePlanChange(input: {
   periodEnd?: number | null;
   now?: number;
   downgradeTiming?: "period_end" | "now";
+  currentMonthlyPence?: number | null;
 }): PlanChangeQuote {
   const { from, to } = input;
   const direction = changeDirection(from, to);
@@ -84,6 +91,7 @@ export function quotePlanChange(input: {
     setupDiffPence,
     oldMonthlyPence,
     newMonthlyPence,
+    currentMonthlyPence: input.currentMonthlyPence ?? oldMonthlyPence,
     proratedPence,
     dueNowPence: setupDiffPence,
     effective: direction === "upgrade" ? "after_payment" : atPeriodEnd ? "period_end" : "now",
@@ -213,4 +221,24 @@ export function planChangeErrorFeedback(e: unknown): PlanChangeFeedback {
     title: "Plan not changed",
     body: msg || "Something went wrong, so nothing has changed. Please try again, or send us a message.",
   };
+}
+
+/**
+ * The move described by its monthly price, not by plan rank. A move "down" a
+ * plan can still cost more a month (Group at 2 sites to Franchise).
+ */
+export function monthlyMoveLine(q: PlanChangeQuote): string {
+  const now = q.currentMonthlyPence;
+  const next = q.newMonthlyPence;
+  const when =
+    q.direction === "upgrade"
+      ? "once the setup payment goes through"
+      : q.effective === "period_end"
+        ? q.periodEnd
+          ? `from ${formatUkDate(q.periodEnd)}`
+          : "from your next bill"
+        : "from today";
+  if (next > now) return `Your monthly price goes up to ${gbp(next)} ${when}`;
+  if (next < now) return `Your monthly price drops to ${gbp(next)} ${when}`;
+  return `Your monthly price stays at ${gbp(next)}`;
 }
