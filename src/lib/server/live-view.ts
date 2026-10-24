@@ -185,6 +185,8 @@ export type SupportItem = {
   updated_at: string;
   messages: SupportMessage[];
   tenant_name?: string | null;
+  /** Office queue only: latest message body, for the row preview. */
+  last_line?: string | null;
 };
 
 const ITEM_COLS = "id, ref, tenant_id, kind, change_type, title, details, link, status, needs_reply, created_at, updated_at";
@@ -333,11 +335,23 @@ export const listSupportQueue = createServerFn({ method: "POST" })
       if (missingTable(error)) return { ready: false, items: [] };
       throw new Error(error.message);
     }
+    const list = (rows ?? []) as (Omit<SupportItem, "messages"> & { tenants?: { name?: string | null } | null })[];
+    // Latest message per ticket for the one line row preview. Newest first, keep the first seen.
+    const last: Record<number, string> = {};
+    if (list.length) {
+      const { data: msgs } = await who.sb
+        .from("support_messages")
+        .select("item_id, body, created_at")
+        .in("item_id", list.map((i) => i.id))
+        .order("created_at", { ascending: false });
+      for (const m of (msgs ?? []) as { item_id: number; body: string }[]) if (!(m.item_id in last)) last[m.item_id] = m.body;
+    }
     return {
       ready: true,
-      items: ((rows ?? []) as (Omit<SupportItem, "messages"> & { tenants?: { name?: string | null } | null })[]).map(({ tenants, ...i }) => ({
+      items: list.map(({ tenants, ...i }) => ({
         ...i,
         tenant_name: tenants?.name ?? null,
+        last_line: last[i.id] ?? null,
         messages: [],
       })),
     };
