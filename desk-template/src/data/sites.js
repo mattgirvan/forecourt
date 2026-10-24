@@ -85,6 +85,7 @@ export function listHint(access, picked = ALL) {
   if (!access?.canSwitch) {
     return (access?.sites?.length || 0) > 1 ? "You're seeing stock for your sites only." : "You're seeing stock for your site only.";
   }
+  if (picked === ALL && !access.allSites) return "Showing the sites you look after.";
   return picked === ALL ? "Showing every site. Pick a site above to narrow it down." : "Showing one site. Pick All sites to see every site.";
 }
 
@@ -102,13 +103,15 @@ export function firstSiteCode(list) {
   return normaliseSites(list)[0]?.code || "Main";
 }
 
-/** Short site name for row tags: an explicit short, else the last word ("Hartley Motors Used" gives "Used"). */
+/** Site name for row tags: the full name minus the group brand (first word),
+ *  "Hartley Motors Used" gives "Motors Used". Never a bare condition word. */
+const CONDITION = ["new", "used"];
 export function siteShortName(sites, code) {
   const hit = normaliseSites(sites).find((s) => same(s.code, code));
   if (!hit) return code || "";
-  if (hit.short) return hit.short;
-  const words = String(hit.name || hit.code).trim().split(/\s+/);
-  return words[words.length - 1];
+  const full = String(hit.name || hit.code).trim();
+  const pick = hit.short || (full.split(/\s+/).length > 1 ? full.split(/\s+/).slice(1).join(" ") : full);
+  return CONDITION.includes(pick.toLowerCase()) ? full : pick;
 }
 
 /** Row site tag: hidden when one site is in view, short name otherwise. */

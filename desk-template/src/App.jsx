@@ -271,7 +271,7 @@ function Stock({ canEdit = true }) {
   const pick = useDesk((s) => s.sitePick);
   const [msg, setMsg] = useState("");
   const scopeName = access?.canSwitch
-    ? pick === "all" ? "All sites" : access.sites.find((x) => x.code === pick)?.name || pick
+    ? pick === "all" ? (access.allSites ? "All sites" : "All my sites") : access.sites.find((x) => x.code === pick)?.name || pick
     : access?.sites?.length === 1 ? access.sites[0].name : "Your sites";
 
   async function onFile(e) {

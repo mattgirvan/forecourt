@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { siteControl, rowSiteTag, siteShortName, resolveSiteAccess, ALL } from "../desk-template/src/data/sites.js";
+import { listHint, siteControl, rowSiteTag, siteShortName, resolveSiteAccess, ALL } from "../desk-template/src/data/sites.js";
 
 const sites = [
   { code: "HMS", name: "Hartley Motors Showroom" },
@@ -26,12 +26,18 @@ test("limited managers see All my sites and their own footer", () => {
   assert.equal(c.count, 2);
 });
 test("short names in All sites, hidden for one site", () => {
-  assert.equal(siteShortName(sites, "HMS"), "Showroom");
-  assert.equal(siteShortName(sites, "HMU"), "Used");
+  assert.equal(siteShortName(sites, "HMS"), "Motors Showroom");
+  assert.equal(siteShortName(sites, "HMU"), "Motors Used");
+  assert.equal(siteShortName([{ code: "U", name: "Hartley Used" }], "U"), "Hartley Used");
+  assert.equal(siteShortName([{ code: "N", name: "Hartley New", short: "New" }], "N"), "Hartley New");
   assert.equal(siteShortName(sites, "NBV"), "Vans");
   assert.equal(siteShortName([{ code: "X", name: "Big Place", short: "Big" }], "X"), "Big");
-  assert.equal(rowSiteTag(full, ALL, "HMU"), "Used");
+  assert.equal(rowSiteTag(full, ALL, "HMU"), "Motors Used");
   assert.equal(rowSiteTag(full, "HMU", "HMU"), null);
   assert.equal(rowSiteTag(staff, ALL, "HMS"), null);
-  assert.equal(rowSiteTag(multi, ALL, "HMU"), "Used");
+  assert.equal(rowSiteTag(multi, ALL, "HMU"), "Motors Used");
+});
+test("page hint matches who is looking", () => {
+  assert.equal(listHint(limited, ALL), "Showing the sites you look after.");
+  assert.equal(listHint(full, ALL), "Showing every site. Pick a site above to narrow it down.");
 });
