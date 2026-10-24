@@ -116,3 +116,13 @@ test("wiring: each email is sent from its moment", () => {
   assert.match(staff, /appliedStage\(move\.monthlyStarts\)/);
   assert.match(staff, /stage: "rejected"/);
 });
+
+test("drop emails say the plan switches when the team applies it, only the price waits", () => {
+  const base = { changeId: 5, from: "franchise", to: "site", newMonthlyPence: 39900, periodEnd: "2026-11-14T00:00:00Z" } as const;
+  const done = planChangeEmail({ ...base, stage: "scheduled" });
+  assert.equal(done.title, "Your move to Site is done");
+  assert.equal(done.lines[0], "Your account is now on Site. Your new price of £399 a month (inc. VAT) starts at the end of this billing period, on 14 Nov 2026.");
+  const got = planChangeEmail({ ...base, stage: "received", atPeriodEnd: true });
+  assert.match(got.lines.join(" "), /Your plan switches when the team applies your change\./);
+  for (const m of [done, got]) assert.doesNotMatch(m.lines.join(" "), /[–—]|glass/i);
+});
