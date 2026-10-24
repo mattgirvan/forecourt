@@ -13,6 +13,7 @@ import { SITE } from "@/lib/site";
 import {
   PLAN_CHANGE_NOT_RECORDED,
   planChangeDryRunMessage,
+  planChangeOfficeRecordedMessage,
   planChangeRecordedMessage,
   quotePlanChange,
   type PlanChangeOutcome,
@@ -127,7 +128,7 @@ export const requestPlanChange = createServerFn({ method: "POST" })
       if (!recorded) return reply("failed", PLAN_CHANGE_NOT_RECORDED);
       return reply(
         "recorded",
-        data.from === "office" ? `${planChangeDryRunMessage(q)} Noted on the file.` : planChangeRecordedMessage(q),
+        data.from === "office" ? planChangeOfficeRecordedMessage(q) : planChangeRecordedMessage(q),
       );
     }
     const row = {

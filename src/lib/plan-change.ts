@@ -156,6 +156,11 @@ export function planChangeRecordedMessage(q: PlanChangeQuote): string {
     : `We have your request to move to ${PLAN_NAME[q.to]}. Nothing has changed yet. We will apply it and confirm by email.`;
 }
 
+/** Office copy when sync is off: plain English, no "dry run". */
+export function planChangeOfficeRecordedMessage(q: PlanChangeQuote): string {
+  return `Billing switch off: request to move to ${PLAN_NAME[q.to]} recorded, nothing charged. Noted on the file.`;
+}
+
 export const PLAN_CHANGE_NOT_RECORDED =
   "We could not record your request, so nothing has changed. Please try again, or send us a message.";
 

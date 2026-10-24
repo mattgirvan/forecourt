@@ -5,6 +5,7 @@ import {
   PLAN_CHANGE_NOT_RECORDED,
   planChangeErrorFeedback,
   planChangeFeedback,
+  planChangeOfficeRecordedMessage,
   planChangeRecordedMessage,
   quotePlanChange,
 } from "./plan-change.ts";
@@ -60,4 +61,13 @@ test("panel: a confirm always sets a message and errors stay in the sheet", () =
   assert.match(src, /planChangeFeedback\(r, to\)/);
   assert.match(src, /setSheetError\(planChangeErrorFeedback\(e\)\)/);
   assert.match(src, /role=\{feedback\.tone === "error" \? "alert" : "status"\}/);
+});
+
+test("office copy with sync off is plain English, not a dry run", () => {
+  const m = planChangeOfficeRecordedMessage(down);
+  assert.equal(m, "Billing switch off: request to move to Franchise recorded, nothing charged. Noted on the file.");
+  assert.doesNotMatch(m, /dry run|[\u2012-\u2015]| - |glass/i);
+  const src = readFileSync("src/lib/server/plan-change-server.ts", "utf8");
+  assert.match(src, /data\.from === "office" \? planChangeOfficeRecordedMessage\(q\)/);
+  assert.doesNotMatch(src, /\$\{planChangeDryRunMessage\(q\)\} Noted on the file/);
 });
