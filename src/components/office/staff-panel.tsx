@@ -1,8 +1,12 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
+import { Chip } from "@/components/ui/chip";
+import { PillRow } from "@/components/ui/pill-row";
+import { Section } from "@/components/ui/section";
+import { initials } from "@/lib/role-grid";
+import { formatUkDate } from "@/lib/uk-date";
 import { inviteStaff, sendStaffSignIn, setStaffRole, setStaffStatus } from "@/lib/server/portal";
 import { STAFF_ROLES, roleLabel, type StaffRole } from "@/lib/team";
-import { formatUkDate } from "@/lib/uk-date";
 
 type Member = {
   email: string;
@@ -47,140 +51,216 @@ export function StaffPanel({
     }
   }
 
+  const jobOptions = STAFF_ROLES.map((r) => ({ id: r.id, label: r.label }));
+
   return (
-    <div className="space-y-8">
-      <div>
-        <h2 className="text-3xl font-semibold tracking-tight">Staff</h2>
-        <p className="mt-2 max-w-xl text-sm text-muted">
-          Customers sign in to their dealership. Staff sign in here. An email is staff only after an owner adds it.
-        </p>
-      </div>
+    <div className="fc-team space-y-6">
+      <p className="max-w-xl text-sm text-muted">
+        Customers sign in to their dealership. Staff sign in here. An email is staff only after an
+        owner adds it.
+      </p>
 
-      {owner && (
-        <form
-          className="rounded-[1.75rem] border border-line bg-surface p-6"
-          onSubmit={(e) => {
-            e.preventDefault();
-            void run(async () => {
-              await inviteStaff({ data: { token, email, name, role } });
-              setEmail("");
-              setName("");
-            }, "Invite sent. They get access once they sign in with the code from that email.");
-          }}
-        >
-          <div className="text-sm font-medium">Add someone</div>
-          <p className="mt-1 text-sm text-muted">They use a code, same as you, not a password.</p>
-          <div className="mt-4 grid gap-2 sm:grid-cols-[1fr_1fr_8rem_auto]">
-            <input
-              required
-              type="email"
-              className="h-11 rounded-2xl border border-line bg-elevated px-3 text-sm"
-              placeholder="name@…"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-            <input
-              className="h-11 rounded-2xl border border-line bg-elevated px-3 text-sm"
-              placeholder="Name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
-            <select
-              className="h-11 rounded-2xl border border-line bg-elevated px-3 text-sm"
-              value={role}
-              onChange={(e) => setRole(e.target.value as StaffRole)}
-            >
-              {STAFF_ROLES.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.label}
-                </option>
-              ))}
-            </select>
-            <Button type="submit" disabled={busy || !email.includes("@")}>
-              {busy ? "Sending…" : "Invite"}
-            </Button>
-          </div>
-        </form>
-      )}
-
-      <ul className="divide-y divide-line overflow-hidden rounded-[1.75rem] border border-line bg-surface">
-        {members.map((m) => (
-          <li key={m.email} className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <div className="font-medium">{m.name || m.email}</div>
-              <div className="text-xs text-muted">
-                {m.email}, {roleLabel(m.role)}, {m.status}
-                {m.last_seen_at ? `, last seen ${formatUkDate(m.last_seen_at)}` : ""}
-              </div>
-            </div>
-            {owner && (
-              <div className="flex flex-wrap gap-1.5">
-                {m.role !== "owner" ? (
-                  <button
-                    type="button"
-                    className="h-11 min-w-11 rounded-full bg-elevated px-4 text-[13px] text-muted"
-                    disabled={busy}
-                    onClick={() => void run(() => setStaffRole({ data: { token, email: m.email, role: "owner" } }), "Now an owner.")}
-                  >
-                    Make owner
-                  </button>
-                ) : m.email !== meEmail ? (
-                  <button
-                    type="button"
-                    className="h-11 min-w-11 rounded-full bg-elevated px-4 text-[13px] text-muted"
-                    disabled={busy}
-                    onClick={() =>
-                      void run(() => setStaffRole({ data: { token, email: m.email, role: "operator" } }), "Now an operator.")
-                    }
-                  >
-                    Make operator
-                  </button>
-                ) : null}
-                <button
-                  type="button"
-                  className="h-11 min-w-11 rounded-full bg-elevated px-4 text-[13px] text-muted"
-                  disabled={busy}
-                  onClick={() => void run(() => sendStaffSignIn({ data: { token, email: m.email } }), "Sign-in sent.")}
-                >
-                  Send sign-in
-                </button>
-                {m.status !== "revoked" && m.email !== meEmail && (
-                  <button
-                    type="button"
-                    className="h-11 min-w-11 rounded-full bg-elevated px-4 text-[13px] text-muted"
-                    disabled={busy}
-                    onClick={() =>
-                      void run(
-                        () => setStaffStatus({ data: { token, email: m.email, status: "revoked" } }),
-                        "Access revoked.",
-                      )
-                    }
-                  >
-                    Revoke
-                  </button>
+      <div className="fc-team-grid">
+        <Section title="People" eyebrow="Staff" rail="slate" count={members.length || null}>
+          <ul className="space-y-2" data-testid="team-people">
+            {members.map((m) => (
+              <li key={m.email} className="fc-role-row flex-wrap">
+                <span className="fc-avatar" aria-hidden="true">
+                  {initials(m.name || m.email)}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-semibold">{m.name || m.email}</span>
+                  <span className="block truncate text-xs text-muted">
+                    {[
+                      m.name ? m.email : "",
+                      m.last_seen_at ? `last seen ${formatUkDate(m.last_seen_at)}` : "",
+                    ]
+                      .filter(Boolean)
+                      .join(", ") || "Not signed in yet"}
+                  </span>
+                </span>
+                <span className="flex shrink-0 items-center gap-1.5">
+                  <Chip>{roleLabel(m.role)}</Chip>
+                  <Chip tone={m.status === "active" ? "live" : "neutral"}>
+                    {statusLabel(m.status)}
+                  </Chip>
+                </span>
+                {owner && (
+                  <span className="flex w-full flex-wrap gap-1.5 pl-[52px]">
+                    {m.role !== "owner" ? (
+                      <TeamAction
+                        disabled={busy}
+                        onClick={() =>
+                          void run(
+                            () => setStaffRole({ data: { token, email: m.email, role: "owner" } }),
+                            "Now an owner.",
+                          )
+                        }
+                      >
+                        Make owner
+                      </TeamAction>
+                    ) : m.email !== meEmail ? (
+                      <TeamAction
+                        disabled={busy}
+                        onClick={() =>
+                          void run(
+                            () =>
+                              setStaffRole({ data: { token, email: m.email, role: "operator" } }),
+                            "Now an operator.",
+                          )
+                        }
+                      >
+                        Make operator
+                      </TeamAction>
+                    ) : null}
+                    <TeamAction
+                      disabled={busy}
+                      onClick={() =>
+                        void run(
+                          () => sendStaffSignIn({ data: { token, email: m.email } }),
+                          "Sign in link sent.",
+                        )
+                      }
+                    >
+                      Send sign in
+                    </TeamAction>
+                    {m.status !== "revoked" && m.email !== meEmail && (
+                      <TeamAction
+                        disabled={busy}
+                        onClick={() =>
+                          void run(
+                            () =>
+                              setStaffStatus({
+                                data: { token, email: m.email, status: "revoked" },
+                              }),
+                            "Access revoked.",
+                          )
+                        }
+                      >
+                        Revoke
+                      </TeamAction>
+                    )}
+                    {m.status === "revoked" && (
+                      <TeamAction
+                        disabled={busy}
+                        onClick={() =>
+                          void run(
+                            () =>
+                              setStaffStatus({ data: { token, email: m.email, status: "active" } }),
+                            "Invite sent again. They get access once they sign in from that email.",
+                          )
+                        }
+                      >
+                        Restore
+                      </TeamAction>
+                    )}
+                  </span>
                 )}
-                {m.status === "revoked" && (
-                  <button
-                    type="button"
-                    className="h-11 min-w-11 rounded-full bg-fg px-4 text-[13px] text-accent-fg"
-                    disabled={busy}
-                    onClick={() =>
-                      void run(
-                        () => setStaffStatus({ data: { token, email: m.email, status: "active" } }),
-                        "Invite sent again. They get access once they sign in from that email.",
-                      )
-                    }
-                  >
-                    Restore
-                  </button>
-                )}
-              </div>
+              </li>
+            ))}
+            {members.length === 0 && (
+              <li className="py-4 text-sm text-muted">Just you, until you invite someone.</li>
             )}
-          </li>
-        ))}
-        {members.length === 0 && <li className="px-5 py-6 text-sm text-muted">Just you, until you invite someone.</li>}
-      </ul>
-      {notice && <p className="text-sm text-muted">{notice}</p>}
+          </ul>
+          {!owner && (
+            <p className="mt-3 text-xs text-muted">Only owners can add or change staff.</p>
+          )}
+        </Section>
+
+        {owner && (
+          <form
+            id="team-invite"
+            className="fc-team-invite"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void run(async () => {
+                await inviteStaff({ data: { token, email, name, role } });
+                setEmail("");
+                setName("");
+              }, "Invite sent. They get access once they sign in with the code from that email.");
+            }}
+          >
+            <Section title="Invite" eyebrow="Add someone" rail="slate">
+              <div className="space-y-3">
+                <label className="block text-sm">
+                  Work email
+                  <input
+                    required
+                    type="email"
+                    className="mt-1.5 h-11 w-full rounded-2xl border border-line bg-elevated px-3 text-sm"
+                    placeholder="name@forecourt.me"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                  />
+                </label>
+                <label className="block text-sm">
+                  Name
+                  <input
+                    className="mt-1.5 h-11 w-full rounded-2xl border border-line bg-elevated px-3 text-sm"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                  />
+                </label>
+                <div>
+                  <div className="mb-1.5 text-sm">Job</div>
+                  <PillRow
+                    label="Job"
+                    kind="radio"
+                    options={jobOptions}
+                    value={role}
+                    onChange={(id) => setRole(id)}
+                  />
+                </div>
+                <p className="text-xs text-muted">
+                  They sign in with a code, same as you. Only owners can refund or end a package.
+                </p>
+                <div className="fc-team-dock">
+                  <Button
+                    type="submit"
+                    className="min-h-11 w-full"
+                    disabled={busy || !email.includes("@")}
+                  >
+                    {busy ? "Sending…" : "Send invite"}
+                  </Button>
+                </div>
+              </div>
+            </Section>
+          </form>
+        )}
+      </div>
+      {notice && (
+        <p className="text-sm text-muted" role="status">
+          {notice}
+        </p>
+      )}
     </div>
+  );
+}
+
+function statusLabel(s: string) {
+  if (s === "active") return "Active";
+  if (s === "invited") return "Invite sent";
+  if (s === "revoked") return "Revoked";
+  return s;
+}
+
+function TeamAction({
+  children,
+  disabled,
+  onClick,
+}: {
+  children: ReactNode;
+  disabled?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className="h-11 rounded-full bg-elevated px-4 text-xs text-muted hover:text-fg"
+      disabled={disabled}
+      onClick={onClick}
+    >
+      {children}
+    </button>
   );
 }

@@ -188,132 +188,152 @@ function Login() {
   }
 
   return (
-    <main className="grid min-h-dvh place-items-center bg-bg px-4 text-fg">
-      <div className="w-full max-w-sm space-y-8">
-        <Link to="/" className="flex items-center gap-2 text-fg">
-          <Mark />
-          <span className="font-mono text-[11px] uppercase tracking-[0.2em]">{SITE.name}</span>
-        </Link>
-        <div>
-          <h1 className="font-display text-4xl tracking-tight">Your account.</h1>
-          <p className="mt-2 text-sm text-muted">
-            {fromLink
-              ? "Signing you in…"
-              : sent
-                ? `Code sent to ${email}. Type it here.`
-                : "Dealers see their package. Staff sign in with hello@forecourt.me."}
-          </p>
-        </div>
-        {showExtras && (
-          <div
-            className="space-y-3"
-            data-testid="signin-extras"
-            aria-busy={!showPasskey && !showGoogle}
-          >
-            {slots.passkey !== "hide" && (
-              <Button
-                type="button"
-                variant="secondary"
-                className={showPasskey ? "w-full" : "invisible w-full"}
-                aria-hidden={showPasskey ? undefined : true}
-                tabIndex={showPasskey ? undefined : -1}
-                disabled={busy || !showPasskey}
-                onClick={() => void signInWithPasskey()}
-              >
-                <KeyIcon />
-                Sign in with a passkey
-              </Button>
-            )}
-            {slots.google !== "hide" && (
-              <Button
-                type="button"
-                variant="secondary"
-                className={showGoogle ? "w-full" : "invisible w-full"}
-                aria-hidden={showGoogle ? undefined : true}
-                tabIndex={showGoogle ? undefined : -1}
-                disabled={busy || !showGoogle}
-                onClick={() => void signInWithGoogle()}
-              >
-                <GoogleIcon />
-                Continue with Google
-              </Button>
-            )}
-            <div
-              className={`flex items-center gap-3 pt-1 text-xs text-muted${showPasskey || showGoogle ? "" : " invisible"}`}
-              aria-hidden={showPasskey || showGoogle ? undefined : true}
-            >
-              <span className="h-px flex-1 bg-line" />
-              Or get an email code
-              <span className="h-px flex-1 bg-line" />
-            </div>
+    <main className="fc-signin grid min-h-dvh place-items-center px-4 py-10 text-fg">
+      <div className="w-full max-w-[400px]">
+        <div className="fc-signin-card" data-testid="signin-card">
+          <Link to="/" className="mx-auto flex min-h-11 w-fit items-center gap-3 text-fg">
+            <Mark />
+            <span className="text-xl font-semibold tracking-tight">{SITE.name}</span>
+          </Link>
+          <div className="mt-5 text-center">
+            <h1 className="text-3xl font-semibold tracking-tight">
+              {sent ? "Check your email" : "Sign in"}
+            </h1>
+            <p className="mt-2 text-sm text-muted">
+              {fromLink
+                ? "Signing you in…"
+                : sent
+                  ? `We sent a code to ${email}. Type it here.`
+                  : "Use the email your dealership gave us. We will send a 6 digit code."}
+            </p>
           </div>
-        )}
-        {!sent ? (
-          <form className="space-y-3" onSubmit={(e) => void send(e)}>
-            <label htmlFor="signin-email" className="sr-only">
-              Email
-            </label>
-            <Input
-              id="signin-email"
-              name="email"
-              type="email"
-              required
-              autoComplete="email"
-              placeholder="you@dealership.co.uk"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-            <Button type="submit" className="w-full" disabled={busy || !email}>
-              {busy ? "Sending…" : "Send code"}
-            </Button>
-          </form>
-        ) : (
-          <form className="space-y-3" onSubmit={(e) => void confirm(e)}>
-            <label htmlFor="signin-code" className="sr-only">
-              Code from the email
-            </label>
-            <Input
-              id="signin-code"
-              name="code"
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              pattern="[0-9]*"
-              maxLength={8}
-              placeholder="Code"
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              autoFocus
-            />
-            <Button
-              type="submit"
-              className="w-full"
-              disabled={busy || code.replace(/\s/g, "").length < 6}
-            >
-              {busy ? "Signing in…" : "Continue"}
-            </Button>
-            <button
-              type="button"
-              className="w-full text-center text-xs text-muted underline-offset-4 hover:underline"
-              onClick={() => {
-                setSent(false);
-                setCode("");
-                setNotice(null);
-              }}
-            >
-              Use another email
-            </button>
-          </form>
-        )}
-        {/* Always in the page, so screen readers hear each new notice or error. */}
-        <p
-          role="status"
-          aria-live="polite"
-          aria-atomic="true"
-          className="min-h-5 text-sm text-muted"
-          data-testid="signin-notice"
-        >
-          {notice ?? ""}
-        </p>
+          <div className="mt-6 space-y-4">
+            {!sent ? (
+              <form className="space-y-3" onSubmit={(e) => void send(e)}>
+                <label htmlFor="signin-email" className="block text-sm font-medium">
+                  Email
+                </label>
+                <Input
+                  id="signin-email"
+                  name="email"
+                  type="email"
+                  required
+                  autoComplete="email"
+                  placeholder="you@dealership.co.uk"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+                <Button type="submit" className="w-full" disabled={busy || !email}>
+                  {busy ? "Sending…" : "Email me a code"}
+                </Button>
+              </form>
+            ) : (
+              <form className="space-y-3" onSubmit={(e) => void confirm(e)}>
+                <label htmlFor="signin-code" className="sr-only">
+                  Code from the email
+                </label>
+                <Input
+                  id="signin-code"
+                  name="code"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  pattern="[0-9]*"
+                  maxLength={8}
+                  placeholder="Code"
+                  value={code}
+                  onChange={(e) => setCode(e.target.value)}
+                  autoFocus
+                />
+                <Button
+                  type="submit"
+                  className="w-full"
+                  disabled={busy || code.replace(/\s/g, "").length < 6}
+                >
+                  {busy ? "Signing in…" : "Continue"}
+                </Button>
+                <button
+                  type="button"
+                  className="min-h-11 w-full text-center text-sm text-muted underline-offset-4 hover:underline"
+                  onClick={() => {
+                    setSent(false);
+                    setCode("");
+                    setNotice(null);
+                  }}
+                >
+                  Use another email
+                </button>
+              </form>
+            )}
+            {showExtras && (
+              <div
+                className="space-y-3"
+                data-testid="signin-extras"
+                aria-busy={!showPasskey && !showGoogle}
+              >
+                <div
+                  className={`flex items-center gap-3 text-xs text-muted${showPasskey || showGoogle ? "" : " invisible"}`}
+                  aria-hidden={showPasskey || showGoogle ? undefined : true}
+                >
+                  <span className="h-px flex-1 bg-line" />
+                  or
+                  <span className="h-px flex-1 bg-line" />
+                </div>
+                {slots.google !== "hide" && (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className={showGoogle ? "w-full" : "invisible w-full"}
+                    aria-hidden={showGoogle ? undefined : true}
+                    tabIndex={showGoogle ? undefined : -1}
+                    disabled={busy || !showGoogle}
+                    onClick={() => void signInWithGoogle()}
+                  >
+                    <GoogleIcon />
+                    Continue with Google
+                  </Button>
+                )}
+                {slots.passkey !== "hide" && (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className={showPasskey ? "w-full" : "invisible w-full"}
+                    aria-hidden={showPasskey ? undefined : true}
+                    tabIndex={showPasskey ? undefined : -1}
+                    disabled={busy || !showPasskey}
+                    onClick={() => void signInWithPasskey()}
+                  >
+                    <KeyIcon />
+                    Use a passkey
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
+          {/* Always in the page, so screen readers hear each new notice or error. */}
+          <p
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+            className="mt-3 min-h-5 text-center text-sm text-muted"
+            data-testid="signin-notice"
+          >
+            {notice ?? ""}
+          </p>
+          {!sent && (
+            <p className="text-center text-sm text-muted">Forecourt staff sign in here too.</p>
+          )}
+        </div>
+        <nav aria-label="Legal" className="mt-4 flex justify-center gap-2 text-sm text-muted">
+          <Link to="/privacy" className="inline-flex min-h-11 items-center px-2 hover:text-fg">
+            Privacy
+          </Link>
+          <Link to="/terms" className="inline-flex min-h-11 items-center px-2 hover:text-fg">
+            Terms
+          </Link>
+          <Link to="/contact" className="inline-flex min-h-11 items-center px-2 hover:text-fg">
+            Help
+          </Link>
+        </nav>
       </div>
     </main>
   );

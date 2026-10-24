@@ -4,7 +4,6 @@ import { PillRow } from "@/components/ui/pill-row";
 import { useReportAccountSection } from "@/components/account/section-context";
 import { Link } from "@tanstack/react-router";
 import { OrderBuild } from "@/components/build/order-desk";
-import { SeatMatrix } from "@/components/trust/seat-matrix";
 import { Button } from "@/components/ui/button";
 import {
   PLANS,
@@ -18,6 +17,7 @@ import {
   type PlanId,
 } from "@/lib/catalog";
 import { rolesForPlan } from "@/lib/roles";
+import { RolesCard } from "@/components/account/roles-card";
 import {
   addNote,
   listMessages,
@@ -154,6 +154,7 @@ export function DealerPortal({
       <div className="mt-6">
         {tab === "overview" && (
           <Overview
+            token={token}
             tenant={tenant}
             plan={plan}
             billing={billing}
@@ -239,6 +240,7 @@ function nextStep(
 }
 
 function Overview({
+  token,
   tenant,
   plan,
   days,
@@ -249,6 +251,7 @@ function Overview({
   onNewPackage,
   go,
 }: {
+  token: string;
   tenant: Tenant;
   plan: PlanId;
   days: number | null;
@@ -439,25 +442,17 @@ function Overview({
         </Section>
       ) : null}
 
-      <Section title="Roles" eyebrow="On the desk" rail="slate" testId="roles-card">
-        <p className="text-sm text-muted">
-          {tenant.domain || "Your web address is set when we go live."} Administrator is a desk
-          role, not the Forecourt team.
-        </p>
-        <div className="mt-4">
-          <SeatMatrix plan={plan} billing={billing} compact />
-        </div>
-        <div className="mt-4 flex flex-wrap items-center gap-2">
-          <Button variant="secondary" className="min-h-11" asChild>
-            <Link to="/how">How we set it up</Link>
+      <RolesCard token={token} tenantId={tenant.id} plan={plan} billing={billing} staffJson={tenant.staff_json} onInvite={() => go("people")} />
+      <div className="flex flex-wrap items-center gap-2">
+        <Button variant="secondary" className="min-h-11" asChild>
+          <Link to="/how">How we set it up</Link>
+        </Button>
+        {onNewPackage ? (
+          <Button variant="ghost" className="min-h-11" onClick={onNewPackage}>
+            Start another package
           </Button>
-          {onNewPackage ? (
-            <Button variant="ghost" className="min-h-11" onClick={onNewPackage}>
-              Start another package
-            </Button>
-          ) : null}
-        </div>
-      </Section>
+        ) : null}
+      </div>
     </SectionStack>
   );
 }
@@ -759,7 +754,7 @@ function People({
     <div className="rounded-[1.75rem] border border-line bg-surface p-6 sm:p-8">
       <h2 className="text-2xl font-semibold tracking-tight">Who should we set up on your desk?</h2>
       <p className="mt-2 text-sm text-muted">
-        Names help us set up logins. Role is the seat, not the job title.
+        Names help us set up logins. The role is what they can do, not their job title.
       </p>
       <label className="mt-6 block text-sm">
         Dealer principal
