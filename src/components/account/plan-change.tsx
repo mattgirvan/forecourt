@@ -110,7 +110,7 @@ export function changeHint(q: PlanChangeQuote): string {
     return `${LABEL[q.to]} starts as soon as the setup payment goes through. Adding more sites later never has a setup fee.`;
   if (q.direction === "downgrade")
     return q.effective === "period_end"
-      ? "You keep your current price until the end of the billing period. No setup refund, and no refund for part months."
+      ? `Your account moves to ${LABEL[q.to]} when the team applies your change. You keep your current price until the end of the billing period. No setup refund, and no refund for part months.`
       : "No setup refund. The difference for the rest of this month comes off your next bill.";
   return "";
 }

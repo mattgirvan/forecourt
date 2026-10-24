@@ -607,7 +607,7 @@ export function LiveView({
 
           {migration?.open ? (
             <div className="mt-6">
-              <MigrationTracker tracker={migration} />
+              <MigrationTracker tracker={migration} pay={manager ? undefined : { token, tenantId: tenant.id }} />
             </div>
           ) : null}
 

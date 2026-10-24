@@ -160,7 +160,7 @@ test("office cannot mark go live by hand on flow rows, and next stage follows th
 
 test("request status words", () => {
   assert.equal(requestStatusLabel(trackerFor(flowRow("site", "group", "up", 300000, 150000, { status: "pending_payment" }))!), "Waiting for payment");
-  assert.equal(requestStatusLabel(trackerFor(flowRow("franchise", "site", "down", 0, 39900, { status: "scheduled" }))!), "Booked for period end");
+  assert.equal(requestStatusLabel(trackerFor(flowRow("franchise", "site", "down", 0, 39900, { status: "scheduled" }))!), "With the Forecourt team");
   assert.equal(requestStatusLabel(trackerFor(flowRow("site", "franchise", "up", 200000, 89900, { go_live_at: "2026-10-24T12:00:00Z", migration_stage: "switched" }))!), "Live, finishing setup");
 });
 

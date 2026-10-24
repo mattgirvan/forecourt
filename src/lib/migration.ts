@@ -333,7 +333,6 @@ export function requestStatusLabel(t: Pick<Tracker, "status" | "stage" | "open" 
   if (t.cancelled) return "Cancelled";
   if (!t.open) return "Complete";
   if (t.status === "pending_payment") return "Waiting for payment";
-  if (t.status === "scheduled") return "Booked for period end";
   if (t.goLiveAt || t.status === "applied") return "Live, finishing setup";
   return "With the Forecourt team";
 }

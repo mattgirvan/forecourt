@@ -1,4 +1,6 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
+import { Button } from "@/components/ui/button";
+import { resumePlanChangePayment } from "@/lib/server/plan-change-server";
 import { Chip } from "@/components/ui/chip";
 import { PLANS } from "@/lib/catalog";
 import { ukDay } from "@/lib/plan-change";
@@ -20,10 +22,13 @@ export function MigrationTracker({
   tracker,
   office = false,
   actions,
+  pay,
 }: {
   tracker: Tracker;
   office?: boolean;
   actions?: ReactNode;
+  /** Account side, owner only: shows Pay under the payment step while it is due. */
+  pay?: { token: string; tenantId: number };
 }) {
   const done = tracker.steps.filter((s) => s.state === "done").length;
   return (
@@ -63,6 +68,9 @@ export function MigrationTracker({
                   ? ` From ${ukDay(tracker.effectiveAt)}.`
                   : ""}
               </span>
+              {!office && pay && s.stage === "paid" && s.state === "now" && tracker.status === "pending_payment" && tracker.setupDiffPence ? (
+                <PayButton pay={pay} changeId={tracker.id} amountPence={tracker.setupDiffPence} />
+              ) : null}
               {office && s.state === "now" ? (
                 <span className="mt-0.5 block text-[11px] text-subtle">
                   {whoMoves(s.by, s.stage, tracker)}
@@ -112,6 +120,8 @@ export function RequestCard({ tracker }: { tracker: Tracker }) {
     ["Move", `${PLANS[tracker.from].name} to ${PLANS[tracker.to].name}`],
     ["Setup difference", tracker.setupDiffPence ? `${gbp(tracker.setupDiffPence)} inc. VAT, one-off` : "None"],
   ];
+  // Drops and equal swaps: the plan switches when the team applies it, only the price waits.
+  if (!tracker.rise) rows.push(["Plan switches", tracker.goLiveAt ? ukDay(tracker.goLiveAt) : "When the team applies your change"]);
   if (tracker.newMonthlyPence != null) rows.push(["New price", `${gbp(tracker.newMonthlyPence)} a month inc. VAT`]);
   rows.push(["Price starts", starts], ["Status", requestStatusLabel(tracker)]);
   return (
@@ -126,3 +136,36 @@ export function RequestCard({ tracker }: { tracker: Tracker }) {
   );
 }
 
+
+/** Neutral 44px button that reopens Stripe Checkout for the setup difference. Errors stay on screen. */
+function PayButton({ pay, changeId, amountPence }: { pay: { token: string; tenantId: number }; changeId: number; amountPence: number }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  async function go() {
+    setBusy(true);
+    setError(null);
+    try {
+      const r = await resumePlanChangePayment({ data: { token: pay.token, tenantId: pay.tenantId, changeId } });
+      if (r.ok && r.url) {
+        window.location.assign(r.url);
+        return;
+      }
+      setError(r.message || "Could not open the payment page. Try again in a minute.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not open the payment page. Try again in a minute.");
+    }
+    setBusy(false);
+  }
+  return (
+    <span className="mt-2 block">
+      <Button type="button" variant="secondary" disabled={busy} onClick={() => void go()}>
+        {busy ? "Opening payment…" : `Pay ${gbp(amountPence)}`}
+      </Button>
+      {error ? (
+        <span role="alert" className="mt-2 block rounded-lg border border-bad/30 bg-bad/10 px-3 py-2 text-[12px] text-bad">
+          {error}
+        </span>
+      ) : null}
+    </span>
+  );
+}
