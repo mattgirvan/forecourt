@@ -32,6 +32,9 @@ import {
   type SupportStatus,
 } from "@/lib/live-view";
 import { cn } from "@/lib/utils";
+import { MigrationPill, MigrationTracker } from "@/components/account/migration-tracker";
+import { getMigration } from "@/lib/server/migration-server";
+import { accountStatusLabel, downgradePrice, type Tracker } from "@/lib/migration";
 import { inviteManager, listAccountMembers, removeAccountMember, type AccountMember } from "@/lib/server/members";
 
 export type LiveTenant = {
@@ -41,6 +44,7 @@ export type LiveTenant = {
   billing?: string | null;
   principal_name?: string | null;
   staff_json?: string;
+  site_count?: number | null;
 };
 
 const SETUP_STEPS = [
@@ -354,6 +358,7 @@ export type LiveViewData = {
   bill: BillingSummary;
   support: { ready: boolean; items: SupportItem[] };
   members?: { ready: boolean; members: AccountMember[] };
+  migration?: Tracker | null;
 };
 export type LiveRole = "owner" | "manager";
 
@@ -369,6 +374,7 @@ export function LiveView({ token, tenant, initial, role = "owner" }: { token: st
   const [toast, setToast] = useState<string | null>(null);
   const [portalBusy, setPortalBusy] = useState(false);
   const [portalErr, setPortalErr] = useState<string | null>(null);
+  const [migration, setMigration] = useState<Tracker | null>(initial?.migration ?? null);
 
   const loadSupport = () =>
     void listSupport({ data: { token, tenantId: tenant.id } })
@@ -378,6 +384,7 @@ export function LiveView({ token, tenant, initial, role = "owner" }: { token: st
     if (initial) return;
     void liveSiteDetails({ data: { token, tenantId: tenant.id } }).then(setSite).catch(() => setSite(null));
     void liveBillingSummary({ data: { token, tenantId: tenant.id } }).then(setBill).catch(() => setBill(null));
+    void getMigration({ data: { token, tenantId: tenant.id } }).then(setMigration).catch(() => setMigration(null));
     loadSupport();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, tenant.id]);
@@ -399,15 +406,17 @@ export function LiveView({ token, tenant, initial, role = "owner" }: { token: st
     }
   }
 
-  const monthly = bill?.monthlyPence ?? null;
+  // Open downgrade: keep the current price until the period end, hint the new one (Atlas QA).
+  const pending = bill ? downgradePrice(migration, bill, tenant.site_count ?? 1) : null;
+  const monthly = pending ? pending.currentPence : (bill?.monthlyPence ?? null);
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
       <p className="text-[13px] font-medium text-muted">Your account</p>
       <div className="mt-2 flex flex-wrap items-center gap-3">
         <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">{tenant.name || "Your dealership"}</h1>
-        {/* Always Live once live. Never changes with payment (Matt). */}
-        <Pill status="done" label="Live" />
+        {/* Live once live, never changed by payment (Matt). Migration only while an account type change is open. */}
+        {accountStatusLabel(migration) === "Migration" ? <MigrationPill tracker={migration} /> : <Pill status="done" label="Live" />}
       </div>
       {manager ? <p className="mt-3 text-sm text-muted">{MANAGER_COPY}</p> : null}
       <p className="mt-3 text-sm text-muted">
@@ -426,6 +435,12 @@ export function LiveView({ token, tenant, initial, role = "owner" }: { token: st
               Manage billing
             </Button>
           )}
+        </div>
+      ) : null}
+
+      {migration?.open ? (
+        <div className="mt-6">
+          <MigrationTracker tracker={migration} />
         </div>
       ) : null}
 
@@ -472,7 +487,16 @@ export function LiveView({ token, tenant, initial, role = "owner" }: { token: st
         <section className={cn(card)}>
           <CardHead eyebrowText="Plan and billing" titleText={bill?.planName ?? `Forecourt ${PLANS[plan].name}`} />
           <div className="mt-4">
-            <Row k="Price">{bill ? (monthly ? `${gbpPence(monthly)} a month` : "") : <span className="text-subtle">Checking...</span>}</Row>
+            <Row k="Price">
+              {bill ? (
+                <>
+                  {monthly ? `${gbpPence(monthly)} a month` : ""}
+                  {pending ? <span className="mt-0.5 block text-xs text-subtle">{pending.hint}</span> : null}
+                </>
+              ) : (
+                <span className="text-subtle">Checking...</span>
+              )}
+            </Row>
             <Row k="Next payment">
               {!bill ? (
                 <span className="text-subtle">Checking...</span>

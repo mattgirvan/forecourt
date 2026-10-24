@@ -12,7 +12,8 @@ import { SITE } from "@/lib/site";
 import { planChangeDryRunMessage, quotePlanChange, type PlanChangeQuote } from "@/lib/plan-change";
 import { applyPlanChange, planChangeMessage, upgradeCheckoutParams, type PlanChangeDeps } from "@/lib/server/plan-change-sync";
 import { siteBillingModeFrom, type SiteSubLike } from "@/lib/server/site-billing-sync";
-import { planChangedEvent } from "@/lib/account-events";
+import { migrationEvent, planChangedEvent } from "@/lib/account-events";
+import { readMigration, setMigrationStage } from "@/lib/server/migration-store";
 import { sendAccountEventEmail } from "@/lib/server/journey-email";
 import { actor, planChangeSyncFlag, sbAdmin, stripeSecret } from "@/lib/server/staff-actor";
 
@@ -142,6 +143,11 @@ export const requestPlanChange = createServerFn({ method: "POST" })
         { idempotencyKey: `plan-change-checkout:${ins.id}` },
       );
       await admin.from("plan_changes").update({ checkout_session_id: session.id }).eq("id", ins.id);
+      // Migration tracker (PR 8): open at "requested" and email the admin and hello@.
+      const mig = await readMigration(admin, ins.id as number);
+      if (mig && (await setMigrationStage(admin, mig, "requested"))) {
+        await sendAccountEventEmail({ tenantId: t.id, ...migrationEvent({ changeId: mig.id, from: q.from, to: q.to, stage: "requested", upgrade: true, setupDiffPence: q.setupDiffPence }) });
+      }
       return { message: "Pay the setup difference to switch plan.", url: session.url, mode };
     }
     const result = await applyPlanChange(planChangeDeps(stripe), {
@@ -153,9 +159,21 @@ export const requestPlanChange = createServerFn({ method: "POST" })
     });
     const message = planChangeMessage(result, q.from, q.to);
     const ok = result.applied || result.reason === "no_subscription";
-    await admin.from("plan_changes").insert({ ...row, status: ok ? (q.effective === "period_end" ? "scheduled" : "applied") : "failed", message, applied_at: ok ? new Date().toISOString() : null });
+    const { data: dn } = await admin
+      .from("plan_changes")
+      .insert({ ...row, status: ok ? (q.effective === "period_end" ? "scheduled" : "applied") : "failed", message, applied_at: ok ? new Date().toISOString() : null })
+      .select("id")
+      .single();
     if (ok) {
+      // Matt: on a downgrade the plan name changes now, the price at period end.
       await admin.from("tenants").update({ plan: q.to }).eq("id", t.id);
+      // Migration tracker (PR 8): requested and switched now, the price step waits for the period end.
+      const mig = dn?.id ? await readMigration(admin, dn.id as number) : null;
+      if (mig && (await setMigrationStage(admin, mig, "switched", { effective_at: q.periodEnd ? new Date(q.periodEnd).toISOString() : null }))) {
+        await sendAccountEventEmail({ tenantId: t.id, ...migrationEvent({ changeId: mig.id, from: q.from, to: q.to, stage: "requested", upgrade: false, periodEnd: q.periodEnd ? new Date(q.periodEnd).toISOString() : null }) });
+        await note(admin, t.id, "Account type changed", message, actorEmail);
+        return { message, url: null as string | null, mode };
+      }
       const when = q.effective === "period_end" ? (q.periodEnd ? `from ${new Date(q.periodEnd).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/London" })}` : "from your next bill") : "pro-rated on your next bill";
       await sendAccountEventEmail({ tenantId: t.id, ...planChangedEvent({ tenantId: t.id, changeKey: `${t.id}:${q.from}-${q.to}:${new Date().toISOString().slice(0, 10)}`, from: q.from, to: q.to, newMonthlyPence: q.newMonthlyPence, when }) });
     }
@@ -209,6 +227,12 @@ export async function completePaidPlanChange(
   await sb.from("tenants").update({ plan: to }).eq("id", tenantId);
   await sb.from("plan_changes").update({ status: "applied", message, applied_at: new Date().toISOString(), checkout_session_id: session.id }).eq("id", changeId);
   await note(sb, tenantId, "Account type changed", `Setup difference paid. ${message}`, "stripe");
+  // Migration tracker (PR 8): paid and switched together. Falls back to the PR 5 email without the SQL.
+  const mig = await readMigration(sb, changeId);
+  if (mig && (await setMigrationStage(sb, mig, "switched"))) {
+    await sendAccountEventEmail({ tenantId, ...migrationEvent({ changeId, from, to, stage: "paid", upgrade: true, newMonthlyPence: Number(pc.new_monthly_pence) || 0 }) });
+    return { status: 200, body: "plan change applied" };
+  }
   await sendAccountEventEmail({ tenantId, ...planChangedEvent({ tenantId, changeKey: `paid:${changeId}`, from, to, newMonthlyPence: Number(pc.new_monthly_pence) || 0, when: "pro-rated on your next bill" }) });
   return { status: 200, body: "plan change applied" };
 }
