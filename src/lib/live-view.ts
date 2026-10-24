@@ -39,6 +39,16 @@ export const CHANGE_TYPES: readonly { id: ChangeType; label: string; hint: strin
   { id: "other", label: "Other", hint: "Anything else" },
 ];
 
+/**
+ * Type label for a ticket row. Anything that is not a ticket or a change
+ * request reads "Question", never "Other" (slice 11 tweak).
+ */
+export function itemTypeLabel(i: { kind: string; ref: number; change_type: string | null }) {
+  if (i.kind === "ticket") return `Ticket ${ticketRef(i.ref)}`;
+  if (i.kind === "change") return changeTypeLabel(i.change_type);
+  return "Question";
+}
+
 export function changeTypeLabel(t: string | null | undefined) {
   // Opened by the plan change flow, never picked by a customer.
   if (t === "plan_change") return "Plan change";

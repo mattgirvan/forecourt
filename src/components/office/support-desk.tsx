@@ -6,7 +6,7 @@ import { ThreadDrawer, Pill } from "@/components/account/live-view";
 import { listSupport, listSupportQueue, setSupportStatus, type SupportItem } from "@/lib/server/live-view";
 import { PlanChangeTicketActions } from "@/components/office/plan-change-ticket";
 import type { PlanChangeTicketView } from "@/lib/server/plan-change-staff";
-import { STATUS_LABEL, changeTypeLabel, isOpenStatus, lastLine, ticketRef, updatedWhen, type SupportStatus } from "@/lib/live-view";
+import { STATUS_LABEL, isOpenStatus, itemTypeLabel, lastLine, updatedWhen, type SupportStatus } from "@/lib/live-view";
 
 const TICKET_STATUSES: SupportStatus[] = ["open", "in_progress", "resolved"];
 const CHANGE_STATUSES: SupportStatus[] = ["submitted", "in_progress", "done", "declined"];
@@ -58,7 +58,7 @@ function Table({ token, items, onChanged, showDealer, onOpen }: { token: string;
               <span className="fc-row-title block whitespace-normal">{i.title}</span>
               <span className="fc-row-sub block">
                 {showDealer ? `${i.tenant_name || `#${i.tenant_id}`}, ` : ""}
-                {i.kind === "ticket" ? `Ticket ${ticketRef(i.ref)}` : changeTypeLabel(i.change_type)}, {updatedWhen(i.updated_at)}
+                {itemTypeLabel(i)}, {updatedWhen(i.updated_at)}
               </span>
               {lastLine(i) ? (
                 <span className="fc-row-preview block truncate text-[13px] text-muted" data-testid="ticket-preview">
@@ -90,7 +90,7 @@ function Table({ token, items, onChanged, showDealer, onOpen }: { token: string;
           {items.map((i) => (
             <tr key={i.id} className="cursor-pointer border-b border-line last:border-0 hover:bg-elevated/50" onClick={() => onOpen(i)}>
               {showDealer ? <td className="px-4 py-3">{i.tenant_name || `#${i.tenant_id}`}</td> : null}
-              <td className="w-[150px] px-4 py-3 text-muted">{i.kind === "ticket" ? `Ticket ${ticketRef(i.ref)}` : changeTypeLabel(i.change_type)}</td>
+              <td className="w-[150px] px-4 py-3 text-muted">{itemTypeLabel(i)}</td>
               <td className="max-w-0 px-4 py-3">
                 <div className="truncate font-medium">{i.title}</div>
                 {lastLine(i) ? (

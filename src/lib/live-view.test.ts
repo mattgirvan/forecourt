@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { addMonths, cardLabel, siteDetails, statusTone, validStatus, isOpenStatus, STATUS_LABEL, CHANGE_TYPES, updatedWhen, ukDate, lastLine } from "./live-view.ts";
+import { addMonths, cardLabel, siteDetails, statusTone, validStatus, isOpenStatus, STATUS_LABEL, CHANGE_TYPES, updatedWhen, ukDate, lastLine, itemTypeLabel } from "./live-view.ts";
 
 test("term end is go live plus contract months, clamped to month end", () => {
   assert.equal(addMonths("2026-09-14T10:00:00.000Z", 12).slice(0, 10), "2027-09-14");
@@ -52,4 +52,10 @@ test("ticket row preview is the latest message on one line, else the details", (
   assert.equal(lastLine({ details: "Opening\nnote", last_line: null, messages: [] }), "Opening note");
   assert.equal(lastLine({ details: "Opening", last_line: "Latest   reply", messages: [] }), "Latest reply");
   assert.equal(lastLine({ details: "" }), "");
+});
+
+test("question tickets read Question, never Other", () => {
+  assert.equal(itemTypeLabel({ kind: "question", ref: 1038, change_type: null }), "Question");
+  assert.equal(itemTypeLabel({ kind: "ticket", ref: 1038, change_type: null }), "Ticket T-1038");
+  assert.equal(itemTypeLabel({ kind: "change", ref: 1, change_type: "plan_change" }), "Plan change");
 });
