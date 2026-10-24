@@ -151,9 +151,12 @@ export function planChangeDryRunMessage(q: PlanChangeQuote, now: Date = new Date
  * What the server says happened after "Move to" or "Pay". The panel always
  * shows one of these, so a confirm can never end in silence.
  */
-export type PlanChangeOutcome = "applied" | "scheduled" | "checkout" | "recorded" | "unchanged" | "failed";
-export type PlanChangeTone = "success" | "pending" | "error";
-export type PlanChangeFeedback = { tone: PlanChangeTone; title: string; body: string };
+export type PlanChangeOutcome = "applied" | "scheduled" | "checkout" | "recorded" | "unchanged" | "in_progress" | "failed";
+export type PlanChangeTone = "success" | "pending" | "info" | "error";
+export type PlanChangeFeedback = { tone: PlanChangeTone; title: string; body: string; link?: { word: string; href: string } };
+
+/** Where "Plan" in the in progress message points: the customer tracker. */
+export const PLAN_TRACKER_HREF = "#plan-change-tracker";
 
 const PLAN_NAME: Record<PlanId, string> = { site: "Site", franchise: "Franchise", group: "Group" };
 
@@ -178,6 +181,7 @@ const TITLES: Record<PlanChangeOutcome, (to: string) => string> = {
   checkout: () => "Opening the setup payment",
   recorded: () => "Request recorded, we will apply it",
   unchanged: (to) => `Already on ${to}`,
+  in_progress: () => "Plan change in progress",
   failed: () => "Plan not changed",
 };
 
@@ -187,6 +191,7 @@ const TONE: Record<PlanChangeOutcome, PlanChangeTone> = {
   checkout: "pending",
   recorded: "pending",
   unchanged: "pending",
+  in_progress: "info",
   failed: "error",
 };
 
@@ -210,7 +215,9 @@ export function planChangeFeedback(
   }
   const fallback =
     r.outcome === "failed" ? PLAN_CHANGE_NOT_RECORDED : r.outcome === "checkout" ? "Taking you to the secure payment page." : "";
-  return { tone: TONE[r.outcome], title: TITLES[r.outcome](name), body: body || fallback };
+  const fb: PlanChangeFeedback = { tone: TONE[r.outcome], title: TITLES[r.outcome](name), body: body || fallback };
+  if (r.outcome === "in_progress" && /\bPlan\b/.test(fb.body)) fb.link = { word: "Plan", href: PLAN_TRACKER_HREF };
+  return fb;
 }
 
 /** A thrown error (network, server) as a message, never a silent close. */

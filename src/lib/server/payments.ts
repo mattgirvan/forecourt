@@ -441,6 +441,8 @@ export type WebhookDeps = {
   planChange?: (session: CheckoutSessionLike) => Promise<WebhookResult>;
   /** customer.subscription.updated: lands a booked plan change when its schedule fires. */
   planSchedule?: (subscriptionId: string) => Promise<WebhookResult>;
+  /** checkout.session.expired / async_payment_failed for a plan change: cancel the request. */
+  planChangeExpired?: (session: CheckoutSessionLike) => Promise<WebhookResult>;
 };
 
 export type WebhookResult = { status: number; body: string };
@@ -476,6 +478,9 @@ export async function handleStripeWebhook(
     event.type === "checkout.session.async_payment_succeeded" ||
     event.type === "customer.subscription.deleted" ||
     (event.type === "customer.subscription.updated" && !!deps.planSchedule) ||
+    ((event.type === "checkout.session.expired" || event.type === "checkout.session.async_payment_failed") &&
+      (event.data.object as { metadata?: Record<string, string> | null }).metadata?.kind === "plan_change" &&
+      !!deps.planChangeExpired) ||
     isInvoiceEvent(event.type);
   if (!handled) return { status: 200, body: "ignored" };
 
@@ -498,6 +503,9 @@ export async function handleStripeWebhook(
         event.type,
         event.data.object as unknown as InvoiceLike,
       );
+    }
+    if ((event.type === "checkout.session.expired" || event.type === "checkout.session.async_payment_failed") && deps.planChangeExpired) {
+      return await deps.planChangeExpired(event.data.object as unknown as CheckoutSessionLike);
     }
     if (event.type === "customer.subscription.updated") {
       const id = (event.data.object as { id?: string }).id;

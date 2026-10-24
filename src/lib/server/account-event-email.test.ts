@@ -88,7 +88,8 @@ const src = (p: string) => readFileSync(new URL(`../../../${p}`, import.meta.url
 test("every event is wired to sendAccountEventEmail, and existing customer emails copy hello@", () => {
   assert.match(src("src/lib/server/site-billing-server.ts"), /siteArchivedEvent\(\{[\s\S]*sendAccountEventEmail/);
   assert.match(src("src/lib/server/billing-go-live.ts"), /sendAccountEventEmail\(\{ tenantId, \.\.\.monthlyStartedEvent/);
-  assert.equal(src("src/lib/server/plan-change-server.ts").match(/planChangedEvent\(/g)?.length, 2);
+  // PR 3: a paid setup difference no longer switches the plan, so only the direct path sends planChanged.
+  assert.equal(src("src/lib/server/plan-change-server.ts").match(/planChangedEvent\(/g)?.length, 1);
   const m = src("src/lib/server/members.ts");
   assert.match(m, /managerAddedEvent\(/);
   assert.match(m, /managerRemovedEvent\(/);

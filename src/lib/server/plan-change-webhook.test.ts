@@ -31,3 +31,15 @@ test("subscription updated goes to the booked plan change handler when wired, ig
   assert.deepEqual(seen, ["sub_1"]);
   assert.deepEqual(await handleStripeWebhook({ ...deps(), constructEvent: () => ev as never }, "{}", "sig"), { status: 200, body: "ignored" });
 });
+
+test("expired or failed plan change Checkout goes to the expiry handler; other expiries are ignored", async () => {
+  const seen: string[] = [];
+  const planChangeExpired: WebhookDeps["planChangeExpired"] = async (s) => { seen.push(s.id); return { status: 200, body: "plan change cancelled" }; };
+  for (const type of ["checkout.session.expired", "checkout.session.async_payment_failed"]) {
+    const ev = { id: "evt_3", type, data: { object: { id: "cs_9", metadata: { kind: "plan_change", tenant_id: "4", change_id: "9" } } } };
+    assert.deepEqual(await handleStripeWebhook({ ...deps(), constructEvent: () => ev as never, planChangeExpired }, "{}", "sig"), { status: 200, body: "plan change cancelled" });
+  }
+  assert.deepEqual(seen, ["cs_9", "cs_9"]);
+  const order = { id: "evt_4", type: "checkout.session.expired", data: { object: { id: "cs_o", metadata: { order_id: "1" } } } };
+  assert.deepEqual(await handleStripeWebhook({ ...deps(), constructEvent: () => order as never, planChangeExpired }, "{}", "sig"), { status: 200, body: "ignored" });
+});
