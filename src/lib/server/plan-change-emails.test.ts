@@ -36,7 +36,7 @@ test("UK dates", () => {
   const e = planChangeEmail({ ...base, stage: "scheduled", periodEnd: "2026-11-30T00:00:00Z" });
   assert.match(e.lines.join(" "), /on 30 Nov 2026/);
   const a = planChangeEmail({ ...base, stage: "applied", goLiveAt: "2026-10-24T13:00:00Z" });
-  assert.match(a.lines[1], /^From the day your change goes live, 24 Oct 2026, your new price is £899 a month \(inc\. VAT\)/);
+  assert.equal(a.lines[1], "Your new price of £899 a month (inc. VAT) started on 24 Oct 2026, the day your change went live. The part month is added to your next bill.");
 });
 
 test("receipt links the Checkout invoice and shows the setup difference", () => {
@@ -46,6 +46,9 @@ test("receipt links the Checkout invoice and shows the setup difference", () => 
   const html = accountEventEmail({ firstName: "Matt", dealer: "Skoda Aberdeen", title: e.title, lines: e.lines, accountUrl: "https://www.forecourt.me/account", link: e.link }).html;
   assert.match(html, /invoice\.stripe\.com\/i\/x/);
   assert.match(html, /View your invoice/);
+  assert.doesNotMatch(html, /#d9a24b/i, "no amber button");
+  const subj = accountEventEmail({ firstName: null, dealer: "Skoda Aberdeen", title: e.title, lines: e.lines, accountUrl: "https://x" }).subject;
+  assert.equal(subj, "Forecourt: Payment received for your plan change");
   assert.equal(planChangeEmail({ ...base, stage: "receipt" }).link, undefined);
 });
 
@@ -55,6 +58,8 @@ test("received: a drop names the period end, a £0 request does not", () => {
   const zero = planChangeEmail({ ...base, stage: "received" });
   assert.match(zero.lines[1], /nothing to pay/i);
   assert.doesNotMatch(zero.lines[1], /billing period/);
+  assert.equal(zero.lines[2], "Your new price of £899 a month (inc. VAT) starts from the day your change goes live. The part month is added to your next bill.");
+  assert.equal(drop.lines.length, 3);
 });
 
 test("rejected: refunded or nothing charged", () => {

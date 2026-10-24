@@ -55,6 +55,7 @@ export function planChangeEmail(d: PlanChangeEmailInput): PlanChangeEmail {
         d.atPeriodEnd
           ? `There is nothing to pay. Your new price${monthly ? ` of ${monthly}` : ""} starts at the end of this billing period${endDay}. Until then you pay your current price.`
           : "There is nothing to pay. We will set up your change and email you on the day it goes live.",
+        ...(!d.atPeriodEnd && monthly ? [`Your new price of ${monthly} starts from the day your change goes live. The part month is added to your next bill.`] : []),
         track,
       ];
       break;
@@ -71,7 +72,7 @@ export function planChangeEmail(d: PlanChangeEmailInput): PlanChangeEmail {
       title = `Your move to ${to} is live`;
       lines = [
         `Your move from ${from} to ${to} is done. Your account is now on ${to}.`,
-        `From the day your change goes live${d.goLiveAt ? `, ${ukDate(d.goLiveAt)}` : ""}, your new price is ${monthly ?? "the " + to + " price"}. The part month is added to your next bill.`,
+        `Your new price${monthly ? ` of ${monthly}` : ""} started ${d.goLiveAt ? `on ${ukDate(d.goLiveAt)}, ` : ""}the day your change went live. The part month is added to your next bill.`,
       ];
       break;
     case "scheduled":

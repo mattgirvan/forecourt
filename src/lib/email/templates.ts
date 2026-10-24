@@ -891,7 +891,8 @@ export type AccountEventData = { firstName: string | null; dealer: string; title
 /** A confirmation that something changed on the account (sites, plan, billing, access). */
 export function accountEventEmail(d: AccountEventData): RenderedEmail {
   const first = (d.firstName ?? "").trim().split(/\s+/)[0] ?? "";
-  const subject = `${d.dealer}: ${d.title}`;
+  // Forecourt sends these, so the subject carries our brand, never the dealer or a city (#78).
+  const subject = `Forecourt: ${d.title}`;
   const preheader = d.lines[0] ?? d.title;
   const hello = first ? `Hi ${first},` : "Hi,";
   const reason = `You are getting this because you are the admin on the ${d.dealer} Forecourt account.`;
@@ -904,7 +905,7 @@ ${row(`${h1(d.title)}
   ${d.lines.map((l) => p(esc(l))).join("\n  ")}
   ${p(esc("If this was not expected, reply to this email."))}
   <div style="height:20px;line-height:20px;font-size:0;">&nbsp;</div>
-  ${extra ? buttonsRow(primaryButton(extra.url, extra.label), ghostButton(d.accountUrl, "Open your account")) : buttonsRow(primaryButton(d.accountUrl, "Open your account"))}`, 0)}
+  ${extra ? buttonsRow(ghostButton(extra.url, extra.label), ghostButton(d.accountUrl, "Open your account")) : buttonsRow(primaryButton(d.accountUrl, "Open your account"))}`, 0)}
 ${row(contactCard(), 16)}
 ${signoff("Thanks,")}
 ${footer(reason, false)}`;
