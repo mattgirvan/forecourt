@@ -3178,6 +3178,41 @@
   .fc-collapse-chevron { transition: none; }
 }
 
+/* Plan change result: always shown after a confirm. Green only for done. */
+.fc-pc-feedback {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 14px 16px;
+  min-height: 44px;
+  border: 1px solid var(--fc-row-border);
+  border-radius: var(--fc-r-lg);
+  background: var(--fc-panel);
+  scroll-margin: 96px 0 120px;
+  outline: none;
+}
+.fc-pc-feedback:focus-visible {
+  box-shadow: 0 0 0 2px var(--fc-text-dim);
+}
+.fc-pc-feedback-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin-top: 6px;
+  border-radius: 999px;
+  background: var(--fc-text-faint);
+}
+.fc-pc-feedback.is-success {
+  border-color: rgba(92, 194, 124, 0.4);
+  background: var(--fc-live-tint);
+}
+.fc-pc-feedback.is-success .fc-pc-feedback-dot {
+  background: var(--fc-live);
+}
+.fc-pc-feedback.is-error .fc-pc-feedback-dot {
+  background: var(--fc-text);
+}
+
 /* Redesign 8: confirm sheets (replace the browser confirm box) */
 .fc-confirm-wrap {
   position: fixed;
@@ -3255,4 +3290,11 @@
   .fc-confirm-sheet {
     animation: fc-fade-in 120ms linear both;
   }
+}
+/* "What changes" rows: the price move line wraps instead of cutting off. */
+.fc-change-sheet .fc-row-title:has(.fc-change-label),
+.fc-change-label {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
 }
