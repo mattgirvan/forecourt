@@ -12,6 +12,7 @@ import {
   FRANCHISE_BASE_PENCE,
   GROUP_SITE_PENCE,
   franchiseExtraSites,
+  groupQuantity,
   liveSiteCount,
   paidSlotsThisPeriod,
   prorationFor,
@@ -26,6 +27,7 @@ export type SubItemLike = {
   quantity?: number | null;
   metadata?: Record<string, string> | null;
   current_period_start?: number | null;
+  current_period_end?: number | null;
   price?: { unit_amount?: number | null; product?: string | { id: string } | null; recurring?: unknown } | null;
 };
 export type SiteSubLike = {
@@ -34,6 +36,7 @@ export type SiteSubLike = {
   cancel_at_period_end?: boolean | null;
   cancel_at?: number | null;
   current_period_start?: number | null;
+  current_period_end?: number | null;
   items: { data: SubItemLike[] };
 };
 export type ItemChange =
@@ -56,7 +59,7 @@ export type SiteSubsLike = {
 export type SiteEvent = { code: string; from: SiteStatus | null; to: SiteStatus };
 
 export type SiteSyncResult =
-  | { changed: true; line: LineKey; from: number; to: number; proration: "create_prorations" | "none"; idempotencyKey: string }
+  | { changed: true; line: LineKey; from: number; to: number; proration: "create_prorations" | "none"; idempotencyKey: string; periodEnd?: string | null }
   | {
       changed: false;
       reason:
@@ -96,6 +99,11 @@ function findItem(items: SubItemLike[], key: LineKey, unitPence: number): SubIte
   const byPrice = items.filter((i) => !lineOf(i) && i.price?.unit_amount === unitPence && i.price?.recurring);
   if (byPrice.length === 1) return byPrice[0];
   return byPrice.length ? "ambiguous" : null;
+}
+
+function periodEndIso(sub: SiteSubLike): string | null {
+  const t = sub.current_period_end ?? sub.items.data[0]?.current_period_end ?? null;
+  return t ? new Date(t * 1000).toISOString() : null;
 }
 
 function periodStartIso(sub: SiteSubLike): string | null {
@@ -140,8 +148,8 @@ export async function syncSiteBilling(
       if (!item || item === "ambiguous") return { changed: false, reason: "unrecognised_items" };
       line = "group_site";
       from = item.quantity ?? 1;
-      to = live;
-      paidQty = paid;
+      to = groupQuantity(live);
+      paidQty = groupQuantity(paid);
       change = { id: item.id, quantity: to };
     } else {
       const base = findItem(items, "franchise_base", FRANCHISE_BASE_PENCE);
@@ -167,7 +175,7 @@ export async function syncSiteBilling(
     const proration = trialing ? "none" : prorationFor(from, to, paidQty);
     const idempotencyKey = `site-billing:${input.tenantId}:${event.code}:${event.to}:${line}:${from}-${to}`;
     await deps.subscriptions.update(input.subscriptionId, { items: [change], proration_behavior: proration }, { idempotencyKey });
-    return { changed: true, line, from, to, proration, idempotencyKey };
+    return { changed: true, line, from, to, proration, idempotencyKey, periodEnd: periodEndIso(sub) };
   } catch (err) {
     return { changed: false, reason: "stripe_error", detail: err instanceof Error ? err.message : String(err) };
   }
@@ -192,4 +200,33 @@ export function siteSyncMessage(r: SiteSyncResult): string {
     stripe_error: "Stripe update failed, nothing changed. Staff to retry.",
   };
   return why[r.reason] + (r.detail ? ` ${r.detail}` : "");
+}
+
+export type SiteBillingMode = "live" | "dry_run";
+
+/** Only the exact value "on" lets site billing change Stripe. */
+export function siteBillingModeFrom(value: string | null | undefined): SiteBillingMode {
+  return value === "on" ? "live" : "dry_run";
+}
+
+/** Reads still go to Stripe; the update is only recorded in `sent`. */
+export function dryRunSubs(real: SiteSubsLike | null, sent: ItemChange[][]): SiteSubsLike | null {
+  if (!real) return null;
+  return {
+    retrieve: (id) => real.retrieve(id),
+    update: async (_id, params) => {
+      sent.push(params.items);
+      return {};
+    },
+  };
+}
+
+export function modeMessage(mode: SiteBillingMode, result: SiteSyncResult, totalPence?: number): string {
+  const msg = siteSyncMessage(result);
+  if (mode !== "dry_run" || !result.changed) return msg;
+  const unit = result.line === "group_site" ? "£249" : "£100";
+  const what = result.line === "group_site" ? `${result.to} ${result.to === 1 ? "site" : "sites"}` : `${result.to} extra ${result.to === 1 ? "site" : "sites"}`;
+  const when = result.proration === "none" ? "from the next billing period" : "from today";
+  const total = totalPence != null ? `£${(totalPence / 100).toLocaleString("en-GB")}` : null;
+  return `Dry run. Stripe is not changed. This would bill ${what} at ${unit}${total ? `, so ${total} a month ${when}` : ` ${when}`}.`;
 }

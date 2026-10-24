@@ -4,11 +4,11 @@ import { amountLabel, lineLabel, linesFor, liveSiteCount, monthlyPence, paidSlot
 
 const live = (n: number): BillingSite[] => Array.from({ length: n }, (_, i) => ({ code: `S${i}`, name: `Site ${i}`, status: "live" }));
 
-test("group: £249 x live sites at 0, 1, 5, 6 and 12", () => {
-  for (const [n, pence] of [[0, 0], [1, 24_900], [5, 124_500], [6, 149_400], [12, 298_800]] as const) {
+test("group: £249 x live sites, minimum 2, at 0, 1, 2, 5, 6 and 12", () => {
+  for (const [n, qty, pence] of [[0, 2, 49_800], [1, 2, 49_800], [2, 2, 49_800], [5, 5, 124_500], [6, 6, 149_400], [12, 12, 298_800]] as const) {
     const lines = linesFor("group", n);
     assert.equal(lines.length, 1);
-    assert.equal(lines[0].quantity, n);
+    assert.equal(lines[0].quantity, qty);
     assert.equal(monthlyPence(lines), pence, `group ${n}`);
   }
 });
@@ -49,7 +49,7 @@ test("breakdown shows each site and what it adds", () => {
   assert.equal(f.rows[5].included, undefined);
   assert.equal(siteBreakdown("group", sites).rows[0].note, "");
   assert.equal(f.rows[6].pence, 0);
-  assert.match(f.rows[6].note, /go live day/);
+  assert.equal(f.rows[6].note, "");
   assert.match(f.rows[7].note, /not billed from the next period/);
   assert.equal(siteBreakdown("group", sites).total, 149_400);
 });
@@ -79,8 +79,38 @@ test("parses tenants.sites JSON, plain names count as live", () => {
 
 test("totals copy", () => {
   assert.equal(lineLabel(linesFor("group", 3)[0]), "3 live sites at £249");
-  assert.equal(lineLabel(linesFor("group", 1)[0]), "1 live site at £249");
+  assert.equal(lineLabel(linesFor("group", 1)[0]), "2 site minimum at £249 (1 live)");
+  assert.equal(lineLabel(linesFor("group", 2)[0]), "2 live sites at £249");
   const f = linesFor("franchise", 7);
   assert.equal(lineLabel(f[0]), "Franchise, up to 5 sites");
   assert.equal(lineLabel(f[1]), "2 extra sites at £100");
+});
+
+test("Atlas copy: go live and archive confirms use real totals, period end from the billing start day", async () => {
+  const { goLiveConfirmCopy, archiveConfirmCopy, periodEndFrom, totalIf } = await import("./site-billing.ts");
+  const sites: BillingSite[] = [
+    { code: "N", name: "Ridgeway North", status: "live" },
+    { code: "S", name: "Ridgeway South", status: "live" },
+    { code: "R", name: "Ridgeway Retail", status: "setting_up" },
+  ];
+  assert.equal(totalIf("group", sites, "R", "live"), 74_700);
+  assert.equal(goLiveConfirmCopy("Ridgeway Retail", 49_800, 74_700), "Put Ridgeway Retail live? From today the bill goes up by £249 to £747 a month. The part month is added to the next invoice.");
+  assert.equal(goLiveConfirmCopy("Ridgeway South", 49_800, 49_800, "group"), "Put Ridgeway South live? The bill stays at £498 a month, because Group already bills a 2 site minimum.");
+  assert.equal(goLiveConfirmCopy("Harbourline 5", 89_900, 89_900, "franchise"), "Put Harbourline 5 live? The bill stays at £899 a month, because Franchise includes up to 5 sites.");
+  const end = periodEndFrom("2026-08-31T10:00:00Z", new Date("2026-10-24T07:00:00Z"));
+  assert.equal(end, "2026-10-31T10:00:00.000Z");
+  assert.equal(periodEndFrom("2026-01-31T10:00:00Z", new Date("2026-02-10T00:00:00Z")), "2026-02-28T10:00:00.000Z");
+  assert.equal(periodEndFrom(null), null);
+  assert.equal(archiveConfirmCopy("Ridgeway North", 74_700, 49_800, end), "Archive Ridgeway North? The bill goes down by one site from 31 Oct 2026, the end of this billing period. We don't refund part months. New monthly total: £498.");
+  assert.equal(archiveConfirmCopy("Ridgeway North", 49_800, 49_800, null), "Archive Ridgeway North? The bill stays at £498 a month. We don't refund part months.");
+});
+
+test("paidSlotsThisPeriod counts a site already charged this period (billedThrough), live or archived in it", () => {
+  const start = "2026-10-01T00:00:00Z";
+  const mid = { liveAt: "2026-10-10T00:00:00Z", billedThrough: "2026-11-01T00:00:00Z" };
+  assert.equal(paidSlotsThisPeriod([{ code: "a", name: "a", status: "live", ...mid }], start), 1);
+  assert.equal(paidSlotsThisPeriod([{ code: "a", name: "a", status: "archived", archivedAt: "2026-10-12T00:00:00Z", ...mid }], start), 1);
+  assert.equal(paidSlotsThisPeriod([{ code: "a", name: "a", status: "live", liveAt: mid.liveAt }], start), 0);
+  assert.equal(paidSlotsThisPeriod([{ code: "a", name: "a", status: "live", liveAt: mid.liveAt, billedThrough: start }], start), 0);
+  assert.equal(parseBillingSites([{ code: "a", name: "a", status: "live", billed_through: "2026-11-01T00:00:00Z" }])[0].billedThrough, "2026-11-01T00:00:00Z");
 });

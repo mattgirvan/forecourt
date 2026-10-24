@@ -131,3 +131,8 @@ export async function actor(token: string) {
 export function stripeSecret() {
   return env("GROK_STRIPE_SECRET_KEY") ?? env("STRIPE_SECRET_KEY");
 }
+
+/** Site billing only changes Stripe when this is exactly "on" (group build PR 4). */
+export function siteBillingSyncFlag() {
+  return env("SITE_BILLING_SYNC");
+}

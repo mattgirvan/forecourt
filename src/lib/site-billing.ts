@@ -19,13 +19,22 @@ export type BillingSite = {
   liveAt?: string | null;
   /** ISO time the site was archived. */
   archivedAt?: string | null;
+  /** ISO end of the period this site has already been charged through (set when a go live is prorated). */
+  billedThrough?: string | null;
 };
 
 export type LineKey = "group_site" | "franchise_base" | "franchise_extra";
-export type BillingLine = { key: LineKey; label: string; unitPence: number; quantity: number };
+export type BillingLine = { key: LineKey; label: string; unitPence: number; quantity: number; live?: number };
 
 export const GROUP_SITE_PENCE = PLANS.group.monthPence;
 export const FRANCHISE_BASE_PENCE = PLANS.franchise.monthPence;
+/** Group bills at least this many sites (Matt, 24 Oct 2026). */
+export const GROUP_MIN_SITES = PLANS.group.minSites;
+
+/** Group quantity for a live count: never below the minimum. */
+export function groupQuantity(live: number): number {
+  return Math.max(GROUP_MIN_SITES, Math.max(0, Math.floor(live)));
+}
 
 function iso(v: unknown): string | null {
   return typeof v === "string" && v ? v : null;
@@ -59,6 +68,7 @@ export function parseBillingSites(raw: unknown): BillingSite[] {
       status: st,
       liveAt: iso(o.liveAt ?? o.live_at),
       archivedAt: iso(o.archivedAt ?? o.archived_at),
+      billedThrough: iso(o.billedThrough ?? o.billed_through),
     });
   }
   return out;
@@ -69,15 +79,18 @@ export function liveSiteCount(sites: BillingSite[]): number {
   return sites.filter((s) => s.status === "live").length;
 }
 
-/** Sites already paid for in the current period: the ones that were live when it started
- *  (including any archived since). A site with no liveAt is treated as live before the period. */
+/** Sites already paid for in the current period: the ones that were live when it started, or
+ *  already charged a part month for it (billedThrough after the start), including any archived since.
+ *  A site with no liveAt is treated as live before the period. So a site that went live, was archived
+ *  and is restored in the same period reuses its paid slot and is never prorated twice. */
 export function paidSlotsThisPeriod(sites: BillingSite[], periodStartIso: string | null | undefined): number {
   const start = periodStartIso ? Date.parse(periodStartIso) : NaN;
   if (Number.isNaN(start)) return liveSiteCount(sites);
   return sites.filter((s) => {
     if (s.status === "setting_up") return false;
     const wentLive = s.liveAt ? Date.parse(s.liveAt) : -Infinity;
-    if (!(wentLive < start)) return false;
+    const billed = s.billedThrough ? Date.parse(s.billedThrough) > start : false;
+    if (!(wentLive < start) && !billed) return false;
     if (s.status === "live") return true;
     return Boolean(s.archivedAt && Date.parse(s.archivedAt) >= start);
   }).length;
@@ -90,7 +103,7 @@ export function franchiseExtraSites(live: number): number {
 /** The recurring lines a plan should carry for a number of live sites. Site plan returns [] (never touched). */
 export function linesFor(plan: PlanId, live: number): BillingLine[] {
   const n = Math.max(0, Math.floor(live));
-  if (plan === "group") return [{ key: "group_site", label: "Per site", unitPence: GROUP_SITE_PENCE, quantity: n }];
+  if (plan === "group") return [{ key: "group_site", label: "Per site", unitPence: GROUP_SITE_PENCE, quantity: groupQuantity(n), live: n }];
   if (plan === "franchise") {
     const lines: BillingLine[] = [{ key: "franchise_base", label: `Franchise, up to ${FRANCHISE_INCLUDED_SITES} sites`, unitPence: FRANCHISE_BASE_PENCE, quantity: 1 }];
     const extra = franchiseExtraSites(n);
@@ -119,7 +132,7 @@ export function siteBreakdown(plan: PlanId, sites: BillingSite[]): { rows: SiteB
   const lines = linesFor(plan, live);
   let liveIndex = 0;
   const rows = sites.map((s): SiteBillRow => {
-    if (s.status === "setting_up") return { code: s.code, name: s.name, status: s.status, note: "Setting up, billing starts on its go live day", pence: 0 };
+    if (s.status === "setting_up") return { code: s.code, name: s.name, status: s.status, note: "", pence: 0 };
     if (s.status === "archived") return { code: s.code, name: s.name, status: s.status, note: "Archived, not billed from the next period", pence: 0 };
     liveIndex += 1;
     if (plan === "group") return { code: s.code, name: s.name, status: s.status, note: "", pence: GROUP_SITE_PENCE };
@@ -145,7 +158,58 @@ function gbpWhole(pence: number) {
 
 /** Totals copy: "3 live sites at £249", "2 extra sites at £100", "Franchise, up to 5 sites". */
 export function lineLabel(l: BillingLine): string {
-  if (l.key === "group_site") return `${l.quantity} live ${l.quantity === 1 ? "site" : "sites"} at ${gbpWhole(l.unitPence)}`;
+  if (l.key === "group_site") {
+    if (l.live != null && l.live < l.quantity) return `${l.quantity} site minimum at ${gbpWhole(l.unitPence)} (${l.live} live)`;
+    return `${l.quantity} live ${l.quantity === 1 ? "site" : "sites"} at ${gbpWhole(l.unitPence)}`;
+  }
   if (l.key === "franchise_extra") return `${l.quantity} extra ${l.quantity === 1 ? "site" : "sites"} at ${gbpWhole(l.unitPence)}`;
   return l.label;
+}
+
+/**
+ * End of the current monthly period, from the day monthly billing started
+ * (the go live "Monthly billing started" timeline entry). Stripe bills on the
+ * same day each month, clamped to the month's last day. No Stripe call.
+ */
+export function periodEndFrom(anchorIso: string | null | undefined, now: Date = new Date()): string | null {
+  if (!anchorIso) return null;
+  const a = new Date(anchorIso);
+  if (Number.isNaN(a.getTime())) return null;
+  const at = (months: number) => {
+    const y = a.getUTCFullYear();
+    const m = a.getUTCMonth() + months;
+    const last = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
+    return new Date(Date.UTC(y, m, Math.min(a.getUTCDate(), last), a.getUTCHours(), a.getUTCMinutes(), a.getUTCSeconds()));
+  };
+  for (let i = 1; i < 1200; i++) {
+    const d = at(i);
+    if (d.getTime() > now.getTime()) return d.toISOString();
+  }
+  return null;
+}
+
+export function ukDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/London" }).replace("Sept", "Sep");
+}
+
+/** What the month would cost if one site moved to a new state. */
+export function totalIf(plan: PlanId, sites: BillingSite[], code: string, to: SiteStatus): number {
+  return siteBreakdown(plan, sites.map((s) => (s.code === code ? { ...s, status: to } : s))).total;
+}
+
+const whole = (p: number) => `£${(p / 100).toLocaleString("en-GB", { minimumFractionDigits: p % 100 ? 2 : 0, maximumFractionDigits: 2 })}`;
+
+export function goLiveConfirmCopy(name: string, before: number, after: number, plan?: PlanId): string {
+  const up = after - before;
+  if (up <= 0) {
+    const why = plan === "group" ? ", because Group already bills a 2 site minimum" : plan === "franchise" ? ", because Franchise includes up to 5 sites" : "";
+    return `Put ${name} live? The bill stays at ${whole(after)} a month${why}.`;
+  }
+  return `Put ${name} live? From today the bill goes up by ${whole(up)} to ${whole(after)} a month. The part month is added to the next invoice.`;
+}
+
+export function archiveConfirmCopy(name: string, before: number, after: number, periodEnd: string | null): string {
+  const when = periodEnd ? `${ukDate(periodEnd)}, the end of this billing period` : "the end of this billing period";
+  if (after >= before) return `Archive ${name}? The bill stays at ${whole(after)} a month. We don't refund part months.`;
+  return `Archive ${name}? The bill goes down by one site from ${when}. We don't refund part months. New monthly total: ${whole(after)}.`;
 }
