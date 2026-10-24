@@ -27,6 +27,12 @@ export type NewsletterConfig = {
   apiKey?: string;
   /** Resend Segment ID (formerly Audience ID). */
   segmentId?: string;
+  /**
+   * Second Segment the monthly Broadcast goes to. The daily cron adds a
+   * contact only once their launch fortnight is over (launch-2d sent and
+   * at least 15 days since confirm). RESEND_NEWSLETTER_MONTHLY_SEGMENT_ID.
+   */
+  monthlySegmentId?: string;
   secret?: string;
   /** e.g. "Forecourt <hello@forecourt.me>" */
   from: string;
@@ -225,6 +231,11 @@ export type Deps = {
   now?: () => number;
   ipLimited: (key: string) => boolean;
   emailLimited: (key: string) => boolean;
+  /**
+   * Record the confirm time for the launch sequence. Best effort: a failure
+   * never fails the confirm. Must never overwrite an earlier confirm time.
+   */
+  onConfirmed?: (email: string, at: number) => Promise<void>;
 };
 
 export type Result = { status: number; body: { ok: boolean; message: string } };
@@ -256,9 +267,18 @@ export async function handleToken(token: unknown, p: Purpose, d: Deps): Promise<
   if (!configured(d.config)) return "unavailable";
   const v = verifyToken(d.config.secret!, token, p, d.now?.() ?? Date.now());
   if (!v.ok) return v.reason;
+  let ok: boolean;
   try {
-    return (await setSubscribed(d.config, v.email, p === "u", d.fetch)) ? "ok" : "error";
+    ok = await setSubscribed(d.config, v.email, p === "u", d.fetch);
   } catch {
     return "error";
   }
+  if (ok && p === "c" && d.onConfirmed) {
+    try {
+      await d.onConfirmed(v.email, d.now?.() ?? Date.now());
+    } catch {
+      /* the cron backfills from the contact's created_at */
+    }
+  }
+  return ok ? "ok" : "error";
 }
