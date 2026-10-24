@@ -103,7 +103,7 @@ export function NewsletterForm({ compact = false }: { compact?: boolean }) {
           .
         </span>
       </label>
-      <p id={`${id}-note`} role="status" aria-live="polite" className={`nl-note mt-2 min-h-5 text-[13px] ${note ? "is-on" : ""} ${note && !note.ok ? "text-fg" : "text-muted"}`}>
+      <p id={`${id}-note`} role="status" aria-live="polite" className={`nl-note mt-2 min-h-5 text-[13px] ${note ? "is-on" : ""} ${note ? (note.ok ? "text-[var(--emerald)]" : "text-fg") : "text-muted"}`}>
         {note?.text ?? ""}
       </p>
     </form>

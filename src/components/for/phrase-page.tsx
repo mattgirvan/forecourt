@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { ArrowRight } from "lucide-react";
 import { Reveal } from "@/components/reveal";
 import { SiteShell } from "@/components/site-shell";
+import { NewsletterBlock } from "@/components/newsletter-reach";
 import { Button } from "@/components/ui/button";
 
 export type PhrasePoint = {
@@ -70,7 +71,7 @@ export function PhrasePage({ eyebrow, h1, lead, points, ctaLabel, links }: Phras
         <p className="mt-10 text-center text-sm text-muted">
           {links.map((l, i) => (
             <span key={l.to}>
-              {i > 0 ? " · " : null}
+              {i > 0 ? ", " : null}
               <Link to={l.to} className="text-fg underline-offset-4 hover:underline">
                 {l.label}
               </Link>
@@ -78,7 +79,12 @@ export function PhrasePage({ eyebrow, h1, lead, points, ctaLabel, links }: Phras
           ))}
         </p>
 
-        <p className="mx-auto mt-14 max-w-md text-center text-[11px] leading-relaxed text-subtle">
+      </section>
+
+      <NewsletterBlock id="for-updates" eyebrow="Not ready to talk yet" />
+
+      <section className="mx-auto max-w-3xl px-4 pb-16 sm:px-6 sm:pb-24">
+        <p className="mx-auto mt-8 max-w-md text-center text-[11px] leading-relaxed text-subtle">
           Forecourt is a UK motor trade floor product for franchise and group desks. It is not a
           consumer car marketplace.
         </p>
