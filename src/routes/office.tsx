@@ -236,7 +236,7 @@ function OfficeInner() {
       ]}
     >
     <div className="mx-auto max-w-5xl px-4 py-8 sm:px-8">
-      <div className={tab === "overview" && !search.id ? "sr-only" : undefined}>
+      <div className={(tab === "overview" && !search.id) || search.id ? "sr-only" : undefined}>
         <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--fc-text-faint)]">Office</p>
         <h1 className="mt-1 text-[26px] font-semibold tracking-tight sm:text-[34px]">
           {search.id ? "Dealer file" : TAB_LABEL[tab]}
@@ -322,7 +322,7 @@ function OfficeInner() {
       )}
 
       {search.id && token && (
-        <div className="mt-6">
+        <div className="mt-0">
           <button
             type="button"
             className="-ml-2 inline-flex min-h-11 min-w-11 items-center gap-1 rounded-[var(--fc-r-sm)] pl-1 pr-3 text-sm text-muted hover:text-fg"
@@ -336,6 +336,7 @@ function OfficeInner() {
               token={token}
               tenantId={search.id}
               paymentFailed={!!rows.find((r) => r.id === search.id)?.flags?.paymentFailed}
+              waiting={!!rows.find((r) => r.id === search.id)?.waiting}
               onSaved={() => void reload()}
             />
           </div>
@@ -346,7 +347,7 @@ function OfficeInner() {
   );
 }
 
-function TenantFile({ token, tenantId, paymentFailed = false, onSaved }: { token: string; tenantId: number; paymentFailed?: boolean; onSaved: () => void }) {
+function TenantFile({ token, tenantId, paymentFailed = false, waiting = false, onSaved }: { token: string; tenantId: number; paymentFailed?: boolean; waiting?: boolean; onSaved: () => void }) {
   const { me } = useWhoAmI();
   const owner = me?.role === "owner";
   const [file, setFile] = useState<Awaited<ReturnType<typeof getTenantFile>> | null>(null);
@@ -472,29 +473,52 @@ function TenantFile({ token, tenantId, paymentFailed = false, onSaved }: { token
 
   return (
     <div>
-      <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] font-medium text-muted">
-        <Chip tone={file.status === "live" || file.status === "paid" ? "live" : "neutral"}>{statusLabel(file.status)}</Chip>
-        <span>
-          {[
-            accountStatusLabel(migration) === "Migration" ? "Migration" : "",
-            packageLive(file.status) && billing === "trial" && days != null ? `${days} days left` : "",
-            file.term_months ? `${file.term_months}-month contract` : "",
-          ]
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      <div className="flex min-w-0 items-start gap-3">
+        <span className="fc-avatar mt-1 size-11 shrink-0 text-[13px]" aria-hidden="true">
+          {file.name
+            .split(/\s+/)
             .filter(Boolean)
-            .join(", ")}
+            .slice(0, 2)
+            .map((w: string) => w[0]!.toUpperCase())
+            .join("")}
         </span>
-      </p>
-      <div className="mt-2 flex items-start justify-between gap-3">
-        <h2 className="min-w-0 text-3xl font-semibold tracking-tight sm:text-4xl">{file.name}</h2>
+        <div className="min-w-0 flex-1">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--fc-text-faint)]" data-testid="file-plan-line">
+            {[
+              PLANS[plan].name,
+              `${file.site_count ?? 1} ${(file.site_count ?? 1) === 1 ? "site" : "sites"}`,
+              accountStatusLabel(migration) === "Migration" ? "Migration" : "",
+              packageLive(file.status) && billing === "trial" && days != null ? `${days} days left` : "",
+              file.term_months ? `${file.term_months}-month contract` : "",
+              file.archived_at ? "Archived" : "",
+            ]
+              .filter(Boolean)
+              .join(", ")}
+          </p>
+          <h2 className="mt-1 text-[26px] font-semibold leading-tight tracking-tight sm:text-[34px]">{file.name}</h2>
+          <p className="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted">
+            <Chip tone={file.status === "live" || file.status === "paid" ? "live" : "neutral"}>{statusLabel(file.status)}</Chip>
+            <span className="min-w-0 break-words">{[file.email || "No inbox", file.phone || "No phone"].join(", ")}</span>
+          </p>
+        </div>
+      </div>
+      <div className="flex shrink-0 items-center gap-2">
         <OverflowMenu
           label={`More for ${file.name}`}
           items={[{ label: busy ? "Working" : file.archived_at ? "Unarchive" : "Archive", disabled: busy, onSelect: () => void toggleArchive() }]}
         />
+        {waiting ? (
+          <Button variant="action" type="button" className="flex-1 sm:flex-none" onClick={() => setPane("requests")}>
+            Reply
+          </Button>
+        ) : (
+          <Button variant="secondary" type="button" className="flex-1 sm:flex-none" onClick={() => setPane("requests")}>
+            Open tickets
+          </Button>
+        )}
       </div>
-      <p className="mt-2 text-sm text-muted">
-        {PLANS[plan].name}, {file.email || "no inbox"}, {file.phone || "no phone"}
-        {file.archived_at ? ", archived" : ""}
-      </p>
+      </div>
       {owner ? (
         <div className="mt-4">
         <ResumeOrder
@@ -522,10 +546,10 @@ function TenantFile({ token, tenantId, paymentFailed = false, onSaved }: { token
         value={pane}
         onChange={setPane}
         options={[
-          { id: "build", label: "Build" },
+          { id: "build", label: "Setup" },
           { id: "file", label: "File" },
           { id: "billing", label: "Billing" },
-          { id: "requests", label: "Tickets and requests" },
+          { id: "requests", label: "Tickets" },
           { id: "support", label: "Old messages" },
           { id: "notes", label: "Notes" },
         ]}
@@ -533,9 +557,33 @@ function TenantFile({ token, tenantId, paymentFailed = false, onSaved }: { token
 
       {pane === "build" && (
         <div className="mt-6">
-          <Section title="Build" rail="blue">
-            <OrderBuild token={token} tenantId={tenantId} team />
-          </Section>
+          <OrderBuild
+            token={token}
+            tenantId={tenantId}
+            team
+            aside={
+              <Section title="Contact" rail="slate" testId="file-contact">
+                <Rows>
+                  <Row
+                    lead={<span className="fc-avatar">{(principal || file.name).split(/\s+/).filter(Boolean).slice(0, 2).map((w: string) => w[0]!.toUpperCase()).join("")}</span>}
+                    title={principal || "Principal not named yet"}
+                    sub={[principal ? "Dealer principal" : "", file.email || ""].filter(Boolean).join(", ") || "No inbox yet"}
+                  />
+                  {file.phone ? (
+                    <Row
+                      title="Phone"
+                      sub={file.phone}
+                      trailing={
+                        <Button variant="secondary" size="sm" className="h-11" asChild>
+                          <a href={`tel:${file.phone.replace(/\s+/g, "")}`}>Call</a>
+                        </Button>
+                      }
+                    />
+                  ) : null}
+                </Rows>
+              </Section>
+            }
+          />
         </div>
       )}
 
