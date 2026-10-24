@@ -3918,3 +3918,52 @@
     scroll-margin-top: 72px;
   }
 }
+
+/* Redesign 13 polish: on phones the permission names stay put while role columns scroll. */
+.fc-role-grid-frame {
+  position: relative;
+}
+.fc-role-grid-frame::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 40px;
+  pointer-events: none;
+  background: linear-gradient(to right, transparent, var(--fc-solid));
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+.fc-role-grid-frame[data-more]::after {
+  opacity: 1;
+}
+@media (max-width: 720px) {
+  .fc-role-grid-wrap {
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+  }
+  .fc-role-grid-wrap::-webkit-scrollbar {
+    display: none;
+  }
+  .fc-role-grid td {
+    position: relative;
+    z-index: 0;
+  }
+  .fc-role-grid thead th:first-child,
+  .fc-role-grid tbody th {
+    position: sticky;
+    left: 0;
+    z-index: 3;
+    min-width: 7.5rem;
+    padding-right: 8px;
+    max-width: 7.5rem;
+    background: var(--fc-solid);
+    box-shadow: 8px 0 8px -8px rgba(0, 0, 0, 0.5);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fc-role-grid-frame::after {
+    transition: none;
+  }
+}

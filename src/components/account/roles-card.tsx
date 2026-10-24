@@ -39,6 +39,18 @@ export function RolesCard({
   const [saved, setSaved] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Fade on the right edge while more role columns sit off screen.
+  const gridRef = useRef<HTMLDivElement>(null);
+  const [more, setMore] = useState(false);
+  function measureGrid() {
+    const el = gridRef.current;
+    if (el) setMore(el.scrollLeft + el.clientWidth < el.scrollWidth - 2);
+  }
+  useEffect(() => {
+    measureGrid();
+    window.addEventListener("resize", measureGrid);
+    return () => window.removeEventListener("resize", measureGrid);
+  }, []);
 
   useEffect(() => {
     let live = true;
@@ -123,49 +135,51 @@ export function RolesCard({
       </Section>
 
       <Section title="What each role can do" eyebrow="Access" rail="slate">
-        <div className="fc-role-grid-wrap">
-          <table className="fc-role-grid">
-            <thead>
-              <tr>
-                <th scope="col">
-                  <span className="sr-only">What they can do</span>
-                </th>
-                {roles.map((r) => (
-                  <th key={r.id} scope="col">
-                    {r.label.split(/ \(| \/| or /)[0]}
+        <div className="fc-role-grid-frame" data-more={more || undefined}>
+          <div className="fc-role-grid-wrap" ref={gridRef} onScroll={measureGrid}>
+            <table className="fc-role-grid">
+              <thead>
+                <tr>
+                  <th scope="col">
+                    <span className="sr-only">What they can do</span>
                   </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {ROLE_ABILITIES.map((a) => (
-                <tr key={a.id}>
-                  <th scope="row">{a.label}</th>
-                  {roles.map((r) => {
-                    const on = canDo(r, a.id, access);
-                    return (
-                      <td key={r.id}>
-                        <button
-                          type="button"
-                          role="switch"
-                          aria-checked={on}
-                          aria-label={`${r.label}: ${a.label}`}
-                          aria-readonly={canEdit ? undefined : true}
-                          disabled={!canEdit}
-                          className={cn("fc-role-switch", on && "is-on")}
-                          onClick={() => void flip(r, a.id, !on)}
-                        >
-                          <span className="fc-switch-track" aria-hidden="true">
-                            <span className="fc-switch-thumb" />
-                          </span>
-                        </button>
-                      </td>
-                    );
-                  })}
+                  {roles.map((r) => (
+                    <th key={r.id} scope="col">
+                      {r.label.split(/ \(| \/| or /)[0]}
+                    </th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {ROLE_ABILITIES.map((a) => (
+                  <tr key={a.id}>
+                    <th scope="row">{a.label}</th>
+                    {roles.map((r) => {
+                      const on = canDo(r, a.id, access);
+                      return (
+                        <td key={r.id}>
+                          <button
+                            type="button"
+                            role="switch"
+                            aria-checked={on}
+                            aria-label={`${r.label}: ${a.label}`}
+                            aria-readonly={canEdit ? undefined : true}
+                            disabled={!canEdit}
+                            className={cn("fc-role-switch", on && "is-on")}
+                            onClick={() => void flip(r, a.id, !on)}
+                          >
+                            <span className="fc-switch-track" aria-hidden="true">
+                              <span className="fc-switch-thumb" />
+                            </span>
+                          </button>
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
         <p
           className="mt-3 min-h-5 text-xs text-[var(--fc-text-faint)]"
