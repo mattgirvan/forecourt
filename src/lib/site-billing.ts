@@ -8,7 +8,13 @@
  * Removing or archiving a site lowers the quantity with no proration, so it takes
  * effect from the next period. Adding a site never has a setup fee.
  */
-import { FRANCHISE_EXTRA_SITE_PENCE, FRANCHISE_INCLUDED_SITES, PLANS, type PlanId } from "./catalog.ts";
+import { formatUkDate } from "./uk-date.ts";
+import {
+  FRANCHISE_EXTRA_SITE_PENCE,
+  FRANCHISE_INCLUDED_SITES,
+  PLANS,
+  type PlanId,
+} from "./catalog.ts";
 
 export type SiteStatus = "setting_up" | "live" | "archived";
 export type BillingSite = {
@@ -23,8 +29,23 @@ export type BillingSite = {
   billedThrough?: string | null;
 };
 
+/** An archived site can be restored (in the desk) for this many days. */
+export const RESTORE_DAYS = 30;
+
+/** ISO end of the restore window for an archived site, or null. */
+export function restoreUntil(archivedAt: string | null | undefined): string | null {
+  const t = archivedAt ? Date.parse(archivedAt) : NaN;
+  return Number.isNaN(t) ? null : new Date(t + RESTORE_DAYS * 86_400_000).toISOString();
+}
+
 export type LineKey = "group_site" | "franchise_base" | "franchise_extra" | "site_base";
-export type BillingLine = { key: LineKey; label: string; unitPence: number; quantity: number; live?: number };
+export type BillingLine = {
+  key: LineKey;
+  label: string;
+  unitPence: number;
+  quantity: number;
+  live?: number;
+};
 
 export const GROUP_SITE_PENCE = PLANS.group.monthPence;
 export const FRANCHISE_BASE_PENCE = PLANS.franchise.monthPence;
@@ -83,7 +104,10 @@ export function liveSiteCount(sites: BillingSite[]): number {
  *  already charged a part month for it (billedThrough after the start), including any archived since.
  *  A site with no liveAt is treated as live before the period. So a site that went live, was archived
  *  and is restored in the same period reuses its paid slot and is never prorated twice. */
-export function paidSlotsThisPeriod(sites: BillingSite[], periodStartIso: string | null | undefined): number {
+export function paidSlotsThisPeriod(
+  sites: BillingSite[],
+  periodStartIso: string | null | undefined,
+): number {
   const start = periodStartIso ? Date.parse(periodStartIso) : NaN;
   if (Number.isNaN(start)) return liveSiteCount(sites);
   return sites.filter((s) => {
@@ -103,11 +127,33 @@ export function franchiseExtraSites(live: number): number {
 /** The recurring lines a plan should carry for a number of live sites. Site plan returns [] (never touched). */
 export function linesFor(plan: PlanId, live: number): BillingLine[] {
   const n = Math.max(0, Math.floor(live));
-  if (plan === "group") return [{ key: "group_site", label: "Per site", unitPence: GROUP_SITE_PENCE, quantity: groupQuantity(n), live: n }];
+  if (plan === "group")
+    return [
+      {
+        key: "group_site",
+        label: "Per site",
+        unitPence: GROUP_SITE_PENCE,
+        quantity: groupQuantity(n),
+        live: n,
+      },
+    ];
   if (plan === "franchise") {
-    const lines: BillingLine[] = [{ key: "franchise_base", label: `Franchise, up to ${FRANCHISE_INCLUDED_SITES} sites`, unitPence: FRANCHISE_BASE_PENCE, quantity: 1 }];
+    const lines: BillingLine[] = [
+      {
+        key: "franchise_base",
+        label: `Franchise, up to ${FRANCHISE_INCLUDED_SITES} sites`,
+        unitPence: FRANCHISE_BASE_PENCE,
+        quantity: 1,
+      },
+    ];
     const extra = franchiseExtraSites(n);
-    if (extra > 0) lines.push({ key: "franchise_extra", label: "Franchise extra site", unitPence: FRANCHISE_EXTRA_SITE_PENCE, quantity: extra });
+    if (extra > 0)
+      lines.push({
+        key: "franchise_extra",
+        label: "Franchise extra site",
+        unitPence: FRANCHISE_EXTRA_SITE_PENCE,
+        quantity: extra,
+      });
     return lines;
   }
   return [];
@@ -118,7 +164,14 @@ export function monthlyPence(lines: BillingLine[]): number {
 }
 
 /** Per-site breakdown rows for the account and Office: what each site adds to the month. */
-export type SiteBillRow = { code: string; name: string; status: SiteStatus; note: string; pence: number; included?: boolean };
+export type SiteBillRow = {
+  code: string;
+  name: string;
+  status: SiteStatus;
+  note: string;
+  pence: number;
+  included?: boolean;
+};
 
 /** Amount column text: "Included", "Not billed" or the price. */
 export function amountLabel(r: SiteBillRow): string {
@@ -127,19 +180,37 @@ export function amountLabel(r: SiteBillRow): string {
   return `£${(r.pence / 100).toLocaleString("en-GB", { maximumFractionDigits: 2 })}`;
 }
 
-export function siteBreakdown(plan: PlanId, sites: BillingSite[]): { rows: SiteBillRow[]; lines: BillingLine[]; total: number; live: number } {
+export function siteBreakdown(
+  plan: PlanId,
+  sites: BillingSite[],
+): { rows: SiteBillRow[]; lines: BillingLine[]; total: number; live: number } {
   const live = liveSiteCount(sites);
   const lines = linesFor(plan, live);
   let liveIndex = 0;
   const rows = sites.map((s): SiteBillRow => {
-    if (s.status === "setting_up") return { code: s.code, name: s.name, status: s.status, note: "", pence: 0 };
-    if (s.status === "archived") return { code: s.code, name: s.name, status: s.status, note: "Archived, not billed from the next period", pence: 0 };
+    if (s.status === "setting_up")
+      return { code: s.code, name: s.name, status: s.status, note: "", pence: 0 };
+    if (s.status === "archived")
+      return {
+        code: s.code,
+        name: s.name,
+        status: s.status,
+        note: "Archived, not billed from the next period",
+        pence: 0,
+      };
     liveIndex += 1;
-    if (plan === "group") return { code: s.code, name: s.name, status: s.status, note: "", pence: GROUP_SITE_PENCE };
+    if (plan === "group")
+      return { code: s.code, name: s.name, status: s.status, note: "", pence: GROUP_SITE_PENCE };
     if (plan === "franchise") {
       return liveIndex <= FRANCHISE_INCLUDED_SITES
         ? { code: s.code, name: s.name, status: s.status, note: "", pence: 0, included: true }
-        : { code: s.code, name: s.name, status: s.status, note: "Franchise extra site", pence: FRANCHISE_EXTRA_SITE_PENCE };
+        : {
+            code: s.code,
+            name: s.name,
+            status: s.status,
+            note: "Franchise extra site",
+            pence: FRANCHISE_EXTRA_SITE_PENCE,
+          };
     }
     return { code: s.code, name: s.name, status: s.status, note: "", pence: 0 };
   });
@@ -147,7 +218,11 @@ export function siteBreakdown(plan: PlanId, sites: BillingSite[]): { rows: SiteB
 }
 
 /** How a quantity change should prorate. Up: charge from today, unless the slot was already paid this period. Down: never prorate. */
-export function prorationFor(fromQty: number, toQty: number, paidSlots: number): "create_prorations" | "none" {
+export function prorationFor(
+  fromQty: number,
+  toQty: number,
+  paidSlots: number,
+): "create_prorations" | "none" {
   if (toQty <= fromQty) return "none";
   return toQty <= paidSlots ? "none" : "create_prorations";
 }
@@ -159,10 +234,12 @@ function gbpWhole(pence: number) {
 /** Totals copy: "3 live sites at £249", "2 Franchise extra sites at £100", "Franchise, up to 5 sites". */
 export function lineLabel(l: BillingLine): string {
   if (l.key === "group_site") {
-    if (l.live != null && l.live < l.quantity) return `${l.quantity} site minimum at ${gbpWhole(l.unitPence)} (${l.live} live)`;
+    if (l.live != null && l.live < l.quantity)
+      return `${l.quantity} site minimum at ${gbpWhole(l.unitPence)} (${l.live} live)`;
     return `${l.quantity} live ${l.quantity === 1 ? "site" : "sites"} at ${gbpWhole(l.unitPence)}`;
   }
-  if (l.key === "franchise_extra") return `${l.quantity} Franchise extra ${l.quantity === 1 ? "site" : "sites"} at ${gbpWhole(l.unitPence)}`;
+  if (l.key === "franchise_extra")
+    return `${l.quantity} Franchise extra ${l.quantity === 1 ? "site" : "sites"} at ${gbpWhole(l.unitPence)}`;
   return l.label;
 }
 
@@ -171,7 +248,10 @@ export function lineLabel(l: BillingLine): string {
  * (the go live "Monthly billing started" timeline entry). Stripe bills on the
  * same day each month, clamped to the month's last day. No Stripe call.
  */
-export function periodEndFrom(anchorIso: string | null | undefined, now: Date = new Date()): string | null {
+export function periodEndFrom(
+  anchorIso: string | null | undefined,
+  now: Date = new Date(),
+): string | null {
   if (!anchorIso) return null;
   const a = new Date(anchorIso);
   if (Number.isNaN(a.getTime())) return null;
@@ -179,7 +259,16 @@ export function periodEndFrom(anchorIso: string | null | undefined, now: Date = 
     const y = a.getUTCFullYear();
     const m = a.getUTCMonth() + months;
     const last = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
-    return new Date(Date.UTC(y, m, Math.min(a.getUTCDate(), last), a.getUTCHours(), a.getUTCMinutes(), a.getUTCSeconds()));
+    return new Date(
+      Date.UTC(
+        y,
+        m,
+        Math.min(a.getUTCDate(), last),
+        a.getUTCHours(),
+        a.getUTCMinutes(),
+        a.getUTCSeconds(),
+      ),
+    );
   };
   for (let i = 1; i < 1200; i++) {
     const d = at(i);
@@ -189,27 +278,49 @@ export function periodEndFrom(anchorIso: string | null | undefined, now: Date = 
 }
 
 export function ukDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/London" }).replace("Sept", "Sep");
+  return formatUkDate(iso);
 }
 
 /** What the month would cost if one site moved to a new state. */
 export function totalIf(plan: PlanId, sites: BillingSite[], code: string, to: SiteStatus): number {
-  return siteBreakdown(plan, sites.map((s) => (s.code === code ? { ...s, status: to } : s))).total;
+  return siteBreakdown(
+    plan,
+    sites.map((s) => (s.code === code ? { ...s, status: to } : s)),
+  ).total;
 }
 
-const whole = (p: number) => `£${(p / 100).toLocaleString("en-GB", { minimumFractionDigits: p % 100 ? 2 : 0, maximumFractionDigits: 2 })}`;
+const whole = (p: number) =>
+  `£${(p / 100).toLocaleString("en-GB", { minimumFractionDigits: p % 100 ? 2 : 0, maximumFractionDigits: 2 })}`;
 
-export function goLiveConfirmCopy(name: string, before: number, after: number, plan?: PlanId): string {
+export function goLiveConfirmCopy(
+  name: string,
+  before: number,
+  after: number,
+  plan?: PlanId,
+): string {
   const up = after - before;
   if (up <= 0) {
-    const why = plan === "group" ? ", because Group already bills a 2 site minimum" : plan === "franchise" ? ", because Franchise includes up to 5 sites" : "";
+    const why =
+      plan === "group"
+        ? ", because Group already bills a 2 site minimum"
+        : plan === "franchise"
+          ? ", because Franchise includes up to 5 sites"
+          : "";
     return `Put ${name} live? The bill stays at ${whole(after)} a month${why}.`;
   }
   return `Put ${name} live? From today the bill goes up by ${whole(up)} to ${whole(after)} a month. The part month is added to the next invoice.`;
 }
 
-export function archiveConfirmCopy(name: string, before: number, after: number, periodEnd: string | null): string {
-  const when = periodEnd ? `${ukDate(periodEnd)}, the end of this billing period` : "the end of this billing period";
-  if (after >= before) return `Archive ${name}? The bill stays at ${whole(after)} a month. We don't refund part months.`;
+export function archiveConfirmCopy(
+  name: string,
+  before: number,
+  after: number,
+  periodEnd: string | null,
+): string {
+  const when = periodEnd
+    ? `${ukDate(periodEnd)}, the end of this billing period`
+    : "the end of this billing period";
+  if (after >= before)
+    return `Archive ${name}? The bill stays at ${whole(after)} a month. We don't refund part months.`;
   return `Archive ${name}? The bill goes down by one site from ${when}. We don't refund part months. New monthly total: ${whole(after)}.`;
 }
