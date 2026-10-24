@@ -14,6 +14,7 @@ import { createContext, useContext } from "react";
 import { tenant } from "../tenant";
 import { ROLES, TRIAL_ROLES, normaliseStaff } from "../roles";
 import { supabase } from "./supabase";
+import { firstSiteCode } from "./sites";
 
 export const StaffSeatContext = createContext({
   mode: "loading",
@@ -130,7 +131,9 @@ export async function loadStaffSeat() {
       email: String(row?.email || email).trim().toLowerCase(),
       name: row?.display_name || fromTenant?.name || email,
       role: roleId,
-      site: row?.site || fromTenant?.site || tenant.sites?.[0] || "Main",
+      site: row?.site || fromTenant?.site || firstSiteCode(tenant.sites),
+      sites: fromTenant?.sites,
+      allSites: fromTenant?.allSites,
       franchise: row?.franchise || fromTenant?.franchise,
       source,
     },
@@ -143,7 +146,7 @@ export function previewSeats() {
   const hasTrial = TRIAL_ROLES.every((r) => list.some((s) => s.role === r));
   if (hasTrial || list.length > 1) return list;
   // Template default: expose Matt trial seats for local Preview wiring.
-  const site = tenant.sites?.[0] || "Main";
+  const site = firstSiteCode(tenant.sites);
   return TRIAL_ROLES.map((role) => {
     const hit = list.find((s) => s.role === role);
     return (

@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils";
 import { customerStepNumber } from "@/lib/journey";
 import { JourneyNow } from "@/components/journey/after-you-pay";
 import { PaymentIssueNotice } from "@/components/account/payment-issue";
+import { accountSitesSummary } from "@/lib/sites";
 
 type Tenant = {
   id: number;
@@ -36,6 +37,7 @@ type Tenant = {
   group_name?: string;
   staff_json?: string;
   stage?: string | null;
+  sites?: string | null;
 };
 
 type Tab = "overview" | "build" | "billing" | "messages" | "notes" | "people";
@@ -62,6 +64,7 @@ export function DealerPortal({
   const days = billing === "trial" ? trialDaysLeft(tenant.trial_ends_at) : null;
   const seats = rolesForPlan(plan, billing);
   const monthly = monthTotalPence(plan, tenant.site_count ?? 1);
+  const sitesLine = accountSitesSummary(tenant.sites);
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
@@ -69,6 +72,7 @@ export function DealerPortal({
       <h1 className="mt-2 text-4xl font-semibold tracking-tight">{tenant.name || "Your dealership"}</h1>
       <p className="mt-3 text-sm text-muted">
         {statusLabel(tenant.status)}
+        {plan === "franchise" || plan === "group" ? (sitesLine ? ` · ${sitesLine}` : "") : ""}
         {days != null ? ` · ${days} days left` : ""}
         {billing === "subscription"
           ? ` · ${gbpPence(monthly)}/month${tenant.stage === "live" || tenant.status === "live" ? "" : " from go live (180 days after payment at the latest)"}`

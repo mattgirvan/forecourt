@@ -88,7 +88,10 @@ export function normaliseStaff(staff) {
           name: s.name || s.email || "Staff",
           email: s.email || "",
           role: ROLES[s.role] ? s.role : "sales",
-          site: s.site || "Main",
+          site: s.site || (Array.isArray(s.sites) && s.sites[0]) || "Main",
+          // Several sites per person, and the explicit All sites option (off by default).
+          sites: Array.isArray(s.sites) ? s.sites : s.site ? [s.site] : undefined,
+          allSites: s.allSites === true,
           franchise: s.franchise,
         },
   );

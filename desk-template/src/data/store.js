@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { tenant } from "../tenant";
 import { parseWorkbook, upsertByVin } from "./ingest";
 import { supabase } from "./supabase";
+import { ALL, filterBySite, firstSiteCode } from "./sites";
 
 const empty = { deals: [], stock: [], briefs: [] };
 
@@ -52,9 +53,21 @@ export const useDesk = create((set, get) => ({
   ready: false,
   error: null,
   selectedDealId: null,
+  siteAccess: null,
+  sitePick: ALL,
+
+  setSiteAccess(siteAccess) {
+    set((s) => ({
+      siteAccess,
+      sitePick: siteAccess?.sites?.some((x) => x.code === s.sitePick) ? s.sitePick : ALL,
+    }));
+  },
+  setSitePick(sitePick) {
+    set({ sitePick: sitePick || ALL });
+  },
 
   async boot() {
-    const site = tenant.sites?.[0] || "Main";
+    const site = firstSiteCode(tenant.sites);
     if (supabase) {
       try {
         const [{ data: deals, error: dErr }, { data: stock, error: sErr }] = await Promise.all([
@@ -77,7 +90,7 @@ export const useDesk = create((set, get) => ({
         return;
       }
     }
-    const seed = tenant.seedDemo ? sample(site) : empty;
+    const seed = tenant.seedDemo ? (tenant.demo ? { ...empty, ...tenant.demo } : sample(site)) : empty;
     set({ ...seed, selectedDealId: seed.deals[0]?.id ?? null, ready: true });
   },
 
@@ -140,7 +153,10 @@ export const useDesk = create((set, get) => ({
   async ingestFile(file) {
     const buf = await file.arrayBuffer();
     const rows = parseWorkbook(buf);
-    const site = tenant.sites?.[0] || "Main";
+    // New rows land on the picked site, or the person's only site.
+    const { sitePick, siteAccess } = get();
+    const site =
+      (sitePick !== ALL && sitePick) || (siteAccess?.sites?.length === 1 && siteAccess.sites[0].code) || siteAccess?.sites?.[0]?.code || "Main";
     const stock = upsertByVin(get().stock, rows, site);
     set({ stock });
     if (supabase) {
@@ -177,7 +193,7 @@ function fromOrderRow(r) {
     vin: r.vin,
     type: r.car_type,
     customerType: r.customer_type,
-    site: r.site || tenant.sites?.[0] || "Main",
+    site: r.site || firstSiteCode(tenant.sites),
     stageIndex: r.stage_index ?? 0,
     locatorIndex: r.locator_index ?? 0,
     gp: r.gp,
@@ -203,4 +219,12 @@ function fromStockRow(r) {
     missing: Boolean(r.missing),
     matchedDealId: r.matched_deal_id,
   };
+}
+
+/** Deals or stock for the sites this person can see and the current pick. */
+export function useSiteRows(key) {
+  const rows = useDesk((s) => s[key]);
+  const access = useDesk((s) => s.siteAccess);
+  const pick = useDesk((s) => s.sitePick);
+  return filterBySite(rows, access, pick);
 }
