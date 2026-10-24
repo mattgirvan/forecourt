@@ -1,3 +1,4 @@
+import { CountUp } from "@/components/ui/count-up";
 import { useEffect, useState } from "react";
 import { PillRow } from "@/components/ui/pill-row";
 import { useReportAccountSection } from "@/components/account/section-context";
@@ -351,7 +352,7 @@ function Overview({
           </div>
           <div className="mt-1">
             <span className="fc-big-price tabular-nums" data-testid="plan-price">
-              {billing === "trial" ? gbpPence(PLANS.site.trialPence ?? 0) : gbpPence(monthly)}
+              <CountUp id="account-plan-price" value={billing === "trial" ? (PLANS.site.trialPence ?? 0) : monthly} format={gbpPence} />
             </span>
             <span className="ml-1.5 text-sm text-muted">
               {billing === "trial" ? "trial" : "a month"}

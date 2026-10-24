@@ -1,3 +1,4 @@
+import { SkeletonCards } from "@/components/ui/skeleton";
 import { Fragment, useEffect, useState } from "react";
 import { gbpPence } from "@/lib/catalog";
 import { listOfficeSiteBilling, setSiteState } from "@/lib/server/site-billing-server";
@@ -21,7 +22,7 @@ export function OfficeSiteBillingPanel({ token }: { token: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token]);
   if (err) return <p className="text-sm text-muted">{err}</p>;
-  if (!rows) return <p className="text-sm text-muted">Loading sites.</p>;
+  if (!rows) return <SkeletonCards count={1} label="Loading sites" />;
   return (
     <OfficeSiteBilling
       rows={rows}
