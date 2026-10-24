@@ -127,7 +127,7 @@ function Home() {
           className="rise mx-auto mt-14 max-w-5xl overflow-hidden rounded-[2rem] border border-line shadow-soft sm:rounded-[2.5rem]"
           style={{ animationDelay: "340ms" }}
         >
-          <img src="/images/desk.jpg" alt="Forecourt open on a tablet at a sales desk, beside car keys and a deal file" className="hero-still w-full object-cover" />
+          <img src="/images/desk.jpg" alt="Forecourt open on a tablet at a sales desk, beside car keys and a deal file" width={1728} height={1152} className="hero-still aspect-[3/2] h-auto w-full bg-[#141614] object-cover" />
         </div>
       </section>
 
