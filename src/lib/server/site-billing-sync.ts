@@ -35,6 +35,7 @@ export type SiteSubLike = {
   cancel_at_period_end?: boolean | null;
   cancel_at?: number | null;
   current_period_start?: number | null;
+  current_period_end?: number | null;
   items: { data: SubItemLike[] };
 };
 export type ItemChange =
