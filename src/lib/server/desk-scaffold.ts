@@ -398,7 +398,7 @@ export function nextHumanSteps(slug: string, domain: string): string[] {
   const repo = deskRepoName(slug);
   return [
     `Create a new Supabase project named forecourt-${slug} (never reuse Aberdeen).`,
-    `Paste desk migrations 0001 → 0004 in order, then insert staff_users from tenant.json.`,
+    `Paste desk migrations 0001 to 0007 in order, enable pg_net, run the desk link steps in supabase/desk-link-setup.sql, then insert staff_users from tenant.json. Do not run the sites backfill on a new desk.`,
     `Link Vercel to ${DESK_OWNER}/${repo}, set Supabase env, deploy.`,
     `Point custom domain ${domain || "desk.…"} and paste the preview URL back on this order.`,
   ];

@@ -1177,7 +1177,7 @@ function ScaffoldStatus({ build }: { build: Build }) {
               New Supabase project <code className="text-fg">forecourt-&lt;slug&gt;</code> — never
               Aberdeen.
             </li>
-            <li>Paste desk migrations 0001 → 0004, then insert staff from tenant.json.</li>
+            <li>Paste desk migrations 0001 to 0007, enable pg_net, run the desk link steps, then insert staff from tenant.json.</li>
             <li>Link Vercel to the repo, set Supabase env, deploy, custom domain.</li>
             <li>Paste the preview URL above and move the stage to Preview.</li>
           </ol>
