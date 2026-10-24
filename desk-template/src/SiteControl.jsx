@@ -29,8 +29,8 @@ export function SiteControl() {
   if (ctl.kind === "label") {
     return (
       <span className="site-label" data-testid="site-label">
-        <span>{ctl.text}</span>
-        <span className="faint">{ctl.hint}</span>
+        <span className="site-label-name">{ctl.text}</span>
+        <span className="faint site-label-hint">{ctl.hint}</span>
       </span>
     );
   }
@@ -47,7 +47,7 @@ export function SiteControl() {
       {open && (
         <div className="site-menu" role="listbox">
           <button type="button" role="option" aria-selected={pick === ALL} className={pick === ALL ? "on" : ""} onClick={() => choose(ALL)}>
-            <span>All sites</span>
+            <span>{ctl.allLabel}</span>
             <span className="count">{ctl.count}</span>
           </button>
           <div className="site-menu-line" />
@@ -58,7 +58,7 @@ export function SiteControl() {
             </button>
           ))}
           <div className="site-menu-line" />
-          <p className="site-menu-foot">All sites is for managers and admins.</p>
+          <p className="site-menu-foot">{ctl.foot}</p>
         </div>
       )}
     </div>

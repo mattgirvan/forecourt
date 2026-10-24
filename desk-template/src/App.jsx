@@ -9,7 +9,7 @@ import { LoginGate } from "./LoginGate";
 import { roleOf } from "./roles";
 import { SiteControl } from "./SiteControl";
 import { AdminSites } from "./AdminSites";
-import { listHint, normaliseSites, resolveSiteAccess } from "./data/sites";
+import { listHint, normaliseSites, resolveSiteAccess, rowSiteTag } from "./data/sites";
 import { loadServerSiteAccess } from "./data/siteAccess";
 
 const ALL_TABS = [
@@ -118,7 +118,7 @@ function Desk() {
       <div className="orb" />
       <div className="orb orb-2" />
       <header className="nav">
-        <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
+        <div className="brand" style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
           <span className="mark">
             <img
               src={logo}
@@ -314,7 +314,9 @@ function Stock({ canEdit = true }) {
             <div>
               <strong>{car.vehicle}</strong>
               <div className="faint" style={{ display: "flex", gap: 12, marginTop: 4 }}>
-                <span><MapPin size={12} /> {car.site}</span>
+                {rowSiteTag(access, pick, car.site) && (
+                  <span className="site-tag" data-testid="row-site"><MapPin size={12} /> {rowSiteTag(access, pick, car.site)}</span>
+                )}
                 <span>{car.type}</span>
                 <span><KeyRound size={12} /> {car.keys}</span>
                 {car.missing && <span className="bad">Missing</span>}
@@ -417,6 +419,8 @@ function Locator({ canEdit = true, showGp = true }) {
 function Pipeline({ canEdit = true }) {
   const deals = useSiteRows("deals");
   const setStage = useDesk((s) => s.setStage);
+  const access = useDesk((s) => s.siteAccess);
+  const pick = useDesk((s) => s.sitePick);
   if (!deals.length) return <div className="glass empty">No pipeline yet.</div>;
   return (
     <div style={{ display: "grid", gap: 10 }}>
@@ -424,7 +428,7 @@ function Pipeline({ canEdit = true }) {
         <div key={d.id} className="glass" style={{ padding: 14 }}>
           <div>
             <strong>{d.customer}</strong>
-            <div className="faint">{d.vehicle} · {d.customerType} · {d.site}</div>
+            <div className="faint">{d.vehicle} · {d.customerType}{rowSiteTag(access, pick, d.site) ? <> · <span className="site-tag" data-testid="row-site">{rowSiteTag(access, pick, d.site)}</span></> : null}</div>
           </div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 10 }}>
             {pipelineStages.map((stage, i) => (

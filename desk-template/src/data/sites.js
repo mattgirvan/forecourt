@@ -15,7 +15,7 @@ export function normaliseSites(list) {
       typeof s === "string"
         ? { code: s, name: s, status: "live" }
         : s && (s.code || s.name)
-          ? { code: String(s.code || s.name), name: String(s.name || s.code), status: s.status || "live" }
+          ? { code: String(s.code || s.name), name: String(s.name || s.code), status: s.status || "live", ...(s.short ? { short: String(s.short) } : {}) }
           : null,
     )
     .filter(Boolean);
@@ -76,7 +76,9 @@ export function siteControl(access, picked = ALL) {
     return { kind: "label", text: sites[0]?.name || "Main", hint: "Your site" };
   }
   const hit = sites.find((s) => same(s.code, picked));
-  return { kind: "switcher", text: hit ? hit.name : "All sites", count: sites.length };
+  const allLabel = access.allSites ? "All sites" : "All my sites";
+  const foot = access.allSites ? "All sites is for managers and admins." : "Showing the sites you look after.";
+  return { kind: "switcher", text: hit ? hit.name : allLabel, allLabel, foot, count: sites.length };
 }
 
 export function listHint(access, picked = ALL) {
@@ -98,4 +100,21 @@ export function accountSitesSummary(sites) {
 /** First site code on the desk, for rows with no site. */
 export function firstSiteCode(list) {
   return normaliseSites(list)[0]?.code || "Main";
+}
+
+/** Short site name for row tags: an explicit short, else the last word ("Hartley Motors Used" gives "Used"). */
+export function siteShortName(sites, code) {
+  const hit = normaliseSites(sites).find((s) => same(s.code, code));
+  if (!hit) return code || "";
+  if (hit.short) return hit.short;
+  const words = String(hit.name || hit.code).trim().split(/\s+/);
+  return words[words.length - 1];
+}
+
+/** Row site tag: hidden when one site is in view, short name otherwise. */
+export function rowSiteTag(access, picked, code) {
+  if (!access?.scoped) return code || "";
+  if (!access.canSwitch && (access.sites?.length || 0) <= 1) return null;
+  if (access.canSwitch && picked !== ALL) return null;
+  return siteShortName(access.sites, code);
 }
