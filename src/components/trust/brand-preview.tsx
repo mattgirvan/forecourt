@@ -82,7 +82,7 @@ export function BrandPackPreview({
 
       {onAccentPick ? (
         <div>
-          <div className="text-sm">Franchise colours</div>
+          <div className="text-sm">Brand colours</div>
           <div className="mt-2 flex flex-wrap gap-1.5">
             {brandOptions().map((b) => (
               <button

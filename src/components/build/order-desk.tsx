@@ -4,6 +4,8 @@ import {
   BUILD_STAGES,
   applyBrand,
   brandOptions,
+  brandsOf,
+  pickBrand,
   featureList,
   isBuildStage,
   packGaps,
@@ -17,6 +19,7 @@ import {
 } from "@/lib/build";
 import { INGEST, normalizeBilling, normalizePlan, type BillingKind, type PlanId } from "@/lib/catalog";
 import { ROLES } from "@/lib/roles";
+import { PLAN_SHAPE, brandHint, brandLabel, multiBrand } from "@/lib/plan-shape";
 import { addMeeting, getBuild, goLiveConfirm, savePack, setBuildStage } from "@/lib/server/build";
 import { BrandPackPreview } from "@/components/trust/brand-preview";
 import { GoLiveChecklist } from "@/components/trust/go-live-checklist";
@@ -408,6 +411,8 @@ function StaffBuild({
   const [tokenStatus, setTokenStatus] = useState<TokenStatus | null>(null);
   const gaps = packGaps(pack, plan, billing);
   const sendReady = gaps.length === 0;
+  const untouchedBrand = pack.franchise.id === "independent" && (pack.franchises ?? []).length === 0;
+  const picked = multiBrand(plan) && untouchedBrand ? [] : brandsOf(pack);
   const sendHelper = packGapsHelper(gaps);
   const sendTip = packGapsTip(gaps);
   useEffect(() => {
@@ -501,7 +506,7 @@ function StaffBuild({
           <Field label="Domain">
             <input className={inp} value={pack.domain} onChange={(e) => setPack({ ...pack, domain: e.target.value })} />
           </Field>
-          <Field label="Sites (comma)">
+          <Field label={PLAN_SHAPE[plan].maxSites === 1 ? "Site (one on Site)" : "Sites (comma)"}>
             <input
               className={inp}
               value={pack.sites.join(", ")}
@@ -510,25 +515,27 @@ function StaffBuild({
           </Field>
         </div>
         <div className="mt-4">
-          <div className="text-sm">Franchise</div>
+          <div className="text-sm">{brandLabel(plan)}</div>
+          <p className="mt-0.5 text-xs text-subtle">{brandHint(plan)}</p>
           <div className="mt-2 flex flex-wrap gap-1.5">
-            {brandOptions().map((b) => (
-              <button
-                key={b.id}
-                type="button"
-                onClick={() => setPack(applyBrand(pack, b.id))}
-                className={cn(
-                  "h-9 rounded-full px-3 text-xs",
-                  pack.franchise.id === b.id ? "bg-fg text-accent-fg" : "bg-elevated text-muted",
-                )}
-              >
-                {b.label}
-              </button>
-            ))}
+            {brandOptions().map((b) => {
+              const on = multiBrand(plan) ? picked.includes(b.id) : pack.franchise.id === b.id;
+              return (
+                <button
+                  key={b.id}
+                  type="button"
+                  aria-pressed={on}
+                  onClick={() => setPack(pickBrand(pack, b.id, plan))}
+                  className={cn("h-9 rounded-full px-3 text-xs", on ? "bg-fg text-accent-fg" : "bg-elevated text-muted")}
+                >
+                  {b.label}
+                </button>
+              );
+            })}
           </div>
           <div className="mt-3 flex items-center gap-2 text-xs text-muted">
             <span className="size-3 rounded-full" style={{ background: pack.franchise.accent }} />
-            {pack.franchise.word} · {pack.franchise.accent}
+            {multiBrand(plan) ? `${picked.length} picked · desk colours from ${pack.franchise.label || pack.franchise.word}` : `${pack.franchise.word} · ${pack.franchise.accent}`}
           </div>
         </div>
         <div className="mt-4">
@@ -587,7 +594,7 @@ function StaffBuild({
             className="mt-2 text-sm text-muted underline-offset-4 hover:underline"
             onClick={() => setPack({ ...pack, staff: [...pack.staff, { name: "", email: "", role: "sales", site: pack.sites[0] ?? "Main" }] })}
           >
-            Add a seat
+            Add a person
           </button>
         </div>
         <label className="mt-4 flex items-center gap-2 text-sm">

@@ -1,3 +1,4 @@
+import { clampSiteCount } from "@/lib/plan-shape";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { createServerFn } from "@tanstack/react-start";
 import {
@@ -164,7 +165,8 @@ export const upsertTenant = createServerFn({ method: "POST" })
     if (billing === "trial" && plan !== "site") {
       throw new Error("The 60-day trial is only for a single site.");
     }
-    const siteCount = Math.max(PLANS[plan].minSites, data.siteCount ?? (data.sites?.length || 1));
+    // Site is one site (PR 9): never bill or set up more than the plan holds.
+    const siteCount = clampSiteCount(plan, data.siteCount ?? (data.sites?.length || 1));
     const sites = JSON.stringify(data.sites ?? ["Main"]);
     const features = JSON.stringify(data.features ?? {});
     const patch = {
@@ -288,7 +290,7 @@ export const startCheckout = createServerFn({ method: "POST" })
       return { url: null, message: "Franchise and group start on a 12-month subscription." };
     }
     const plan = PLANS[data.plan];
-    const siteCount = Math.max(plan.minSites, data.siteCount ?? 1);
+    const siteCount = clampSiteCount(plan.id, data.siteCount ?? 1);
 
     const { sb, userId } = await uid(data.token);
     const full = await sb

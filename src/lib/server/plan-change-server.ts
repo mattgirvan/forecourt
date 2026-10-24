@@ -8,6 +8,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServerFn } from "@tanstack/react-start";
 import { normalizePlan, type PlanId } from "@/lib/catalog";
+import { clampSiteCount } from "@/lib/plan-shape";
 import { SITE } from "@/lib/site";
 import { planChangeDryRunMessage, quotePlanChange, type PlanChangeQuote } from "@/lib/plan-change";
 import { applyPlanChange, planChangeMessage, upgradeCheckoutParams, type PlanChangeDeps } from "@/lib/server/plan-change-sync";
@@ -166,7 +167,8 @@ export const requestPlanChange = createServerFn({ method: "POST" })
       .single();
     if (ok) {
       // Matt: on a downgrade the plan name changes now, the price at period end.
-      await admin.from("tenants").update({ plan: q.to }).eq("id", t.id);
+      // site_count follows the plan shape (PR 9): Site is 1, Group at least 2.
+      await admin.from("tenants").update({ plan: q.to, site_count: clampSiteCount(q.to, t.site_count) }).eq("id", t.id);
       // Migration tracker (PR 8): requested and switched now, the price step waits for the period end.
       const mig = dn?.id ? await readMigration(admin, dn.id as number) : null;
       if (mig && (await setMigrationStage(admin, mig, "switched", { effective_at: q.periodEnd ? new Date(q.periodEnd).toISOString() : null }))) {
@@ -224,7 +226,7 @@ export async function completePaidPlanChange(
     await note(sb, tenantId, "Setup difference paid, plan change failed", message, "stripe");
     return { status: 500, body: "plan change failed, Stripe will retry" };
   }
-  await sb.from("tenants").update({ plan: to }).eq("id", tenantId);
+  await sb.from("tenants").update({ plan: to, site_count: clampSiteCount(to, (t.site_count as number | null) ?? 1) }).eq("id", tenantId);
   await sb.from("plan_changes").update({ status: "applied", message, applied_at: new Date().toISOString(), checkout_session_id: session.id }).eq("id", changeId);
   await note(sb, tenantId, "Account type changed", `Setup difference paid. ${message}`, "stripe");
   // Migration tracker (PR 8): paid and switched together. Falls back to the PR 5 email without the SQL.
