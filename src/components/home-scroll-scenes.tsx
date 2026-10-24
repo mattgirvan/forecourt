@@ -1667,10 +1667,10 @@ function GroupScene() {
   });
 
   const d = SITES[site];
-  const stats: { label: string; value: number; tone?: "amber" | "green" }[] = [
+  const stats: { label: string; value: number; tone?: "amber" }[] = [
     { label: "In stock", value: d.stock },
     { label: "In transit", value: d.transit },
-    { label: "Live deals", value: d.live, tone: "green" },
+    { label: "Live deals", value: d.live },
     { label: "Needs action", value: d.action, tone: d.action > 0 ? "amber" : undefined },
   ];
 
@@ -1690,7 +1690,7 @@ function GroupScene() {
     >
       <div
         ref={stageRef}
-        className="desk-shell scene-card relative w-full max-w-[520px]"
+        className="desk-shell scene-card scene-group-card relative w-full max-w-[520px]"
         role="img"
         aria-label={`Office for a dealer group with three sites. The site switcher moves between sites and each site's numbers change. Showing ${d.name}.`}
       >
@@ -1714,6 +1714,7 @@ function GroupScene() {
                 }}
                 className={cn("scene-site-tab", i === site && "is-on", i === pressed && "is-pressed")}
               >
+                <span className={cn("scene-tap", i === pressed && "is-on")} />
                 <span className="truncate sm:hidden">{SITE_SHORT[i]}</span>
                 <span className="hidden truncate sm:inline">{s.name}</span>
               </span>

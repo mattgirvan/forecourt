@@ -4129,13 +4129,6 @@
 .scene-site-stat-label {
   color: var(--shell-text-faint);
 }
-.scene-site-stat.is-green {
-  background: var(--wash-emerald-bg);
-  border-color: var(--wash-emerald-border);
-}
-.scene-site-stat.is-green .scene-site-stat-label {
-  color: #c5f0b0;
-}
 .scene-site-stat.is-amber {
   background: var(--wash-amber-bg);
   border-color: var(--wash-amber-border);
@@ -4151,5 +4144,65 @@
   .scene-site-stat {
     animation: none !important;
     transition: none !important;
+  }
+}
+
+/* Group scene: tap ripple on phones, pointer only on wider screens */
+.scene-site-tab {
+  position: relative;
+  overflow: hidden;
+}
+.scene-tap {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 56px;
+  height: 56px;
+  margin: -28px 0 0 -28px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.28);
+  opacity: 0;
+  transform: scale(0.2);
+  pointer-events: none;
+  display: none;
+}
+@media (max-width: 1023px) {
+  .scene-group-card .scene-cursor {
+    display: none;
+  }
+  .scene-tap {
+    display: block;
+  }
+  .scene-tap.is-on {
+    animation: scene-tap 560ms ease-out both;
+  }
+}
+@keyframes scene-tap {
+  from {
+    opacity: 0.9;
+    transform: scale(0.2);
+  }
+  to {
+    opacity: 0;
+    transform: scale(2.4);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .scene-tap {
+    display: none !important;
+    animation: none !important;
+  }
+}
+@media (max-width: 767px) {
+  /* Keep at least 24px between the sticky tab bar and these eyebrows. */
+  #scene-transit .scene-sticky,
+  #scene-group .scene-sticky {
+    padding-top: 9.25rem;
+  }
+}
+@media (max-width: 767px) and (prefers-reduced-motion: reduce) {
+  #scene-transit .scene-sticky,
+  #scene-group .scene-sticky {
+    padding-top: 4rem;
   }
 }
