@@ -27,7 +27,7 @@ export function MigrationTracker({
 }) {
   const done = tracker.steps.filter((s) => s.state === "done").length;
   return (
-    <section className="rounded-2xl border border-line bg-surface px-4 py-4 sm:px-5">
+    <section id={office ? undefined : "plan-change-tracker"} className="rounded-2xl border border-line bg-surface px-4 py-4 sm:px-5">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="text-[12px] text-subtle">Account type change</p>

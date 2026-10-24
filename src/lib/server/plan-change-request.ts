@@ -46,24 +46,28 @@ export type StartDeps = {
 
 export type StartResult =
   | { kind: "checkout"; changeId: number; url: string | null; sessionId: string }
-  | { kind: "requested"; changeId: number }
+  | { kind: "requested"; changeId: number; deferred: boolean }
   | { kind: "schedule" }
   | { kind: "refused"; reason: "same_plan" | "open_request" | "checkout_failed"; message: string };
 
-export const OPEN_REQUEST_MESSAGE = "There is already a plan change in progress for this account.";
+export const OPEN_REQUEST_MESSAGE = "You already have a plan change in progress. You can see it under Plan, and we’ll email you when it’s done.";
 
 /**
  * Start a request. The "schedule" route is handed back to the caller, which
  * runs the PR 2 booking (applyPlanChange) and stores the scheduled row.
  */
-export async function startRequest(deps: StartDeps, move: PlanMove, row: RequestRow): Promise<StartResult> {
-  const route = routeRequest(move);
+export async function startRequest(deps: StartDeps, move: PlanMove, row: RequestRow, opts: { scheduleBooking?: boolean } = {}): Promise<StartResult> {
+  // With PLAN_CHANGE_SYNC off there is no Stripe schedule booking: a drop or
+  // equal swap is recorded as "requested" for period end and staff apply it.
+  const raw = routeRequest(move);
+  const route = raw === "schedule" && opts.scheduleBooking === false ? "requested" : raw;
+  const deferred = raw === "schedule" && route === "requested";
   if (route === "none") return { kind: "refused", reason: "same_plan", message: "You are already on that plan." };
   if (await deps.findOpen(row.tenant_id)) return { kind: "refused", reason: "open_request", message: OPEN_REQUEST_MESSAGE };
   if (route === "schedule") return { kind: "schedule" };
   const ins = await deps.insert({ ...row, setup_diff_pence: move.setupDuePence, status: route === "checkout" ? "pending_payment" : "requested" });
   if (ins === "duplicate") return { kind: "refused", reason: "open_request", message: OPEN_REQUEST_MESSAGE };
-  if (route === "requested") return { kind: "requested", changeId: ins.id };
+  if (route === "requested") return { kind: "requested", changeId: ins.id, deferred };
   try {
     const s = await deps.createCheckout(ins.id, `plan-change-checkout:${ins.id}`);
     await deps.setSession(ins.id, s.id);

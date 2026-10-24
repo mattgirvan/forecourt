@@ -1,4 +1,5 @@
 import { test } from "node:test";
+import { readFileSync } from "node:fs";
 import assert from "node:assert/strict";
 import { planMove } from "../plan-change-rules.ts";
 import { markRequestExpired, markRequestPaid, routeRequest, startRequest, OPEN_REQUEST_MESSAGE, type StartDeps } from "./plan-change-request.ts";
@@ -51,7 +52,7 @@ test("setup above 0: Checkout for the setup difference only, keyed to the reques
 test("£0 setup goes straight to requested, no Stripe", async () => {
   const { deps, log } = db();
   const r = await startRequest(deps, planMove({ from: "group", to: "franchise", live: 3 }), row("group", "franchise"));
-  assert.deepEqual(r, { kind: "requested", changeId: 9 });
+  assert.deepEqual(r, { kind: "requested", changeId: 9, deferred: false });
   assert.deepEqual(ops(log), ["insert"]);
   assert.equal((log[0].args[0] as { status: string }).status, "requested");
 });
@@ -143,4 +144,27 @@ test("expired Checkout cancels the pending request once; a paid one is left alon
   assert.deepEqual(await markRequestExpired(deps, s), { status: 200, body: "plan change not pending" });
   assert.deepEqual(seen[0], [9, "cs_9"]);
   assert.deepEqual(await markRequestExpired(deps, { id: "cs_x", metadata: {} }), { status: 200, body: "ignored: bad plan change metadata" });
+});
+
+test("sync off: drop or equal swap is recorded as requested for period end, staff apply it", async () => {
+  const { deps, log } = db();
+  const r = await startRequest(deps, planMove({ from: "group", to: "site", live: 3 }), row("group", "site"), { scheduleBooking: false });
+  assert.deepEqual(r, { kind: "requested", changeId: 9, deferred: true });
+  assert.deepEqual(ops(log), ["insert"]);
+  assert.equal((log[0].args[0] as { status: string }).status, "requested");
+});
+
+test("sync off: a setup difference still goes to Checkout", async () => {
+  const { deps, log } = db();
+  const r = await startRequest(deps, planMove({ from: "site", to: "franchise", live: 1 }), row("site", "franchise"), { scheduleBooking: false });
+  assert.equal(r.kind, "checkout");
+  assert.deepEqual(ops(log), ["insert", "checkout", "setSession"]);
+});
+
+test("server: sync off does not stop routing, and an open request is not a failure", () => {
+  const src = readFileSync(new URL("./plan-change-server.ts", import.meta.url), "utf8");
+  const handler = src.slice(src.indexOf("export const requestPlanChange"), src.indexOf("async function noteOk"));
+  assert.ok(!/mode !== "live"\) \{/.test(handler), "no sync off early return before routing");
+  assert.match(handler, /scheduleBooking: mode === "live"/);
+  assert.match(handler, /open_request" \? "in_progress"/);
 });

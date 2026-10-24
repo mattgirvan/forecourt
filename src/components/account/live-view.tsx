@@ -468,6 +468,16 @@ export function LiveView({
   const [migration, setMigration] = useState<Tracker | null>(initial?.migration ?? null);
   const multi = plan === "group" || plan === "franchise";
   const [view, setView] = useState<"overview" | "sites" | "plan">("overview");
+  // "Plan" in the in progress message links to the tracker, which lives on the overview.
+  useEffect(() => {
+    const go = () => {
+      if (window.location.hash !== "#plan-change-tracker") return;
+      setView("overview");
+      requestAnimationFrame(() => document.getElementById("plan-change-tracker")?.scrollIntoView({ block: "start" }));
+    };
+    window.addEventListener("hashchange", go);
+    return () => window.removeEventListener("hashchange", go);
+  }, []);
   useReportAccountSection(view);
 
   const loadSupport = () =>

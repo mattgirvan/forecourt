@@ -2,8 +2,10 @@
  * Account type change, server side. Customers (live accounts only) and the
  * Forecourt team can preview and request a change.
  *
- * Stripe is only touched when PLAN_CHANGE_SYNC is exactly "on". Anything else
- * is a dry run: the preview works, nothing is charged and the plan stays put.
+ * PLAN_CHANGE_SYNC only gates the automatic Stripe plan and price swap (and
+ * the period end schedule booking). With it off, requests still route by the
+ * price rules: setup Checkout, "requested" tickets, period end dates. Staff
+ * apply the plan and set the price by hand.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServerFn } from "@tanstack/react-start";
@@ -12,10 +14,7 @@ import { clampSiteCount } from "@/lib/plan-shape";
 import { SITE } from "@/lib/site";
 import { currentMonthlyPence, type StripePriceItem } from "@/lib/current-price";
 import {
-  PLAN_CHANGE_NOT_RECORDED,
-  planChangeDryRunMessage,
   planChangeOfficeRecordedMessage,
-  planChangeRecordedMessage,
   quotePlanChange,
   type PlanChangeOutcome,
   type PlanChangeQuote,
@@ -153,22 +152,9 @@ export const requestPlanChange = createServerFn({ method: "POST" })
     const actorEmail = who.email ?? "unknown";
     const reply = (outcome: PlanChangeOutcome, message: string, url: string | null = null) => ({ outcome, message, url, mode });
     if (q.direction === "same") return reply("unchanged", "Already on that plan.");
-    if (mode !== "live") {
-      // Sync is off: nothing is charged and the plan stays put. The request is
-      // noted on the file so the team can apply it, and the caller is told so.
-      const recorded = await noteOk(
-        admin,
-        t.id,
-        "Plan change requested",
-        `Move from ${q.from} to ${q.to} asked for in ${data.from === "office" ? "the Office" : "the account"}. Plan sync is off, so nothing was charged or changed. ${planChangeDryRunMessage(q)}`,
-        actorEmail,
-      );
-      if (!recorded) return reply("failed", PLAN_CHANGE_NOT_RECORDED);
-      return reply(
-        "recorded",
-        data.from === "office" ? planChangeOfficeRecordedMessage(q) : planChangeRecordedMessage(q),
-      );
-    }
+    // Sync off only stops the automatic Stripe plan and price swap. The
+    // request, its setup Checkout and the ticket all still run.
+    const checkoutStripe = stripe ?? (await stripeClient());
     const live = await liveCount(admin, t);
     // PR 3: route by the PR 1 price rules, not plan rank.
     const move = planMove({ from: q.from, to: q.to, live });
@@ -201,8 +187,8 @@ export const requestPlanChange = createServerFn({ method: "POST" })
         setSession: async (id, sessionId) => void (await admin.from("plan_changes").update({ checkout_session_id: sessionId }).eq("id", id)),
         cancel: async (id, message) => void (await admin.from("plan_changes").update({ status: "cancelled", message }).eq("id", id)),
         createCheckout: async (changeId, idempotencyKey) => {
-          if (!stripe) throw new Error("Stripe is not set up here.");
-          const session = await stripe.checkout.sessions.create(
+          if (!checkoutStripe) throw new Error("Stripe is not set up here.");
+          const session = await checkoutStripe.checkout.sessions.create(
             upgradeCheckoutParams({
               tenantId: t.id,
               changeId,
@@ -221,8 +207,9 @@ export const requestPlanChange = createServerFn({ method: "POST" })
       },
       move,
       row,
+      { scheduleBooking: mode === "live" },
     );
-    if (started.kind === "refused") return reply("failed", started.message);
+    if (started.kind === "refused") return reply(started.reason === "open_request" ? "in_progress" : "failed", started.message);
     if (started.kind === "checkout" || started.kind === "requested") {
       // Migration tracker (PR 8): open at "requested" and email the admin and hello@.
       const mig = await readMigration(admin, started.changeId);
@@ -233,8 +220,15 @@ export const requestPlanChange = createServerFn({ method: "POST" })
         await note(admin, t.id, "Plan change requested", `Waiting for the setup difference (${move.setupDuePence / 100} GBP).`, actorEmail);
         return reply("checkout", "Pay the setup difference to send your request.", started.url ?? null);
       }
+      if (started.deferred) {
+        const effectiveAt = q.periodEnd ? new Date(q.periodEnd).toISOString() : null;
+        // Separate write so a database without plan-change-flow.sql still records the row.
+        await admin.from("plan_changes").update({ effective_at: effectiveAt }).eq("id", started.changeId);
+        await note(admin, t.id, "Plan change requested", `Plan sync is off. The team applies this at period end${effectiveAt ? ` (${effectiveAt.slice(0, 10)})` : ""}.`, actorEmail);
+        return reply("recorded", mode !== "live" && data.from === "office" ? planChangeOfficeRecordedMessage(q) : "Request sent. Nothing to pay. Your new plan starts at the end of this billing period.");
+      }
       await note(admin, t.id, "Plan change requested", "No setup difference. Waiting for the team.", actorEmail);
-      return reply("recorded", "Request sent. Nothing to pay now. We will be in touch to set up your change.");
+      return reply("recorded", mode !== "live" && data.from === "office" ? planChangeOfficeRecordedMessage(q) : "Request sent. Nothing to pay now. We will be in touch to set up your change.");
     }
     const result = await applyPlanChange(planChangeDeps(stripe), {
       subscriptionId: t.stripe_subscription_id,
@@ -284,7 +278,7 @@ export const requestPlanChange = createServerFn({ method: "POST" })
   });
 
 /** Like note(), but says whether the row was written. */
-async function noteOk(sb: SupabaseClient, tenantId: number, title: string, body: string, actorEmail: string): Promise<boolean> {
+export async function noteOk(sb: SupabaseClient, tenantId: number, title: string, body: string, actorEmail: string): Promise<boolean> {
   try {
     const { error } = await sb.from("build_events").insert({ tenant_id: tenantId, kind: "note", title, body, visibility: "internal", actor_email: actorEmail });
     return !error;

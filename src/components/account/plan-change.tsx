@@ -137,7 +137,19 @@ export function PlanChangeMessage({
       <span className="min-w-0">
         <span className="block text-sm font-semibold">{feedback.title}</span>
         {feedback.body ? (
-          <span className="mt-0.5 block text-[13px] text-[var(--fc-text-dim)]">{feedback.body}</span>
+          <span className="mt-0.5 block text-[13px] text-[var(--fc-text-dim)]">
+            {feedback.link && feedback.body.includes(feedback.link.word) ? (
+              <>
+                {feedback.body.slice(0, feedback.body.indexOf(feedback.link.word))}
+                <a className="underline underline-offset-2" href={feedback.link.href}>
+                  {feedback.link.word}
+                </a>
+                {feedback.body.slice(feedback.body.indexOf(feedback.link.word) + feedback.link.word.length)}
+              </>
+            ) : (
+              feedback.body
+            )}
+          </span>
         ) : null}
       </span>
     </div>

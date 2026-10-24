@@ -47,13 +47,14 @@ test("customer copy has no dashes and names the plan", () => {
   assert.match(planChangeRecordedMessage(down), /Franchise/);
 });
 
-test("server: every requestPlanChange reply carries an outcome, dry run records a note", () => {
+test("server: every requestPlanChange reply carries an outcome; the request row is the record", () => {
   const src = readFileSync("src/lib/server/plan-change-server.ts", "utf8");
   const body = src.slice(src.indexOf("export const requestPlanChange"), src.indexOf("async function noteOk"));
   assert.doesNotMatch(body, /return \{ message/);
-  assert.match(body, /noteOk\(/);
+  // Sync off now still routes (Checkout, requested, period end), so the
+  // plan_changes row replaces the old note-only record.
   assert.match(body, /reply\(\s*"recorded"/);
-  assert.match(body, /reply\("failed", PLAN_CHANGE_NOT_RECORDED\)/);
+  assert.match(body, /reply\(started\.reason === "open_request" \? "in_progress" : "failed"/);
 });
 
 test("panel: a confirm always sets a message and errors stay in the sheet", () => {
@@ -69,6 +70,7 @@ test("office copy with sync off is plain English, not a dry run", () => {
   assert.doesNotMatch(m, /dry run|[\u2012-\u2015]| - |glass/i);
   const src = readFileSync("src/lib/server/plan-change-server.ts", "utf8");
   assert.match(src, /data\.from === "office" \? planChangeOfficeRecordedMessage\(q\)/);
+  // (now only used for office requests that need no payment while sync is off)
   assert.doesNotMatch(src, /\$\{planChangeDryRunMessage\(q\)\} Noted on the file/);
 });
 
@@ -117,4 +119,14 @@ test("nothing in the plan change flow promises a charge at request time", () => 
   for (const f of ["src/components/account/plan-change.tsx", "src/lib/plan-change.ts"]) {
     assert.doesNotMatch(readFileSync(f, "utf8"), /(paid|charged|pay) (today|now)/i);
   }
+});
+
+test("an open request is grey info with a link to the tracker, not an error", () => {
+  const fb = planChangeFeedback({ outcome: "in_progress", message: "You already have a plan change in progress. You can see it under Plan, and we\u2019ll email you when it\u2019s done." }, "group");
+  assert.equal(fb.tone, "info");
+  assert.equal(fb.title, "Plan change in progress");
+  assert.deepEqual(fb.link, { word: "Plan", href: "#plan-change-tracker" });
+  const ui = readFileSync(new URL("../components/account/plan-change.tsx", import.meta.url), "utf8");
+  assert.match(ui, /fb\.tone === "error"\) \{\s*setSheetError/, "only errors stay in the sheet with Try again");
+  assert.match(readFileSync(new URL("../components/account/migration-tracker.tsx", import.meta.url), "utf8"), /"plan-change-tracker"/);
 });
