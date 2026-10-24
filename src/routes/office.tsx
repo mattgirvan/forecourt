@@ -27,6 +27,9 @@ import {
   setTenantArchived,
 } from "@/lib/server/portal";
 import { packageLive, statusLabel, trialDaysLeft } from "@/lib/team";
+import { OfficeMigrationPanel } from "@/components/office/migration-panel";
+import { getMigration } from "@/lib/server/migration-server";
+import { accountStatusLabel, type Tracker } from "@/lib/migration";
 import { useWhoAmI } from "@/lib/who-am-i";
 import { cn } from "@/lib/utils";
 import { SupportPane, SupportQueue } from "@/components/office/support-desk";
@@ -318,9 +321,16 @@ function TenantFile({ token, tenantId, onSaved }: { token: string; tenantId: num
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [pane, setPane] = useState<"build" | "file" | "requests" | "support" | "notes" | "billing">("build");
+  const [migration, setMigration] = useState<Tracker | null>(null);
+  const loadMigration = () =>
+    void getMigration({ data: { token, tenantId } })
+      .then(setMigration)
+      .catch(() => setMigration(null));
 
   useEffect(() => {
     setFile(null);
+    setMigration(null);
+    loadMigration();
     void getTenantFile({ data: { token, tenantId } }).then((row) => {
       setFile(row);
       setResearch(row.research ?? "");
@@ -330,6 +340,7 @@ function TenantFile({ token, tenantId, onSaved }: { token: string; tenantId: num
     void listReceipts({ data: { token, tenantId } })
       .then(setReceipts)
       .catch(() => setReceipts([]));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, tenantId]);
 
   if (!file) return <p className="text-sm text-muted">Loading file…</p>;
@@ -427,6 +438,7 @@ function TenantFile({ token, tenantId, onSaved }: { token: string; tenantId: num
     <div>
       <p className="text-[13px] font-medium text-muted">
         {statusLabel(file.status)}
+        {accountStatusLabel(migration) === "Migration" ? " · Migration" : ""}
         {packageLive(file.status) && billing === "trial" && days != null ? ` · ${days} days left` : ""}
         {file.term_months ? ` · ${file.term_months}-month contract` : ""}
       </p>
@@ -541,6 +553,7 @@ function TenantFile({ token, tenantId, onSaved }: { token: string; tenantId: num
       {pane === "billing" && (
         <div className="mt-8 space-y-6">
           <PaymentIssueNotice token={token} tenantId={tenantId} team />
+          {migration?.open ? <OfficeMigrationPanel token={token} tracker={migration} onChanged={loadMigration} /> : null}
           {file && <PlanChangePanel token={token} tenantId={tenantId} plan={normalizePlan(file.plan as string)} where="office" />}
           <ul className="divide-y divide-line rounded-[1.75rem] border border-line bg-surface px-6">
             {receipts.length === 0 && <li className="py-6 text-sm text-muted">No receipts.</li>}

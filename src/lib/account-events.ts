@@ -164,3 +164,69 @@ export function staffAccessEvent(d: { eventKey: string; email: string; allSites:
     dedupe: `staff-access:${d.eventKey}`,
   };
 }
+
+/**
+ * Account type migration (PR 8). One email per meaningful step to the account
+ * admin and hello@, deduped per change and stage: requested, paid (upgrades),
+ * priced (downgrades, at period end), complete and cancelled.
+ */
+export type MigrationEmailStage = "requested" | "paid" | "priced" | "complete" | "cancelled";
+export function migrationKey(changeId: number, stage: MigrationEmailStage): string {
+  return `migration:${changeId}:${stage}`;
+}
+export function migrationEvent(d: {
+  changeId: number;
+  from: PlanId;
+  to: PlanId;
+  stage: MigrationEmailStage;
+  upgrade: boolean;
+  setupDiffPence?: number;
+  newMonthlyPence?: number;
+  periodEnd?: string | null;
+}): AccountEvent {
+  const to = PLANS[d.to].name;
+  const from = PLANS[d.from].name;
+  const track = "Your account shows Migration with each step until it is done.";
+  const monthly = d.newMonthlyPence ? `New monthly: ${money(d.newMonthlyPence)}` : null;
+  const byEnd = d.periodEnd ? `on ${ukDate(d.periodEnd)}` : "at the end of your billing period";
+  const map: Record<MigrationEmailStage, { title: string; lines: string[] }> = {
+    requested: d.upgrade
+      ? {
+          title: `Moving to ${to}: change requested`,
+          lines: [
+            `You asked to move from ${from} to ${to}.`,
+            `Next: pay the one-off setup difference${d.setupDiffPence ? ` of ${money(d.setupDiffPence)}` : ""}. Your plan switches as soon as it goes through.`,
+            track,
+          ],
+        }
+      : {
+          title: `Moving to ${to}: plan switched`,
+          lines: [
+            `Your account moved from ${from} to ${to} today. No payment is needed.`,
+            `Your price stays the same until the end of your billing period, then the ${to} price starts ${byEnd}. No setup refund and no refund for part months.`,
+            track,
+          ],
+        },
+    paid: {
+      title: `Moving to ${to}: paid and switched`,
+      lines: [
+        `The setup difference is paid and your account is now on ${to}.`,
+        monthly ? `${monthly}. The part month is added to your next bill.` : "The part month is added to your next bill.",
+        "Next: we set up your desk for the new plan.",
+      ],
+    },
+    priced: {
+      title: `Moving to ${to}: new price started`,
+      lines: [`Your billing period has ended and the ${to} price now applies.${monthly ? ` ${monthly}.` : ""}`],
+    },
+    complete: {
+      title: `Moved to ${to}: complete`,
+      lines: [`Your move from ${from} to ${to} is complete. Your account is back to Live.`],
+    },
+    cancelled: {
+      title: `Move to ${to} cancelled`,
+      lines: [`We closed the tracker for your move from ${from} to ${to}. Your account is back to Live.`, "Nothing about your plan or billing was changed by closing it. Reply to this email if that is not what you expected."],
+    },
+  };
+  return { kind: "account_migration", ...map[d.stage], dedupe: migrationKey(d.changeId, d.stage) };
+}
