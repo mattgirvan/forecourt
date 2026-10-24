@@ -56,3 +56,10 @@ test("Office pack hint is live and specific", () => {
   const src = readFileSync(new URL("./build.ts", import.meta.url), "utf8");
   for (const s of ["Add a web address before we can build.", "Add at least one person to the desk before we can build.", "We'll unlock this once the build token is set."]) assert.ok(src.includes(s), s);
 });
+
+test("pack form shows one unlock hint: the live one, not the generic line (Atlas QA)", () => {
+  const build = readFileSync("src/lib/build.ts", "utf8");
+  const desk = readFileSync("src/components/build/order-desk.tsx", "utf8");
+  assert.doesNotMatch(build + desk, /when the pack has everything needed to build your desk/);
+  assert.match(desk, /packHint\(pack/);
+});

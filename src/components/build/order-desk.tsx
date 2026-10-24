@@ -634,7 +634,7 @@ function StaffBuild({
                 type="button"
                 disabled={busy || !sendReady}
                 onClick={() => void fire()}
-                title={sendReady ? "Create or refresh the desk repo again" : sendHelper}
+                title={sendReady ? "Create or refresh the desk repo again" : (sendTip ?? undefined)}
               >
                 {busy ? "Sending…" : "Send again"}
               </Button>
@@ -669,7 +669,7 @@ function StaffBuild({
             {notice}
           </p>
         ) : null}
-        <p className="mt-3 text-sm text-muted">{sendHelper}</p>
+        {sendHelper ? <p className="mt-3 text-sm text-muted">{sendHelper}</p> : null}
         {sendTip && (
           <p className="mt-2 rounded-2xl border border-line bg-elevated/60 px-4 py-3 text-sm text-muted">
             {sendTip}

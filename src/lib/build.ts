@@ -305,7 +305,6 @@ export const PACK_GAP_TIPS = {
 } as const;
 
 export const PACK_GAPS_SUMMARY = "Add a web address and at least one person to the desk before we can build.";
-export const PACK_LOCKED_HELPER = "We'll unlock this when the pack has everything needed to build your desk.";
 export const PACK_READY_HELPER = "Pack looks ready. Send it when you want us to build.";
 
 const TRIAL_ROLE_IDS = new Set(["sales", "management", "host", "progressor"]);
@@ -359,8 +358,9 @@ export function packHint(pack: TenantPack, tokenConfigured: boolean | null): str
   return out.length ? out.join(" ") : null;
 }
 
-export function packGapsHelper(gaps: string[]): string {
-  return gaps.length === 0 ? PACK_READY_HELPER : PACK_LOCKED_HELPER;
+/** Ready line only. While gaps remain the live packHint is the one hint (Atlas QA: no generic second hint). */
+export function packGapsHelper(gaps: string[]): string | null {
+  return gaps.length === 0 ? PACK_READY_HELPER : null;
 }
 
 export function brandOptions() {
