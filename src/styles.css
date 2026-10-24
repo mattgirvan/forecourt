@@ -3485,3 +3485,161 @@
   overflow: visible;
   text-overflow: clip;
 }
+
+/* ── Redesign 13: Team, Roles, Sign in ── */
+.fc-role-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  padding: 8px 12px;
+  border-radius: 14px;
+  background: var(--fc-row);
+  border: 1px solid var(--fc-panel-border);
+}
+.fc-role-row.is-open {
+  background: transparent;
+  border-style: dashed;
+}
+.fc-avatar {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border-radius: 999px;
+  background: var(--fc-solid-2);
+  font-size: 12px;
+  font-weight: 600;
+}
+.fc-avatar.is-open {
+  background: transparent;
+  border: 1px dashed var(--fc-panel-border);
+  color: var(--fc-text-dim);
+}
+.fc-roles,
+.fc-team-grid {
+  display: grid;
+  gap: 16px;
+  animation: fc-rise 0.32s ease-out both;
+}
+@media (min-width: 1024px) {
+  .fc-roles {
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+    align-items: start;
+  }
+  .fc-team-grid {
+    grid-template-columns: minmax(0, 1.4fr) minmax(300px, 1fr);
+    align-items: start;
+  }
+}
+.fc-role-grid-wrap {
+  overflow-x: auto;
+}
+.fc-role-grid {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.fc-role-grid thead th {
+  padding: 0 4px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--fc-text-faint);
+  text-align: center;
+}
+.fc-role-grid tbody th {
+  min-width: 8.5rem;
+  padding: 4px 8px 4px 0;
+  text-align: left;
+  font-weight: 500;
+}
+.fc-role-grid tbody tr + tr {
+  border-top: 1px solid var(--fc-panel-border);
+}
+.fc-role-grid td {
+  background: transparent;
+  border: 0;
+  text-align: center;
+  padding: 0 2px;
+}
+.fc-switch {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-width: 44px;
+  min-height: 44px;
+  justify-content: center;
+}
+.fc-switch::before {
+  content: "";
+  width: 36px;
+  height: 20px;
+  border-radius: 999px;
+  background: var(--fc-solid-2);
+  border: 1px solid var(--fc-panel-border);
+}
+.fc-switch[data-on]::before {
+  background: #3fae6a;
+  border-color: transparent;
+}
+.fc-switch-knob {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -15px;
+  border-radius: 999px;
+  background: #fff;
+  opacity: 0.7;
+  transition: transform 0.2s ease;
+}
+.fc-switch[data-on] .fc-switch-knob {
+  transform: translateX(16px);
+  opacity: 1;
+}
+.fc-roles-dock,
+.fc-team-dock {
+  margin-top: 12px;
+}
+@media (max-width: 720px) {
+  .fc-roles-dock,
+  .fc-team-dock {
+    position: sticky;
+    bottom: calc(var(--fc-bnav-h) + var(--fc-bnav-gap) + 8px + env(safe-area-inset-bottom));
+    z-index: 5;
+    padding: 8px;
+    border-radius: 16px;
+    background: var(--fc-solid);
+    border: 1px solid var(--fc-panel-border);
+  }
+}
+.fc-signin {
+  background:
+    radial-gradient(80% 50% at 50% 0%, rgba(60, 110, 160, 0.25), transparent 70%),
+    var(--fc-bg);
+}
+.fc-signin-card {
+  padding: 28px 24px;
+  border-radius: var(--fc-r-lg);
+  background: var(--fc-solid);
+  border: 1px solid var(--fc-panel-border);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+  animation: fc-rise 0.32s ease-out both;
+}
+.fc-signin-card :is(input, button) {
+  min-height: 44px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .fc-roles,
+  .fc-team-grid,
+  .fc-signin-card {
+    animation: fc-fade-in 0.2s linear both;
+  }
+  .fc-switch-knob {
+    transition: none;
+  }
+}
