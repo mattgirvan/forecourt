@@ -1862,6 +1862,9 @@
   --fc-ease: cubic-bezier(0.22, 1, 0.36, 1);
   --fc-m-surface: 360ms var(--fc-ease);
   --fc-m-press: 150ms cubic-bezier(0.2, 0.8, 0.3, 1.4);
+  /* Mobile bottom bar: height and the gap between it and the screen edge. */
+  --fc-bnav-h: 64px;
+  --fc-bnav-gap: 10px;
 }
 
 .fc-app {
@@ -2064,15 +2067,16 @@
   .fc-mtop .fc-brand { padding: 0; }
   .fc-mtop-av { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; }
   .fc-mtop-av .fc-av { width: 34px; height: 34px; }
-  .fc-main { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
+  /* Clear the floating bottom bar: bar height plus its gap plus the safe area. */
+  .fc-main { padding-bottom: calc(var(--fc-bnav-h) + var(--fc-bnav-gap) + env(safe-area-inset-bottom)); }
   .fc-bnav {
     display: flex;
     position: fixed;
     left: 10px;
     right: 10px;
-    bottom: max(10px, env(safe-area-inset-bottom));
+    bottom: calc(var(--fc-bnav-gap) + env(safe-area-inset-bottom));
     z-index: 50;
-    height: 64px;
+    height: var(--fc-bnav-h);
     padding: 0 4px;
     justify-content: space-around;
     align-items: center;
