@@ -16,10 +16,11 @@
     "preview:stop": "node scripts/preview.mjs stop",
     "typecheck": "tsc --noEmit",
     "check:auth": "node scripts/check-auth-invariant.mjs",
-    "test": "node --test 'scripts/**/*.test.mjs' && node --experimental-strip-types --test src/lib/db.test.ts src/lib/franchise-price.test.ts src/lib/live-view.test.ts src/lib/role-grid.test.ts src/lib/ticket-view.test.ts src/lib/sites.test.ts src/lib/migration.test.ts src/lib/plan-shape.test.ts src/lib/site-billing.test.ts src/lib/server/site-billing-sync.test.ts src/lib/server/site-billing-wiring.test.ts src/lib/plan-change.test.ts src/lib/plan-change-rules.test.ts src/lib/plan-change-feedback.test.ts src/lib/server/plan-change-sync.test.ts src/lib/server/plan-change-webhook.test.ts src/lib/server/plan-change-request.test.ts src/lib/server/plan-change-emails.test.ts src/lib/server/plan-change-resume.test.ts src/lib/server/plan-change-mark-paid.test.ts src/lib/server/plan-change-wait-ticket.test.ts src/lib/server/plan-change-ticket.test.ts src/lib/server/account-event-email.test.ts src/lib/server/desk-events.test.ts src/lib/app-data/app-data.test.ts src/lib/app-data/readiness-schedule.test.ts src/lib/staff-nav.test.ts src/lib/team-taps.test.ts src/lib/collapse-state.test.ts src/lib/timeline.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts src/lib/auth/signin-options.test.ts src/lib/auth/verified-email.test.ts src/lib/server/desk-scaffold.test.ts src/lib/server/payments.test.ts src/lib/server/billing-start.test.ts src/lib/server/checkout-guard.test.ts src/lib/server/refund-target.test.ts src/lib/server/checkout-sessions.test.ts src/lib/server/dealer-match.test.ts src/lib/server/email-engine.test.ts src/lib/email/templates.test.ts src/lib/email/manager-invite.test.ts src/lib/server/resume-order.test.ts src/lib/server/refund-safety.test.ts src/lib/server/team-access.test.ts src/lib/server/team-owner-only.test.ts src/lib/server/payment-issues.test.ts src/lib/who-am-i-state.test.ts src/lib/shell-solid.test.ts",
+    "test": "node --test 'scripts/**/*.test.mjs' && node --experimental-strip-types --test src/lib/db.test.ts src/lib/franchise-price.test.ts src/lib/live-view.test.ts src/lib/role-grid.test.ts src/lib/ticket-view.test.ts src/lib/sites.test.ts src/lib/migration.test.ts src/lib/plan-shape.test.ts src/lib/site-billing.test.ts src/lib/server/site-billing-sync.test.ts src/lib/server/site-billing-wiring.test.ts src/lib/plan-change.test.ts src/lib/plan-change-rules.test.ts src/lib/plan-change-feedback.test.ts src/lib/server/plan-change-sync.test.ts src/lib/server/plan-change-webhook.test.ts src/lib/server/plan-change-request.test.ts src/lib/server/plan-change-emails.test.ts src/lib/server/plan-change-resume.test.ts src/lib/server/plan-change-mark-paid.test.ts src/lib/server/plan-change-wait-ticket.test.ts src/lib/server/plan-change-ticket.test.ts src/lib/server/account-event-email.test.ts src/lib/server/desk-events.test.ts src/lib/app-data/app-data.test.ts src/lib/app-data/readiness-schedule.test.ts src/lib/staff-nav.test.ts src/lib/team-taps.test.ts src/lib/collapse-state.test.ts src/lib/timeline.test.ts src/lib/auth/gate-identity.test.ts src/lib/auth/sign-in-gate.test.ts src/lib/auth/signin-options.test.ts src/lib/auth/verified-email.test.ts src/lib/server/desk-scaffold.test.ts src/lib/server/payments.test.ts src/lib/server/billing-start.test.ts src/lib/server/checkout-guard.test.ts src/lib/server/refund-target.test.ts src/lib/server/checkout-sessions.test.ts src/lib/server/dealer-match.test.ts src/lib/server/email-engine.test.ts src/lib/email/templates.test.ts src/lib/email/manager-invite.test.ts src/lib/server/resume-order.test.ts src/lib/server/refund-safety.test.ts src/lib/server/team-access.test.ts src/lib/server/team-owner-only.test.ts src/lib/server/payment-issues.test.ts src/lib/who-am-i-state.test.ts src/lib/shell-solid.test.ts src/lib/server/newsletter.test.ts",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "indexnow": "node scripts/indexnow.mjs"
+    "indexnow": "node scripts/indexnow.mjs",
+    "emails:render": "tsx scripts/render-emails.tsx"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.4",
@@ -79,6 +80,8 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.20.0",
+    "@react-email/components": "^1.0.12",
+    "@react-email/render": "^2.1.1",
     "@types/node": "^22.16.5",
     "@types/pg": "^8.11.10",
     "@types/react": "^19.2.0",
@@ -94,6 +97,7 @@
     "nitro": "3.0.260610-beta",
     "playwright": "^1.62.0",
     "prettier": "^3.4.0",
+    "tsx": "^4.23.15",
     "typescript": "^5.7.0",
     "typescript-eslint": "^8.56.1",
     "vite": "^8.2.0"

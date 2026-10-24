@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight } from "lucide-react";
 import { Reveal } from "@/components/reveal";
 import { ContactPromo } from "@/components/contact-promo";
+import { NewsletterForm } from "@/components/newsletter-form";
 import { HomeCrmComparison } from "@/components/home-crm-comparison";
 import { HomeScrollScenes } from "@/components/home-scroll-scenes";
 import { SiteShell } from "@/components/site-shell";
@@ -196,6 +197,21 @@ function Home() {
             Built for the person standing next to the car.
           </p>
         </div>
+      </section>
+
+      <section id="home-newsletter" className="px-4 py-8 sm:px-6">
+        <Reveal>
+          <div className="mx-auto grid max-w-3xl gap-5 rounded-[1.75rem] border border-line bg-surface/90 px-6 py-8 sm:px-9">
+            <div>
+              <p className="text-[13px] font-medium text-muted">Not ready to talk yet</p>
+              <h2 className="mt-2 text-2xl font-semibold tracking-tight">Hear when the desk gets better.</h2>
+              <p className="mt-2 text-[15px] leading-relaxed text-muted">
+                Product news, new features and pricing changes. About one email a month.
+              </p>
+            </div>
+            <NewsletterForm />
+          </div>
+        </Reveal>
       </section>
 
       <section id="start" className="mx-auto max-w-5xl px-4 py-20 sm:px-6 sm:py-28">

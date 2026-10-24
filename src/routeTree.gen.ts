@@ -27,11 +27,16 @@ import { Route as ForBesideCrmRouteImport } from './routes/for/beside-crm'
 import { Route as ForCustomerLiveTrackRouteImport } from './routes/for/customer-live-track'
 import { Route as ForKeyLocatorRouteImport } from './routes/for/key-locator'
 import { Route as ForPhotoStatusRouteImport } from './routes/for/photo-status'
+import { Route as NewsletterConfirmedRouteImport } from './routes/newsletter/confirmed'
+import { Route as NewsletterUnsubscribedRouteImport } from './routes/newsletter/unsubscribed'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as ApiBuildSendRouteImport } from './routes/api/build/send'
 import { Route as ApiBuildTokenStatusRouteImport } from './routes/api/build/token-status'
 import { Route as ApiCronMigrationsRouteImport } from './routes/api/cron/migrations'
 import { Route as ApiDeskEventsRouteImport } from './routes/api/desk/events'
+import { Route as ApiNewsletterConfirmRouteImport } from './routes/api/newsletter/confirm'
+import { Route as ApiNewsletterSubscribeRouteImport } from './routes/api/newsletter/subscribe'
+import { Route as ApiNewsletterUnsubscribeRouteImport } from './routes/api/newsletter/unsubscribe'
 import { Route as ApiStripeWebhookRouteImport } from './routes/api/stripe/webhook'
 
 const IndexRoute = IndexRouteImport.update({
@@ -124,6 +129,16 @@ const ForPhotoStatusRoute = ForPhotoStatusRouteImport.update({
   path: '/for/photo-status',
   getParentRoute: () => rootRouteImport,
 } as any)
+const NewsletterConfirmedRoute = NewsletterConfirmedRouteImport.update({
+  id: '/newsletter/confirmed',
+  path: '/newsletter/confirmed',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NewsletterUnsubscribedRoute = NewsletterUnsubscribedRouteImport.update({
+  id: '/newsletter/unsubscribed',
+  path: '/newsletter/unsubscribed',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
@@ -149,6 +164,22 @@ const ApiDeskEventsRoute = ApiDeskEventsRouteImport.update({
   path: '/api/desk/events',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiNewsletterConfirmRoute = ApiNewsletterConfirmRouteImport.update({
+  id: '/api/newsletter/confirm',
+  path: '/api/newsletter/confirm',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiNewsletterSubscribeRoute = ApiNewsletterSubscribeRouteImport.update({
+  id: '/api/newsletter/subscribe',
+  path: '/api/newsletter/subscribe',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiNewsletterUnsubscribeRoute =
+  ApiNewsletterUnsubscribeRouteImport.update({
+    id: '/api/newsletter/unsubscribe',
+    path: '/api/newsletter/unsubscribe',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiStripeWebhookRoute = ApiStripeWebhookRouteImport.update({
   id: '/api/stripe/webhook',
   path: '/api/stripe/webhook',
@@ -174,11 +205,16 @@ export interface FileRoutesByFullPath {
   '/for/customer-live-track': typeof ForCustomerLiveTrackRoute
   '/for/key-locator': typeof ForKeyLocatorRoute
   '/for/photo-status': typeof ForPhotoStatusRoute
+  '/newsletter/confirmed': typeof NewsletterConfirmedRoute
+  '/newsletter/unsubscribed': typeof NewsletterUnsubscribedRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/build/send': typeof ApiBuildSendRoute
   '/api/build/token-status': typeof ApiBuildTokenStatusRoute
   '/api/cron/migrations': typeof ApiCronMigrationsRoute
   '/api/desk/events': typeof ApiDeskEventsRoute
+  '/api/newsletter/confirm': typeof ApiNewsletterConfirmRoute
+  '/api/newsletter/subscribe': typeof ApiNewsletterSubscribeRoute
+  '/api/newsletter/unsubscribe': typeof ApiNewsletterUnsubscribeRoute
   '/api/stripe/webhook': typeof ApiStripeWebhookRoute
 }
 export interface FileRoutesByTo {
@@ -200,11 +236,16 @@ export interface FileRoutesByTo {
   '/for/customer-live-track': typeof ForCustomerLiveTrackRoute
   '/for/key-locator': typeof ForKeyLocatorRoute
   '/for/photo-status': typeof ForPhotoStatusRoute
+  '/newsletter/confirmed': typeof NewsletterConfirmedRoute
+  '/newsletter/unsubscribed': typeof NewsletterUnsubscribedRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/build/send': typeof ApiBuildSendRoute
   '/api/build/token-status': typeof ApiBuildTokenStatusRoute
   '/api/cron/migrations': typeof ApiCronMigrationsRoute
   '/api/desk/events': typeof ApiDeskEventsRoute
+  '/api/newsletter/confirm': typeof ApiNewsletterConfirmRoute
+  '/api/newsletter/subscribe': typeof ApiNewsletterSubscribeRoute
+  '/api/newsletter/unsubscribe': typeof ApiNewsletterUnsubscribeRoute
   '/api/stripe/webhook': typeof ApiStripeWebhookRoute
 }
 export interface FileRoutesById {
@@ -227,11 +268,16 @@ export interface FileRoutesById {
   '/for/customer-live-track': typeof ForCustomerLiveTrackRoute
   '/for/key-locator': typeof ForKeyLocatorRoute
   '/for/photo-status': typeof ForPhotoStatusRoute
+  '/newsletter/confirmed': typeof NewsletterConfirmedRoute
+  '/newsletter/unsubscribed': typeof NewsletterUnsubscribedRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/build/send': typeof ApiBuildSendRoute
   '/api/build/token-status': typeof ApiBuildTokenStatusRoute
   '/api/cron/migrations': typeof ApiCronMigrationsRoute
   '/api/desk/events': typeof ApiDeskEventsRoute
+  '/api/newsletter/confirm': typeof ApiNewsletterConfirmRoute
+  '/api/newsletter/subscribe': typeof ApiNewsletterSubscribeRoute
+  '/api/newsletter/unsubscribe': typeof ApiNewsletterUnsubscribeRoute
   '/api/stripe/webhook': typeof ApiStripeWebhookRoute
 }
 export interface FileRouteTypes {
@@ -255,11 +301,16 @@ export interface FileRouteTypes {
     | '/for/customer-live-track'
     | '/for/key-locator'
     | '/for/photo-status'
+    | '/newsletter/confirmed'
+    | '/newsletter/unsubscribed'
     | '/api/auth/$'
     | '/api/build/send'
     | '/api/build/token-status'
     | '/api/cron/migrations'
     | '/api/desk/events'
+    | '/api/newsletter/confirm'
+    | '/api/newsletter/subscribe'
+    | '/api/newsletter/unsubscribe'
     | '/api/stripe/webhook'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -281,11 +332,16 @@ export interface FileRouteTypes {
     | '/for/customer-live-track'
     | '/for/key-locator'
     | '/for/photo-status'
+    | '/newsletter/confirmed'
+    | '/newsletter/unsubscribed'
     | '/api/auth/$'
     | '/api/build/send'
     | '/api/build/token-status'
     | '/api/cron/migrations'
     | '/api/desk/events'
+    | '/api/newsletter/confirm'
+    | '/api/newsletter/subscribe'
+    | '/api/newsletter/unsubscribe'
     | '/api/stripe/webhook'
   id:
     | '__root__'
@@ -307,11 +363,16 @@ export interface FileRouteTypes {
     | '/for/customer-live-track'
     | '/for/key-locator'
     | '/for/photo-status'
+    | '/newsletter/confirmed'
+    | '/newsletter/unsubscribed'
     | '/api/auth/$'
     | '/api/build/send'
     | '/api/build/token-status'
     | '/api/cron/migrations'
     | '/api/desk/events'
+    | '/api/newsletter/confirm'
+    | '/api/newsletter/subscribe'
+    | '/api/newsletter/unsubscribe'
     | '/api/stripe/webhook'
   fileRoutesById: FileRoutesById
 }
@@ -334,11 +395,16 @@ export interface RootRouteChildren {
   ForCustomerLiveTrackRoute: typeof ForCustomerLiveTrackRoute
   ForKeyLocatorRoute: typeof ForKeyLocatorRoute
   ForPhotoStatusRoute: typeof ForPhotoStatusRoute
+  NewsletterConfirmedRoute: typeof NewsletterConfirmedRoute
+  NewsletterUnsubscribedRoute: typeof NewsletterUnsubscribedRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiBuildSendRoute: typeof ApiBuildSendRoute
   ApiBuildTokenStatusRoute: typeof ApiBuildTokenStatusRoute
   ApiCronMigrationsRoute: typeof ApiCronMigrationsRoute
   ApiDeskEventsRoute: typeof ApiDeskEventsRoute
+  ApiNewsletterConfirmRoute: typeof ApiNewsletterConfirmRoute
+  ApiNewsletterSubscribeRoute: typeof ApiNewsletterSubscribeRoute
+  ApiNewsletterUnsubscribeRoute: typeof ApiNewsletterUnsubscribeRoute
   ApiStripeWebhookRoute: typeof ApiStripeWebhookRoute
 }
 
@@ -470,6 +536,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ForPhotoStatusRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/newsletter/confirmed': {
+      id: '/newsletter/confirmed'
+      path: '/newsletter/confirmed'
+      fullPath: '/newsletter/confirmed'
+      preLoaderRoute: typeof NewsletterConfirmedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/newsletter/unsubscribed': {
+      id: '/newsletter/unsubscribed'
+      path: '/newsletter/unsubscribed'
+      fullPath: '/newsletter/unsubscribed'
+      preLoaderRoute: typeof NewsletterUnsubscribedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/auth/$': {
       id: '/api/auth/$'
       path: '/api/auth/$'
@@ -505,6 +585,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiDeskEventsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/newsletter/confirm': {
+      id: '/api/newsletter/confirm'
+      path: '/api/newsletter/confirm'
+      fullPath: '/api/newsletter/confirm'
+      preLoaderRoute: typeof ApiNewsletterConfirmRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/newsletter/subscribe': {
+      id: '/api/newsletter/subscribe'
+      path: '/api/newsletter/subscribe'
+      fullPath: '/api/newsletter/subscribe'
+      preLoaderRoute: typeof ApiNewsletterSubscribeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/newsletter/unsubscribe': {
+      id: '/api/newsletter/unsubscribe'
+      path: '/api/newsletter/unsubscribe'
+      fullPath: '/api/newsletter/unsubscribe'
+      preLoaderRoute: typeof ApiNewsletterUnsubscribeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/stripe/webhook': {
       id: '/api/stripe/webhook'
       path: '/api/stripe/webhook'
@@ -534,11 +635,16 @@ const rootRouteChildren: RootRouteChildren = {
   ForCustomerLiveTrackRoute: ForCustomerLiveTrackRoute,
   ForKeyLocatorRoute: ForKeyLocatorRoute,
   ForPhotoStatusRoute: ForPhotoStatusRoute,
+  NewsletterConfirmedRoute: NewsletterConfirmedRoute,
+  NewsletterUnsubscribedRoute: NewsletterUnsubscribedRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiBuildSendRoute: ApiBuildSendRoute,
   ApiBuildTokenStatusRoute: ApiBuildTokenStatusRoute,
   ApiCronMigrationsRoute: ApiCronMigrationsRoute,
   ApiDeskEventsRoute: ApiDeskEventsRoute,
+  ApiNewsletterConfirmRoute: ApiNewsletterConfirmRoute,
+  ApiNewsletterSubscribeRoute: ApiNewsletterSubscribeRoute,
+  ApiNewsletterUnsubscribeRoute: ApiNewsletterUnsubscribeRoute,
   ApiStripeWebhookRoute: ApiStripeWebhookRoute,
 }
 export const routeTree = rootRouteImport

@@ -1,0 +1,33 @@
+You're in. Thanks for confirming.
+
+Hello,
+
+Thanks for confirming your subscription. Here's Forecourt in one line:
+
+Your CRM keeps the book. Forecourt keeps the floor moving.
+
+DealerWeb, the DMS, the manufacturer portal: they hold the book, and they do it well. They were never built for the person standing next to the car. Forecourt sits next to them and handles the floor work:
+
+* Where the car actually is. Factory, boat, compound, yard. Not a status code only one person can read.
+* Where the keys are. So the host doesn't have to shout across the showroom.
+* Whether it's been photographed. On the ramp, in the studio, done.
+* What the customer sees. They open their order and see their car. Fewer "any update on my car?" calls.
+
+It's not another stock system. It pulls from what you already run.
+
+What to expect from us: a handful of short emails over the next two weeks, then a monthly note. No daily blasts. We've all had enough of those.
+
+See the showcase:
+https://www.forecourt.me/#showcase
+
+It shows the team, stock and the customer view, with sample cars. No form to fill in.
+
+Beside your CRM, not instead of it.
+
+The Forecourt team
+Built in Scotland for UK motor trade desks.
+
+---
+Forecourt, 279 Clifton Road, Aberdeen, AB24 4HL
+You're receiving this because you signed up for Forecourt updates at forecourt.me and confirmed by email.
+Unsubscribe: {{UNSUBSCRIBE_URL}}
