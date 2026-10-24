@@ -755,7 +755,7 @@ export function LiveView({
               title="Tickets"
               rail="violet"
               actions={
-                <Button size="sm" onClick={() => setNewKind("ticket")}>
+                <Button size="sm" className="min-h-11" onClick={() => setNewKind("ticket")}>
                   New ticket
                 </Button>
               }
@@ -774,7 +774,7 @@ export function LiveView({
               title="Change requests"
               rail="violet"
               actions={
-                <Button size="sm" onClick={() => setNewKind("change")}>
+                <Button size="sm" className="min-h-11" onClick={() => setNewKind("change")}>
                   Request a change
                 </Button>
               }
@@ -846,7 +846,7 @@ function DeskStaff({ domain }: { domain: string | null }) {
       rail="slate"
       actions={
         host ? (
-          <Button size="sm" variant="secondary" asChild>
+          <Button size="sm" variant="secondary" className="min-h-11" asChild>
             <a href={`https://${host}/`} target="_blank" rel="noreferrer">
               Open your desk
             </a>

@@ -183,3 +183,12 @@ test("Atlas: Payment needed chips on the plan card and the Plan menu item, no ba
   assert.match(src, /href="#plan-change-tracker"/);
   assert.doesNotMatch(src, /payment-needed-banner/);
 });
+
+test("Atlas: account page New ticket, Request a change and Open your desk are 44px tall", () => {
+  const src = readFileSync("src/components/account/live-view.tsx", "utf8");
+  for (const label of ["New ticket", "Request a change", "Open your desk"]) {
+    const i = src.indexOf(`\n                  ${label}`) > 0 ? src.indexOf(`\n                  ${label}`) : src.indexOf(`${label}\n`);
+    const before = src.slice(Math.max(0, i - 200), i);
+    assert.match(before, /<Button[^>]*className="min-h-11"[^>]*>(?![\s\S]*<Button)/, label);
+  }
+});
