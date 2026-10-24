@@ -1,6 +1,8 @@
 import { PlanChangePanel } from "@/components/account/plan-change";
+import { PillRow } from "@/components/ui/pill-row";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { OfficeSiteBillingPanel } from "@/components/office/site-billing";
+import { Chip, OverflowMenu, Row, Rows, Section, SectionStack } from "@/components/ui/section";
 import { PaymentIssueNotice } from "@/components/account/payment-issue";
 import { useEffect, useMemo, useState } from "react";
 import { Notes, Thread } from "@/components/account/portal";
@@ -33,7 +35,6 @@ import { OfficeMigrationPanel } from "@/components/office/migration-panel";
 import { getMigration } from "@/lib/server/migration-server";
 import { accountStatusLabel, type Tracker } from "@/lib/migration";
 import { useWhoAmI } from "@/lib/who-am-i";
-import { cn } from "@/lib/utils";
 import { SupportPane, SupportQueue } from "@/components/office/support-desk";
 
 type OfficeTab = "customers" | "queue" | "staff" | "security" | "sites";
@@ -253,7 +254,7 @@ function OfficeInner() {
       )}
 
       {tab === "sites" && !search.id && token && (
-        <div className="mt-10">
+        <div className="mt-6">
           <OfficeSiteBillingPanel token={token} />
         </div>
       )}
@@ -459,16 +460,17 @@ function TenantFile({ token, tenantId, onSaved }: { token: string; tenantId: num
         {packageLive(file.status) && billing === "trial" && days != null ? ` · ${days} days left` : ""}
         {file.term_months ? ` · ${file.term_months}-month contract` : ""}
       </p>
-      <h2 className="mt-2 text-4xl font-semibold tracking-tight">{file.name}</h2>
+      <div className="mt-2 flex items-start justify-between gap-3">
+        <h2 className="min-w-0 text-3xl font-semibold tracking-tight sm:text-4xl">{file.name}</h2>
+        <OverflowMenu
+          label={`More for ${file.name}`}
+          items={[{ label: busy ? "Working" : file.archived_at ? "Unarchive" : "Archive", disabled: busy, onSelect: () => void toggleArchive() }]}
+        />
+      </div>
       <p className="mt-2 text-sm text-muted">
         {PLANS[plan].name} · {file.email || "no inbox"} · {file.phone || "no phone"}
         {file.archived_at ? " · archived" : ""}
       </p>
-      <div className="mt-3">
-        <Button type="button" variant="secondary" disabled={busy} onClick={() => void toggleArchive()}>
-          {busy ? "Working…" : file.archived_at ? "Unarchive" : "Archive"}
-        </Button>
-      </div>
       {owner ? (
         <div className="mt-4">
         <ResumeOrder
@@ -485,118 +487,121 @@ function TenantFile({ token, tenantId, onSaved }: { token: string; tenantId: num
       ) : null}
       <FileFlags key={`flags-${tenantId}`} token={token} tenantId={tenantId} owner={owner} onChanged={onSaved} />
 
-      <div className="mt-6 flex flex-wrap gap-1.5">
-        {(
-          [
-            ["build", "Build"],
-            ["file", "File"],
-            ["billing", "Billing"],
-            ["requests", "Tickets and requests"],
-            ["support", "Old messages"],
-            ["notes", "Notes"],
-          ] as const
-        ).map(([id, label]) => (
-          <button
-            key={id}
-            type="button"
-            onClick={() => setPane(id)}
-            className={cn(
-              "h-9 rounded-full px-4 text-[13px]",
-              pane === id ? "bg-fg text-accent-fg" : "bg-elevated text-muted",
-            )}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      <PillRow
+        className="mt-6"
+        label="Dealer file sections"
+        value={pane}
+        onChange={setPane}
+        options={[
+          { id: "build", label: "Build" },
+          { id: "file", label: "File" },
+          { id: "billing", label: "Billing" },
+          { id: "requests", label: "Tickets and requests" },
+          { id: "support", label: "Old messages" },
+          { id: "notes", label: "Notes" },
+        ]}
+      />
 
       {pane === "build" && (
-        <div className="mt-8">
-          <OrderBuild token={token} tenantId={tenantId} team />
+        <div className="mt-6">
+          <Section title="Build" rail="blue">
+            <OrderBuild token={token} tenantId={tenantId} team />
+          </Section>
         </div>
       )}
 
       {pane === "file" && (
-        <div className="mt-8 space-y-4">
-          <label className="block text-sm">
-            Motor group
-            <input
-              className="mt-1.5 h-11 w-full rounded-2xl border border-line bg-elevated px-3 text-sm"
-              value={group}
-              onChange={(e) => setGroup(e.target.value)}
-            />
-          </label>
-          <label className="block text-sm">
-            Principal
-            <input
-              className="mt-1.5 h-11 w-full rounded-2xl border border-line bg-elevated px-3 text-sm"
-              value={principal}
-              onChange={(e) => setPrincipal(e.target.value)}
-            />
-          </label>
-          <label className="block text-sm">
-            Research — staff only
-            <textarea
-              rows={10}
-              className="mt-1.5 w-full rounded-2xl border border-line bg-elevated px-3 py-2 text-sm leading-relaxed outline-none focus:border-line-strong"
-              placeholder="What you learned on the drive. Who actually signs. Sister sites. Politics. Manufacturer credentials. Anything you don’t want sitting in their account."
-              value={research}
-              onChange={(e) => setResearch(e.target.value)}
-            />
-          </label>
-          <div className="grid gap-3 text-sm text-muted sm:grid-cols-2">
-            <div className="rounded-2xl border border-line p-4">
-              Legal: {file.legal || "—"}
-              <br />
-              Domain: {file.domain || "—"}
-              <br />
-              Sites: {file.sites}
+        <SectionStack className="mt-6">
+          <Section title="Dealer file" rail="blue">
+            <div className="space-y-4">
+              <label className="block text-sm">
+                Motor group
+                <input
+                  className="mt-1.5 h-11 w-full rounded-2xl border border-line bg-elevated px-3 text-sm"
+                  value={group}
+                  onChange={(e) => setGroup(e.target.value)}
+                />
+              </label>
+              <label className="block text-sm">
+                Principal
+                <input
+                  className="mt-1.5 h-11 w-full rounded-2xl border border-line bg-elevated px-3 text-sm"
+                  value={principal}
+                  onChange={(e) => setPrincipal(e.target.value)}
+                />
+              </label>
+              <label className="block text-sm">
+                Research, staff only
+                <textarea
+                  rows={10}
+                  className="mt-1.5 w-full rounded-2xl border border-line bg-elevated px-3 py-2 text-sm leading-relaxed outline-none focus:border-line-strong"
+                  placeholder="What you learned on the drive. Who actually signs. Sister sites. Politics. Manufacturer credentials. Anything you don’t want sitting in their account."
+                  value={research}
+                  onChange={(e) => setResearch(e.target.value)}
+                />
+              </label>
+              <div className="flex flex-wrap items-center gap-3">
+                <Button disabled={busy} onClick={() => void save()}>
+                  {busy ? "Saving…" : "Save file"}
+                </Button>
+                {notice && <p className="text-sm text-muted">{notice}</p>}
+              </div>
             </div>
-            <div className="rounded-2xl border border-line p-4">
-              Ingest: {file.ingest}
-              <br />
-              Stripe customer: {file.stripe_customer_id ? "yes" : "not yet"}
-              <br />
-              Desk people: {file.staff_json && file.staff_json !== "[]" ? "they named people" : "empty"}
-            </div>
-          </div>
-          <Button disabled={busy} onClick={() => void save()}>
-            {busy ? "Saving…" : "Save file"}
-          </Button>
-          {notice && <p className="text-sm text-muted">{notice}</p>}
-        </div>
+          </Section>
+          <Section title="On file" rail="slate">
+            <Rows>
+              <Row className="fc-row-kv" title="Legal" trailing={file.legal || "Not set"} />
+              <Row className="fc-row-kv" title="Domain" trailing={file.domain || "Not set"} />
+              <Row className="fc-row-kv" title="Sites" trailing={String(file.sites)} />
+              <Row className="fc-row-kv" title="Ingest" trailing={String(file.ingest)} />
+              <Row className="fc-row-kv" title="Stripe customer" trailing={file.stripe_customer_id ? "Yes" : "Not yet"} />
+              <Row
+                className="fc-row-kv"
+                title="Desk people"
+                trailing={file.staff_json && file.staff_json !== "[]" ? "They named people" : "Empty"}
+              />
+            </Rows>
+          </Section>
+        </SectionStack>
       )}
 
       {pane === "billing" && (
-        <div className="mt-8 space-y-6">
+        <SectionStack className="mt-6">
           <PaymentIssueNotice token={token} tenantId={tenantId} team />
           {migration?.open ? <OfficeMigrationPanel token={token} tracker={migration} onChanged={loadMigration} /> : null}
           {file && <PlanChangePanel token={token} tenantId={tenantId} plan={normalizePlan(file.plan as string)} where="office" />}
-          <ul className="divide-y divide-line rounded-[1.75rem] border border-line bg-surface px-6">
-            {receipts.length === 0 && <li className="py-6 text-sm text-muted">No receipts.</li>}
-            {receipts.map((r) => (
-              <li key={r.id} className="flex items-center justify-between gap-3 py-4 text-sm">
-                <div>
-                  <div>{r.label}</div>
-                  <div className="text-xs text-subtle">
-                    {r.date ? new Date(r.date).toLocaleDateString("en-GB") : ""} · {r.status}
-                  </div>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span>{r.amount}</span>
-                  {r.url && (
-                    <a href={r.url} className="text-xs text-muted underline-offset-4 hover:underline" target="_blank" rel="noreferrer">
-                      Open
-                    </a>
-                  )}
-                </div>
-              </li>
-            ))}
-          </ul>
+          <Section title="Receipts" rail="slate" count={receipts.length || null}>
+            <Rows as="ul">
+              {receipts.length === 0 && <li className="py-2 text-sm text-muted">No receipts.</li>}
+              {receipts.map((r) => (
+                <Row
+                  as="li"
+                  key={r.id}
+                  title={r.label}
+                  sub={`${r.date ? new Date(r.date).toLocaleDateString("en-GB") : ""}${r.date ? ", " : ""}${r.status}`}
+                  trailing={
+                    <>
+                      <span className="tabular-nums">{r.amount}</span>
+                      {r.status === "paid" ? <Chip tone="live">Paid</Chip> : null}
+                      {r.url && (
+                        <a
+                          href={r.url}
+                          className="fc-tap inline-flex items-center justify-center text-xs text-muted underline-offset-4 hover:underline"
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          Open
+                        </a>
+                      )}
+                    </>
+                  }
+                />
+              ))}
+            </Rows>
+          </Section>
           {owner && (
-            <div className="rounded-[1.75rem] border border-line bg-surface p-6">
-              <div className="text-sm font-medium">Package</div>
-              <p className="mt-1 text-sm text-muted">
+            <Section title="Package" rail="slate">
+              <p className="text-sm text-muted">
                 {file.signed_off_at
                   ? "Signed off live. Setup is not refundable from here."
                   : "Refund sends the last card payment back. End subscription stops monthly Stripe, or marks a trial cancelled. Trials have no monthly."}
@@ -625,26 +630,32 @@ function TenantFile({ token, tenantId, onSaved }: { token: string; tenantId: num
                   Refund last payment
                 </Button>
               </div>
-            </div>
+            </Section>
           )}
-        </div>
+        </SectionStack>
       )}
 
       {pane === "requests" && (
-        <div className="mt-8">
-          <SupportPane token={token} tenantId={tenantId} />
+        <div className="mt-6">
+          <Section title="Tickets and requests" rail="violet">
+            <SupportPane token={token} tenantId={tenantId} />
+          </Section>
         </div>
       )}
 
       {pane === "support" && (
-        <div className="mt-8">
-          <Thread token={token} tenantId={tenantId} team />
+        <div className="mt-6">
+          <Section title="Old messages" rail="violet">
+            <Thread token={token} tenantId={tenantId} team />
+          </Section>
         </div>
       )}
 
       {pane === "notes" && (
-        <div className="mt-8">
-          <Notes token={token} tenantId={tenantId} team />
+        <div className="mt-6">
+          <Section title="Notes" rail="violet">
+            <Notes token={token} tenantId={tenantId} team />
+          </Section>
         </div>
       )}
     </div>

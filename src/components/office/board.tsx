@@ -2,7 +2,7 @@ import { gbpPence, monthTotalPence, normalizeBilling, normalizePlan } from "@/li
 import { stageMeta } from "@/lib/build";
 import { packageLive, statusLabel, trialDaysLeft } from "@/lib/team";
 import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
+import { OverflowMenu, Row, Rows } from "@/components/ui/section";
 
 export type BoardRow = {
   id: number;
@@ -167,18 +167,12 @@ export function CustomerTable({
                     )}
                   </td>
                   <td className="px-4 py-3 text-muted">{r.email || "—"}</td>
-                  <td className="px-4 py-3 text-right">
+                  <td className="w-14 px-2 py-1 text-right">
                     {onArchive ? (
-                      <button
-                        type="button"
-                        className="text-xs text-muted underline-offset-4 hover:text-fg hover:underline"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onArchive(r.id, !archivedView);
-                        }}
-                      >
-                        {archivedView ? "Unarchive" : "Archive"}
-                      </button>
+                      <OverflowMenu
+                        label={`More for ${r.name}`}
+                        items={[{ label: archivedView ? "Unarchive" : "Archive", onSelect: () => onArchive(r.id, !archivedView) }]}
+                      />
                     ) : null}
                   </td>
                 </tr>
@@ -187,39 +181,28 @@ export function CustomerTable({
           </tbody>
         </table>
       </div>
-      <ul className="mt-6 space-y-2 md:hidden">
+      <Rows as="ul" className="mt-6 md:hidden">
         {rows.map((r) => (
-          <li key={r.id}>
-            <button
-              type="button"
-              onClick={() => onOpen(r.id)}
-              className={cn(
-                "w-full rounded-2xl border border-line bg-surface px-4 py-3 text-left",
-                r.waiting && "border-line-strong",
-              )}
-            >
-              <div className="font-medium">{r.name}</div>
-              <FlagBadges flags={r.flags} />
-              <div className="mt-1 text-xs text-muted">
-                {statusLabel(r.status)} · {normalizePlan(r.plan)} · {stageMeta(r.stage).label}
-                {r.waiting ? " · they wrote" : ""}
-              </div>
-              {onArchive ? (
-                <button
-                  type="button"
-                  className="mt-2 text-xs text-muted underline-offset-4 hover:text-fg hover:underline"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onArchive(r.id, !archivedView);
-                  }}
-                >
-                  {archivedView ? "Unarchive" : "Archive"}
-                </button>
-              ) : null}
+          <Row as="li" key={r.id} tone={r.waiting ? "action" : "default"} className="pr-1">
+            <button type="button" onClick={() => onOpen(r.id)} className="fc-row-btn">
+              <span className="min-w-0 flex-1">
+                <span className="fc-row-title block">{r.name}</span>
+                <FlagBadges flags={r.flags} />
+                <span className="fc-row-sub block">
+                  {statusLabel(r.status)}, {normalizePlan(r.plan)}, {stageMeta(r.stage).label}
+                  {r.waiting ? ", they wrote" : ""}
+                </span>
+              </span>
             </button>
-          </li>
+            {onArchive ? (
+              <OverflowMenu
+                label={`More for ${r.name}`}
+                items={[{ label: archivedView ? "Unarchive" : "Archive", onSelect: () => onArchive(r.id, !archivedView) }]}
+              />
+            ) : null}
+          </Row>
         ))}
-      </ul>
+      </Rows>
     </>
   );
 }

@@ -3,6 +3,7 @@ import { gbpPence } from "@/lib/catalog";
 import { listOfficeSiteBilling, setSiteState } from "@/lib/server/site-billing-server";
 import { archiveConfirmCopy, goLiveConfirmCopy, lineLabel, totalIf } from "@/lib/site-billing";
 import { SiteAmount, SitePill } from "@/components/account/site-billing";
+import { OverflowMenu, Row, Rows, Section } from "@/components/ui/section";
 
 export type OfficeSiteBillingRow = Awaited<ReturnType<typeof listOfficeSiteBilling>>[number];
 
@@ -71,10 +72,12 @@ export function OfficeSiteBilling({
   };
   if (!rows.length) return <p className="text-sm text-muted">No Group or Franchise accounts yet.</p>;
   return (
-    <div className="space-y-4" data-testid="office-site-billing">
+    <div className="fc-section-stack" data-testid="office-site-billing">
       <p className="text-sm text-muted">
-        Setting up and archived sites are not billed. Group bills at least 2 sites.{" "}
-        {dry ? "Billing sync is in dry run. Sites change state here, and archiving or restoring in the desk updates the bill. Stripe is not changed." : "Going live or archiving a site updates Stripe."}
+        Setting up and archived sites are not billed. Group bills at least 2 sites.
+        <span className="mt-1 block text-xs text-subtle" data-testid="site-billing-hint">
+          {dry ? "Billing sync is in dry run. Stripe is not changed." : "Going live or archiving a site updates Stripe."}
+        </span>
       </p>
       {notice ? (
         <p role="status" className="rounded-xl border border-line bg-elevated px-3 py-2 text-sm" data-testid="site-notice">
@@ -82,53 +85,62 @@ export function OfficeSiteBilling({
         </p>
       ) : null}
       {rows.map((a) => (
-        <section key={a.id} className="rounded-2xl border border-line bg-surface p-4 sm:p-5">
-          <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <div className="min-w-0">
-              <h3 className="truncate text-base font-semibold">{a.name}</h3>
-              <p className="text-xs text-subtle">
-                {PLAN[a.plan]} · {a.live} live of {a.rows.length} · {a.hasSubscription ? "Subscription on file" : "No subscription yet"}
-              </p>
-            </div>
-            <div className="text-right">
-              <div className="text-lg font-semibold tabular-nums">{gbpPence(a.total)}</div>
-              <div className="text-xs text-subtle">a month</div>
-            </div>
-          </div>
-          <ul className="mt-3">
+        <Section
+          key={a.id}
+          rail="teal"
+          title={a.name}
+          eyebrow={`${PLAN[a.plan]}, ${a.live} live of ${a.rows.length}`}
+          count={`${gbpPence(a.total)} a month`}
+          actions={<span className="hidden text-xs text-subtle sm:inline">{a.hasSubscription ? "Subscription on file" : "No subscription yet"}</span>}
+        >
+          <Rows as="ul">
             {a.rows.map((r) => (
               <Fragment key={r.code}>
-              <li className="flex items-center justify-between gap-3 border-t border-line py-2 text-sm">
-                <div className="min-w-0 flex-1 truncate">
-                  <span>{r.name}</span>
-                  <span className="ml-2 hidden text-xs text-subtle sm:inline">{r.code}</span>
-                </div>
-                <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-                  <SitePill status={r.status} />
-                  <SiteAmount row={r} className="w-16 shrink-0 sm:w-20" />
-                  {a.canChange && onChange && r.status !== "archived" ? (
-                    <button
-                      type="button"
-                      className="w-[4.5rem] shrink-0 rounded-full border border-line px-2.5 py-1 text-xs font-medium bg-elevated hover:text-fg disabled:opacity-50"
-                      disabled={busy}
-                      onClick={() => setPending({ tenantId: a.id, code: r.code, name: r.name, plan: a.plan, to: r.status === "live" ? "archived" : "live" })}
-                    >
-                      {r.status === "live" ? "Archive" : "Go live"}
-                    </button>
-                  ) : a.canChange && onChange ? (
-                    <span className="w-[4.5rem] shrink-0" />
-                  ) : null}
-                </div>
-              </li>
+              <Row
+                as="li"
+                title={r.name}
+                sub={
+                  <span className="mt-1 flex flex-wrap items-center gap-2">
+                    <SitePill status={r.status} />
+                    <SiteAmount row={r} className="text-left" />
+                    <span className="hidden text-subtle sm:inline">{r.code}</span>
+                  </span>
+                }
+                trailing={
+                  <>
+                    {a.canChange && onChange && r.status === "setting_up" ? (
+                      <button
+                        type="button"
+                        className="fc-tap inline-flex w-[5.25rem] shrink-0 items-center justify-center rounded-xl border border-line bg-elevated px-2.5 text-xs font-medium hover:text-fg disabled:opacity-50"
+                        disabled={busy}
+                        onClick={() => setPending({ tenantId: a.id, code: r.code, name: r.name, plan: a.plan, to: "live" })}
+                      >
+                        Go live
+                      </button>
+                    ) : a.canChange && onChange && r.status === "live" ? (
+                      <OverflowMenu
+                        label={`More for ${r.name}`}
+                        items={[
+                          {
+                            label: "Archive",
+                            disabled: busy,
+                            onSelect: () => setPending({ tenantId: a.id, code: r.code, name: r.name, plan: a.plan, to: "archived" }),
+                          },
+                        ]}
+                      />
+                    ) : null}
+                  </>
+                }
+              />
               {pending && pending.tenantId === a.id && pending.code === r.code ? (
-                <li className="rounded-xl border border-line bg-elevated p-3 text-sm" data-testid="site-confirm">
+                <li className="rounded-[14px] border border-line bg-[var(--fc-solid-2)] p-3 text-sm" data-testid="site-confirm">
                   <p>{confirmCopy(pending, a)}</p>
                   {dry ? <p className="mt-1 text-xs text-subtle">Dry run. Stripe is not changed.</p> : null}
                   <div className="mt-2 flex gap-2">
-                    <button type="button" className="rounded-full bg-accent px-3 py-1 text-xs font-medium text-accent-fg disabled:opacity-50" disabled={busy} onClick={() => void run()}>
+                    <button type="button" className="fc-tap rounded-xl bg-accent px-4 text-sm font-medium text-accent-fg disabled:opacity-50" disabled={busy} onClick={() => void run()}>
                       {pending.to === "live" ? "Yes, go live" : "Yes, archive"}
                     </button>
-                    <button type="button" className="rounded-full border border-line px-3 py-1 text-xs" disabled={busy} onClick={() => setPending(null)}>
+                    <button type="button" className="fc-tap rounded-xl border border-line px-4 text-sm" disabled={busy} onClick={() => setPending(null)}>
                       Cancel
                     </button>
                   </div>
@@ -136,11 +148,11 @@ export function OfficeSiteBilling({
               ) : null}
               </Fragment>
             ))}
-          </ul>
-          <p className="mt-2 text-xs text-subtle">
-            {a.lines.map((l) => `${lineLabel(l)} = ${gbpPence(l.unitPence * l.quantity)}`).join(" · ")}
+          </Rows>
+          <p className="mt-3 text-xs text-subtle">
+            {a.lines.map((l) => `${lineLabel(l)} = ${gbpPence(l.unitPence * l.quantity)}`).join(", ")}
           </p>
-        </section>
+        </Section>
       ))}
     </div>
   );

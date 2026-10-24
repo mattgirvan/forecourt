@@ -1,6 +1,7 @@
 import { gbpPence, type PlanId } from "@/lib/catalog";
 import { amountLabel, lineLabel, parseBillingSites, siteBreakdown, type SiteBillRow, type SiteStatus } from "@/lib/site-billing";
 import { cn } from "@/lib/utils";
+import { Row, Rows, Section } from "@/components/ui/section";
 
 const STATUS: Record<string, string> = { live: "Live", setting_up: "Setting up", archived: "Archived" };
 
@@ -31,25 +32,30 @@ export function SiteBillingSummary({ plan, sites }: { plan: PlanId; sites: unkno
   if (plan !== "group" && plan !== "franchise") return null;
   const b = siteBreakdown(plan, parseBillingSites(sites));
   return (
-    <div className="rounded-[1.75rem] border border-line bg-surface p-6 sm:p-8" data-testid="site-billing">
-      <h2 className="text-2xl font-semibold tracking-tight">Your sites</h2>
-      <p className="mt-2 text-sm text-muted">
-        {b.live} live {b.live === 1 ? "site" : "sites"}, {gbpPence(b.total)} a month.
-      </p>
-      <ul className="mt-6">
+    <Section
+      testId="site-billing"
+      rail="teal"
+      eyebrow="Billing"
+      title="Your sites"
+      count={`${b.live} live`}
+      actions={<span className="text-sm font-semibold tabular-nums">{gbpPence(b.total)} a month</span>}
+    >
+      <Rows as="ul">
         {b.rows.map((r) => (
-          <li key={r.code} className="flex items-start justify-between gap-4 border-b border-line py-3 text-sm">
-            <div className="min-w-0">
-              <div className="truncate font-medium">{r.name}</div>
-              {r.note && <div className="mt-0.5 text-xs text-subtle">{r.note}</div>}
-            </div>
-            <div className="flex shrink-0 items-center gap-3">
-              <SitePill status={r.status} />
-              <SiteAmount row={r} className="w-20 shrink-0" />
-            </div>
-          </li>
+          <Row
+            as="li"
+            key={r.code}
+            title={r.name}
+            sub={r.note || undefined}
+            trailing={
+              <>
+                <SitePill status={r.status} />
+                <SiteAmount row={r} className="w-20 shrink-0 text-sm" />
+              </>
+            }
+          />
         ))}
-      </ul>
+      </Rows>
       <dl className="mt-4 space-y-1.5 text-sm">
         {b.lines.map((l) => (
           <div key={l.key} className="flex justify-between gap-4">
@@ -65,6 +71,6 @@ export function SiteBillingSummary({ plan, sites }: { plan: PlanId; sites: unkno
       <p className="mt-4 text-xs text-subtle">
         Adding a site has no setup fee. The monthly fee starts at go live or 180 days after payment, whichever comes first. An archived site comes off your bill at the end of this billing period, with no refund for part months. You can restore it within 30 days.
       </p>
-    </div>
+    </Section>
   );
 }
