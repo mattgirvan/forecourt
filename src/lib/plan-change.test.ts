@@ -26,7 +26,7 @@ test("upgrade Site to Group at half period: £4,000 setup now, half the monthly 
   assert.equal(q.newMonthlyPence, 49_800);
   assert.equal(q.proratedPence, Math.round((49_800 - 39_900) / 2));
   assert.equal(q.effective, "after_payment");
-  assert.match(quoteLines(q).join("\n"), /^Setup difference, paid when your change goes live: £4,000\nPart month for the rest of this month, added to your next bill: £49\.50\nGroup starts as soon as the setup payment goes through\. Your new monthly total is £498\.$/);
+  assert.match(quoteLines(q).join("\n"), /^Setup difference, paid when you send your request: £4,000 \(inc\. VAT\)\nYour new price of £498 a month \(inc\. VAT\) starts from the day your change goes live\. The part month is added to your next bill\.$/);
   assert.equal(planChangeDryRunMessage(q, new Date("2026-10-24T09:00:00Z")), "Dry run. Nothing is charged and the plan is unchanged. The customer would pay the setup difference first, then pay £498 a month from the day the setup payment goes through.");
 });
 
@@ -64,4 +64,15 @@ test("Matt: downgrade to Site mid contract takes the Site price at the period en
   for (const f of ["src/lib/migration.ts", "src/lib/account-events.ts", "src/components/account/plan-change.tsx", "src/components/account/migration-tracker.tsx", "src/components/office/migration-panel.tsx", "src/lib/server/plan-change-server.ts"]) {
     assert.doesNotMatch(readFileSync(f, "utf8"), /finish (the|your) (contract|12 months)|until the contract ends|contract end/i, f);
   }
+});
+
+test("price rise copy: setup paid on request, new price from go live (sheet hint and confirm lines)", async () => {
+  const { readFileSync } = await import("node:fs");
+  const sheet = readFileSync(new URL("../components/account/plan-change.tsx", import.meta.url), "utf8");
+  assert.match(sheet, /The setup difference is paid when you send your request\. Your new price of \$\{money\(q\.newMonthlyPence\)\} a month \(inc\. VAT\) starts from the day your change goes live\. The part month is added to your next bill\./);
+  assert.doesNotMatch(sheet, /as soon as the setup payment goes through/);
+  const q = quotePlanChange({ from: "site", to: "group", live: 2 });
+  const lines = quoteLines(q).join("\n");
+  assert.doesNotMatch(lines, /as soon as|when your change goes live:/);
+  assert.doesNotMatch(lines, /[–—]/);
 });
