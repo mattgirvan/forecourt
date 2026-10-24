@@ -95,7 +95,6 @@ export function SiteHeader() {
               className="min-w-0 flex-auto px-2 text-center leading-tight"
             />
           ))}
-          <GetUpdatesButton className="min-w-0 flex-auto px-2 text-center leading-tight" />
         </nav>
       </div>
     </header>

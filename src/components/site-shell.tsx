@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
-import { NewsletterBar, NewsletterSheetHost } from "@/components/newsletter-reach";
+import { NewsletterSheetHost } from "@/components/newsletter-reach";
 
 export function SiteShell({ children }: { children: ReactNode }) {
   return (
@@ -10,7 +10,6 @@ export function SiteShell({ children }: { children: ReactNode }) {
       <div className="flex-1 pt-2">{children}</div>
       <SiteFooter />
       <NewsletterSheetHost />
-      <NewsletterBar />
     </div>
   );
 }

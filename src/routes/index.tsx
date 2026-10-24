@@ -3,7 +3,6 @@ import { ArrowRight } from "lucide-react";
 import { Reveal } from "@/components/reveal";
 import { ContactPromo } from "@/components/contact-promo";
 import { NewsletterForm } from "@/components/newsletter-form";
-import { NewsletterBlock } from "@/components/newsletter-reach";
 import { HomeCrmComparison } from "@/components/home-crm-comparison";
 import { HomeScrollScenes } from "@/components/home-scroll-scenes";
 import { SiteShell } from "@/components/site-shell";
@@ -133,8 +132,6 @@ function Home() {
       </section>
 
       <HomeScrollScenes />
-
-      <NewsletterBlock id="home-updates" eyebrow="Not ready to talk yet" />
 
       <section className="mx-auto max-w-5xl px-4 py-20 sm:px-6 sm:py-28">
         <Reveal className="text-center">

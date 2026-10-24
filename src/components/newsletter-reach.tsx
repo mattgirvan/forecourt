@@ -1,19 +1,14 @@
 import { X } from "lucide-react";
-import { useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useId, useRef, useSyncExternalStore } from "react";
 import { NewsletterForm } from "@/components/newsletter-form";
 import { cn } from "@/lib/utils";
 
 /**
  * Ways to reach the one newsletter form (newsletter-form.tsx) without nagging.
- * Nothing here opens on page load: the sheet opens only from a tap, and the
- * slim bar waits for a scroll and remembers a dismiss.
+ * Nothing here opens on page load: the sheet opens only from a tap.
  */
 
 export const NEWSLETTER_LINE = "Product news, new features and pricing changes. About one email a month.";
-
-/** Set to false to drop the slim bar everywhere. */
-export const SHOW_NEWSLETTER_BAR = true;
-const BAR_KEY = "fc-nl-bar-dismissed";
 
 /* ---------- Sheet open state, shared by every trigger ---------- */
 let sheetOpen = false;
@@ -159,63 +154,6 @@ function NewsletterSheet({ onClose }: { onClose: () => void }) {
         <div className="mt-4">
           <NewsletterForm compact />
         </div>
-      </div>
-    </div>
-  );
-}
-
-/**
- * Optional slim bar. Rendered only after hydration and after the first real
- * scroll, as a fixed overlay, so it never pushes content (no layout shift).
- */
-export function NewsletterBar() {
-  const [show, setShow] = useState(false);
-  useEffect(() => {
-    if (!SHOW_NEWSLETTER_BAR) return;
-    try {
-      if (localStorage.getItem(BAR_KEY)) return;
-    } catch {
-      return;
-    }
-    const onScroll = () => {
-      if (window.scrollY > 600) {
-        setShow(true);
-        window.removeEventListener("scroll", onScroll);
-      }
-    };
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
-  if (!show) return null;
-  const dismiss = () => {
-    try {
-      localStorage.setItem(BAR_KEY, "1");
-    } catch {
-      /* private mode: just hide for now */
-    }
-    setShow(false);
-  };
-  return (
-    <div className="nl-bar" role="region" aria-label="Forecourt updates" data-testid="nl-bar">
-      <div className="nl-bar-inner border border-line bg-surface text-fg">
-        <p className="min-w-0 flex-1 px-2 text-[13px] leading-snug text-muted">
-          About one email a month on new features and pricing.
-        </p>
-        <button
-          type="button"
-          onClick={openNewsletterSheet}
-          className="nl-btn cta-amber min-h-11 shrink-0 rounded-full border px-4 text-[14px] font-medium"
-        >
-          Get updates
-        </button>
-        <button
-          type="button"
-          onClick={dismiss}
-          aria-label="Dismiss"
-          className="inline-flex size-11 shrink-0 items-center justify-center rounded-full text-muted hover:text-fg"
-        >
-          <X className="size-4" />
-        </button>
       </div>
     </div>
   );

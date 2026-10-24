@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { Mark } from "@/components/mark";
 import { NewsletterForm } from "@/components/newsletter-form";
+import { openNewsletterSheet } from "@/components/newsletter-reach";
 import { LEGAL, LEGAL_LINKS } from "@/lib/legal";
 import { SITE } from "@/lib/site";
 
@@ -45,6 +46,14 @@ export function SiteFooter() {
           <Link to="/contact" className="hover:text-fg">
             Contact
           </Link>
+          <button
+            type="button"
+            onClick={openNewsletterSheet}
+            aria-haspopup="dialog"
+            className="-my-3 inline-flex min-h-11 items-center hover:text-fg"
+          >
+            Get updates
+          </button>
           {LEGAL_LINKS.map((l) => (
             <Link key={l.to} to={l.to} className="hover:text-fg">
               {l.label}

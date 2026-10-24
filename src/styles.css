@@ -4438,27 +4438,6 @@
     display: none;
   }
 }
-.nl-bar {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 45;
-  padding: 0 0.75rem calc(0.75rem + env(safe-area-inset-bottom));
-  pointer-events: none;
-  animation: nl-up 260ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
-}
-.nl-bar-inner {
-  pointer-events: auto;
-  margin: 0 auto;
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  max-width: 34rem;
-  border-radius: 999px;
-  padding: 0.25rem 0.25rem 0.25rem 0.75rem;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
-}
 @keyframes nl-fade {
   from { opacity: 0; }
 }
@@ -4469,8 +4448,7 @@
   from { opacity: 0; transform: translateY(-6px) scale(0.98); }
 }
 @media (prefers-reduced-motion: reduce) {
-  .nl-sheet,
-  .nl-bar {
+  .nl-sheet {
     animation-name: nl-fade;
   }
 }
