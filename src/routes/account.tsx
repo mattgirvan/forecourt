@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { PillRow } from "@/components/ui/pill-row";
 import { LiveView } from "@/components/account/live-view";
 import { isLiveTenant } from "@/lib/live-view";
 import { listManagedTenants } from "@/lib/server/members";
@@ -567,39 +568,27 @@ function AccountInner() {
           )}
           <div>
             <Label>Ingest</Label>
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {INGEST.map((i) => (
-                <button
-                  key={i.id}
-                  type="button"
-                  onClick={() => setIngest(i.id)}
-                  className={cn(
-                    "h-9 rounded-sm px-3 text-xs",
-                    ingest === i.id ? "bg-fg text-accent-fg" : "bg-elevated text-muted",
-                  )}
-                >
-                  {i.label}
-                </button>
-              ))}
-            </div>
+            <PillRow
+              className="mt-2"
+              kind="radio"
+              size="sm"
+              label="Ingest"
+              value={ingest}
+              onChange={setIngest}
+              options={INGEST.map((i) => ({ id: i.id, label: i.label }))}
+            />
           </div>
           <div>
             <Label>Features</Label>
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {FEATURES.map((f) => (
-                <button
-                  key={f.id}
-                  type="button"
-                  onClick={() => setFeatures((prev) => ({ ...prev, [f.id]: !prev[f.id] }))}
-                  className={cn(
-                    "h-9 rounded-sm px-3 text-xs",
-                    features[f.id as FeatureId] ? "bg-fg text-accent-fg" : "bg-elevated text-muted",
-                  )}
-                >
-                  {f.label}
-                </button>
-              ))}
-            </div>
+            <PillRow
+              className="mt-2"
+              kind="toggle"
+              size="sm"
+              label="Features"
+              options={FEATURES.map((f) => ({ id: f.id as FeatureId, label: f.label }))}
+              isOn={(id) => Boolean(features[id])}
+              onToggle={(id) => setFeatures((prev) => ({ ...prev, [id]: !prev[id] }))}
+            />
           </div>
           <div className="rounded-md border border-line bg-surface px-3 py-3 text-sm">
             <div className="font-medium">Before you pay</div>

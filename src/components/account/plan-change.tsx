@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { PillRow } from "@/components/ui/pill-row";
 import { Section } from "@/components/ui/section";
 import { useState } from "react";
 import { PLANS, type PlanId } from "@/lib/catalog";
@@ -76,24 +77,14 @@ export function PlanChangeView({
       <p className="text-sm text-muted">
         {where === "office" ? "This account is" : "You are"} on {LABEL[plan]}. Moving up means paying the setup difference first. Moving down has no setup refund.
       </p>
-      <div className="mt-4 flex flex-wrap gap-2" role="radiogroup" aria-label="Account type">
-        {ORDER.map((p) => (
-          <button
-            key={p}
-            type="button"
-            role="radio"
-            aria-checked={(to ?? plan) === p}
-            disabled={busy || p === plan}
-            onClick={() => void pick(p)}
-            className={`min-h-11 rounded-full border px-4 py-1.5 text-sm ${
-              (to ?? plan) === p ? "border-fg bg-transparent font-medium text-fg ring-1 ring-fg" : "border-line bg-elevated text-muted hover:text-fg"
-            } disabled:cursor-default`}
-          >
-            {LABEL[p]}
-            {p === plan ? " (current)" : ""}
-          </button>
-        ))}
-      </div>
+      <PillRow
+        className="mt-4"
+        kind="radio"
+        label="Account type"
+        value={to ?? plan}
+        onChange={(p) => void pick(p)}
+        options={ORDER.map((p) => ({ id: p, label: `${LABEL[p]}${p === plan ? " (current)" : ""}`, disabled: busy || p === plan }))}
+      />
       {busy && !quote ? <p className="mt-4 text-sm text-muted">Working out the cost.</p> : null}
       {quote && to ? (
         <div className="mt-5 rounded-2xl border border-line bg-elevated p-4" data-testid="plan-change-quote">

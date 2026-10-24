@@ -682,7 +682,7 @@ function AccountAccess({
               onChange={(e) => setEmail(e.target.value)}
               aria-label="Manager email"
             />
-            <Button type="submit" className="w-full sm:w-auto" disabled={busy || !email.trim()}>
+            <Button type="submit" variant={email.trim() ? "default" : "secondary"} className="w-full sm:w-auto" disabled={busy || !email.trim()}>
               Invite manager
             </Button>
           </form>

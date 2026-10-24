@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { PillRow } from "@/components/ui/pill-row";
 import { Button } from "@/components/ui/button";
 import {
   BUILD_STAGES,
@@ -517,22 +518,15 @@ function StaffBuild({
         <div className="mt-4">
           <div className="text-sm">{brandLabel(plan)}</div>
           <p className="mt-0.5 text-xs text-subtle">{brandHint(plan)}</p>
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {brandOptions().map((b) => {
-              const on = multiBrand(plan) ? picked.includes(b.id) : pack.franchise.id === b.id;
-              return (
-                <button
-                  key={b.id}
-                  type="button"
-                  aria-pressed={on}
-                  onClick={() => setPack(pickBrand(pack, b.id, plan))}
-                  className={cn("h-9 rounded-full px-3 text-xs", on ? "bg-fg text-accent-fg" : "bg-elevated text-muted")}
-                >
-                  {b.label}
-                </button>
-              );
-            })}
-          </div>
+          <PillRow
+            className="mt-2"
+            kind="toggle"
+            size="sm"
+            label={brandLabel(plan)}
+            options={brandOptions().map((b) => ({ id: b.id, label: b.label }))}
+            isOn={(id) => (multiBrand(plan) ? picked.includes(id) : pack.franchise.id === id)}
+            onToggle={(id) => setPack(pickBrand(pack, id, plan))}
+          />
           <div className="mt-3 flex items-center gap-2 text-xs text-muted">
             <span className="size-3 rounded-full" style={{ background: pack.franchise.accent }} />
             {multiBrand(plan) ? `${picked.length} picked · desk colours from ${pack.franchise.label || pack.franchise.word}` : `${pack.franchise.word} · ${pack.franchise.accent}`}
@@ -540,36 +534,27 @@ function StaffBuild({
         </div>
         <div className="mt-4">
           <div className="text-sm">Ingest</div>
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {INGEST.map((i) => (
-              <button
-                key={i.id}
-                type="button"
-                onClick={() => setPack({ ...pack, ingest: i.id })}
-                className={cn("h-9 rounded-full px-3 text-xs", pack.ingest === i.id ? "bg-fg text-accent-fg" : "bg-elevated text-muted")}
-              >
-                {i.label}
-              </button>
-            ))}
-          </div>
+          <PillRow
+            className="mt-2"
+            kind="radio"
+            size="sm"
+            label="Ingest"
+            value={pack.ingest}
+            onChange={(id) => setPack({ ...pack, ingest: id })}
+            options={INGEST.map((i) => ({ id: i.id, label: i.label }))}
+          />
         </div>
         <div className="mt-4">
           <div className="text-sm">Features</div>
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {featureList().map((f) => (
-              <button
-                key={f.id}
-                type="button"
-                onClick={() => setPack({ ...pack, features: { ...pack.features, [f.id]: !pack.features[f.id] } })}
-                className={cn(
-                  "h-9 rounded-full px-3 text-xs",
-                  pack.features[f.id] ? "bg-fg text-accent-fg" : "bg-elevated text-muted",
-                )}
-              >
-                {f.label}
-              </button>
-            ))}
-          </div>
+          <PillRow
+            className="mt-2"
+            kind="toggle"
+            size="sm"
+            label="Features"
+            options={featureList().map((f) => ({ id: f.id, label: f.label }))}
+            isOn={(id) => Boolean(pack.features[id])}
+            onToggle={(id) => setPack({ ...pack, features: { ...pack.features, [id]: !pack.features[id] } })}
+          />
         </div>
         <div className="mt-6">
           <div className="text-sm">Staff on the desk</div>

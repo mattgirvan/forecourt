@@ -2267,3 +2267,63 @@
   .fc-menu { animation-name: fc-fade-in; animation-duration: 140ms; }
   .fc-menu[data-state="closed"] { animation-name: fc-fade-out; }
 }
+
+/* ============================================================
+   Redesign 3: pill scroller. One line, swipe, edge fade.
+   ============================================================ */
+.fc-pills {
+  --fc-fade: 28px;
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  position: relative;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x pan-y;
+  padding: 2px;
+  margin: -2px;
+}
+.fc-pills::-webkit-scrollbar { display: none; }
+.fc-pills.fade-end { -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - var(--fc-fade)), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - var(--fc-fade)), transparent); }
+.fc-pills.fade-start { -webkit-mask-image: linear-gradient(90deg, transparent, #000 var(--fc-fade)); mask-image: linear-gradient(90deg, transparent, #000 var(--fc-fade)); }
+.fc-pills.fade-start.fade-end {
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 var(--fc-fade), #000 calc(100% - var(--fc-fade)), transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 var(--fc-fade), #000 calc(100% - var(--fc-fade)), transparent);
+}
+.fc-pill {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 99px;
+  border: 1px solid var(--fc-row-border);
+  background: var(--fc-row);
+  color: var(--fc-text-dim);
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  scroll-snap-align: start;
+  cursor: pointer;
+  transition: transform var(--fc-m-press);
+}
+.fc-pills.is-sm .fc-pill { font-size: 12.5px; padding: 0 14px; }
+.fc-pill:hover { color: var(--fc-text); }
+.fc-pill:active { transform: scale(0.96); }
+.fc-pill.is-on { background: #fff; border-color: #fff; color: #0a0e13; font-weight: 600; }
+.fc-pill:disabled { cursor: default; opacity: 0.55; }
+.fc-pill.is-on:disabled { opacity: 1; }
+.fc-pill:focus-visible { outline: 2px solid var(--fc-rail-blue); outline-offset: 2px; }
+.fc-pill-count { font-size: 11px; font-weight: 600; opacity: 0.7; font-variant-numeric: tabular-nums; }
+.fc-pill-count.is-action { opacity: 1; background: var(--fc-amber); color: var(--fc-amber-ink); padding: 1px 6px; border-radius: 99px; }
+@media (prefers-reduced-motion: reduce) {
+  .fc-pill { transition: none; }
+  .fc-pill:active { transform: none; }
+}

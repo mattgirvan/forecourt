@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { PillRow } from "@/components/ui/pill-row";
 import { Link } from "@tanstack/react-router";
 import { OrderBuild } from "@/components/build/order-desk";
 import { SeatMatrix } from "@/components/trust/seat-matrix";
@@ -89,8 +90,12 @@ export function DealerPortal({
 
       <PaymentIssueNotice token={token} tenantId={tenant.id} />
 
-      <div className="mt-8 flex flex-wrap gap-1.5">
-        {(
+      <PillRow
+        className="mt-8"
+        label="Account sections"
+        value={tab}
+        onChange={setTab}
+        options={(
           [
             ["overview", "Overview"],
             ["build", "Your desk"],
@@ -99,20 +104,8 @@ export function DealerPortal({
             ["notes", "Notes"],
             ...(tenant.stage === "live" || tenant.status === "live" ? [] : ([["people", "People"]] as const)),
           ] as const
-        ).map(([id, label]) => (
-          <button
-            key={id}
-            type="button"
-            onClick={() => setTab(id)}
-            className={cn(
-              "h-9 rounded-full px-4 text-[13px]",
-              tab === id ? "bg-fg text-accent-fg" : "bg-elevated text-muted",
-            )}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+        ).map(([id, label]) => ({ id, label }))}
+      />
 
       <div className="mt-8">
         {tab === "overview" && (
