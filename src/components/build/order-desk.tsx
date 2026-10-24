@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { PillRow } from "@/components/ui/pill-row";
+import { CollapsibleSection } from "@/components/ui/collapsible-section";
 import { Button } from "@/components/ui/button";
 import {
   BUILD_STAGES,
@@ -300,9 +301,9 @@ export function OrderBuild({
           aside={aside}
         />
         {build.events.length ? (
-          <Section title="History" rail="slate">
+          <CollapsibleSection id="dealer-history" title="History" count={build.events.length} rail="slate" testId="dealer-history">
             <Timeline events={build.events} />
-          </Section>
+          </CollapsibleSection>
         ) : null}
       </SectionStack>
     );
