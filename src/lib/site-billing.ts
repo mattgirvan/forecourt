@@ -19,6 +19,8 @@ export type BillingSite = {
   liveAt?: string | null;
   /** ISO time the site was archived. */
   archivedAt?: string | null;
+  /** ISO end of the period this site has already been charged through (set when a go live is prorated). */
+  billedThrough?: string | null;
 };
 
 export type LineKey = "group_site" | "franchise_base" | "franchise_extra" | "site_base";
@@ -66,6 +68,7 @@ export function parseBillingSites(raw: unknown): BillingSite[] {
       status: st,
       liveAt: iso(o.liveAt ?? o.live_at),
       archivedAt: iso(o.archivedAt ?? o.archived_at),
+      billedThrough: iso(o.billedThrough ?? o.billed_through),
     });
   }
   return out;
@@ -76,15 +79,18 @@ export function liveSiteCount(sites: BillingSite[]): number {
   return sites.filter((s) => s.status === "live").length;
 }
 
-/** Sites already paid for in the current period: the ones that were live when it started
- *  (including any archived since). A site with no liveAt is treated as live before the period. */
+/** Sites already paid for in the current period: the ones that were live when it started, or
+ *  already charged a part month for it (billedThrough after the start), including any archived since.
+ *  A site with no liveAt is treated as live before the period. So a site that went live, was archived
+ *  and is restored in the same period reuses its paid slot and is never prorated twice. */
 export function paidSlotsThisPeriod(sites: BillingSite[], periodStartIso: string | null | undefined): number {
   const start = periodStartIso ? Date.parse(periodStartIso) : NaN;
   if (Number.isNaN(start)) return liveSiteCount(sites);
   return sites.filter((s) => {
     if (s.status === "setting_up") return false;
     const wentLive = s.liveAt ? Date.parse(s.liveAt) : -Infinity;
-    if (!(wentLive < start)) return false;
+    const billed = s.billedThrough ? Date.parse(s.billedThrough) > start : false;
+    if (!(wentLive < start) && !billed) return false;
     if (s.status === "live") return true;
     return Boolean(s.archivedAt && Date.parse(s.archivedAt) >= start);
   }).length;

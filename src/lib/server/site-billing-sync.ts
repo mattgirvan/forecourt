@@ -27,6 +27,7 @@ export type SubItemLike = {
   quantity?: number | null;
   metadata?: Record<string, string> | null;
   current_period_start?: number | null;
+  current_period_end?: number | null;
   price?: { unit_amount?: number | null; product?: string | { id: string } | null; recurring?: unknown } | null;
 };
 export type SiteSubLike = {
@@ -58,7 +59,7 @@ export type SiteSubsLike = {
 export type SiteEvent = { code: string; from: SiteStatus | null; to: SiteStatus };
 
 export type SiteSyncResult =
-  | { changed: true; line: LineKey; from: number; to: number; proration: "create_prorations" | "none"; idempotencyKey: string }
+  | { changed: true; line: LineKey; from: number; to: number; proration: "create_prorations" | "none"; idempotencyKey: string; periodEnd?: string | null }
   | {
       changed: false;
       reason:
@@ -98,6 +99,11 @@ function findItem(items: SubItemLike[], key: LineKey, unitPence: number): SubIte
   const byPrice = items.filter((i) => !lineOf(i) && i.price?.unit_amount === unitPence && i.price?.recurring);
   if (byPrice.length === 1) return byPrice[0];
   return byPrice.length ? "ambiguous" : null;
+}
+
+function periodEndIso(sub: SiteSubLike): string | null {
+  const t = sub.current_period_end ?? sub.items.data[0]?.current_period_end ?? null;
+  return t ? new Date(t * 1000).toISOString() : null;
 }
 
 function periodStartIso(sub: SiteSubLike): string | null {
@@ -169,7 +175,7 @@ export async function syncSiteBilling(
     const proration = trialing ? "none" : prorationFor(from, to, paidQty);
     const idempotencyKey = `site-billing:${input.tenantId}:${event.code}:${event.to}:${line}:${from}-${to}`;
     await deps.subscriptions.update(input.subscriptionId, { items: [change], proration_behavior: proration }, { idempotencyKey });
-    return { changed: true, line, from, to, proration, idempotencyKey };
+    return { changed: true, line, from, to, proration, idempotencyKey, periodEnd: periodEndIso(sub) };
   } catch (err) {
     return { changed: false, reason: "stripe_error", detail: err instanceof Error ? err.message : String(err) };
   }
