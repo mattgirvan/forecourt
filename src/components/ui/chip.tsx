@@ -20,6 +20,8 @@ export function Chip({
   className?: string;
   title?: string;
 }) {
+  // A chip with no text reads as an empty grey pill: render nothing instead.
+  if (isEmptyChipText(children)) return null;
   return (
     <span
       className={cn("fc-chip", tone !== "neutral" && `is-${tone}`, className)}
@@ -29,4 +31,12 @@ export function Chip({
       {children}
     </span>
   );
+}
+
+/** True when a chip would show no visible text (null, false, or only spaces). */
+export function isEmptyChipText(children: ReactNode): boolean {
+  if (children == null || typeof children === "boolean") return true;
+  if (typeof children === "string") return children.trim() === "";
+  if (Array.isArray(children)) return children.every((c) => isEmptyChipText(c as ReactNode));
+  return false;
 }

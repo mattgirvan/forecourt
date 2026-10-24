@@ -69,7 +69,7 @@ export function StaffPanel({
                   {initials(m.name || m.email)}
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-semibold">{m.name || m.email}</span>
+                  <span className="block break-words text-sm font-semibold">{m.name || m.email}</span>
                   <span className="block truncate text-xs text-muted">
                     {[
                       m.name ? m.email : "",
@@ -78,12 +78,13 @@ export function StaffPanel({
                       .filter(Boolean)
                       .join(", ") || "Not signed in yet"}
                   </span>
-                </span>
-                <span className="flex shrink-0 items-center gap-1.5">
-                  <Chip>{roleLabel(m.role)}</Chip>
-                  <Chip tone={m.status === "active" ? "live" : "neutral"}>
-                    {statusLabel(m.status)}
-                  </Chip>
+                  {/* Chips sit under the email so the name keeps the full row width. */}
+                  <span className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                    <Chip>{roleLabel(m.role)}</Chip>
+                    <Chip tone={m.status === "active" ? "live" : "neutral"}>
+                      {statusLabel(m.status)}
+                    </Chip>
+                  </span>
                 </span>
                 {owner && (
                   <span className="flex w-full flex-wrap gap-1.5 pl-[52px]">
