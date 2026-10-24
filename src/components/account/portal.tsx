@@ -20,6 +20,7 @@ import { customerStepNumber } from "@/lib/journey";
 import { JourneyNow } from "@/components/journey/after-you-pay";
 import { PaymentIssueNotice } from "@/components/account/payment-issue";
 import { accountSitesSummary } from "@/lib/sites";
+import { SiteBillingSummary } from "@/components/account/site-billing";
 
 type Tenant = {
   id: number;
@@ -133,7 +134,12 @@ export function DealerPortal({
             onInviteStaff={() => setTab("people")}
           />
         )}
-        {tab === "billing" && <Billing token={token} tenant={tenant} converting={converting} onConvert={onConvert} />}
+        {tab === "billing" && (
+          <div className="space-y-6">
+            <SiteBillingSummary plan={plan} sites={tenant.sites} />
+            <Billing token={token} tenant={tenant} converting={converting} onConvert={onConvert} />
+          </div>
+        )}
         {tab === "messages" && <Thread token={token} tenantId={tenant.id} team={false} />}
         {tab === "notes" && <Notes token={token} tenantId={tenant.id} team={false} />}
         {tab === "people" && <People token={token} tenant={tenant} seats={seats.map((s) => ({ id: s.id, title: s.title }))} />}
