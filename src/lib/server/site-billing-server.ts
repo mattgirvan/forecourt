@@ -26,6 +26,8 @@ import { actor, sbAdmin, siteBillingSyncFlag, stripeSecret } from "@/lib/server/
 import { parseBillingSites, siteBreakdown, type BillingSite, type SiteStatus } from "@/lib/site-billing";
 import { siteSyncMessage, syncSiteBilling, type SiteSubsLike, type SiteSyncResult } from "@/lib/server/site-billing-sync";
 import { missingTable } from "@/lib/server/payment-issues";
+import { sendAccountEventEmail } from "@/lib/server/journey-email";
+import { siteArchivedEvent, siteLiveEvent } from "@/lib/account-events";
 import {
   dryRunSubs,
   modeMessage as withMode,
@@ -123,6 +125,15 @@ export async function changeSiteState(
     });
   } catch {
     /* best effort */
+  }
+  if (input.to === "live" || input.to === "archived") {
+    const ev = (input.to === "live" ? siteLiveEvent : siteArchivedEvent)({
+      tenantId: input.tenantId,
+      eventKey,
+      siteName: site.name,
+      billing: result.changed ? `Billing: ${siteSyncMessage(result)}` : "Your monthly bill does not change.",
+    });
+    await sendAccountEventEmail({ tenantId: input.tenantId, ...ev });
   }
   return { result, message, mode };
 }

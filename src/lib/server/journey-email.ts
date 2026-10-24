@@ -7,7 +7,7 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { Resend } from "resend";
 import { PLANS, monthTotalPence, normalizePlan } from "@/lib/catalog";
-import { EMAIL_FROM, EMAIL_REPLY_TO, balanceLinkEmail, monthlyRestartEmail, paymentFailedEmail, supportUpdateEmail, managerInviteEmail, progressEmail, thankYouEmail, type PaymentKind } from "@/lib/email/templates";
+import { EMAIL_FROM, EMAIL_REPLY_TO, accountEventEmail, balanceLinkEmail, monthlyRestartEmail, paymentFailedEmail, supportUpdateEmail, managerInviteEmail, progressEmail, thankYouEmail, type PaymentKind } from "@/lib/email/templates";
 import { env } from "@/lib/env.server";
 import { BOOK_URL, customerStepNumber } from "@/lib/journey";
 import { SITE } from "@/lib/site";
@@ -15,7 +15,9 @@ import { SUPABASE_URL } from "@/lib/sb";
 import { onForecourtDomain } from "@/lib/team";
 import { resendKey } from "@/lib/server/resend-key";
 import {
+  deliverAccountEvent,
   deliverJourneyEmail,
+  deliverOfficeCopy,
   deliverStaffAlert,
   emailMode,
   supabaseEmailLog,
@@ -296,6 +298,7 @@ export async function sendMonthlyRestartEmail(input: {
     });
     const { login, to } = await recipientFor(sb, t.user_id, t.email);
     const staff = (await isStaffEmail(sb, login)) || (await isStaffEmail(sb, to));
+    await officeCopy(t.id, "monthly_restart", monthlyRestartDedupeKey(t.id, input.subscriptionId), mail, to);
     return await deliverJourneyEmail(
       { config, log: supabaseEmailLog(sb as unknown as EmailLogDb), send: resendSender(), logger: console },
       {
@@ -419,6 +422,7 @@ export async function sendPaymentFailedEmail(input: {
     });
     const { login, to } = await recipientFor(sb, t.user_id, t.email);
     const staff = (await isStaffEmail(sb, login)) || (await isStaffEmail(sb, to));
+    await officeCopy(t.id, "payment_failed", `payment-failed:tenant:${t.id}:invoice:${input.invoiceId}`, mail, to);
     return await deliverJourneyEmail(
       { config, log: supabaseEmailLog(sb as unknown as EmailLogDb), send: resendSender(), logger: console },
       {
@@ -517,5 +521,66 @@ export async function sendManagerInviteEmail(input: { tenantId: number; memberId
   } catch (err) {
     console.error("[email] manager invite failed", err);
     return null;
+  }
+}
+
+/**
+ * Account event confirmation (sites, plan, billing, access): one email to the
+ * account admin and one to hello@, both through the journey engine gates and
+ * each deduped in email_log. Never throws.
+ */
+export async function sendAccountEventEmail(input: {
+  tenantId: number;
+  kind: string;
+  title: string;
+  lines: string[];
+  dedupe: string;
+}): Promise<{ customer: DeliverResult; office: DeliverResult } | null> {
+  try {
+    const config = gateConfig();
+    if (config.mode === "off") return { customer: { sent: false, reason: "mode_off" }, office: { sent: false, reason: "mode_off" } };
+    const sb = serviceClient();
+    if (!sb) return null;
+    const t = await loadTenant(sb, input.tenantId);
+    if (!t) return null;
+    const mail = accountEventEmail({ firstName: t.principal_name, dealer: t.name || "your dealership", title: input.title, lines: input.lines, accountUrl: ACCOUNT_URL });
+    const { login, to } = await recipientFor(sb, t.user_id, t.email);
+    const staff = (await isStaffEmail(sb, login)) || (await isStaffEmail(sb, to));
+    return await deliverAccountEvent(
+      { config, log: supabaseEmailLog(sb as unknown as EmailLogDb), send: resendSender(), logger: console },
+      {
+        dedupeKey: input.dedupe,
+        tenantId: t.id,
+        kind: input.kind,
+        step: null,
+        recipient: to,
+        from: EMAIL_FROM,
+        replyTo: EMAIL_REPLY_TO,
+        subject: mail.subject,
+        html: mail.html,
+        text: mail.text,
+        recipientIsStaff: staff,
+        stripeLivemode: null,
+        archived: Boolean(t.archived_at),
+      },
+    );
+  } catch (err) {
+    console.error("[email] account event failed", err);
+    return null;
+  }
+}
+
+/** hello@ copy of an email that already went to the customer through its own function. */
+async function officeCopy(tenantId: number, kind: string, dedupe: string, mail: { subject: string; html: string; text: string }, recipient: string | null) {
+  try {
+    const config = gateConfig();
+    if (config.mode === "off") return;
+    const sb = serviceClient();
+    await deliverOfficeCopy(
+      { config, log: supabaseEmailLog(sb as unknown as EmailLogDb), send: resendSender(), logger: console },
+      { dedupeKey: dedupe, tenantId, from: EMAIL_FROM, replyTo: EMAIL_REPLY_TO, subject: mail.subject, html: mail.html, text: `Sent to the account admin: ${recipient || "(no admin address)"}\n\n${mail.text}`, kind },
+    );
+  } catch (err) {
+    console.error("[email] office copy failed", err);
   }
 }

@@ -12,6 +12,8 @@ import { SITE } from "@/lib/site";
 import { quotePlanChange, type PlanChangeQuote } from "@/lib/plan-change";
 import { applyPlanChange, planChangeMessage, upgradeCheckoutParams, type PlanChangeDeps } from "@/lib/server/plan-change-sync";
 import { siteBillingModeFrom, type SiteSubLike } from "@/lib/server/site-billing-sync";
+import { planChangedEvent } from "@/lib/account-events";
+import { sendAccountEventEmail } from "@/lib/server/journey-email";
 import { actor, planChangeSyncFlag, sbAdmin, stripeSecret } from "@/lib/server/staff-actor";
 
 type TenantRow = { id: number; plan: string; status: string | null; site_count: number | null; stripe_subscription_id: string | null; stripe_customer_id: string | null; email: string | null };
@@ -152,7 +154,11 @@ export const requestPlanChange = createServerFn({ method: "POST" })
     const message = planChangeMessage(result, q.from, q.to);
     const ok = result.applied || result.reason === "no_subscription";
     await admin.from("plan_changes").insert({ ...row, status: ok ? (q.effective === "period_end" ? "scheduled" : "applied") : "failed", message, applied_at: ok ? new Date().toISOString() : null });
-    if (ok) await admin.from("tenants").update({ plan: q.to }).eq("id", t.id);
+    if (ok) {
+      await admin.from("tenants").update({ plan: q.to }).eq("id", t.id);
+      const when = q.effective === "period_end" ? (q.periodEnd ? `from ${new Date(q.periodEnd).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/London" })}` : "from your next bill") : "pro-rated on your next bill";
+      await sendAccountEventEmail({ tenantId: t.id, ...planChangedEvent({ tenantId: t.id, changeKey: `${t.id}:${q.from}-${q.to}:${new Date().toISOString().slice(0, 10)}`, from: q.from, to: q.to, newMonthlyPence: q.newMonthlyPence, when }) });
+    }
     await note(admin, t.id, "Account type changed", message, actorEmail);
     return { message, url: null as string | null, mode };
   });
@@ -203,5 +209,6 @@ export async function completePaidPlanChange(
   await sb.from("tenants").update({ plan: to }).eq("id", tenantId);
   await sb.from("plan_changes").update({ status: "applied", message, applied_at: new Date().toISOString(), checkout_session_id: session.id }).eq("id", changeId);
   await note(sb, tenantId, "Account type changed", `Setup difference paid. ${message}`, "stripe");
+  await sendAccountEventEmail({ tenantId, ...planChangedEvent({ tenantId, changeKey: `paid:${changeId}`, from, to, newMonthlyPence: Number(pc.new_monthly_pence) || 0, when: "pro-rated on your next bill" }) });
   return { status: 200, body: "plan change applied" };
 }

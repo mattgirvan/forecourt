@@ -878,3 +878,29 @@ ${footer(reason, false)}`;
   const text = ["You're invited", "", intro, "", how, "", `Sign in: ${d.accountUrl}`, "", "Thanks,", "Matt Girvan", "Founder, Forecourt", ...textFooter(reason, false)].join("\n");
   return { subject, preheader, html: shell({ title: subject, preheader, rows }), text };
 }
+
+// ------------------------------------------------------ account event confirmation
+
+export type AccountEventData = { firstName: string | null; dealer: string; title: string; lines: string[]; accountUrl: string };
+
+/** A confirmation that something changed on the account (sites, plan, billing, access). */
+export function accountEventEmail(d: AccountEventData): RenderedEmail {
+  const first = (d.firstName ?? "").trim().split(/\s+/)[0] ?? "";
+  const subject = `${d.dealer}: ${d.title}`;
+  const preheader = d.lines[0] ?? d.title;
+  const hello = first ? `Hi ${first},` : "Hi,";
+  const reason = `You are getting this because you are the admin on the ${d.dealer} Forecourt account.`;
+  const rows = `
+${header(`${d.dealer} · Account`)}
+${row(`${h1(d.title)}
+  ${p(esc(hello))}
+  ${d.lines.map((l) => p(esc(l))).join("\n  ")}
+  ${p(esc("If this was not expected, reply to this email."))}
+  <div style="height:20px;line-height:20px;font-size:0;">&nbsp;</div>
+  ${buttonsRow(primaryButton(d.accountUrl, "Open your account"))}`, 0)}
+${row(contactCard(), 16)}
+${signoff("Thanks,")}
+${footer(reason, false)}`;
+  const text = [d.title, "", hello, "", ...d.lines, "", "If this was not expected, reply to this email.", "", `Open your account: ${d.accountUrl}`, "", "Thanks,", "Matt Girvan", "Founder, Forecourt", ...textFooter(reason, false)].join("\n");
+  return { subject, preheader, html: shell({ title: subject, preheader, rows }), text };
+}

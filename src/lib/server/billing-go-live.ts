@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { env } from "@/lib/env.server";
+import { monthlyStartedEvent } from "@/lib/account-events";
 import { gbpPence, monthTotalPence, normalizePlan } from "@/lib/catalog";
 import {
   goLiveConfirmText,
@@ -63,6 +64,10 @@ export async function startMonthlyForTenant(
     result = { started: false, reason: "stripe_error", detail: err instanceof Error ? err.message : String(err) };
   }
   const message = monthlyStartMessage(result);
+  if (result.started) {
+    const { sendAccountEventEmail } = await import("@/lib/server/journey-email");
+    await sendAccountEventEmail({ tenantId, ...monthlyStartedEvent({ tenantId, subscriptionId: result.subscriptionId }) });
+  }
   try {
     await sb.from("build_events").insert({
       tenant_id: tenantId,
