@@ -147,3 +147,39 @@ test("server wiring: office starts never redirect staff, mark paid checks the ow
   const sql = readFileSync("supabase/plan-change-office-pay.sql", "utf8");
   for (const c of ["started_from", "marked_paid_by", "marked_paid_at"]) assert.match(sql, new RegExp(`add column if not exists ${c}`));
 });
+
+test("Atlas: office-started step 1 says Change set up, customer-started keeps You asked", async () => {
+  const { trackerFor, paymentNeeded } = await import("../migration.ts");
+  const row = { id: 1, from_plan: "site", to_plan: "group", status: "pending_payment", migration_stage: "requested", created_at: "2026-10-24T09:00:00Z", direction: "up", setup_diff_pence: 150000, new_monthly_pence: 49800 };
+  const office = trackerFor({ ...row, started_from: "office" })!;
+  assert.equal(office.steps[0]!.title, "Change set up");
+  assert.equal(office.steps[0]!.line, "The Forecourt team set up your move to Group.");
+  assert.doesNotMatch(office.steps[0]!.line, /You asked/);
+  const own = trackerFor(row)!;
+  assert.equal(own.steps[0]!.title, "Change requested");
+  assert.equal(own.steps[0]!.line, "You asked to move to Group.");
+  assert.equal(paymentNeeded(office), true);
+  assert.equal(paymentNeeded(trackerFor({ ...row, status: "paid" })), false);
+  assert.equal(paymentNeeded(trackerFor({ ...row, setup_diff_pence: 0 })), false);
+  assert.equal(paymentNeeded(null), false);
+});
+
+test("Atlas: Mark as paid confirm is the neutral primary, payment link email says To get it started", async () => {
+  const sheet = markPaidSheet({ from: "Site", to: "Group", setupDiffPence: 150000 });
+  assert.equal(sheet.tone, "neutral");
+  assert.equal(sheet.confirmLabel, "Mark as paid");
+  const { planChangeEmail } = await import("../plan-change-emails.ts");
+  const e = planChangeEmail({ changeId: 1, from: "site", to: "group", stage: "payment_link", setupPence: 150000, newMonthlyPence: 49800, payUrl: "https://example.test/pay" } as never);
+  const text = e.lines.join(" ");
+  assert.match(text, /To get it started, pay the setup difference of £1,500 \(inc\. VAT\)\./);
+  assert.doesNotMatch(text, /send it ahead/);
+});
+
+test("Atlas: Payment needed chips on the plan card and the Plan menu item, no banner", () => {
+  const src = readFileSync("src/components/account/live-view.tsx", "utf8");
+  assert.match(src, /data-testid="plan-card-payment-needed"/);
+  assert.match(src, /data-testid="plan-menu-payment-needed"/);
+  assert.match(src, /paymentNeeded\(migration\)/);
+  assert.match(src, /href="#plan-change-tracker"/);
+  assert.doesNotMatch(src, /payment-needed-banner/);
+});

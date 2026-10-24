@@ -13,7 +13,7 @@ export type ConfirmOptions = {
   confirmLabel: string;
   cancelLabel?: string;
   /** "danger" for things that are hard to undo (refund, end, remove). */
-  tone?: "action" | "danger";
+  tone?: "action" | "danger" | "neutral";
 };
 
 type Pending = ConfirmOptions & { id: number; resolve: (ok: boolean) => void };
@@ -129,7 +129,7 @@ function ConfirmSheet({ p }: { p: Pending }) {
         <div className="fc-confirm-actions">
           <Button
             ref={confirmRef}
-            variant={danger ? "danger" : "action"}
+            variant={danger ? "danger" : p.tone === "neutral" ? "default" : "action"}
             onClick={() => answer(true)}
             data-testid="confirm-yes"
           >

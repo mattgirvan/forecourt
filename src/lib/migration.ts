@@ -148,6 +148,8 @@ export type MigrationRow = {
   setup_diff_pence?: number | null;
   new_monthly_pence?: number | null;
   go_live_at?: string | null;
+  /** "office" when the Forecourt team set the change up (plan-change-office-pay.sql). */
+  started_from?: string | null;
 };
 
 export type TrackerStep = MigrationStep & { state: "done" | "now" | "next"; at: string | null };
@@ -179,7 +181,7 @@ const money = (p: number) => `£${(p / 100).toLocaleString("en-GB", { minimumFra
  * - price down or equal: the price changes at period end, no charge, no refund.
  * Older rows without direction keep the fixed scenario steps.
  */
-export function stepsFor(row: Pick<MigrationRow, "direction" | "setup_diff_pence" | "new_monthly_pence" | "effective_at">, scenario: MigrationScenario, to: PlanId): MigrationStep[] {
+export function stepsFor(row: Pick<MigrationRow, "direction" | "setup_diff_pence" | "new_monthly_pence" | "effective_at" | "started_from">, scenario: MigrationScenario, to: PlanId): MigrationStep[] {
   const dir = row.direction;
   if (dir !== "up" && dir !== "down" && dir !== "equal") return SCENARIOS[scenario];
   const rise = dir === "up";
@@ -187,7 +189,9 @@ export function stepsFor(row: Pick<MigrationRow, "direction" | "setup_diff_pence
   const price = row.new_monthly_pence != null ? `${money(row.new_monthly_pence)} a month (inc. VAT)` : "";
   const name = PLANS[to].name;
   const out: MigrationStep[] = [
-    { stage: "requested", title: "Change requested", line: setup > 0 ? `You asked to move to ${name}.` : `You asked to move to ${name}. No payment is needed.`, by: "customer", email: true },
+    row.started_from === "office"
+      ? { stage: "requested", title: "Change set up", line: setup > 0 ? `The Forecourt team set up your move to ${name}.` : `The Forecourt team set up your move to ${name}. No payment is needed.`, by: "forecourt", email: true }
+      : { stage: "requested", title: "Change requested", line: setup > 0 ? `You asked to move to ${name}.` : `You asked to move to ${name}. No payment is needed.`, by: "customer", email: true },
   ];
   if (setup > 0)
     out.push({ stage: "paid", title: "Setup difference paid", line: `The one-off setup difference of ${money(setup)} (inc. VAT) has gone through. Stripe sends your receipt.`, todo: `Pay the one-off setup difference of ${money(setup)} (inc. VAT). Stripe sends your receipt.`, by: "stripe", email: true });
@@ -256,6 +260,11 @@ export function trackerFor(row: MigrationRow): Tracker | null {
       at: times[s.stage] ?? (s.stage === "requested" ? row.created_at : null),
     })),
   };
+}
+
+/** True only while a request waits for the customer to pay its setup difference. */
+export function paymentNeeded(t: Tracker | null | undefined): boolean {
+  return Boolean(t?.open && !t.cancelled && t.status === "pending_payment" && (t.setupDiffPence ?? 0) > 0);
 }
 
 export type AccountStatusLabel = "Live" | "Migration";

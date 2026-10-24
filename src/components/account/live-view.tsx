@@ -41,7 +41,7 @@ import { PlanChangePanel } from "@/components/account/plan-change";
 import { Row as FcRow, Rows, Section } from "@/components/ui/section";
 import { MigrationPill, MigrationTracker } from "@/components/account/migration-tracker";
 import { getMigration } from "@/lib/server/migration-server";
-import { accountStatusLabel, downgradePrice, type Tracker } from "@/lib/migration";
+import { accountStatusLabel, downgradePrice, paymentNeeded, type Tracker } from "@/lib/migration";
 import {
   inviteManager,
   listAccountMembers,
@@ -483,6 +483,12 @@ export function LiveView({
     return () => window.removeEventListener("hashchange", go);
   }, []);
   useReportAccountSection(view);
+  // Amber only while a request waits for the customer to pay. No banner (Atlas).
+  const payNeeded = !manager && paymentNeeded(migration);
+  const toTracker = () => {
+    setView("overview");
+    requestAnimationFrame(() => requestAnimationFrame(() => document.getElementById("plan-change-tracker")?.scrollIntoView({ block: "start" })));
+  };
 
   const loadSupport = () =>
     void listSupport({ data: { token, tenantId: tenant.id } })
@@ -554,14 +560,25 @@ export function LiveView({
         <PillRow
           label="Account sections"
           value={view}
-          onChange={setView}
+          onChange={(id) => (id === "plan" && payNeeded ? toTracker() : setView(id))}
           options={(
             [
               ["overview", "Overview"],
               ...(multi ? ([["sites", "Sites"]] as const) : []),
               ...(manager ? [] : ([["plan", "Change plan"]] as const)),
             ] as const
-          ).map(([id, label]) => ({ id, label }))}
+          ).map(([id, label]) => ({
+            id,
+            label:
+              id === "plan" && payNeeded ? (
+                <span className="inline-flex items-center gap-2" data-testid="plan-menu-payment-needed">
+                  {label}
+                  <Chip tone="action">Payment needed</Chip>
+                </span>
+              ) : (
+                label
+              ),
+          }))}
         />
       </div>
 
@@ -673,6 +690,21 @@ export function LiveView({
               eyebrow="Plan and billing"
               title={bill?.planName ?? `Forecourt ${PLANS[plan].name}`}
               rail="teal"
+              actions={
+                payNeeded ? (
+                  <a
+                    href="#plan-change-tracker"
+                    className="fc-tap inline-flex min-h-11 items-center"
+                    data-testid="plan-card-payment-needed"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      toTracker();
+                    }}
+                  >
+                    <Chip tone="action">Payment needed</Chip>
+                  </a>
+                ) : undefined
+              }
             >
               <Rows>
                 <Row k="Price">

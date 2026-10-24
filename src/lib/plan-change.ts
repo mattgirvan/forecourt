@@ -265,6 +265,7 @@ export function markPaidSheet(d: { from: string; to: string; setupDiffPence: num
     body: `Only for money that reached us another way, like a bank transfer. This records you and the time, closes the customer's open payment page, and sends the move from ${d.from} to ${d.to} to the team as paid, with the invoice and ticket as normal.`,
     confirmLabel: "Mark as paid",
     cancelLabel: "Not yet",
-    tone: "action" as const,
+    // Neutral white primary: recording money is not a customer action (Atlas).
+    tone: "neutral" as const,
   };
 }

@@ -105,7 +105,7 @@ export function planChangeEmail(d: PlanChangeEmailInput): PlanChangeEmail {
     case "payment_link":
       title = "Your plan change is ready to pay";
       lines = [
-        `The Forecourt team has set up your move from ${from} to ${to}. To send it ahead, pay the setup difference${setup ? ` of ${setup}` : ""}.`,
+        `The Forecourt team has set up your move from ${from} to ${to}. To get it started, pay the setup difference${setup ? ` of ${setup}` : ""}.`,
         `Your new price${monthly ? ` of ${monthly}` : ""} starts from the day your change goes live. The part month is added to your next bill.`,
         "If the payment link has stopped working, open your account and press Pay under Plan. It opens a fresh page for the same amount.",
         "Paying by bank transfer instead? Reply to this email and we will mark it as paid when it arrives.",
