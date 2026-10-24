@@ -32,3 +32,17 @@ export function staffAccountRedirect(input: {
 }): boolean {
   return input.team && input.tenantCount === 0 && !input.plan && !input.checkout;
 }
+
+export type OfficeMenuItem =
+  | { label: "Sign in and security"; to: "/office"; search: { tab: "security" } }
+  | { label: "Your account"; to: "/account" };
+
+/**
+ * Profile menu items in the Office shell (Sign out is added by the shell).
+ * Staff are sent from /account to /office, so "Your account" would loop them
+ * back to Overview: hide it for staff, keep it for everyone else.
+ */
+export function officeProfileMenu(team: boolean | undefined): OfficeMenuItem[] {
+  const security: OfficeMenuItem = { label: "Sign in and security", to: "/office", search: { tab: "security" } };
+  return team ? [security] : [security, { label: "Your account", to: "/account" }];
+}
