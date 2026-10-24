@@ -14,7 +14,7 @@ import { StaffPanel } from "@/components/office/staff-panel";
 import { SignInMethods } from "@/components/account/sign-in-methods";
 import { SiteShell } from "@/components/site-shell";
 import { AppShell, type ShellNavItem } from "@/components/app-shell";
-import { LifeBuoy, MapPin, Store, Users } from "lucide-react";
+import { ChevronLeft, LifeBuoy, MapPin, Store, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SignInGate, useSbAccessToken } from "@/lib/sb-session";
 import { getSb } from "@/lib/sb";
@@ -310,15 +310,16 @@ function OfficeInner() {
       )}
 
       {search.id && token && (
-        <div className="mt-10">
+        <div className="mt-6">
           <button
             type="button"
-            className="inline-flex min-h-11 items-center text-sm text-muted underline-offset-4 hover:text-fg hover:underline"
+            className="-ml-2 inline-flex min-h-11 min-w-11 items-center gap-1 rounded-[var(--fc-r-sm)] pl-1 pr-3 text-sm text-muted hover:text-fg"
             onClick={() => go({ tab: "customers" })}
           >
+            <ChevronLeft className="size-4" aria-hidden="true" />
             All dealers
           </button>
-          <div className="mt-6">
+          <div className="mt-2">
             <TenantFile token={token} tenantId={search.id} onSaved={() => void reload()} />
           </div>
         </div>
@@ -454,11 +455,17 @@ function TenantFile({ token, tenantId, onSaved }: { token: string; tenantId: num
 
   return (
     <div>
-      <p className="text-[13px] font-medium text-muted">
-        {statusLabel(file.status)}
-        {accountStatusLabel(migration) === "Migration" ? " · Migration" : ""}
-        {packageLive(file.status) && billing === "trial" && days != null ? ` · ${days} days left` : ""}
-        {file.term_months ? ` · ${file.term_months}-month contract` : ""}
+      <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] font-medium text-muted">
+        <Chip tone={file.status === "live" || file.status === "paid" ? "live" : "neutral"}>{statusLabel(file.status)}</Chip>
+        <span>
+          {[
+            accountStatusLabel(migration) === "Migration" ? "Migration" : "",
+            packageLive(file.status) && billing === "trial" && days != null ? `${days} days left` : "",
+            file.term_months ? `${file.term_months}-month contract` : "",
+          ]
+            .filter(Boolean)
+            .join(", ")}
+        </span>
       </p>
       <div className="mt-2 flex items-start justify-between gap-3">
         <h2 className="min-w-0 text-3xl font-semibold tracking-tight sm:text-4xl">{file.name}</h2>
@@ -468,8 +475,8 @@ function TenantFile({ token, tenantId, onSaved }: { token: string; tenantId: num
         />
       </div>
       <p className="mt-2 text-sm text-muted">
-        {PLANS[plan].name} · {file.email || "no inbox"} · {file.phone || "no phone"}
-        {file.archived_at ? " · archived" : ""}
+        {PLANS[plan].name}, {file.email || "no inbox"}, {file.phone || "no phone"}
+        {file.archived_at ? ", archived" : ""}
       </p>
       {owner ? (
         <div className="mt-4">

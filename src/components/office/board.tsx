@@ -1,7 +1,7 @@
 import { gbpPence, monthTotalPence, normalizeBilling, normalizePlan } from "@/lib/catalog";
 import { stageMeta } from "@/lib/build";
 import { packageLive, statusLabel, trialDaysLeft } from "@/lib/team";
-import { Badge } from "@/components/ui/badge";
+import { Chip } from "@/components/ui/chip";
 import { OverflowMenu, Row, Rows } from "@/components/ui/section";
 
 export type BoardRow = {
@@ -30,12 +30,14 @@ export type BoardRow = {
 export const FLAG_EXPLAINERS = {
   duplicate: "A second payment came in for this site. See the note on the file.",
   lookalike: "This paid order looks like another dealership. See the note on the file.",
-  paymentFailed: "A monthly payment did not go through. Stripe is retrying. Get in touch with the dealer.",
+  paymentFailed:
+    "A monthly payment did not go through. Stripe is retrying. Get in touch with the dealer.",
 } as const;
 
 /** Small badges for payment flags. Shown on the list so they are seen even with emails off. */
 export function FlagBadges({ flags }: { flags?: BoardRow["flags"] }) {
   if (!flags || (!flags.duplicate && !flags.lookalike && !flags.paymentFailed)) return null;
+  const chips = flags.duplicate || flags.lookalike;
   const lines = [
     flags.paymentFailed ? FLAG_EXPLAINERS.paymentFailed : null,
     flags.duplicate ? FLAG_EXPLAINERS.duplicate : null,
@@ -43,23 +45,12 @@ export function FlagBadges({ flags }: { flags?: BoardRow["flags"] }) {
   ].filter(Boolean);
   return (
     <span className="mt-1.5 block">
-      <span className="flex flex-wrap gap-1">
-        {flags.paymentFailed ? (
-          <Badge tone="warn" className="text-[11px]">
-            Payment failed
-          </Badge>
-        ) : null}
-        {flags.duplicate ? (
-          <Badge tone="warn" className="text-[11px]">
-            Duplicate payment
-          </Badge>
-        ) : null}
-        {flags.lookalike ? (
-          <Badge tone="neutral" className="text-[11px]">
-            Looks like another dealer
-          </Badge>
-        ) : null}
-      </span>
+      {chips ? (
+        <span className="flex flex-wrap gap-1">
+          {flags.duplicate ? <Chip tone="action">Duplicate payment</Chip> : null}
+          {flags.lookalike ? <Chip>Looks like another dealer</Chip> : null}
+        </span>
+      ) : null}
       {lines.map((l) => (
         <span key={l} className="mt-1 block max-w-xs text-xs text-muted">
           {l}
@@ -69,11 +60,31 @@ export function FlagBadges({ flags }: { flags?: BoardRow["flags"] }) {
   );
 }
 
+/** Where a dealer is, as one chip. Live and Paid are green, a failed payment is amber, the rest grey. */
+export function dealerStatus(
+  r: Pick<BoardRow, "plan" | "billing" | "status" | "trial_ends_at" | "flags">,
+): { label: string; tone: "live" | "action" | "neutral" | "progress" } {
+  if (r.flags?.paymentFailed) return { label: "Payment failed", tone: "action" };
+  const trial = normalizeBilling(normalizePlan(r.plan), r.billing) === "trial";
+  if (trial && trialDaysLeft(r.trial_ends_at) === 0)
+    return { label: "Trial ended", tone: "neutral" };
+  if (r.status === "live" || r.status === "paid")
+    return { label: statusLabel(r.status), tone: "live" };
+  return { label: statusLabel(r.status), tone: "neutral" };
+}
+
+export function DealerStatusChip({ row }: { row: Parameters<typeof dealerStatus>[0] }) {
+  const s = dealerStatus(row);
+  return <Chip tone={s.tone}>{s.label}</Chip>;
+}
+
 export function BoardStats({ rows }: { rows: BoardRow[] }) {
   const live = rows.filter((r) => packageLive(r.status)).length;
   const trial = rows.filter((r) => {
     const days = trialDaysLeft(r.trial_ends_at);
-    return normalizeBilling(normalizePlan(r.plan), r.billing) === "trial" && (days == null || days > 0);
+    return (
+      normalizeBilling(normalizePlan(r.plan), r.billing) === "trial" && (days == null || days > 0)
+    );
   }).length;
   const expired = rows.filter((r) => {
     const days = trialDaysLeft(r.trial_ends_at);
@@ -148,18 +159,18 @@ export function CustomerTable({
                   </td>
                   <td className="px-4 py-3">
                     {plan}
-                    {billing === "trial" ? " trial" : ` · ${gbpPence(monthly)}/mo`}
+                    {billing === "trial" ? " trial" : `, ${gbpPence(monthly)}/mo`}
                   </td>
                   <td className="px-4 py-3">
-                    {normalizeBilling(normalizePlan(r.plan), r.billing) === "trial" && trialDaysLeft(r.trial_ends_at) === 0
-                      ? "Trial ended"
-                      : statusLabel(r.status)}
-                    {billing === "trial" && days != null && days > 0 ? ` · ${days}d` : ""}
+                    <DealerStatusChip row={r} />
+                    {billing === "trial" && days != null && days > 0 ? (
+                      <span className="ml-2 text-xs text-subtle">{days}d left</span>
+                    ) : null}
                   </td>
                   <td className="px-4 py-3">{stageMeta(r.stage).label}</td>
                   <td className="px-4 py-3">
                     {r.waiting ? (
-                      <span className="text-fg">They wrote</span>
+                      <Chip tone="action">They wrote</Chip>
                     ) : r.last_message_at ? (
                       <span className="text-muted">We replied</span>
                     ) : (
@@ -171,7 +182,12 @@ export function CustomerTable({
                     {onArchive ? (
                       <OverflowMenu
                         label={`More for ${r.name}`}
-                        items={[{ label: archivedView ? "Unarchive" : "Archive", onSelect: () => onArchive(r.id, !archivedView) }]}
+                        items={[
+                          {
+                            label: archivedView ? "Unarchive" : "Archive",
+                            onSelect: () => onArchive(r.id, !archivedView),
+                          },
+                        ]}
                       />
                     ) : null}
                   </td>
@@ -189,15 +205,22 @@ export function CustomerTable({
                 <span className="fc-row-title block">{r.name}</span>
                 <FlagBadges flags={r.flags} />
                 <span className="fc-row-sub block">
-                  {statusLabel(r.status)}, {normalizePlan(r.plan)}, {stageMeta(r.stage).label}
-                  {r.waiting ? ", they wrote" : ""}
+                  {normalizePlan(r.plan)}, {stageMeta(r.stage).label}
                 </span>
+              </span>
+              <span className="shrink-0">
+                {r.waiting ? <Chip tone="action">They wrote</Chip> : <DealerStatusChip row={r} />}
               </span>
             </button>
             {onArchive ? (
               <OverflowMenu
                 label={`More for ${r.name}`}
-                items={[{ label: archivedView ? "Unarchive" : "Archive", onSelect: () => onArchive(r.id, !archivedView) }]}
+                items={[
+                  {
+                    label: archivedView ? "Unarchive" : "Archive",
+                    onSelect: () => onArchive(r.id, !archivedView),
+                  },
+                ]}
               />
             ) : null}
           </Row>

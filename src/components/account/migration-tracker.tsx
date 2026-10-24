@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Chip } from "@/components/ui/chip";
 import { PLANS } from "@/lib/catalog";
 import { ukDay } from "@/lib/plan-change";
 import { cn } from "@/lib/utils";
@@ -8,19 +9,10 @@ import { isUpgrade, migrationTone, type Tracker } from "@/lib/migration";
  * "Migration" status pill, shown instead of "Live" while an account type change is open.
  * Amber only while the customer must pay the setup difference, green on Complete, grey otherwise.
  */
-const TONE = {
-  amber: "border-[#d9a24b]/[.42] bg-[#d9a24b]/[.18] text-[#d9a24b]",
-  green: "border-[#4BA82E]/[.42] bg-[#4BA82E]/[.18] text-[#4BA82E]",
-  grey: "border-line bg-surface text-muted",
-};
+const TONE = { amber: "action", green: "live", grey: "neutral" } as const;
 
 export function MigrationPill({ tracker }: { tracker?: Tracker | null }) {
-  return (
-    <span className={cn("inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px]", TONE[migrationTone(tracker)])}>
-      <span className="h-1.5 w-1.5 rounded-full bg-current" />
-      Migration
-    </span>
-  );
+  return <Chip tone={TONE[migrationTone(tracker)]}>Migration</Chip>;
 }
 
 /** Step by step tracker for an account type change, modelled on the setup tracker. */
@@ -45,7 +37,7 @@ export function MigrationTracker({ tracker, office = false, actions }: { tracker
             <span
               className={cn(
                 "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px]",
-                s.state === "done" && "bg-[#4BA82E]/[.22] text-[#4BA82E]",
+                s.state === "done" && "bg-[var(--fc-live-tint)] text-[var(--fc-live)]",
                 s.state === "now" && "border border-muted text-muted",
                 s.state === "next" && "border border-line text-subtle",
               )}
