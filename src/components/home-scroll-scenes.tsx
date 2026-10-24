@@ -360,12 +360,12 @@ const LOC_STYLE: Record<Loc, { bg: string; fg: string }> = {
 const MENU_LOCS: Loc[] = ["Bodyshop", "Workshop", "Prep Carpark", "Forecourt 1st Row", "Showroom"];
 
 const STOCK: { model: string; trim: string; reg: string; loc: Loc; keys: string; fan: number }[] = [
-  { model: "Compact estate", trim: "1.5 petrol", reg: "SV74 KDX", loc: "Showroom", keys: "Box 4", fan: -13 },
-  { model: "Family SUV", trim: "1.5 petrol", reg: "SK24 OYH", loc: "Bodyshop", keys: "Box 9", fan: -10 },
-  { model: "Electric SUV", trim: "Long range", reg: "SY25 FWN", loc: "Workshop", keys: "Box 11", fan: -7 },
-  { model: "Electric hatch", trim: "", reg: "SV75 UJR", loc: "Not set", keys: "Box 2", fan: -5 },
-  { model: "Small hatch", trim: "1.0 petrol", reg: "SA73 PLE", loc: "Prep Carpark", keys: "Prep", fan: -3 },
-  { model: "Compact SUV", trim: "1.5", reg: "SJ24 NRV", loc: "Forecourt 1st Row", keys: "Box 7", fan: -2 },
+  { model: "Ford Puma", trim: "ST-Line", reg: "SV74 KDX", loc: "Showroom", keys: "Box 4", fan: -13 },
+  { model: "Kia Sportage", trim: "GT-Line", reg: "SK24 OYH", loc: "Bodyshop", keys: "Box 9", fan: -10 },
+  { model: "Hyundai Ioniq 5", trim: "Premium", reg: "SY25 FWN", loc: "Workshop", keys: "Box 11", fan: -7 },
+  { model: "VW ID.3", trim: "Pro", reg: "SV75 UJR", loc: "Not set", keys: "Box 2", fan: -5 },
+  { model: "Vauxhall Corsa", trim: "Design", reg: "SA73 PLE", loc: "Prep Carpark", keys: "Prep", fan: -3 },
+  { model: "Toyota C-HR", trim: "Hybrid", reg: "SJ24 NRV", loc: "Forecourt 1st Row", keys: "Box 7", fan: -2 },
 ];
 
 function LocPill({ loc, className, innerRef }: { loc: Loc; className?: string; innerRef?: React.Ref<HTMLSpanElement> }) {
@@ -440,7 +440,7 @@ function StockScene() {
         ref={stageRef}
         className="desk-shell scene-card relative w-full max-w-[540px]"
         role="img"
-        aria-label="Stock list with a location and keys pill per car. The electric hatch's location changes from Not set to Showroom."
+        aria-label="Stock list with a location and keys pill per car. The VW ID.3's location changes from Not set to Showroom."
       >
         <div aria-hidden>
           <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3.5 sm:px-5">
@@ -665,7 +665,7 @@ function CustomerScene() {
               <span className="flex size-11 shrink-0 items-center justify-center rounded-full" style={{ background: "rgba(255,255,255,0.08)" }}>
                 <Car size={18} color="var(--shell-text-faint)" />
               </span>
-              <div className="text-[20px] leading-tight font-medium text-[#F6F5F1]">Electric hatch Standard range</div>
+              <div className="text-[20px] leading-tight font-medium text-[#F6F5F1]">Kia EV3 Air</div>
             </div>
             <div className="scene-compact-hide mb-1.5 font-mono text-[11.5px] text-[#7C8F84]">VIN: DEMO0000000000001</div>
             <div className="scene-compact-hide mb-4 text-sm text-[#9FB0A6]">Timiano Green</div>
@@ -772,7 +772,7 @@ function NudgeScene() {
             <div className="min-w-0">
               <div className="truncate text-[15px] font-semibold">Priya Shah</div>
               <div className="text-[12px] text-[var(--shell-text-faint)]">
-                Electric SUV Long range, <span className="whitespace-nowrap">SY25 PSH</span>
+                BMW iX1 xDrive30, <span className="whitespace-nowrap">SY25 PSH</span>
               </div>
             </div>
             <span className="scene-chip shrink-0">Handover Sat 10:00</span>
@@ -848,9 +848,9 @@ function NudgeScene() {
 /* ------------------------------------------------------------------ */
 
 const V5_CHASES = [
-  { name: "Hannah Wallace", px: "SF17 KLM", car: "Compact estate 1.5 petrol", date: "12 Sep" },
-  { name: "Gregor Munro", px: "SN19 XRD", car: "Family SUV 1.5 petrol", date: "16 Sep" },
-  { name: "Leah Robertson", px: "SA66 TWN", car: "Small hatch 1.0 petrol", date: "19 Sep" },
+  { name: "Hannah Wallace", px: "SF17 KLM", car: "VW Golf Estate Life", date: "12 Sep" },
+  { name: "Gregor Munro", px: "SN19 XRD", car: "Nissan Qashqai N-Connecta", date: "16 Sep" },
+  { name: "Leah Robertson", px: "SA66 TWN", car: "Toyota Yaris Design", date: "19 Sep" },
 ] as const;
 
 // Tick order: middle, top, bottom, so the cursor actually travels.
@@ -987,25 +987,25 @@ function ChaseScene() {
 /* ------------------------------------------------------------------ */
 
 const QUOTE_BRIEF =
-  "Family of four and a spaniel. Wants an SUV, around £350 a month. Likes the seven seat SUV and the compact SUV.";
+  "Family of four and a spaniel. Wants an SUV, around £350 a month. Likes the Škoda Kodiaq and the Ford Kuga.";
 const QUOTE_HEADLINE = "Room for four, the dog and the weekend bags.";
 
 /** Rows the fill seeds: two named in the brief, one picked from stock. Finance is never filled. */
 const QUOTE_CARS = [
   {
-    name: "Family SUV 1.5 petrol",
+    name: "Škoda Kodiaq SE L 1.5 TSI",
     engine: "Automatic, 7 seats",
     tagline: "Seven seats, room for the dog.",
     monthly: "£367",
   },
   {
-    name: "Compact SUV 1.5 petrol",
+    name: "Ford Kuga ST-Line 1.5 EcoBoost",
     engine: "Automatic",
     tagline: "Same big boot, easier to park.",
     monthly: "£338",
   },
   {
-    name: "Electric SUV",
+    name: "Nissan Ariya Engage",
     engine: "Electric, long range, from stock",
     tagline: "Electric, and charged at home.",
     monthly: "£359",
@@ -1212,7 +1212,7 @@ function QuoteScene() {
             <div className="mt-2.5">
               <div className="scene-quote-label">Stock cars (optional)</div>
               <span className="scene-quote-chip">
-                <Car size={12} /> Electric SUV, SY25 KTE
+                <Car size={12} /> Nissan Ariya, SY25 KTE
               </span>
             </div>
             <div className="mt-2.5">
@@ -1493,10 +1493,10 @@ function OverviewScene() {
 type TransitStatus = "Ordered" | "At port" | "On the lorry" | "In stock";
 
 const TRANSIT: { model: string; trim: string; reg: string; status: TransitStatus; eta: string; target?: boolean }[] = [
-  { model: "Hatchback", trim: "SE Petrol", reg: "AB12 CDE", status: "On the lorry", eta: "Due Thu" },
-  { model: "Estate", trim: "Sport Hybrid", reg: "XY34 ZZZ", status: "At port", eta: "Lorry booked", target: true },
-  { model: "Compact SUV", trim: "Electric", reg: "QQ00 TST", status: "At port", eta: "Waiting for lorry" },
-  { model: "Large SUV", trim: "Diesel Auto", reg: "DM99 OOO", status: "Ordered", eta: "Build week 48" },
+  { model: "Vauxhall Corsa", trim: "Griffin", reg: "AB12 CDE", status: "On the lorry", eta: "Due Thu" },
+  { model: "Škoda Octavia Estate", trim: "SE L", reg: "XY34 ZZZ", status: "At port", eta: "Lorry booked", target: true },
+  { model: "Hyundai Kona", trim: "Electric", reg: "QQ00 TST", status: "At port", eta: "Waiting for lorry" },
+  { model: "BMW X5", trim: "xDrive30d", reg: "DM99 OOO", status: "Ordered", eta: "Build week 48" },
 ];
 
 /** Target car path, in scroll progress: at port, on the lorry, arrived. */
