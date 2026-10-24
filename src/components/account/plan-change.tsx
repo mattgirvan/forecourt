@@ -74,7 +74,7 @@ export function changeRows(
     return [
       { label: `Setup paid for ${from}`, value: money(PLANS[q.from].setupPence) },
       { label: `${to} setup`, value: money(PLANS[q.to].setupPence) },
-      { label: "Setup difference, paid today", value: money(q.setupDiffPence), strong: true },
+      { label: "Setup difference, paid when your change goes live", value: money(q.setupDiffPence), strong: true },
       {
         label: monthlyMoveLine(q),
         value: `${money(q.newMonthlyPence)}/mo`,

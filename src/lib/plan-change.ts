@@ -49,7 +49,7 @@ export type PlanChangeQuote = {
   currentMonthlyPence: number;
   /** Pro-rated charge (positive) or credit (negative) for the rest of this period. */
   proratedPence: number;
-  /** Paid today before the change turns on. */
+  /** Setup difference, paid when the change goes live. */
   dueNowPence: number;
   effective: "after_payment" | "period_end" | "now";
   periodEnd: string | null;
@@ -108,7 +108,7 @@ export function quoteLines(q: PlanChangeQuote): string[] {
   if (q.direction === "same") return [`You are already on ${name(q.to)}.`];
   if (q.direction === "upgrade") {
     return [
-      `Setup difference, paid now: ${gbp(q.setupDiffPence)}`,
+      `Setup difference, paid when your change goes live: ${gbp(q.setupDiffPence)}`,
       `Part month for the rest of this month, added to your next bill: ${gbp(q.proratedPence)}`,
       `${name(q.to)} starts as soon as the setup payment goes through. Your new monthly total is ${gbp(q.newMonthlyPence)}.`,
     ];
@@ -230,15 +230,14 @@ export function planChangeErrorFeedback(e: unknown): PlanChangeFeedback {
 export function monthlyMoveLine(q: PlanChangeQuote): string {
   const now = q.currentMonthlyPence;
   const next = q.newMonthlyPence;
+  if (next > now)
+    return `Your monthly price goes up to ${gbp(next)} from the day your change goes live. The part month is added to your next bill.`;
   const when =
-    q.direction === "upgrade"
-      ? "once the setup payment goes through"
-      : q.effective === "period_end"
+    q.effective === "period_end"
         ? q.periodEnd
           ? `from ${formatUkDate(q.periodEnd)}`
           : "from your next bill"
         : "from today";
-  if (next > now) return `Your monthly price goes up to ${gbp(next)} ${when}`;
   if (next < now) return `Your monthly price drops to ${gbp(next)} ${when}`;
   return `Your monthly price stays at ${gbp(next)}`;
 }

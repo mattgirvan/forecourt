@@ -99,11 +99,22 @@ test("header and sheet show the same current monthly price", () => {
 
 test("the move is described by its monthly price, with a UK date", () => {
   const rise = quotePlanChange({ from: "group", to: "franchise", live: 2, periodStart: END - 30 * 86400, periodEnd: END, currentMonthlyPence: 74_700 });
-  assert.equal(monthlyMoveLine(rise), "Your monthly price goes up to £899 from 13 Nov 2026");
+  assert.equal(
+    monthlyMoveLine(rise),
+    "Your monthly price goes up to £899 from the day your change goes live. The part month is added to your next bill.",
+  );
+  const cheapUp = quotePlanChange({ from: "site", to: "franchise", live: 1, periodStart: END - 30 * 86400, periodEnd: END, currentMonthlyPence: 39_900 });
+  assert.match(monthlyMoveLine(cheapUp), /from the day your change goes live\. The part month is added to your next bill\.$/);
   const drop = quotePlanChange({ from: "group", to: "site", live: 3, periodStart: END - 30 * 86400, periodEnd: END, currentMonthlyPence: 74_700 });
   assert.equal(monthlyMoveLine(drop), "Your monthly price drops to £399 from 13 Nov 2026");
   const sheet = readFileSync("src/components/account/plan-change.tsx", "utf8");
   assert.doesNotMatch(sheet, /Moving down/);
   assert.match(sheet, /label: "Setup refund", value: "None"/);
   assert.match(sheet, /money\(q\.currentMonthlyPence\)\}\/mo`, strong: true/);
+});
+
+test("nothing in the plan change flow promises a charge at request time", () => {
+  for (const f of ["src/components/account/plan-change.tsx", "src/lib/plan-change.ts"]) {
+    assert.doesNotMatch(readFileSync(f, "utf8"), /(paid|charged|pay) (today|now)/i);
+  }
 });
