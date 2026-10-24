@@ -1,3 +1,4 @@
+import { CountUp } from "@/components/ui/count-up";
 import { BUILD_STAGES, stageIndex } from "@/lib/build";
 import { PLANS, gbpPence, monthTotalPence, normalizeBilling, normalizePlan } from "@/lib/catalog";
 import { packageLive } from "@/lib/team";
@@ -6,9 +7,13 @@ import { Chip } from "@/components/ui/chip";
 import { CollapsibleSection } from "@/components/ui/collapsible-section";
 import { Row, Rows, Section, SectionStack } from "@/components/ui/section";
 import { cn } from "@/lib/utils";
+import { useEffect, useState } from "react";
 import type { BoardRow } from "@/components/office/board";
 
 /** Stages a build moves through before Live. */
+/** The card stagger plays once per session, not on every tab switch. */
+let entered = false;
+
 const QUEUE_STAGES = BUILD_STAGES.filter((s) => s.id !== "live");
 
 function initials(name: string) {
@@ -86,15 +91,20 @@ export function OfficeOverview({
       : `${needs.length === 1 ? "One thing needs" : `${needs.length} things need`} you. Everything else is moving.`;
   const date = now.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
 
+  const [entrance] = useState(() => !entered);
+  useEffect(() => {
+    entered = true;
+  }, []);
+
   const stats = [
-    { n: String(live.length), label: "Live dealers" },
-    { n: String(queue.length), label: "In build" },
-    { n: String(needs.length), label: "Need you", action: needs.length > 0 },
-    { n: gbpPence(monthly), label: "Monthly, all dealers" },
+    { n: live.length, label: "Live dealers" },
+    { n: queue.length, label: "In build" },
+    { n: needs.length, label: "Need you", action: needs.length > 0 },
+    { n: monthly, label: "Monthly, all dealers", money: true },
   ];
 
   return (
-    <div className="mt-6" data-testid="office-overview">
+    <div className={cn("mt-6", !entrance && "fc-entered")} data-testid="office-overview">
       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div className="min-w-0">
           <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--fc-text-faint)]">
@@ -132,7 +142,9 @@ export function OfficeOverview({
             className={cn("fc-stat", s.action && "is-action")}
             data-testid={`stat-${s.label.split(",")[0].toLowerCase().replace(/ /g, "-")}`}
           >
-            <div className="fc-stat-n">{s.n}</div>
+            <div className="fc-stat-n">
+              <CountUp id={`office-${s.label}`} value={s.n} format={s.money ? gbpPence : undefined} />
+            </div>
             <div className="fc-stat-l">{s.label}</div>
           </div>
         ))}
