@@ -54,9 +54,12 @@ export function MigrationTracker({
               {s.state === "done" ? "✓" : i + 1}
             </span>
             <span className="min-w-0 flex-1">
-              <span className={cn("block", s.state === "next" && "text-muted")}>{s.title}</span>
+              <span className={cn("block", s.state === "next" && "text-muted")}>
+                {s.title}
+                {trimmedToday(s, tracker) ? " today" : ""}
+              </span>
               <span className="block text-[12px] text-subtle">
-                {s.line}
+                {s.state !== "done" && s.todo ? s.todo : s.line}
                 {s.stage === "priced" && tracker.effectiveAt
                   ? ` From ${ukDay(tracker.effectiveAt)}.`
                   : ""}
@@ -102,13 +105,13 @@ export function RequestCard({ tracker }: { tracker: Tracker }) {
   const starts = tracker.rise
     ? tracker.goLiveAt
       ? ukDay(tracker.goLiveAt)
-      : "The day your change goes live"
+      : "When your change goes live"
     : tracker.effectiveAt
       ? `${ukDay(tracker.effectiveAt)}, at period end`
       : "At the end of your billing period";
   const rows: [string, string][] = [
     ["Move", `${PLANS[tracker.from].name} to ${PLANS[tracker.to].name}`],
-    ["Setup difference", tracker.setupDiffPence ? `${gbp(tracker.setupDiffPence)} inc. VAT, one off` : "None"],
+    ["Setup difference", tracker.setupDiffPence ? `${gbp(tracker.setupDiffPence)} inc. VAT, one-off` : "None"],
   ];
   if (tracker.newMonthlyPence != null) rows.push(["New price", `${gbp(tracker.newMonthlyPence)} a month inc. VAT`]);
   rows.push(["Price starts", starts], ["Status", requestStatusLabel(tracker)]);
@@ -122,4 +125,11 @@ export function RequestCard({ tracker }: { tracker: Tracker }) {
       ))}
     </dl>
   );
+}
+
+/** A trim on a price drop is done by hand by the team on the day they mark it, not at period end. */
+function trimmedToday(s: Tracker["steps"][number], tracker: Tracker): boolean {
+  if (s.stage !== "setup" || s.state !== "done" || !s.at || tracker.rise) return false;
+  if (["site_to_franchise", "site_to_group", "franchise_to_group"].includes(tracker.scenario)) return false;
+  return ukDay(s.at) === ukDay(new Date().toISOString());
 }

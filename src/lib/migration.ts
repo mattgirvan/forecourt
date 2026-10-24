@@ -14,6 +14,7 @@
  * period end, complete. No payment and no refund.
  */
 import { PLANS, monthTotalPence, type PlanId } from "./catalog.ts";
+import { ukDay } from "./plan-change.ts";
 
 export type MigrationStage = "requested" | "paid" | "switched" | "setup" | "priced" | "complete";
 export const MIGRATION_STAGES: MigrationStage[] = ["requested", "paid", "switched", "setup", "priced", "complete"];
@@ -34,6 +35,8 @@ export type MigrationStep = {
   by: "customer" | "stripe" | "forecourt" | "period_end";
   /** True when reaching this step emails the account admin and hello@. */
   email: boolean;
+  /** Line shown while the step is not done yet, when it differs from the done line. */
+  todo?: string;
 };
 
 export function scenarioFor(from: PlanId, to: PlanId): MigrationScenario | null {
@@ -174,7 +177,7 @@ const money = (p: number) => `£${(p / 100).toLocaleString("en-GB", { minimumFra
  * - price down or equal: the price changes at period end, no charge, no refund.
  * Older rows without direction keep the fixed scenario steps.
  */
-export function stepsFor(row: Pick<MigrationRow, "direction" | "setup_diff_pence" | "new_monthly_pence">, scenario: MigrationScenario, to: PlanId): MigrationStep[] {
+export function stepsFor(row: Pick<MigrationRow, "direction" | "setup_diff_pence" | "new_monthly_pence" | "effective_at">, scenario: MigrationScenario, to: PlanId): MigrationStep[] {
   const dir = row.direction;
   if (dir !== "up" && dir !== "down" && dir !== "equal") return SCENARIOS[scenario];
   const rise = dir === "up";
@@ -185,11 +188,11 @@ export function stepsFor(row: Pick<MigrationRow, "direction" | "setup_diff_pence
     { stage: "requested", title: "Change requested", line: setup > 0 ? `You asked to move to ${name}.` : `You asked to move to ${name}. No payment is needed.`, by: "customer", email: true },
   ];
   if (setup > 0)
-    out.push({ stage: "paid", title: "Setup difference paid", line: `The one off setup difference of ${money(setup)} (inc. VAT) has gone through. Stripe sends your receipt.`, by: "stripe", email: true });
+    out.push({ stage: "paid", title: "Setup difference paid", line: `The one-off setup difference of ${money(setup)} (inc. VAT) has gone through. Stripe sends your receipt.`, todo: `Pay the one-off setup difference of ${money(setup)} (inc. VAT). Stripe sends your receipt.`, by: "stripe", email: true });
   out.push(
     rise
       ? { stage: "switched", title: `${name} goes live`, line: `From the day your change goes live, your new price${price ? ` of ${price}` : ""} starts. The part month is added to your next bill.`, by: "forecourt", email: false }
-      : { stage: "switched", title: `Plan switched to ${name}`, line: `Your account shows ${name} once your change goes live. Your price stays the same until the end of your billing period.`, by: "forecourt", email: false },
+      : { stage: "switched", title: "Plan change booked", line: `Your account moves to ${name} when the team applies your change. Your price stays the same until the end of your billing period${row.effective_at ? `, ${ukDay(row.effective_at)}` : ""}.`, by: "forecourt", email: false },
   );
   out.push(SCENARIOS[scenario].find((x) => x.stage === "setup")!);
   if (!rise)

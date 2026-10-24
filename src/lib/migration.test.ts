@@ -168,3 +168,14 @@ test("old rows without direction keep the fixed scenario steps", () => {
   const t = trackerFor({ id: 1, from_plan: "group", to_plan: "franchise", status: "applied", migration_stage: "switched", created_at: "2026-10-01T09:00:00Z" })!;
   assert.deepEqual(t.steps.map((s) => s.stage), ["requested", "switched", "setup", "priced", "complete"]);
 });
+
+test("Atlas copy: pay line before payment, booked line on a drop", () => {
+  const up = trackerFor(flowRow("site", "franchise", "up", 200000, 89900, { status: "pending_payment" }))!;
+  const paidStep = up.steps.find((s) => s.stage === "paid")!;
+  assert.equal(paidStep.todo, "Pay the one-off setup difference of £2,000 (inc. VAT). Stripe sends your receipt.");
+  assert.match(paidStep.line, /^The one-off setup difference of £2,000 \(inc\. VAT\) has gone through/);
+  const down = trackerFor(flowRow("franchise", "site", "down", 0, 39900, { effective_at: "2026-11-14T00:00:00Z" }))!;
+  const sw = down.steps.find((s) => s.stage === "switched")!;
+  assert.equal(sw.title, "Plan change booked");
+  assert.match(sw.line, /end of your billing period, 14 Nov 2026\.$/);
+});
