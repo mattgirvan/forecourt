@@ -35,7 +35,6 @@ import { OfficeMigrationPanel } from "@/components/office/migration-panel";
 import { getMigration } from "@/lib/server/migration-server";
 import { accountStatusLabel, type Tracker } from "@/lib/migration";
 import { useWhoAmI } from "@/lib/who-am-i";
-import { cn } from "@/lib/utils";
 import { SupportPane, SupportQueue } from "@/components/office/support-desk";
 
 type OfficeTab = "customers" | "queue" | "staff" | "security" | "sites";

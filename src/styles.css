@@ -2192,7 +2192,7 @@
 .fc-chip.is-live::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--fc-live); }
 .fc-chip.is-progress::before { content: ""; width: 6px; height: 6px; border-radius: 50%; border: 1.5px solid currentColor; border-right-color: transparent; }
 
-.fc-rows { display: flex; flex-direction: column; gap: 8px; list-style: none; margin: 0; padding: 0; }
+.fc-rows { display: flex; flex-direction: column; gap: 8px; list-style: none; padding: 0; }
 .fc-row {
   display: flex;
   align-items: center;
@@ -2282,7 +2282,6 @@
   overflow-y: hidden;
   position: relative;
   overscroll-behavior-x: contain;
-  scroll-snap-type: x proximity;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
   touch-action: pan-x pan-y;
@@ -2310,7 +2309,6 @@
   font-size: 13px;
   font-weight: 500;
   white-space: nowrap;
-  scroll-snap-align: start;
   cursor: pointer;
   transition: transform var(--fc-m-press);
 }

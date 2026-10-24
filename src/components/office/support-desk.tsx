@@ -4,7 +4,6 @@ import { PillRow } from "@/components/ui/pill-row";
 import { ThreadDrawer, Pill } from "@/components/account/live-view";
 import { listSupport, listSupportQueue, setSupportStatus, type SupportItem } from "@/lib/server/live-view";
 import { STATUS_LABEL, changeTypeLabel, isOpenStatus, ticketRef, updatedWhen, type SupportStatus } from "@/lib/live-view";
-import { cn } from "@/lib/utils";
 
 const TICKET_STATUSES: SupportStatus[] = ["open", "in_progress", "resolved"];
 const CHANGE_STATUSES: SupportStatus[] = ["submitted", "in_progress", "done", "declined"];

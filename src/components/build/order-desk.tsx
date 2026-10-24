@@ -525,7 +525,10 @@ function StaffBuild({
             label={brandLabel(plan)}
             options={brandOptions().map((b) => ({ id: b.id, label: b.label }))}
             isOn={(id) => (multiBrand(plan) ? picked.includes(id) : pack.franchise.id === id)}
-            onToggle={(id) => setPack(pickBrand(pack, id, plan))}
+            onToggle={(id) => {
+              const b = { id };
+              setPack(pickBrand(pack, b.id, plan));
+            }}
           />
           <div className="mt-3 flex items-center gap-2 text-xs text-muted">
             <span className="size-3 rounded-full" style={{ background: pack.franchise.accent }} />
