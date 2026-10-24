@@ -61,7 +61,7 @@ export function PhrasePage({ eyebrow, h1, lead, points, ctaLabel, links }: Phras
             style={{ backgroundColor: "#D9A24B" }}
             asChild
           >
-            <a href={`${SITE.url}/#showcase`}>
+            <a href={`${SITE.url}/`}>
               {ctaLabel} <ArrowRight className="size-4" />
             </a>
           </Button>

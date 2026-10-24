@@ -80,7 +80,7 @@ const steps = [
     title: "See it",
     body: "Scroll the showcase on this page. Team, stock, and the customer view, with sample cars.",
     href: "#showcase",
-    cta: "See it working",
+    cta: "Take a look",
   },
   {
     n: "2",
@@ -118,11 +118,6 @@ function Home() {
           Not another stock system. It ties into the one you already pay for, and does the floor work that system never did.
         </p>
         <div className="rise mt-9 flex flex-wrap justify-center gap-3" style={{ animationDelay: "260ms" }}>
-          <Button className="rounded-full" asChild>
-            <a href="#showcase">
-              See it working <ArrowRight className="size-4" />
-            </a>
-          </Button>
           <Button variant="secondary" className="rounded-full" asChild>
             <Link to="/how">How it works</Link>
           </Button>

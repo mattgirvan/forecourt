@@ -32,7 +32,7 @@ function NavLink({
       to={to}
       hash={hash}
       className={cn(
-        "rounded-full px-3.5 py-1.5 text-[13px] text-muted transition-colors hover:text-fg",
+        "inline-flex min-h-11 items-center justify-center rounded-full px-3.5 text-[13px] text-muted transition-transform duration-150 hover:text-fg active:scale-[0.97] motion-reduce:transition-none motion-reduce:active:scale-100",
         on && "bg-elevated text-fg",
         className,
       )}
@@ -83,14 +83,14 @@ export function SiteHeader() {
             </SignedOut>
           </div>
         </div>
-        {/* Mobile row: tabs share the width evenly so all four fit at 360px without scrolling. */}
-        <nav className="nav-glass mx-auto mt-2 flex max-w-5xl gap-1 overflow-x-auto rounded-full px-1 py-1 md:hidden">
+        {/* Mobile row: tabs sized to their labels, 44px tall, never scrolls sideways. Labels wrap before they overflow. */}
+        <nav className="nav-glass mx-auto mt-2 flex max-w-5xl gap-0.5 rounded-full p-1 md:hidden">
           {links.map((l) => (
             <NavLink
               key={l.label}
               to={l.to}
               label={l.label}
-              className="flex-1 whitespace-nowrap px-2.5 py-2 text-center"
+              className="min-w-0 flex-auto px-2 text-center leading-tight"
             />
           ))}
         </nav>
