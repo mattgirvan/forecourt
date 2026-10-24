@@ -3622,6 +3622,9 @@
   .fc-team-grid,
   .fc-signin-card {
     animation: fc-fade-in 0.2s linear both;
+  }
+}
+
 /* Redesign 12: Tickets list with the ticket open beside it (desktop) or full screen (mobile). */
 .fc-tix {
   display: block;

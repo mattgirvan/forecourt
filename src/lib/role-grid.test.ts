@@ -86,3 +86,8 @@ test("SQL is single paste, idempotent, owner checked, one nullable column", () =
   assert.equal((sql.match(/alter table/g) ?? []).length, 1);
   assert.doesNotMatch(sql, /create table|drop table|alter policy|create policy/i);
 });
+
+test("styles.css braces balance (merge guard)", () => {
+  const css = readFileSync("src/styles.css", "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+  assert.equal((css.match(/\{/g) ?? []).length, (css.match(/\}/g) ?? []).length);
+});
