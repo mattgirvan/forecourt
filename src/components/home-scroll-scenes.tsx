@@ -192,7 +192,7 @@ const TEAM = [
   { name: "Aisha Khan", note: "Out on a test drive", role: "Sales" },
   { name: "Ross McLean", note: "Hit target again", role: "Sales", target: true },
   { name: "Megan Doyle", note: "Owns the kettle", role: "Admin" },
-  { name: "Tom Fairbairn", note: "Under a Kodiaq", role: "Workshop" },
+  { name: "Tom Fairbairn", note: "Under a family SUV", role: "Workshop" },
 ] as const;
 
 const ROLE_OPTIONS = ["Sales", "Management", "Admin", "Workshop"] as const;
@@ -445,7 +445,7 @@ function StockScene() {
           <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3.5 sm:px-5">
             <div>
               <div className="text-[15px] font-semibold">Stock</div>
-              <div className="font-mono text-[11px] text-[var(--shell-text-faint)]">{set ? "6 cars · all placed" : "6 cars · 1 without a home"}</div>
+              <div className="font-mono text-[11px] text-[var(--shell-text-faint)]">{set ? "6 cars, all placed" : "6 cars, 1 without a home"}</div>
             </div>
             <span className="rounded-full bg-white/5 px-3 py-1.5 font-mono text-[11px] text-[var(--shell-text-dim)]">
               Newest first
@@ -652,7 +652,7 @@ function CustomerScene() {
           <div className="scene-compact-hide mb-2.5 text-lg font-medium">Welcome back, Jamie</div>
           <div className="shell-glass customer-header-card scene-compact-pad mb-3 rounded-[24px] p-5 sm:mb-4 sm:p-7">
             <div className="mb-1.5 flex flex-wrap items-start justify-between gap-2">
-              <div className="shell-eyebrow font-mono text-xs tracking-widest">ORD-2071 · Finance · New</div>
+              <div className="shell-eyebrow font-mono text-xs tracking-widest">ORD-2071, Finance, New</div>
               <div
                 className="rounded-[9px] px-2.5 py-0.5 font-mono text-xs font-bold tracking-widest"
                 style={{ background: "var(--shell-accent)", color: "var(--shell-accent-ink)" }}
@@ -664,7 +664,7 @@ function CustomerScene() {
               <span className="flex size-11 shrink-0 items-center justify-center rounded-full" style={{ background: "rgba(255,255,255,0.08)" }}>
                 <Car size={18} color="var(--shell-text-faint)" />
               </span>
-              <div className="text-[20px] leading-tight font-medium text-[#F6F5F1]">Elroq 85 Edition</div>
+              <div className="text-[20px] leading-tight font-medium text-[#F6F5F1]">Electric hatch Standard range</div>
             </div>
             <div className="scene-compact-hide mb-1.5 font-mono text-[11.5px] text-[#7C8F84]">VIN: DEMO0000000000001</div>
             <div className="scene-compact-hide mb-4 text-sm text-[#9FB0A6]">Timiano Green</div>
@@ -771,7 +771,7 @@ function NudgeScene() {
             <div className="min-w-0">
               <div className="truncate text-[15px] font-semibold">Priya Shah</div>
               <div className="text-[12px] text-[var(--shell-text-faint)]">
-                Enyaq 85 Edition · <span className="whitespace-nowrap">SY25 PSH</span>
+                Electric SUV Long range, <span className="whitespace-nowrap">SY25 PSH</span>
               </div>
             </div>
             <span className="scene-chip shrink-0">Handover Sat 10:00</span>
@@ -847,9 +847,9 @@ function NudgeScene() {
 /* ------------------------------------------------------------------ */
 
 const V5_CHASES = [
-  { name: "Hannah Wallace", px: "SF17 KLM", car: "Octavia Estate SE L", date: "12 Sep" },
-  { name: "Gregor Munro", px: "SN19 XRD", car: "Kodiaq SE Drive", date: "16 Sep" },
-  { name: "Leah Robertson", px: "SA66 TWN", car: "Fabia SE", date: "19 Sep" },
+  { name: "Hannah Wallace", px: "SF17 KLM", car: "Compact estate 1.5 petrol", date: "12 Sep" },
+  { name: "Gregor Munro", px: "SN19 XRD", car: "Family SUV 1.5 petrol", date: "16 Sep" },
+  { name: "Leah Robertson", px: "SA66 TWN", car: "Small hatch 1.0 petrol", date: "19 Sep" },
 ] as const;
 
 // Tick order: middle, top, bottom, so the cursor actually travels.
@@ -940,7 +940,7 @@ function ChaseScene() {
                         <div className="min-w-0 flex-1">
                           <div className="text-[13px] font-semibold">{c.name}</div>
                           <div className="text-[11.5px] leading-snug text-[var(--mist)]">
-                            Chase PX V5 · PX {c.px} · {c.car}
+                            Chase PX V5, PX {c.px}, {c.car}
                           </div>
                         </div>
                         <div className="shrink-0 font-mono text-[11px] text-[var(--mist)]">{c.date}</div>
@@ -963,7 +963,7 @@ function ChaseScene() {
 
         <div aria-hidden className="desk-shell scene-digest">
           <div className="flex items-center gap-2 text-[12px] font-semibold">
-            <Mail size={13} /> Daily digest · 8:00am
+            <Mail size={13} /> Daily digest, 8:00am
           </div>
           <div className="mt-2 flex items-baseline justify-between gap-3 text-[12px] text-[var(--shell-text-dim)]">
             PX V5s to collect
@@ -993,7 +993,7 @@ const QUOTE_HEADLINE = "Room for four, the dog and the weekend bags.";
 const QUOTE_CARS = [
   {
     name: "Family SUV 1.5 petrol",
-    engine: "Automatic · 7 seats",
+    engine: "Automatic, 7 seats",
     tagline: "Seven seats, room for the dog.",
     monthly: "£367",
   },
@@ -1005,7 +1005,7 @@ const QUOTE_CARS = [
   },
   {
     name: "Electric SUV",
-    engine: "Electric · long range · from stock",
+    engine: "Electric, long range, from stock",
     tagline: "Electric, and charged at home.",
     monthly: "£359",
   },
@@ -1125,7 +1125,7 @@ function QuoteScene() {
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <div className="text-[15px] font-semibold">New proposal</div>
-              <div className="truncate font-mono text-[11px] text-[var(--shell-text-faint)]">Laura Bennett · PCP<span className="hidden sm:inline"> · Aisha Khan</span></div>
+              <div className="truncate font-mono text-[11px] text-[var(--shell-text-faint)]">Laura Bennett, PCP<span className="hidden sm:inline">, Aisha Khan</span></div>
             </div>
             <span className="scene-quote-ghost shrink-0">
               <Sparkles size={13} />
@@ -1211,7 +1211,7 @@ function QuoteScene() {
             <div className="mt-2.5">
               <div className="scene-quote-label">Stock cars (optional)</div>
               <span className="scene-quote-chip">
-                <Car size={12} /> Electric SUV · SY25 KTE
+                <Car size={12} /> Electric SUV, SY25 KTE
               </span>
             </div>
             <div className="mt-2.5">

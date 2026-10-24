@@ -4197,13 +4197,6 @@
     animation: none !important;
   }
 }
-@media (max-width: 767px) {
-  /* Keep at least 24px between the sticky tab bar and these eyebrows. */
-  #scene-transit .scene-sticky,
-  #scene-group .scene-sticky {
-    padding-top: 9.25rem;
-  }
-}
 @media (max-width: 767px) and (prefers-reduced-motion: reduce) {
   #scene-transit .scene-sticky,
   #scene-group .scene-sticky {
