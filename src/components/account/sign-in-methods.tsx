@@ -1,3 +1,4 @@
+import { askConfirm } from "@/components/ui/confirm-sheet";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { getSb } from "@/lib/sb";
@@ -79,7 +80,13 @@ export function SignInMethods({ embedded = false }: { embedded?: boolean } = {})
 
   async function remove(row: PasskeyRow) {
     const label = row.friendly_name || "this passkey";
-    if (!window.confirm(`Remove ${label}? You can still sign in with an email code.`)) return;
+    const ok = await askConfirm({
+      title: `Remove ${label}?`,
+      body: "You can still sign in with an email code.",
+      confirmLabel: "Remove",
+      tone: "danger",
+    });
+    if (!ok) return;
     setBusy({ removing: row.id });
     setNotice(null);
     try {

@@ -1,3 +1,4 @@
+import { askConfirm } from "@/components/ui/confirm-sheet";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Chip } from "@/components/ui/chip";
 import { Button } from "@/components/ui/button";
@@ -863,7 +864,13 @@ function AccountAccess({
   }
   async function remove(m: AccountMember) {
     if (preview) return;
-    if (!window.confirm(`Remove ${m.email}? They lose access straight away.`)) return;
+    const ok = await askConfirm({
+      title: `Remove ${m.email}?`,
+      body: "They lose access straight away.",
+      confirmLabel: "Remove",
+      tone: "danger",
+    });
+    if (!ok) return;
     try {
       await removeAccountMember({ data: { token, tenantId, memberId: m.id } });
       load();

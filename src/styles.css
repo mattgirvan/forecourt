@@ -3177,3 +3177,82 @@
   .fc-collapse-in { animation: none; }
   .fc-collapse-chevron { transition: none; }
 }
+
+/* Redesign 8: confirm sheets (replace the browser confirm box) */
+.fc-confirm-wrap {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.fc-confirm-dim {
+  position: absolute;
+  inset: 0;
+  background: rgba(5, 8, 12, 0.66);
+  animation: fc-fade-in 180ms var(--fc-ease) both;
+}
+.fc-confirm-sheet {
+  position: relative;
+  width: 100%;
+  max-width: 440px;
+  background: var(--fc-solid);
+  border: 1px solid var(--fc-row-border);
+  border-radius: var(--fc-r-lg);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+  padding: 22px 20px 20px;
+  animation: fc-confirm-in 200ms var(--fc-ease) both;
+}
+.fc-confirm-grip {
+  display: none;
+}
+.fc-confirm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 20px;
+}
+@keyframes fc-confirm-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@media (max-width: 720px) {
+  .fc-confirm-wrap {
+    align-items: flex-end;
+    padding: 0;
+  }
+  .fc-confirm-sheet {
+    max-width: none;
+    border-radius: var(--fc-r-lg) var(--fc-r-lg) 0 0;
+    border-bottom: 0;
+    box-shadow: 0 -12px 32px rgba(0, 0, 0, 0.45);
+    padding: 12px 20px calc(20px + env(safe-area-inset-bottom));
+    animation: fc-sheet-up 260ms var(--fc-ease) both;
+  }
+  .fc-confirm-grip {
+    display: block;
+    width: 36px;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--fc-row-border);
+    margin: 0 auto 14px;
+  }
+  .fc-confirm-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fc-confirm-dim,
+  .fc-confirm-sheet {
+    animation: fc-fade-in 120ms linear both;
+  }
+}

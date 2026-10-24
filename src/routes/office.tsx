@@ -1,3 +1,4 @@
+import { askConfirm } from "@/components/ui/confirm-sheet";
 import { PlanChangePanel } from "@/components/account/plan-change";
 import { formatUkDate } from "@/lib/uk-date";
 import { officeProfileMenu } from "@/lib/staff-nav";
@@ -126,10 +127,20 @@ function OfficeInner() {
 
   async function archiveRow(id: number, archived: boolean) {
     if (!token) return;
-    const ask = archived
-      ? "Archive this order? It leaves the main list. You can find it under Show archived and restore it anytime. Nothing is deleted."
-      : "Bring this order back to the main Office list?";
-    if (typeof window !== "undefined" && !window.confirm(ask)) return;
+    const ok = await askConfirm(
+      archived
+        ? {
+            title: "Archive this order?",
+            body: "It leaves the main list. You can find it under Show archived and restore it anytime. Nothing is deleted.",
+            confirmLabel: "Archive",
+          }
+        : {
+            title: "Bring this order back?",
+            body: "It goes back on the main Office list.",
+            confirmLabel: "Restore",
+          },
+    );
+    if (!ok) return;
     try {
       await setTenantArchived({ data: { token, tenantId: id, archived } });
       await reload();
@@ -482,14 +493,18 @@ function TenantFile({
     setBusy(true);
     setNotice(null);
     try {
+      let title = "End this package?";
+      let confirmLabel = "End package";
       let question =
-        "End this package? If they are on a monthly Stripe, it stops at the period end. A 60-day trial has no monthly, so this just marks it cancelled.";
+        "If they are on a monthly Stripe plan, it stops at the period end. A 60-day trial has no monthly, so this just marks it cancelled.";
       let expectPaymentIntent: string | undefined;
       if (action === "sign-off") {
         // Signing off can start the monthly plan in Stripe, so say so.
         const { text } = await goLiveConfirm({ data: { token, tenantId } }).catch(() => ({
           text: "Mark live? This may start their monthly plan today.",
         }));
+        title = "Go live?";
+        confirmLabel = "Go live";
         question = `${text} Setup is then not refundable.`;
       } else if (action === "refund") {
         // Name the exact payment and amount before anything is sent back.
@@ -498,10 +513,18 @@ function TenantFile({
           setNotice(preview.text);
           return;
         }
+        title = "Refund this payment?";
+        confirmLabel = "Refund";
         question = preview.text;
         expectPaymentIntent = preview.paymentIntent;
       }
-      if (typeof window !== "undefined" && !window.confirm(question)) return;
+      const ok = await askConfirm({
+        title,
+        body: question,
+        confirmLabel,
+        tone: action === "sign-off" ? "action" : "danger",
+      });
+      if (!ok) return;
       const res = await runBillingAction({
         data: { token, tenantId, action, expectPaymentIntent },
       });
@@ -523,10 +546,20 @@ function TenantFile({
   async function toggleArchive() {
     if (!file) return;
     const archived = !file.archived_at;
-    const ask = archived
-      ? "Archive this order? It leaves the main list. You can restore it from Show archived. Nothing is deleted."
-      : "Bring this order back to the main Office list?";
-    if (typeof window !== "undefined" && !window.confirm(ask)) return;
+    const ok = await askConfirm(
+      archived
+        ? {
+            title: "Archive this order?",
+            body: "It leaves the main list. You can restore it from Show archived. Nothing is deleted.",
+            confirmLabel: "Archive",
+          }
+        : {
+            title: "Bring this order back?",
+            body: "It goes back on the main Office list.",
+            confirmLabel: "Restore",
+          },
+    );
+    if (!ok) return;
     setBusy(true);
     setNotice(null);
     try {
