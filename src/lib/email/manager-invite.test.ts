@@ -3,10 +3,10 @@ import assert from "node:assert/strict";
 import { managerInviteEmail } from "./templates.ts";
 import { ACCESS_COPY, MANAGER_COPY, PAYMENT_BANNER_MANAGER } from "../live-view.ts";
 
-const mail = managerInviteEmail({ dealer: "Skoda Aberdeen", invitedBy: "owner@d.co", email: "mgr@d.co", accountUrl: "https://forecourt.example/account?invite=1" });
+const mail = managerInviteEmail({ dealer: "Kelso Autos", invitedBy: "owner@d.co", email: "mgr@d.co", accountUrl: "https://forecourt.example/account?invite=1" });
 
 test("manager invite names the dealer, the inviter and links to sign in", () => {
-  assert.match(mail.subject, /Skoda Aberdeen/);
+  assert.match(mail.subject, /Kelso Autos/);
   assert.match(mail.text, /owner@d\.co has given you access/);
   assert.match(mail.text, /mgr@d\.co/);
   assert.ok(mail.html.includes("https://forecourt.example/account?invite=1"));

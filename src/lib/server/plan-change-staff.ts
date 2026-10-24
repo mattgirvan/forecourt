@@ -12,6 +12,8 @@ import { readMigration, setMigrationStage } from "@/lib/server/migration-store";
 import { actor, sbAdmin } from "@/lib/server/staff-actor";
 import { applyTicket, gbp, rejectTicket, type TicketChange } from "@/lib/server/plan-change-ticket";
 import { readTicketChange } from "@/lib/server/plan-change-ticket-store";
+import { appliedStage, notify } from "@/lib/server/plan-change-notify";
+import { planMove } from "@/lib/plan-change-rules";
 
 export type PlanChangeTicketView = {
   changeId: number;
@@ -139,6 +141,22 @@ export const applyPlanChangeTicket = createServerFn({ method: "POST" })
       c,
     );
     if (!r.ok) throw new Error(r.message);
+    // PR 5: customer email. A rise is live now; a drop or equal swap starts at period end.
+    {
+      const { sendAccountEventEmail } = await import("@/lib/server/journey-email");
+      const move = planMove({ from: c.from_plan, to: c.to_plan, live });
+      const stage = appliedStage(move.monthlyStarts);
+      const { data: fresh } = await sb.from("plan_changes").select("effective_at, go_live_at").eq("id", c.id).maybeSingle();
+      await notify(sendAccountEventEmail, c.tenant_id, {
+        changeId: c.id,
+        from: c.from_plan,
+        to: c.to_plan,
+        stage,
+        newMonthlyPence: move.newMonthlyPence,
+        goLiveAt: (fresh?.go_live_at as string | null) ?? new Date().toISOString(),
+        periodEnd: (fresh?.effective_at as string | null) ?? c.effective_at ?? periodEnd,
+      });
+    }
     await audit(sb, c.tenant_id, "Plan change applied", `${r.message}${r.manualPrice ? ` ${r.manualPrice}` : ""} By ${who.email ?? "Office"}.`, who.email);
     return r;
   });
@@ -176,6 +194,11 @@ export const rejectPlanChangeTicket = createServerFn({ method: "POST" })
       data.reason ?? "",
     );
     if (!r.ok) throw new Error(r.message);
+    {
+      const { sendAccountEventEmail } = await import("@/lib/server/journey-email");
+      const refunded = c.status === "paid" && c.setup_diff_pence > 0;
+      await notify(sendAccountEventEmail, c.tenant_id, { changeId: c.id, from: c.from_plan, to: c.to_plan, stage: "rejected", setupPence: c.setup_diff_pence, refunded });
+    }
     await audit(sb, c.tenant_id, "Plan change rejected", `${r.message} By ${who.email ?? "Office"}.`, who.email);
     return r;
   });
