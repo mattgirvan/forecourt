@@ -8,7 +8,7 @@ Copy: marketing/email/forecourt-email-drafts-v3.md (approved, used as written).
 
 ## Every newsletter send must
 
-1. Go only to Audience contacts with `unsubscribed: false`.
+1. Go only to contacts in the newsletter Segment (`RESEND_NEWSLETTER_SEGMENT_ID`, formerly the Audience) with `unsubscribed: false`.
 2. Be one email per recipient, with `{{UNSUBSCRIBE_URL}}` set to `unsubscribeUrl(config, email)` from `src/lib/server/newsletter.ts`.
 3. Pass `headers: newsletterUnsubscribeHeaders(config, email)` to Resend. That sets `List-Unsubscribe` (our signed one-click URL plus mailto) and `List-Unsubscribe-Post: List-Unsubscribe=One-Click`. Mail clients POST to `/api/newsletter/unsubscribe`, which sets `unsubscribed: true` with no further click.
 4. Use a subject starting `Forecourt: ` and send from `Forecourt <hello@forecourt.me>`.

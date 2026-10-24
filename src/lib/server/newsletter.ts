@@ -4,8 +4,9 @@
  *  1. POST email + consent tick. Honeypot, validation and rate limits first.
  *  2. Send "Forecourt: confirm your subscription" with a signed, expiring
  *     confirm link (HMAC-SHA256, NEWSLETTER_TOKEN_SECRET). Nothing is stored yet.
- *  3. Only the confirm link adds the contact to the Resend Audience
- *     (RESEND_NEWSLETTER_AUDIENCE_ID) or sets it back to unsubscribed:false.
+ *  3. Only the confirm link adds the contact to the Resend Segment
+ *     (RESEND_NEWSLETTER_SEGMENT_ID, falling back to RESEND_NEWSLETTER_AUDIENCE_ID)
+ *     or sets it back to unsubscribed:false.
  *  4. Every response to step 1 is the same, so nobody can learn whether an
  *     address is already on the list.
  *  5. Unsubscribe tokens never expire and set unsubscribed:true. Confirm and
@@ -24,7 +25,8 @@ const RESEND_API = "https://api.resend.com";
 
 export type NewsletterConfig = {
   apiKey?: string;
-  audienceId?: string;
+  /** Resend Segment ID (formerly Audience ID). */
+  segmentId?: string;
   secret?: string;
   /** e.g. "Forecourt <hello@forecourt.me>" */
   from: string;
@@ -36,7 +38,7 @@ export type NewsletterConfig = {
 export type Purpose = "c" | "u";
 
 export function configured(c: NewsletterConfig) {
-  return Boolean(c.apiKey && c.audienceId && c.secret && c.secret.length >= 16);
+  return Boolean(c.apiKey && c.segmentId && c.secret && c.secret.length >= 16);
 }
 
 const EMAIL_RE = /^[^\s@,;<>"]+@[^\s@,;<>"]+\.[A-Za-z]{2,}$/;
@@ -154,26 +156,39 @@ export async function sendConfirmation(c: NewsletterConfig, email: string, f: Fe
   return res.ok;
 }
 
-/** Add or update the contact. Safe to repeat. */
+/**
+ * Add or update the contact. Safe to repeat.
+ * Uses Resend's global Contacts plus Segments (the Audiences API is deprecated):
+ *  confirm: PATCH /contacts/{email} unsubscribed:false, or create it when missing,
+ *           then POST /contacts/{email}/segments/{segment_id}.
+ *  unsubscribe: PATCH /contacts/{email} unsubscribed:true (global opt out).
+ */
 export async function setSubscribed(c: NewsletterConfig, email: string, unsubscribed: boolean, f: Fetch) {
-  const base = `${RESEND_API}/audiences/${encodeURIComponent(c.audienceId!)}/contacts`;
-  const patch = await f(`${base}/${encodeURIComponent(email)}`, {
+  const contact = `${RESEND_API}/contacts/${encodeURIComponent(email)}`;
+  const patch = await f(contact, {
     method: "PATCH",
     headers: authed(c),
     body: JSON.stringify({ unsubscribed }),
   });
-  if (patch.ok) return true;
   if (unsubscribed) {
-    // Not on the list at all is already the outcome they want.
-    return patch.status === 404;
+    // Not a contact at all is already the outcome they want.
+    return patch.ok || patch.status === 404;
   }
-  if (patch.status !== 404) return false;
-  const create = await f(base, {
+  if (!patch.ok) {
+    if (patch.status !== 404) return false;
+    const create = await f(`${RESEND_API}/contacts`, {
+      method: "POST",
+      headers: authed(c),
+      body: JSON.stringify({ email, unsubscribed: false, segments: [{ id: c.segmentId }] }),
+    });
+    return create.ok;
+  }
+  const add = await f(`${contact}/segments/${encodeURIComponent(c.segmentId!)}`, {
     method: "POST",
     headers: authed(c),
-    body: JSON.stringify({ email, unsubscribed: false }),
   });
-  return create.ok;
+  // Already in the segment is fine.
+  return add.ok || add.status === 409;
 }
 
 /* ---------------- Rate limit (in memory, per instance) ---------------- */
