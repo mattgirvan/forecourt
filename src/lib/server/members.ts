@@ -6,7 +6,8 @@
  */
 import { createServerFn } from "@tanstack/react-start";
 import { actor } from "@/lib/server/staff-actor";
-import { sendManagerInviteEmail } from "@/lib/server/journey-email";
+import { sendAccountEventEmail, sendManagerInviteEmail } from "@/lib/server/journey-email";
+import { managerAddedEvent, managerRemovedEvent } from "@/lib/account-events";
 
 export type AccountMember = { id: number; email: string; status: "invited" | "active"; created_at: string; accepted_at: string | null };
 
@@ -63,6 +64,7 @@ export const inviteManager = createServerFn({ method: "POST" })
       throw new Error(error.message);
     }
     const sent = await sendManagerInviteEmail({ tenantId: t.id, memberId: (row as { id: number }).id, to: email, invitedBy: who.email ?? "" });
+    await sendAccountEventEmail({ tenantId: t.id, ...managerAddedEvent({ tenantId: t.id, memberId: (row as { id: number }).id, email, by: who.email ?? "" }) });
     return { ok: true, emailed: Boolean(sent && sent.sent) };
   });
 
@@ -71,8 +73,12 @@ export const removeAccountMember = createServerFn({ method: "POST" })
   .validator((d: { token: string; tenantId: number; memberId: number }) => d)
   .handler(async ({ data }) => {
     const { who, t } = await ownerOf(data.token, data.tenantId);
-    const { error } = await who.sb.from("tenant_members").delete().eq("id", data.memberId).eq("tenant_id", t.id);
+    const { data: gone, error } = await who.sb.from("tenant_members").delete().eq("id", data.memberId).eq("tenant_id", t.id).select("email");
     if (error) throw new Error(missingTable(error) ? NOT_READY : error.message);
+    if (gone?.length) {
+      const email = String((gone[0] as { email?: string }).email ?? "");
+      await sendAccountEventEmail({ tenantId: t.id, ...managerRemovedEvent({ tenantId: t.id, memberId: data.memberId, email, by: who.email ?? "" }) });
+    }
     return { ok: true };
   });
 

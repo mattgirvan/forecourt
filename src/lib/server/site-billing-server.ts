@@ -26,6 +26,7 @@ import { actor, sbAdmin, siteBillingSyncFlag, stripeSecret } from "@/lib/server/
 import { parseBillingSites, periodEndFrom, siteBreakdown, type BillingSite, type SiteStatus } from "@/lib/site-billing";
 import { siteSyncMessage, syncSiteBilling, type SiteSubsLike, type SiteSyncResult } from "@/lib/server/site-billing-sync";
 import { missingTable } from "@/lib/server/payment-issues";
+import { siteArchivedEvent, siteLiveEvent } from "@/lib/account-events";
 import {
   dryRunSubs,
   modeMessage as withMode,
@@ -35,6 +36,12 @@ import {
 } from "@/lib/server/site-billing-sync";
 
 export type { SiteBillingMode };
+/** End of this monthly period from the go live timeline entry. No Stripe call. */
+async function periodEndFor(sb: { from: (t: string) => any }, tenantId: number): Promise<string | null> {
+  const { data } = await sb.from("build_events").select("created_at").eq("tenant_id", tenantId).eq("title", "Monthly billing started").order("created_at", { ascending: true }).limit(1);
+  return periodEndFrom((data?.[0]?.created_at as string) ?? null);
+}
+
 export function siteBillingMode(): SiteBillingMode {
   return siteBillingModeFrom(siteBillingSyncFlag());
 }
@@ -138,6 +145,16 @@ export async function changeSiteState(
     });
   } catch {
     /* best effort */
+  }
+  if (input.to === "live" || input.to === "archived") {
+    const ev =
+      input.to === "live"
+        ? siteLiveEvent({ tenantId: input.tenantId, eventKey, siteName: site.name, billing: result.changed ? `Billing: ${siteSyncMessage(result)}` : "Your monthly bill does not change." })
+        : siteArchivedEvent({ tenantId: input.tenantId, siteCode: input.code, siteName: site.name, billing: "", periodEnd: await periodEndFor(sb, input.tenantId), at: now });
+    // Loaded here, not at the top: this module is imported by the Office client, and the email
+    // engine pulls in server only code (node:module createRequire) that breaks the browser in dev.
+    const { sendAccountEventEmail } = await import("@/lib/server/journey-email");
+    await sendAccountEventEmail({ tenantId: input.tenantId, ...ev });
   }
   return { result, message, mode };
 }

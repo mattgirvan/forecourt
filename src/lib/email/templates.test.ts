@@ -147,3 +147,10 @@ test("/book redirects to the Forecourt kickoff event everywhere", async () => {
   assert.equal((vite.match(/forecourtkickoff/g) ?? []).length, 2);
   assert.doesNotMatch(vite, /\/30min/);
 });
+
+test("account event emails carry no amber Outlook dark mode override (neutral button only)", async () => {
+  const { accountEventEmail } = await import("./templates.ts");
+  const e = accountEventEmail({ firstName: "Alex", dealer: "Ridgeway Motors", title: "Ridgeway South archived", lines: ["x"], accountUrl: "https://forecourt.me/account" });
+  assert.doesNotMatch(e.html, /data-ogs[bc]\] \.cta|class="cta-td"/);
+  assert.match(e.html, /Open your account/);
+});

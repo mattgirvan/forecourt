@@ -229,6 +229,67 @@ export async function deliverStaffAlert(deps: DeliverDeps, email: StaffAlertEmai
   }
 }
 
+/** Every account event confirmation is copied here (Matt, 24 Oct 2026). */
+export const OFFICE_INBOX = "hello@forecourt.me";
+
+export type OfficeCopyEmail = Omit<StaffAlertEmail, "subject"> & { subject: string; kind: string };
+
+/**
+ * The office copy of an account event. Live mode: always to hello@ (production
+ * only). Team mode: to the team list. Off: nothing. Own dedupe key, so the
+ * office copy and the customer email never block each other.
+ */
+export async function deliverOfficeCopy(deps: DeliverDeps, email: OfficeCopyEmail): Promise<DeliverResult> {
+  const { config } = deps;
+  if (config.mode === "off") return { sent: false, reason: "mode_off" };
+  let to: string[];
+  if (config.mode === "team") {
+    if (!config.teamTo.length) return { sent: false, reason: "team_list_empty" };
+    to = config.teamTo;
+  } else {
+    if ((config.vercelEnv ?? "") !== "production") return { sent: false, reason: "not_production" };
+    to = [OFFICE_INBOX];
+  }
+  if (!deps.send) return { sent: false, reason: "no_sender" };
+  const key = `office:${config.mode}:${email.dedupeKey}`;
+  const subject = `[Forecourt office] ${email.subject}`;
+  const claim = await deps.log.claim({ dedupe_key: key, tenant_id: email.tenantId, kind: `${email.kind}_office`, step: null, mode: config.mode, recipient: to.join(", "), subject });
+  if (claim === "duplicate") return { sent: false, reason: "duplicate" };
+  if (claim === "unavailable") return { sent: false, reason: "log_unavailable" };
+  try {
+    const res = await deps.send({ from: email.from, to, replyTo: email.replyTo, subject, html: email.html, text: email.text }, key);
+    if (res.error) {
+      await deps.log.finish(key, { status: "failed", error: String(res.error).slice(0, 500) });
+      return { sent: false, reason: "send_failed", detail: String(res.error) };
+    }
+    await deps.log.finish(key, { status: "sent", provider_id: res.id ?? "" });
+    return { sent: true, mode: config.mode, to, id: res.id ?? null };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    await deps.log.finish(key, { status: "failed", error: msg.slice(0, 500) });
+    return { sent: false, reason: "send_failed", detail: msg };
+  }
+}
+
+/** Customer admin email plus the hello@ office copy, each deduped on its own. */
+export async function deliverAccountEvent(
+  deps: DeliverDeps,
+  email: JourneyEmail,
+): Promise<{ customer: DeliverResult; office: DeliverResult }> {
+  const customer = await deliverJourneyEmail(deps, { ...email, dedupeKey: `account-event:${email.dedupeKey}` });
+  const office = await deliverOfficeCopy(deps, {
+    dedupeKey: `account-event:${email.dedupeKey}`,
+    tenantId: email.tenantId,
+    from: email.from,
+    replyTo: email.replyTo,
+    subject: email.subject,
+    text: `Sent to the account admin: ${email.recipient || "(no admin address)"}\n\n${email.text}`,
+    html: email.html,
+    kind: email.kind,
+  });
+  return { customer, office };
+}
+
 type DbError = { code?: string; message?: string } | null;
 type InsertResult = { error: DbError };
 // Minimal structural type so this file needs no supabase-js import.

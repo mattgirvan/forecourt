@@ -72,6 +72,11 @@ function safeUrl(url: string | null | undefined): string | null {
 function shell({ title, preheader, rows }: { title: string; preheader: string; rows: string }) {
   // Spacer characters stop the body text leaking into the inbox preview.
   const spacer = "&#847;&zwnj;&nbsp;".repeat(80);
+  // Outlook dark mode keeps the amber CTA amber. Only emails that carry an amber CTA get it;
+  // account event emails use the neutral button, so they carry no amber override at all.
+  const ctaOverride = rows.includes('class="cta-td"')
+    ? `  [data-ogsb] .cta-td{background-color:${C.amber}!important}\n  [data-ogsc] .cta-a{color:${C.ink}!important}\n`
+    : "";
   return `<!doctype html>
 <html lang="en-GB" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
 <head>
@@ -89,9 +94,7 @@ function shell({ title, preheader, rows }: { title: string; preheader: string; r
   :root{color-scheme:dark;supported-color-schemes:dark}
   body{margin:0;padding:0;background:${C.bg};}
   a[x-apple-data-detectors]{color:inherit!important;text-decoration:none!important;font:inherit!important}
-  [data-ogsb] .cta-td{background-color:${C.amber}!important}
-  [data-ogsc] .cta-a{color:${C.ink}!important}
-  [data-ogsb] .bg-body{background-color:${C.bg}!important}
+${ctaOverride}  [data-ogsb] .bg-body{background-color:${C.bg}!important}
   [data-ogsb] .bg-card{background-color:${C.card}!important}
   @media (max-width:480px){
     .px{padding-left:20px!important;padding-right:20px!important}
@@ -878,5 +881,31 @@ ${row(contactCard(), 16)}
 ${signoff("Thanks,")}
 ${footer(reason, false)}`;
   const text = ["You're invited", "", intro, "", how, "", `Sign in: ${d.accountUrl}`, "", "Thanks,", "Matt Girvan", "Founder, Forecourt", ...textFooter(reason, false)].join("\n");
+  return { subject, preheader, html: shell({ title: subject, preheader, rows }), text };
+}
+
+// ------------------------------------------------------ account event confirmation
+
+export type AccountEventData = { firstName: string | null; dealer: string; title: string; lines: string[]; accountUrl: string };
+
+/** A confirmation that something changed on the account (sites, plan, billing, access). */
+export function accountEventEmail(d: AccountEventData): RenderedEmail {
+  const first = (d.firstName ?? "").trim().split(/\s+/)[0] ?? "";
+  const subject = `${d.dealer}: ${d.title}`;
+  const preheader = d.lines[0] ?? d.title;
+  const hello = first ? `Hi ${first},` : "Hi,";
+  const reason = `You are getting this because you are the admin on the ${d.dealer} Forecourt account.`;
+  const rows = `
+${header(`${d.dealer} · Account`)}
+${row(`${h1(d.title)}
+  ${p(esc(hello))}
+  ${d.lines.map((l) => p(esc(l))).join("\n  ")}
+  ${p(esc("If this was not expected, reply to this email."))}
+  <div style="height:20px;line-height:20px;font-size:0;">&nbsp;</div>
+  ${buttonsRow(primaryButton(d.accountUrl, "Open your account"))}`, 0)}
+${row(contactCard(), 16)}
+${signoff("Thanks,")}
+${footer(reason, false)}`;
+  const text = [d.title, "", hello, "", ...d.lines, "", "If this was not expected, reply to this email.", "", `Open your account: ${d.accountUrl}`, "", "Thanks,", "Matt Girvan", "Founder, Forecourt", ...textFooter(reason, false)].join("\n");
   return { subject, preheader, html: shell({ title: subject, preheader, rows }), text };
 }
