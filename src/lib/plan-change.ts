@@ -138,3 +138,74 @@ export function planChangeDryRunMessage(q: PlanChangeQuote, now: Date = new Date
         : ukDay(now);
   return `${head} The customer would pay ${monthly} a month from ${when}.`;
 }
+
+/**
+ * What the server says happened after "Move to" or "Pay". The panel always
+ * shows one of these, so a confirm can never end in silence.
+ */
+export type PlanChangeOutcome = "applied" | "scheduled" | "checkout" | "recorded" | "unchanged" | "failed";
+export type PlanChangeTone = "success" | "pending" | "error";
+export type PlanChangeFeedback = { tone: PlanChangeTone; title: string; body: string };
+
+const PLAN_NAME: Record<PlanId, string> = { site: "Site", franchise: "Franchise", group: "Group" };
+
+/** Customer copy when sync is off: the request is noted for the team, nothing is charged. */
+export function planChangeRecordedMessage(q: PlanChangeQuote): string {
+  return q.direction === "upgrade"
+    ? `We have your request to move to ${PLAN_NAME[q.to]}. Nothing has been charged. We will send you the setup payment link and confirm by email before anything changes.`
+    : `We have your request to move to ${PLAN_NAME[q.to]}. Nothing has changed yet. We will apply it and confirm by email.`;
+}
+
+export const PLAN_CHANGE_NOT_RECORDED =
+  "We could not record your request, so nothing has changed. Please try again, or send us a message.";
+
+const TITLES: Record<PlanChangeOutcome, (to: string) => string> = {
+  applied: (to) => `Moved to ${to}`,
+  scheduled: (to) => `Move to ${to} booked`,
+  checkout: () => "Opening the setup payment",
+  recorded: () => "Request recorded, we will apply it",
+  unchanged: (to) => `Already on ${to}`,
+  failed: () => "Plan not changed",
+};
+
+const TONE: Record<PlanChangeOutcome, PlanChangeTone> = {
+  applied: "success",
+  scheduled: "success",
+  checkout: "pending",
+  recorded: "pending",
+  unchanged: "pending",
+  failed: "error",
+};
+
+export function isPlanChangeOutcome(v: unknown): v is PlanChangeOutcome {
+  return typeof v === "string" && v in TONE;
+}
+
+/** Server reply to the message the panel shows. Unknown or empty replies become a clear error. */
+export function planChangeFeedback(
+  r: { outcome?: unknown; message?: string | null } | null | undefined,
+  to: PlanId,
+): PlanChangeFeedback {
+  const name = PLAN_NAME[to];
+  const body = (r?.message ?? "").trim();
+  if (!r || !isPlanChangeOutcome(r.outcome)) {
+    return {
+      tone: "error",
+      title: "We could not confirm the change",
+      body: body || "We did not get an answer, so we cannot say the plan changed. Refresh the page to check, or send us a message.",
+    };
+  }
+  const fallback =
+    r.outcome === "failed" ? PLAN_CHANGE_NOT_RECORDED : r.outcome === "checkout" ? "Taking you to the secure payment page." : "";
+  return { tone: TONE[r.outcome], title: TITLES[r.outcome](name), body: body || fallback };
+}
+
+/** A thrown error (network, server) as a message, never a silent close. */
+export function planChangeErrorFeedback(e: unknown): PlanChangeFeedback {
+  const msg = e instanceof Error ? e.message.trim() : "";
+  return {
+    tone: "error",
+    title: "Plan not changed",
+    body: msg || "Something went wrong, so nothing has changed. Please try again, or send us a message.",
+  };
+}

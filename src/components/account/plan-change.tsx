@@ -1,9 +1,14 @@
 import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/ui/chip";
 import { Row, Rows, Section } from "@/components/ui/section";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type Ref } from "react";
 import { FRANCHISE_INCLUDED_SITES, PLANS, gbpPence, type PlanId } from "@/lib/catalog";
-import { type PlanChangeQuote } from "@/lib/plan-change";
+import {
+  planChangeErrorFeedback,
+  planChangeFeedback,
+  type PlanChangeFeedback,
+  type PlanChangeQuote,
+} from "@/lib/plan-change";
 import { formatUkDate } from "@/lib/uk-date";
 import { cn } from "@/lib/utils";
 import { previewPlanChange, requestPlanChange } from "@/lib/server/plan-change-server";
@@ -50,8 +55,9 @@ export function PlanChangePanel({
       onPreview={async (to) => (await previewPlanChange({ data: { token, tenantId, to } })).quote}
       onConfirm={async (to) => {
         const r = await requestPlanChange({ data: { token, tenantId, to, from: where } });
-        if (r.url) window.location.assign(r.url);
-        return r.message;
+        const fb = planChangeFeedback(r, to);
+        if (r?.url) window.location.assign(r.url);
+        return fb;
       }}
     />
   );
@@ -107,6 +113,35 @@ export function changeHint(q: PlanChangeQuote): string {
   return "";
 }
 
+/** The one message after a confirm: green for done, grey for pending or a problem. */
+export function PlanChangeMessage({
+  feedback,
+  innerRef,
+}: {
+  feedback: PlanChangeFeedback;
+  innerRef?: Ref<HTMLDivElement>;
+}) {
+  return (
+    <div
+      ref={innerRef}
+      tabIndex={-1}
+      role={feedback.tone === "error" ? "alert" : "status"}
+      aria-live={feedback.tone === "error" ? "assertive" : "polite"}
+      className={cn("fc-pc-feedback", `is-${feedback.tone}`)}
+      data-testid="plan-change-notice"
+      data-tone={feedback.tone}
+    >
+      <span className="fc-pc-feedback-dot" aria-hidden="true" />
+      <span className="min-w-0">
+        <span className="block text-sm font-semibold">{feedback.title}</span>
+        {feedback.body ? (
+          <span className="mt-0.5 block text-[13px] text-[var(--fc-text-dim)]">{feedback.body}</span>
+        ) : null}
+      </span>
+    </div>
+  );
+}
+
 export function PlanChangeView({
   plan,
   where,
@@ -119,15 +154,24 @@ export function PlanChangeView({
   plan: PlanId;
   where: "account" | "office";
   onPreview: (to: PlanId) => Promise<PlanChangeQuote>;
-  onConfirm: (to: PlanId) => Promise<string>;
+  onConfirm: (to: PlanId) => Promise<PlanChangeFeedback>;
   initialTo?: PlanId | null;
   initialQuote?: PlanChangeQuote | null;
-  initialNotice?: string | null;
+  initialNotice?: PlanChangeFeedback | null;
 }) {
   const [to, setTo] = useState<PlanId | null>(initialTo);
   const [quote, setQuote] = useState<PlanChangeQuote | null>(initialQuote);
   const [busy, setBusy] = useState(false);
-  const [notice, setNotice] = useState<string | null>(initialNotice);
+  const [notice, setNotice] = useState<PlanChangeFeedback | null>(initialNotice);
+  // An error from the confirm stays inside the open sheet, next to the buttons.
+  const [sheetError, setSheetError] = useState<PlanChangeFeedback | null>(null);
+  const noticeRef = useRef<HTMLDivElement>(null);
+  const [reveal, setReveal] = useState(0);
+  useEffect(() => {
+    if (!reveal || !noticeRef.current) return;
+    noticeRef.current.scrollIntoView({ block: "nearest" });
+    noticeRef.current.focus({ preventScroll: true });
+  }, [reveal]);
   const pick = async (p: PlanId) => {
     if (p === plan) return;
     setTo(p);
@@ -137,7 +181,12 @@ export function PlanChangeView({
     try {
       setQuote(await onPreview(p));
     } catch (e) {
-      setNotice(e instanceof Error ? e.message : "Could not price that change.");
+      setNotice({
+        tone: "error",
+        title: "Could not price that change",
+        body: e instanceof Error && e.message ? e.message : "Please try again, or send us a message.",
+      });
+      setReveal((n) => n + 1);
     } finally {
       setBusy(false);
     }
@@ -145,15 +194,23 @@ export function PlanChangeView({
   const close = () => {
     setQuote(null);
     setTo(null);
+    setSheetError(null);
   };
   const confirm = async () => {
     if (!to) return;
     setBusy(true);
+    setSheetError(null);
     try {
-      setNotice(await onConfirm(to));
-      close();
+      const fb = await onConfirm(to);
+      if (fb.tone === "error") {
+        setSheetError(fb);
+      } else {
+        setNotice(fb);
+        close();
+        setReveal((n) => n + 1);
+      }
     } catch (e) {
-      setNotice(e instanceof Error ? e.message : "Could not change the account type.");
+      setSheetError(planChangeErrorFeedback(e));
     } finally {
       setBusy(false);
     }
@@ -172,6 +229,11 @@ export function PlanChangeView({
           {where === "office" ? "This account is" : "You are"} on {LABEL[plan]}. Pick a plan to see
           what changes.
         </p>
+        {notice ? (
+          <div className="mt-4">
+            <PlanChangeMessage feedback={notice} innerRef={noticeRef} />
+          </div>
+        ) : null}
         <div className="fc-plan-cards mt-4" role="radiogroup" aria-label="Plan">
           {ORDER.map((p) => {
             const current = p === plan;
@@ -211,11 +273,6 @@ export function PlanChangeView({
           })}
         </div>
         {busy && !quote ? <p className="mt-4 text-sm text-muted">Working out the cost.</p> : null}
-        {notice ? (
-          <p role="status" className="mt-4 text-sm text-muted" data-testid="plan-change-notice">
-            {notice}
-          </p>
-        ) : null}
       </div>
       {quote && to ? (
         <>
@@ -241,9 +298,18 @@ export function PlanChangeView({
                 ))}
               </Rows>
               <p className="mt-3 text-[12.5px] text-[var(--fc-text-faint)]">{changeHint(quote)}</p>
+              {sheetError ? (
+                <div className="mt-3">
+                  <PlanChangeMessage feedback={sheetError} />
+                </div>
+              ) : null}
               <div className="mt-4 flex flex-wrap items-center gap-2">
                 <Button variant="action" disabled={busy} onClick={() => void confirm()}>
-                  {quote.direction === "upgrade"
+                  {busy
+                    ? "Sending"
+                    : sheetError
+                      ? "Try again"
+                      : quote.direction === "upgrade"
                     ? `Pay ${money(quote.setupDiffPence)} and move to ${LABEL[quote.to]}`
                     : `Move to ${LABEL[quote.to]}`}
                 </Button>
