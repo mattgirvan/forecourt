@@ -1,3 +1,4 @@
+import { askConfirm } from "@/components/ui/confirm-sheet";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { PillRow } from "@/components/ui/pill-row";
 import { CollapsibleSection } from "@/components/ui/collapsible-section";
@@ -210,7 +211,8 @@ export function OrderBuild({
         const { text } = await goLiveConfirm({ data: { token, tenantId } }).catch(() => ({
           text: "Mark live? This may start their monthly plan today.",
         }));
-        if (typeof window !== "undefined" && !window.confirm(text)) return;
+        const ok = await askConfirm({ title: "Go live?", body: text, confirmLabel: "Go live" });
+        if (!ok) return;
       }
       const r = await setBuildStage({ data: { token, tenantId, stage: id, notify } });
       setStaffNotice([r.billingMessage, r.emailMessage].filter(Boolean).join(" ") || null);
