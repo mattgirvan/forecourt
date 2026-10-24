@@ -28,7 +28,7 @@ function waitedFor(iso: string | null | undefined, now: Date) {
 
 function greeting(now: Date) {
   const h = now.getHours();
-  return h < 12 ? "Morning" : h < 18 ? "Afternoon" : "Evening";
+  return h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
 }
 
 export type NeedItem = { row: BoardRow; kind: "reply" | "payment" };
@@ -197,7 +197,6 @@ export function OfficeOverview({
                       <button type="button" className="fc-queue-btn" onClick={() => onOpen(r.id)}>
                         <span className="flex items-center justify-between gap-2">
                           <span className="fc-row-title min-w-0">{r.name}</span>
-                          <Chip tone="progress">{stage.label}</Chip>
                         </span>
                         <span className="fc-steps" aria-hidden="true">
                           {QUEUE_STAGES.map((s, j) => (
@@ -208,7 +207,7 @@ export function OfficeOverview({
                           ))}
                         </span>
                         <span className="fc-row-sub mt-1.5">
-                          Step {i + 1} of {QUEUE_STAGES.length}, {stage.label.toLowerCase()}.
+                          Step {i + 1} of {QUEUE_STAGES.length}: {stage.label}
                         </span>
                       </button>
                     </li>
@@ -227,7 +226,7 @@ export function OfficeOverview({
               {recent.map((r) => {
                 const plan = normalizePlan(r.plan);
                 const sites = r.site_count ?? 1;
-                const trial = normalizeBilling(plan, r.billing) === "trial";
+                const price = `${gbpPence(monthTotalPence(plan, sites))}/mo`;
                 return (
                   <Row as="li" key={r.id} className="pr-2">
                     <button type="button" className="fc-row-btn" onClick={() => onOpen(r.id)}>
@@ -237,13 +236,17 @@ export function OfficeOverview({
                         <span className="fc-row-sub block">
                           {PLANS[plan].name}, {sites} {sites === 1 ? "site" : "sites"}
                         </span>
+                        <span
+                          className="fc-row-sub block font-semibold tabular-nums text-[var(--fc-text-dim)] sm:hidden"
+                          data-testid="recent-price"
+                        >
+                          {price}
+                        </span>
                       </span>
                       <span className="flex shrink-0 items-center gap-3">
-                        {!trial ? (
-                          <span className="hidden text-sm font-semibold tabular-nums sm:inline">
-                            {gbpPence(monthTotalPence(plan, sites))}/mo
-                          </span>
-                        ) : null}
+                        <span className="hidden text-sm font-semibold tabular-nums sm:inline">
+                          {price}
+                        </span>
                         <Chip tone="live">Live</Chip>
                       </span>
                     </button>
