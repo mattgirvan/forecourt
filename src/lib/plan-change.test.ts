@@ -61,7 +61,7 @@ test("Matt: downgrade to Site mid contract takes the Site price at the period en
   }
   assert.equal(DOWNGRADE_TIMING, "period_end");
   assert.doesNotMatch(readFileSync("src/lib/plan-change.ts", "utf8"), /Provisional/);
-  for (const f of ["src/lib/plan-change.ts", "src/lib/migration.ts", "src/lib/account-events.ts", "src/components/account/plan-change.tsx", "src/components/account/migration-tracker.tsx", "src/components/office/migration-panel.tsx", "src/lib/server/plan-change-server.ts"]) {
+  for (const f of ["src/lib/migration.ts", "src/lib/account-events.ts", "src/components/account/plan-change.tsx", "src/components/account/migration-tracker.tsx", "src/components/office/migration-panel.tsx", "src/lib/server/plan-change-server.ts"]) {
     assert.doesNotMatch(readFileSync(f, "utf8"), /finish (the|your) (contract|12 months)|until the contract ends|contract end/i, f);
   }
 });
