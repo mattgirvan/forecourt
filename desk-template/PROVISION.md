@@ -66,7 +66,7 @@ Do not create `skoda-host`. That is host, on Aberdeen, franchise Škoda.
 ## 4. Data plane — new Supabase
 
 1. Create a **new** Supabase project. Name it `forecourt-<slug>`.
-2. SQL editor: paste `supabase/migrations/0001_core.sql`, then `0002_roles.sql`.
+2. SQL editor: paste every file in `supabase/migrations/` in order (`0001_core.sql` to `0005_sites.sql`). Site scoping stays off until the `sites` table has rows: run `supabase/backfill/0005_sites.backfill.sql` only after Matt says yes.
 3. Authentication → enable magic link. Add the site URL (`https://portal…`).
 4. Insert staff:
 
