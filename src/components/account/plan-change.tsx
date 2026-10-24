@@ -312,6 +312,11 @@ export function PlanChangeView({
                 ))}
               </Rows>
               <p className="mt-3 text-[12.5px] text-[var(--fc-text-faint)]">{changeHint(quote)}</p>
+              {where === "office" && quote.setupDiffPence > 0 ? (
+                <p className="mt-2 text-[12.5px] text-[var(--fc-text-dim)]" data-testid="plan-change-office-pay-note">
+                  You do not pay here. We email the account admin a link to pay {money(quote.setupDiffPence)} (inc. VAT), with a copy to hello@. It shows as Awaiting customer payment until they pay.
+                </p>
+              ) : null}
               {sheetError ? (
                 <div className="mt-3">
                   <PlanChangeMessage feedback={sheetError} />
@@ -323,7 +328,9 @@ export function PlanChangeView({
                     ? "Sending"
                     : sheetError
                       ? "Try again"
-                      : quote.direction === "upgrade"
+                      : quote.setupDiffPence > 0 && where === "office"
+                        ? `Email the ${money(quote.setupDiffPence)} payment link`
+                        : quote.direction === "upgrade"
                     ? `Pay ${money(quote.setupDiffPence)} and move to ${LABEL[quote.to]}`
                     : `Move to ${LABEL[quote.to]}`}
                 </Button>

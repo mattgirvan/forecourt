@@ -29,7 +29,7 @@ test("every stage: no dashes, no glass, inc. VAT on prices, keyed to the request
 
 test("hello@ copies go with requests and payments only", () => {
   const office = PLAN_CHANGE_EMAIL_STAGES.filter((s) => planChangeEmail({ ...base, stage: s }).office);
-  assert.deepEqual(office, ["received", "receipt"]);
+  assert.deepEqual(office, ["received", "receipt", "payment_link"]);
 });
 
 test("UK dates", () => {

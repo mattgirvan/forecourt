@@ -807,7 +807,7 @@ function TenantFile({
         <SectionStack className="mt-6">
           <PaymentIssueNotice token={token} tenantId={tenantId} team />
           {migration?.open ? (
-            <OfficeMigrationPanel token={token} tracker={migration} onChanged={loadMigration} />
+            <OfficeMigrationPanel token={token} tracker={migration} onChanged={loadMigration} owner={owner} />
           ) : null}
           {file && (
             <PlanChangePanel

@@ -12,8 +12,10 @@ import { createServerFn } from "@tanstack/react-start";
 import { normalizePlan, type PlanId } from "@/lib/catalog";
 import { clampSiteCount } from "@/lib/plan-shape";
 import { SITE } from "@/lib/site";
+import { formatUkDateTime } from "@/lib/uk-date";
 import { currentMonthlyPence, type StripePriceItem } from "@/lib/current-price";
 import {
+  officePaymentLinkMessage,
   planChangeOfficeRecordedMessage,
   quotePlanChange,
   type PlanChangeOutcome,
@@ -27,6 +29,8 @@ import { migrationEvent, planChangedEvent } from "@/lib/account-events";
 import { readMigration, setMigrationStage } from "@/lib/server/migration-store";
 import { openTicketFor } from "@/lib/server/plan-change-ticket-store";
 import { inputFor, invoiceUrl, notify, sendReminderOnce, type ChangeRow } from "@/lib/server/plan-change-notify";
+import { planChangeEmail } from "@/lib/plan-change-emails";
+import { keepOnExpiry, markPaidOffline, type MarkPaidChange } from "@/lib/server/plan-change-mark-paid";
 // Loaded on use, not at the top: the account and Office clients import this module, and the
 // email engine pulls in server only code (node:module createRequire) that breaks the browser in dev.
 async function sendAccountEventEmail(ev: Parameters<typeof import("@/lib/server/journey-email").sendAccountEventEmail>[0]) {
@@ -176,7 +180,10 @@ export const requestPlanChange = createServerFn({ method: "POST" })
       effective: move.monthlyStarts,
       requested_by: actorEmail,
     };
-    const back = data.from === "office" ? `${SITE.url}/office` : `${SITE.url}/account?tab=billing`;
+    // Staff never pay. An Office start with a setup difference makes the same
+    // Checkout the customer flow makes, and the customer gets the link by email.
+    const officeStart = data.from === "office" && Boolean(who.team);
+    const back = data.from === "office" && !officeStart ? `${SITE.url}/office` : `${SITE.url}/account?tab=billing`;
     const started = await startRequest(
       {
         findOpen: async (tenantId) => {
@@ -206,6 +213,7 @@ export const requestPlanChange = createServerFn({ method: "POST" })
               email: t.email,
               successUrl: `${back}${back.includes("?") ? "&" : "?"}plan_change=paid`,
               cancelUrl: back,
+              startedFrom: officeStart ? "office" : null,
             }) as never,
             { idempotencyKey },
           );
@@ -232,6 +240,26 @@ export const requestPlanChange = createServerFn({ method: "POST" })
           atPeriodEnd: move.monthlyStarts === "period_end",
           periodEnd: q.periodEnd ? new Date(q.periodEnd).toISOString() : null,
         });
+      }
+      if (started.kind === "checkout" && officeStart) {
+        // Separate write so a database without plan-change-office-pay.sql still records the row.
+        try {
+          await admin.from("plan_changes").update({ started_from: "office" }).eq("id", started.changeId);
+        } catch {
+          /* column not added yet; the Checkout metadata still carries it */
+        }
+        let emailed = false;
+        try {
+          const sent = await sendAccountEventEmail({
+            tenantId: t.id,
+            ...planChangeEmail({ changeId: started.changeId, from: q.from, to: q.to, stage: "payment_link", setupPence: move.setupDuePence, newMonthlyPence: move.newMonthlyPence, payUrl: started.url }),
+          });
+          emailed = Boolean(sent?.customer?.sent);
+        } catch {
+          /* the request and its Checkout are saved; Pay on the account still works */
+        }
+        await note(admin, t.id, "Plan change requested by the Forecourt team", `Awaiting customer payment of the setup difference (${move.setupDuePence / 100} GBP). ${emailed ? "Payment link emailed to the admin, copy to hello@." : "The payment link email did not go."} Started by ${actorEmail}.`, actorEmail);
+        return reply("awaiting_customer", officePaymentLinkMessage({ to: q.to, setupDiffPence: move.setupDuePence }, emailed), null);
       }
       if (started.kind === "checkout") {
         await note(admin, t.id, "Plan change requested", `Waiting for the setup difference (${move.setupDuePence / 100} GBP).`, actorEmail);
@@ -335,26 +363,32 @@ export async function completePaidPlanChange(
         if (error) throw new Error(error.message);
         return (data ?? []).length > 0;
       },
-      afterPaid: async (id, tenantId) => {
-        await note(sb, tenantId, "Setup difference paid", "Plan change request is now with the team. The plan has not changed yet.", "stripe");
-        await openTicketFor(sb, id);
-        const mig = await readMigration(sb, id);
-        if (mig) await setMigrationStage(sb, mig, "paid");
-        // PR 5: payment receipt with the Checkout invoice link; hello@ gets a copy.
-        const { data: row } = await sb.from("plan_changes").select("id, tenant_id, from_plan, to_plan, setup_diff_pence, new_monthly_pence, invoice_id").eq("id", id).maybeSingle();
-        if (row) {
-          const stripe = await stripeClient().catch(() => null);
-          const url = await invoiceUrl(stripe ? (inv) => stripe.invoices.retrieve(inv) as never : null, (row as ChangeRow).invoice_id);
-          await notify(sendAccountEventEmail, tenantId, inputFor(row as ChangeRow, "receipt", { invoiceUrl: url }));
-        }
-      },
+      afterPaid: (id, tenantId) => afterPlanChangePaid(sb, id, tenantId, "stripe"),
     },
     session,
   );
 }
 
+/** What happens once the setup difference is paid, by card (webhook) or marked by an owner. Each step dedupes. */
+async function afterPlanChangePaid(sb: SupabaseClient, id: number, tenantId: number, by: string) {
+  await note(sb, tenantId, "Setup difference paid", `Plan change request is now with the team. The plan has not changed yet.${by === "stripe" ? "" : ` Marked as paid by ${by}.`}`, by);
+  await openTicketFor(sb, id);
+  const mig = await readMigration(sb, id);
+  if (mig) await setMigrationStage(sb, mig, "paid");
+  // PR 5: payment receipt with the invoice link; hello@ gets a copy.
+  const { data: row } = await sb.from("plan_changes").select("id, tenant_id, from_plan, to_plan, setup_diff_pence, new_monthly_pence, invoice_id").eq("id", id).maybeSingle();
+  if (row) {
+    const stripe = await stripeClient().catch(() => null);
+    const url = await invoiceUrl(stripe ? (inv) => stripe.invoices.retrieve(inv) as never : null, (row as ChangeRow).invoice_id);
+    await notify(sendAccountEventEmail, tenantId, inputFor(row as ChangeRow, "receipt", { invoiceUrl: url }));
+  }
+}
+
 /** Stripe webhook: Checkout expired or the payment failed. Cancels the request. */
 export async function expirePlanChange(sb: SupabaseClient, session: SessionLike): Promise<{ status: number; body: string }> {
+  // Office started: the customer pays from an emailed link, maybe days later. The
+  // request stays Awaiting customer payment and Pay on the account makes a new page.
+  if (keepOnExpiry(session.metadata)) return { status: 200, body: "office plan change kept, awaiting customer payment" };
   return markRequestExpired(
     {
       cancelPending: async (id, sessionId) => {
@@ -434,6 +468,7 @@ export const resumePlanChangePayment = createServerFn({ method: "POST" })
           createCheckout: async (c, idempotencyKey) => {
             if (!stripe || !t) throw new Error("Stripe is not set up here.");
             const full = await loadChange(c.id);
+            const startedFrom = await readStartedFrom(admin, c.id);
             const session = await stripe.checkout.sessions.create(
               upgradeCheckoutParams({
                 tenantId: t.id,
@@ -445,6 +480,7 @@ export const resumePlanChangePayment = createServerFn({ method: "POST" })
                 email: t.email,
                 successUrl: `${back}&plan_change=paid`,
                 cancelUrl: back,
+                startedFrom,
               }) as never,
               { idempotencyKey },
             );
@@ -467,4 +503,80 @@ export const resumePlanChangePayment = createServerFn({ method: "POST" })
     } catch (e) {
       return { ok: false, url: null, message: e instanceof Error ? `Could not open the payment page: ${e.message}` : "Could not open the payment page." };
     }
+  });
+
+/** "office" when the Forecourt team started the request. Null before plan-change-office-pay.sql has run. */
+async function readStartedFrom(sb: SupabaseClient, changeId: number): Promise<"office" | null> {
+  try {
+    const { data, error } = await sb.from("plan_changes").select("started_from").eq("id", changeId).maybeSingle();
+    if (error) return null;
+    return (data as { started_from?: string | null } | null)?.started_from === "office" ? "office" : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Office, owner only: mark the setup difference as paid for money that came in
+ * another way. The owner check is here on the server. Moves the request on
+ * exactly as the paid webhook does; see plan-change-mark-paid.ts.
+ */
+export const markPlanChangePaid = createServerFn({ method: "POST" })
+  .validator((d: { token: string; changeId: number }) => d)
+  .handler(async ({ data }): Promise<{ ok: boolean; message: string }> => {
+    const who = await actor(data.token);
+    if (!who.team) return { ok: false, message: "Office is for the Forecourt team." };
+    const admin = sbAdmin();
+    if (!admin) return { ok: false, message: "Plan changes need the server key, which is not set here." };
+    const stripe = await stripeClient();
+    const r = await markPaidOffline(
+      {
+        now: () => new Date(),
+        loadChange: async (id) => {
+          const { data: row } = await admin.from("plan_changes").select("id, tenant_id, status, setup_diff_pence, checkout_session_id").eq("id", id).maybeSingle();
+          return (row as MarkPaidChange | null) ?? null;
+        },
+        retrieveSession: async (id) => {
+          if (!stripe) return null;
+          try {
+            const s = await stripe.checkout.sessions.retrieve(id);
+            return { id: s.id, status: s.status ?? null };
+          } catch {
+            return null;
+          }
+        },
+        expireSession: async (id) => {
+          if (stripe) await stripe.checkout.sessions.expire(id);
+        },
+        claimPaid: async (id, patch) => {
+          const run = (extra: Record<string, string>) => admin.from("plan_changes").update({ status: "paid", ...extra }).eq("id", id).eq("status", "pending_payment").select("id");
+          let { data: rows, error } = await run(patch);
+          // plan-change-office-pay.sql not run yet: claim without the columns; the note below records who and when.
+          if (error && /marked_paid/.test(error.message)) ({ data: rows, error } = await run({}));
+          if (error) throw new Error(error.message);
+          const won = (rows ?? []).length > 0;
+          if (won) {
+            const { data: c } = await admin.from("plan_changes").select("tenant_id").eq("id", id).maybeSingle();
+            if (c) await note(admin, c.tenant_id as number, "Marked as paid", `Setup difference marked as paid by ${patch.marked_paid_by} on ${formatUkDateTime(patch.marked_paid_at)}. No card payment; the open Checkout page was closed.`, patch.marked_paid_by);
+          }
+          return won;
+        },
+        issueInvoice: async (c) => {
+          if (!stripe) return null;
+          const { data: t } = await admin.from("tenants").select("stripe_customer_id").eq("id", c.tenant_id).maybeSingle();
+          const customer = (t?.stripe_customer_id as string | null) ?? null;
+          if (!customer) return null;
+          const key = `plan-change-offline:${c.id}`;
+          const inv = await stripe.invoices.create({ customer, collection_method: "send_invoice", days_until_due: 0, auto_advance: false, metadata: { kind: "plan_change", change_id: String(c.id), paid: "offline" } }, { idempotencyKey: `${key}:invoice` });
+          await stripe.invoiceItems.create({ customer, invoice: inv.id, amount: c.setup_diff_pence, currency: "gbp", description: "Forecourt setup difference, inc. VAT, paid by bank transfer" }, { idempotencyKey: `${key}:item` });
+          await stripe.invoices.finalizeInvoice(inv.id as string, {}, { idempotencyKey: `${key}:finalise` });
+          await stripe.invoices.pay(inv.id as string, { paid_out_of_band: true }, { idempotencyKey: `${key}:pay` });
+          await admin.from("plan_changes").update({ invoice_id: inv.id }).eq("id", c.id);
+          return inv.id as string;
+        },
+        afterPaid: (id, tenantId) => afterPlanChangePaid(admin, id, tenantId, who.email ?? "owner"),
+      },
+      { changeId: data.changeId, role: who.role ?? null, email: who.email ?? null },
+    );
+    return r.ok ? { ok: true, message: r.message } : { ok: false, message: r.message };
   });

@@ -150,6 +150,8 @@ export function upgradeCheckoutParams(input: {
   email?: string | null;
   successUrl: string;
   cancelUrl: string;
+  /** "office": the Forecourt team started it and the customer pays from an emailed link. */
+  startedFrom?: "office" | null;
 }) {
   return {
     mode: "payment" as const,
@@ -169,7 +171,7 @@ export function upgradeCheckoutParams(input: {
         },
       },
     ],
-    metadata: { kind: "plan_change", tenant_id: String(input.tenantId), change_id: String(input.changeId), from: input.from, to: input.to },
+    metadata: { kind: "plan_change", tenant_id: String(input.tenantId), change_id: String(input.changeId), from: input.from, to: input.to, ...(input.startedFrom === "office" ? { started_from: "office" } : {}) },
     invoice_creation: { enabled: true },
   };
 }

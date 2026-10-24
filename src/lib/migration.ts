@@ -332,7 +332,7 @@ export function downgradePrice(
 export function requestStatusLabel(t: Pick<Tracker, "status" | "stage" | "open" | "cancelled" | "rise" | "goLiveAt">): string {
   if (t.cancelled) return "Cancelled";
   if (!t.open) return "Complete";
-  if (t.status === "pending_payment") return "Waiting for payment";
+  if (t.status === "pending_payment") return "Awaiting customer payment";
   if (t.goLiveAt || t.status === "applied") return "Live, finishing setup";
   return "With the Forecourt team";
 }
