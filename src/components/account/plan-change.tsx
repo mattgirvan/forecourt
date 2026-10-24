@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { Section } from "@/components/ui/section";
 import { useState } from "react";
 import { PLANS, type PlanId } from "@/lib/catalog";
 import { quoteLines, type PlanChangeQuote } from "@/lib/plan-change";
@@ -71,9 +72,8 @@ export function PlanChangeView({
     }
   };
   return (
-    <div className="rounded-[1.75rem] border border-line bg-surface p-6 sm:p-8" data-testid="plan-change">
-      <h2 className="text-2xl font-semibold tracking-tight">Account type</h2>
-      <p className="mt-2 text-sm text-muted">
+    <Section testId="plan-change" title="Account type" rail="teal">
+      <p className="text-sm text-muted">
         {where === "office" ? "This account is" : "You are"} on {LABEL[plan]}. Moving up means paying the setup difference first. Moving down has no setup refund.
       </p>
       <div className="mt-4 flex flex-wrap gap-2" role="radiogroup" aria-label="Account type">
@@ -85,7 +85,7 @@ export function PlanChangeView({
             aria-checked={(to ?? plan) === p}
             disabled={busy || p === plan}
             onClick={() => void pick(p)}
-            className={`rounded-full border px-4 py-1.5 text-sm ${
+            className={`min-h-11 rounded-full border px-4 py-1.5 text-sm ${
               (to ?? plan) === p ? "border-fg bg-transparent font-medium text-fg ring-1 ring-fg" : "border-line bg-elevated text-muted hover:text-fg"
             } disabled:cursor-default`}
           >
@@ -116,6 +116,6 @@ export function PlanChangeView({
         </div>
       ) : null}
       {notice ? <p role="status" className="mt-4 text-sm text-muted" data-testid="plan-change-notice">{notice}</p> : null}
-    </div>
+    </Section>
   );
 }
