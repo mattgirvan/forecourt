@@ -1,5 +1,5 @@
 import { gbpPence, type PlanId } from "@/lib/catalog";
-import { lineLabel, parseBillingSites, siteBreakdown, type SiteStatus } from "@/lib/site-billing";
+import { amountLabel, lineLabel, parseBillingSites, siteBreakdown, type SiteBillRow, type SiteStatus } from "@/lib/site-billing";
 import { cn } from "@/lib/utils";
 
 const STATUS: Record<string, string> = { live: "Live", setting_up: "Setting up", archived: "Archived" };
@@ -19,13 +19,11 @@ export function SitePill({ status }: { status: SiteStatus }) {
   );
 }
 
-/** Amount column: "Included" in grey for franchise included sites. */
-export function SiteAmount({ pence, included, className }: { pence: number; included?: boolean; className?: string }) {
-  return included ? (
-    <span className={cn("text-right text-subtle", className)}>Included</span>
-  ) : (
-    <span className={cn("text-right tabular-nums", className)}>{gbpPence(pence)}</span>
-  );
+/** Amount column: "Included" and "Not billed" in grey, prices in full. */
+export function SiteAmount({ row, className }: { row: SiteBillRow; className?: string }) {
+  const text = amountLabel(row);
+  const grey = row.included || row.status !== "live";
+  return <span className={cn("text-right", grey ? "text-subtle" : "tabular-nums", className)}>{text}</span>;
 }
 
 /** Account billing: what each site adds to the month (Group and Franchise only). */
@@ -47,7 +45,7 @@ export function SiteBillingSummary({ plan, sites }: { plan: PlanId; sites: unkno
             </div>
             <div className="flex shrink-0 items-center gap-3">
               <SitePill status={r.status} />
-              <SiteAmount pence={r.pence} included={r.included} className="w-16" />
+              <SiteAmount row={r} className="w-20 shrink-0" />
             </div>
           </li>
         ))}

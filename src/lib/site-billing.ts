@@ -107,6 +107,13 @@ export function monthlyPence(lines: BillingLine[]): number {
 /** Per-site breakdown rows for the account and Office: what each site adds to the month. */
 export type SiteBillRow = { code: string; name: string; status: SiteStatus; note: string; pence: number; included?: boolean };
 
+/** Amount column text: "Included", "Not billed" or the price. */
+export function amountLabel(r: SiteBillRow): string {
+  if (r.included) return "Included";
+  if (r.status !== "live") return "Not billed";
+  return `£${(r.pence / 100).toLocaleString("en-GB", { maximumFractionDigits: 2 })}`;
+}
+
 export function siteBreakdown(plan: PlanId, sites: BillingSite[]): { rows: SiteBillRow[]; lines: BillingLine[]; total: number; live: number } {
   const live = liveSiteCount(sites);
   const lines = linesFor(plan, live);
@@ -118,7 +125,7 @@ export function siteBreakdown(plan: PlanId, sites: BillingSite[]): { rows: SiteB
     if (plan === "group") return { code: s.code, name: s.name, status: s.status, note: "", pence: GROUP_SITE_PENCE };
     if (plan === "franchise") {
       return liveIndex <= FRANCHISE_INCLUDED_SITES
-        ? { code: s.code, name: s.name, status: s.status, note: "Included in your franchise price", pence: 0, included: true }
+        ? { code: s.code, name: s.name, status: s.status, note: "", pence: 0, included: true }
         : { code: s.code, name: s.name, status: s.status, note: "Extra site", pence: FRANCHISE_EXTRA_SITE_PENCE };
     }
     return { code: s.code, name: s.name, status: s.status, note: "", pence: 0 };

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { lineLabel, linesFor, liveSiteCount, monthlyPence, paidSlotsThisPeriod, parseBillingSites, prorationFor, siteBreakdown, type BillingSite } from "./site-billing.ts";
+import { amountLabel, lineLabel, linesFor, liveSiteCount, monthlyPence, paidSlotsThisPeriod, parseBillingSites, prorationFor, siteBreakdown, type BillingSite } from "./site-billing.ts";
 
 const live = (n: number): BillingSite[] => Array.from({ length: n }, (_, i) => ({ code: `S${i}`, name: `Site ${i}`, status: "live" }));
 
@@ -38,7 +38,12 @@ test("breakdown shows each site and what it adds", () => {
   const f = siteBreakdown("franchise", sites);
   assert.equal(f.total, 99_900);
   assert.equal(f.rows.filter((r) => r.pence === 10_000).length, 1);
-  assert.equal(f.rows[0].note, "Included in your franchise price");
+  assert.equal(f.rows[0].note, "");
+  assert.equal(amountLabel(f.rows[0]), "Included");
+  assert.equal(amountLabel(f.rows[5]), "£100");
+  assert.equal(amountLabel(f.rows[6]), "Not billed");
+  assert.equal(amountLabel(f.rows[7]), "Not billed");
+  assert.equal(amountLabel(siteBreakdown("group", sites).rows[0]), "£249");
   assert.equal(f.rows[0].included, true);
   assert.equal(f.rows[5].note, "Extra site");
   assert.equal(f.rows[5].included, undefined);

@@ -52,7 +52,7 @@ export function OfficeSiteBilling({ rows }: { rows: OfficeSiteBillingRow[] }) {
                 </div>
                 <div className="flex shrink-0 items-center gap-3">
                   <SitePill status={r.status} />
-                  <SiteAmount pence={r.pence} included={r.included} className="w-16" />
+                  <SiteAmount row={r} className="w-20 shrink-0" />
                 </div>
               </li>
             ))}
