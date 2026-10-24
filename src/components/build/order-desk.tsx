@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { PillRow } from "@/components/ui/pill-row";
 import { CollapsibleSection } from "@/components/ui/collapsible-section";
+import { newestFirst, timelineMeta } from "@/lib/timeline";
 import { Button } from "@/components/ui/button";
 import {
   BUILD_STAGES,
@@ -1201,13 +1202,11 @@ function Timeline({ events }: { events: Build["events"] }) {
   if (!events.length) return null;
   return (
     <ol className="space-y-3 border-l border-line pl-4">
-      {events.map((e) => (
+      {newestFirst(events).map((e) => (
         <li key={e.id}>
           <div className="text-sm font-medium">{e.title}</div>
           <div className="text-xs text-muted">
-            {[e.body, e.created_at ? formatUkDateTime(e.created_at) : ""]
-              .filter(Boolean)
-              .join(", ")}
+            {timelineMeta(e.body, e.created_at ? formatUkDateTime(e.created_at) : "")}
           </div>
         </li>
       ))}
