@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { linesFor, liveSiteCount, monthlyPence, paidSlotsThisPeriod, parseBillingSites, prorationFor, siteBreakdown, type BillingSite } from "./site-billing.ts";
+import { lineLabel, linesFor, liveSiteCount, monthlyPence, paidSlotsThisPeriod, parseBillingSites, prorationFor, siteBreakdown, type BillingSite } from "./site-billing.ts";
 
 const live = (n: number): BillingSite[] => Array.from({ length: n }, (_, i) => ({ code: `S${i}`, name: `Site ${i}`, status: "live" }));
 
@@ -38,6 +38,11 @@ test("breakdown shows each site and what it adds", () => {
   const f = siteBreakdown("franchise", sites);
   assert.equal(f.total, 99_900);
   assert.equal(f.rows.filter((r) => r.pence === 10_000).length, 1);
+  assert.equal(f.rows[0].note, "Included in your franchise price");
+  assert.equal(f.rows[0].included, true);
+  assert.equal(f.rows[5].note, "Extra site");
+  assert.equal(f.rows[5].included, undefined);
+  assert.equal(siteBreakdown("group", sites).rows[0].note, "");
   assert.equal(f.rows[6].pence, 0);
   assert.match(f.rows[6].note, /go live day/);
   assert.match(f.rows[7].note, /not billed from the next period/);
@@ -65,4 +70,12 @@ test("parses tenants.sites JSON, plain names count as live", () => {
   assert.deepEqual(parseBillingSites('["Main"]'), [{ code: "Main", name: "Main", status: "live" }]);
   assert.equal(parseBillingSites('[{"name":"A","status":"archived","archived_at":"2026-10-01"}]')[0].archivedAt, "2026-10-01");
   assert.deepEqual(parseBillingSites("nope"), []);
+});
+
+test("totals copy", () => {
+  assert.equal(lineLabel(linesFor("group", 3)[0]), "3 live sites at £249");
+  assert.equal(lineLabel(linesFor("group", 1)[0]), "1 live site at £249");
+  const f = linesFor("franchise", 7);
+  assert.equal(lineLabel(f[0]), "Franchise, up to 5 sites");
+  assert.equal(lineLabel(f[1]), "2 extra sites at £100");
 });

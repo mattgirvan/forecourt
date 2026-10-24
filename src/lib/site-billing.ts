@@ -105,7 +105,7 @@ export function monthlyPence(lines: BillingLine[]): number {
 }
 
 /** Per-site breakdown rows for the account and Office: what each site adds to the month. */
-export type SiteBillRow = { code: string; name: string; status: SiteStatus; note: string; pence: number };
+export type SiteBillRow = { code: string; name: string; status: SiteStatus; note: string; pence: number; included?: boolean };
 
 export function siteBreakdown(plan: PlanId, sites: BillingSite[]): { rows: SiteBillRow[]; lines: BillingLine[]; total: number; live: number } {
   const live = liveSiteCount(sites);
@@ -115,13 +115,13 @@ export function siteBreakdown(plan: PlanId, sites: BillingSite[]): { rows: SiteB
     if (s.status === "setting_up") return { code: s.code, name: s.name, status: s.status, note: "Setting up, billing starts on its go live day", pence: 0 };
     if (s.status === "archived") return { code: s.code, name: s.name, status: s.status, note: "Archived, not billed from the next period", pence: 0 };
     liveIndex += 1;
-    if (plan === "group") return { code: s.code, name: s.name, status: s.status, note: "Live", pence: GROUP_SITE_PENCE };
+    if (plan === "group") return { code: s.code, name: s.name, status: s.status, note: "", pence: GROUP_SITE_PENCE };
     if (plan === "franchise") {
       return liveIndex <= FRANCHISE_INCLUDED_SITES
-        ? { code: s.code, name: s.name, status: s.status, note: "Live, included in the franchise price", pence: 0 }
-        : { code: s.code, name: s.name, status: s.status, note: "Live, extra site", pence: FRANCHISE_EXTRA_SITE_PENCE };
+        ? { code: s.code, name: s.name, status: s.status, note: "Included in your franchise price", pence: 0, included: true }
+        : { code: s.code, name: s.name, status: s.status, note: "Extra site", pence: FRANCHISE_EXTRA_SITE_PENCE };
     }
-    return { code: s.code, name: s.name, status: s.status, note: "Live", pence: 0 };
+    return { code: s.code, name: s.name, status: s.status, note: "", pence: 0 };
   });
   return { rows, lines, total: monthlyPence(lines), live };
 }
@@ -130,4 +130,15 @@ export function siteBreakdown(plan: PlanId, sites: BillingSite[]): { rows: SiteB
 export function prorationFor(fromQty: number, toQty: number, paidSlots: number): "create_prorations" | "none" {
   if (toQty <= fromQty) return "none";
   return toQty <= paidSlots ? "none" : "create_prorations";
+}
+
+function gbpWhole(pence: number) {
+  return `£${(pence / 100).toLocaleString("en-GB", { maximumFractionDigits: 2 })}`;
+}
+
+/** Totals copy: "3 live sites at £249", "2 extra sites at £100", "Franchise, up to 5 sites". */
+export function lineLabel(l: BillingLine): string {
+  if (l.key === "group_site") return `${l.quantity} live ${l.quantity === 1 ? "site" : "sites"} at ${gbpWhole(l.unitPence)}`;
+  if (l.key === "franchise_extra") return `${l.quantity} extra ${l.quantity === 1 ? "site" : "sites"} at ${gbpWhole(l.unitPence)}`;
+  return l.label;
 }

@@ -1,8 +1,32 @@
 import { gbpPence, type PlanId } from "@/lib/catalog";
-import { parseBillingSites, siteBreakdown } from "@/lib/site-billing";
+import { lineLabel, parseBillingSites, siteBreakdown, type SiteStatus } from "@/lib/site-billing";
 import { cn } from "@/lib/utils";
 
 const STATUS: Record<string, string> = { live: "Live", setting_up: "Setting up", archived: "Archived" };
+
+/** Live is green, matching the account Live pill. Setting up and Archived stay grey. */
+export function SitePill({ status }: { status: SiteStatus }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px]",
+        status === "live" ? "border-[#4BA82E]/40 bg-[#4BA82E]/[.22] text-[#4BA82E]/[.85]" : "border-line bg-elevated text-subtle",
+      )}
+    >
+      {status === "live" && <span className="h-1.5 w-1.5 rounded-full bg-current" />}
+      {STATUS[status]}
+    </span>
+  );
+}
+
+/** Amount column: "Included" in grey for franchise included sites. */
+export function SiteAmount({ pence, included, className }: { pence: number; included?: boolean; className?: string }) {
+  return included ? (
+    <span className={cn("text-right text-subtle", className)}>Included</span>
+  ) : (
+    <span className={cn("text-right tabular-nums", className)}>{gbpPence(pence)}</span>
+  );
+}
 
 /** Account billing: what each site adds to the month (Group and Franchise only). */
 export function SiteBillingSummary({ plan, sites }: { plan: PlanId; sites: unknown }) {
@@ -19,13 +43,11 @@ export function SiteBillingSummary({ plan, sites }: { plan: PlanId; sites: unkno
           <li key={r.code} className="flex items-start justify-between gap-4 border-b border-line py-3 text-sm">
             <div className="min-w-0">
               <div className="truncate font-medium">{r.name}</div>
-              <div className="mt-0.5 text-xs text-subtle">{r.note}</div>
+              {r.note && <div className="mt-0.5 text-xs text-subtle">{r.note}</div>}
             </div>
             <div className="flex shrink-0 items-center gap-3">
-              <span className={cn("rounded-full border border-line px-2 py-0.5 text-[11px]", r.status === "live" ? "text-fg" : "text-subtle")}>
-                {STATUS[r.status]}
-              </span>
-              <span className="w-16 text-right tabular-nums">{r.pence ? gbpPence(r.pence) : "£0"}</span>
+              <SitePill status={r.status} />
+              <SiteAmount pence={r.pence} included={r.included} className="w-16" />
             </div>
           </li>
         ))}
@@ -33,9 +55,7 @@ export function SiteBillingSummary({ plan, sites }: { plan: PlanId; sites: unkno
       <dl className="mt-4 space-y-1.5 text-sm">
         {b.lines.map((l) => (
           <div key={l.key} className="flex justify-between gap-4">
-            <dt className="text-muted">
-              {l.label} {l.quantity > 1 || l.key !== "franchise_base" ? `x ${l.quantity}` : ""}
-            </dt>
+            <dt className="text-muted">{lineLabel(l)}</dt>
             <dd className="tabular-nums">{gbpPence(l.unitPence * l.quantity)}</dd>
           </div>
         ))}

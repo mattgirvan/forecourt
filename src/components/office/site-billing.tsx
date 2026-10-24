@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import { gbpPence } from "@/lib/catalog";
 import { listOfficeSiteBilling } from "@/lib/server/site-billing-server";
-import { cn } from "@/lib/utils";
+import { lineLabel } from "@/lib/site-billing";
+import { SiteAmount, SitePill } from "@/components/account/site-billing";
 
 export type OfficeSiteBillingRow = Awaited<ReturnType<typeof listOfficeSiteBilling>>[number];
 
-const STATUS: Record<string, string> = { live: "Live", setting_up: "Setting up", archived: "Archived" };
 const PLAN: Record<string, string> = { group: "Group", franchise: "Franchise", site: "Site" };
 
 export function OfficeSiteBillingPanel({ token }: { token: string }) {
@@ -35,7 +35,7 @@ export function OfficeSiteBilling({ rows }: { rows: OfficeSiteBillingRow[] }) {
             <div className="min-w-0">
               <h3 className="truncate text-base font-semibold">{a.name}</h3>
               <p className="text-xs text-subtle">
-                {PLAN[a.plan]} · {a.live} live of {a.rows.length} · {a.hasSubscription ? "Subscription on file" : "No subscription yet"} · from {a.source}
+                {PLAN[a.plan]} · {a.live} live of {a.rows.length} · {a.hasSubscription ? "Subscription on file" : "No subscription yet"}
               </p>
             </div>
             <div className="text-right">
@@ -51,16 +51,14 @@ export function OfficeSiteBilling({ rows }: { rows: OfficeSiteBillingRow[] }) {
                   <span className="ml-2 text-xs text-subtle">{r.code}</span>
                 </div>
                 <div className="flex shrink-0 items-center gap-3">
-                  <span className={cn("rounded-full border border-line px-2 py-0.5 text-[11px]", r.status === "live" ? "text-fg" : "text-subtle")}>
-                    {STATUS[r.status]}
-                  </span>
-                  <span className="w-14 text-right tabular-nums">{r.pence ? gbpPence(r.pence) : "£0"}</span>
+                  <SitePill status={r.status} />
+                  <SiteAmount pence={r.pence} included={r.included} className="w-16" />
                 </div>
               </li>
             ))}
           </ul>
           <p className="mt-2 text-xs text-subtle">
-            {a.lines.map((l) => `${l.label} x ${l.quantity} = ${gbpPence(l.unitPence * l.quantity)}`).join(" · ")}
+            {a.lines.map((l) => `${lineLabel(l)} = ${gbpPence(l.unitPence * l.quantity)}`).join(" · ")}
           </p>
         </section>
       ))}
