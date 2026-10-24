@@ -3,6 +3,7 @@ import { PLANS, gbpPence, monthTotalPence, normalizeBilling, normalizePlan } fro
 import { packageLive } from "@/lib/team";
 import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/ui/chip";
+import { CollapsibleSection } from "@/components/ui/collapsible-section";
 import { Row, Rows, Section, SectionStack } from "@/components/ui/section";
 import { cn } from "@/lib/utils";
 import type { BoardRow } from "@/components/office/board";
@@ -218,7 +219,13 @@ export function OfficeOverview({
           </Section>
         </div>
 
-        <Section title="Recently live" rail="slate" testId="overview-recent">
+        <CollapsibleSection
+          id="overview-recent"
+          title="Recently live"
+          count={recent.length}
+          rail="slate"
+          testId="overview-recent"
+        >
           {recent.length === 0 ? (
             <p className="text-sm text-muted">No dealers are live yet.</p>
           ) : (
@@ -255,7 +262,7 @@ export function OfficeOverview({
               })}
             </Rows>
           )}
-        </Section>
+        </CollapsibleSection>
       </SectionStack>
     </div>
   );

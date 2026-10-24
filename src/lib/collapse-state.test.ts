@@ -32,3 +32,9 @@ test("component is accessible and animates with transform and opacity only", () 
   assert.match(css, /prefers-reduced-motion: reduce\) \{\n  \.fc-collapse-in \{ animation: none; \}/);
   assert.match(readFileSync("src/components/build/order-desk.tsx", "utf8"), /<CollapsibleSection id="dealer-history" title="History"/);
 });
+
+test("Office Overview Recently live uses the foldable section with a count", () => {
+  const src = readFileSync("src/components/office/overview.tsx", "utf8");
+  assert.match(src, /<CollapsibleSection\s+id="overview-recent"\s+title="Recently live"\s+count=\{recent\.length\}/);
+  assert.doesNotMatch(src, /<Section title="Recently live"/);
+});
