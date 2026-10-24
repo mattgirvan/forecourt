@@ -1,4 +1,5 @@
-import { gbpPence, monthTotalPence, normalizeBilling, normalizePlan } from "@/lib/catalog";
+import { PLANS, gbpPence, monthTotalPence, normalizeBilling, normalizePlan } from "@/lib/catalog";
+import { cn } from "@/lib/utils";
 import { stageMeta } from "@/lib/build";
 import { packageLive, statusLabel, trialDaysLeft } from "@/lib/team";
 import { Chip } from "@/components/ui/chip";
@@ -34,28 +35,27 @@ export const FLAG_EXPLAINERS = {
     "A monthly payment did not go through. Stripe is retrying. Get in touch with the dealer.",
 } as const;
 
-/** Small badges for payment flags. Shown on the list so they are seen even with emails off. */
-export function FlagBadges({ flags }: { flags?: BoardRow["flags"] }) {
-  if (!flags || (!flags.duplicate && !flags.lookalike && !flags.paymentFailed)) return null;
-  const chips = flags.duplicate || flags.lookalike;
-  const lines = [
-    flags.paymentFailed ? FLAG_EXPLAINERS.paymentFailed : null,
-    flags.duplicate ? FLAG_EXPLAINERS.duplicate : null,
-    flags.lookalike ? FLAG_EXPLAINERS.lookalike : null,
-  ].filter(Boolean);
+/** Every chip a dealer row could show, most urgent first. */
+export function dealerChips(r: BoardRow, { withWaiting = true } = {}) {
+  const out: { label: string; tone: "live" | "action" | "neutral" | "progress" }[] = [];
+  if (withWaiting && r.waiting) out.push({ label: "They wrote", tone: "action" });
+  out.push(dealerStatus(r));
+  if (r.flags?.duplicate) out.push({ label: "Duplicate payment", tone: "action" });
+  if (r.flags?.lookalike) out.push({ label: "Looks like another dealer", tone: "neutral" });
+  return out;
+}
+
+/** One chip plus "+N". The notes behind the flags live on the dealer file. */
+export function RowChips({ row, withWaiting = true }: { row: BoardRow; withWaiting?: boolean }) {
+  const [first, ...rest] = dealerChips(row, { withWaiting });
   return (
-    <span className="mt-1.5 block">
-      {chips ? (
-        <span className="flex flex-wrap gap-1">
-          {flags.duplicate ? <Chip tone="action">Duplicate payment</Chip> : null}
-          {flags.lookalike ? <Chip>Looks like another dealer</Chip> : null}
-        </span>
+    <span className="inline-flex items-center gap-1.5">
+      <Chip tone={first.tone}>{first.label}</Chip>
+      {rest.length ? (
+        <Chip title={rest.map((c) => c.label).join(", ")}>
+          <span className="sr-only">{rest.map((c) => c.label).join(", ")}, </span>+{rest.length}
+        </Chip>
       ) : null}
-      {lines.map((l) => (
-        <span key={l} className="mt-1 block max-w-xs text-xs text-muted">
-          {l}
-        </span>
-      ))}
     </span>
   );
 }
@@ -98,11 +98,15 @@ export function BoardStats({ rows }: { rows: BoardRow[] }) {
     { n: waiting, label: "Waiting on us" },
   ];
   return (
-    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+    <div className="fc-stats">
       {items.map((s) => (
-        <div key={s.label} className="rounded-2xl border border-line bg-surface px-4 py-4">
-          <div className="text-3xl font-semibold tracking-tight">{s.n}</div>
-          <div className="mt-1 text-[13px] text-muted">{s.label}</div>
+        <div
+          key={s.label}
+          className={cn("fc-stat", s.label === "Waiting on us" && s.n > 0 && "is-action")}
+          data-testid={`stat-${s.label.toLowerCase().replace(/ /g, "-")}`}
+        >
+          <div className="fc-stat-n">{s.n}</div>
+          <div className="fc-stat-l">{s.label}</div>
         </div>
       ))}
     </div>
@@ -155,14 +159,13 @@ export function CustomerTable({
                     <div className="text-xs text-muted">
                       {r.group_name || r.principal_name || r.email || "—"}
                     </div>
-                    <FlagBadges flags={r.flags} />
                   </td>
                   <td className="px-4 py-3">
-                    {plan}
+                    {PLANS[plan].name}
                     {billing === "trial" ? " trial" : `, ${gbpPence(monthly)}/mo`}
                   </td>
                   <td className="px-4 py-3">
-                    <DealerStatusChip row={r} />
+                    <RowChips row={r} withWaiting={false} />
                     {billing === "trial" && days != null && days > 0 ? (
                       <span className="ml-2 text-xs text-subtle">{days}d left</span>
                     ) : null}
@@ -203,13 +206,12 @@ export function CustomerTable({
             <button type="button" onClick={() => onOpen(r.id)} className="fc-row-btn">
               <span className="min-w-0 flex-1">
                 <span className="fc-row-title block">{r.name}</span>
-                <FlagBadges flags={r.flags} />
                 <span className="fc-row-sub block">
-                  {normalizePlan(r.plan)}, {stageMeta(r.stage).label}
+                  {PLANS[normalizePlan(r.plan)].name}, {stageMeta(r.stage).label}
                 </span>
               </span>
               <span className="shrink-0">
-                {r.waiting ? <Chip tone="action">They wrote</Chip> : <DealerStatusChip row={r} />}
+                <RowChips row={r} />
               </span>
             </button>
             {onArchive ? (

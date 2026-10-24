@@ -2325,3 +2325,27 @@
   .fc-pill { transition: none; }
   .fc-pill:active { transform: none; }
 }
+
+/* Redesign 5: Office overview stats and build steps */
+.fc-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+@media (min-width: 768px) { .fc-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; } }
+.fc-stat {
+  min-width: 0; padding: 16px; border-radius: var(--fc-r-lg);
+  background: var(--fc-panel); border: 1px solid var(--fc-row-border);
+}
+.fc-stat-n { font-size: 30px; font-weight: 700; letter-spacing: -0.02em; color: var(--fc-text); font-variant-numeric: tabular-nums; line-height: 1.1; }
+.fc-stat-l { margin-top: 4px; font-size: var(--fc-t-small); color: var(--fc-text-faint); }
+.fc-stat.is-action { border-color: rgba(227, 169, 79, 0.55); }
+.fc-stat.is-action .fc-stat-n { color: var(--fc-amber); }
+.fc-steps { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 4px; margin-top: 8px; }
+.fc-steps > span { height: 4px; border-radius: 99px; background: rgba(255, 255, 255, 0.1); }
+.fc-steps > span.is-done { background: var(--fc-live); }
+.fc-steps > span.is-now { background: rgba(255, 255, 255, 0.45); }
+.fc-queue { display: flex; flex-direction: column; gap: 16px; }
+.fc-overview-grid { display: grid; gap: 18px; }
+@media (min-width: 1024px) { .fc-overview-grid { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); align-items: start; } }
+.fc-queue-btn {
+  display: flex; flex-direction: column; width: 100%; min-height: 44px; padding: 0;
+  text-align: left; background: none; border: 0; color: inherit; cursor: pointer;
+}
+.fc-queue-btn:focus-visible { outline: 2px solid var(--fc-rail-blue); outline-offset: 4px; border-radius: 10px; }
