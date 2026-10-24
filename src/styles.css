@@ -2403,8 +2403,8 @@
   padding: 10px 12px;
   border: 1px solid var(--fc-row-border);
   border-radius: var(--fc-r-lg);
-  background: rgba(14, 19, 26, 0.94);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  background: var(--fc-solid);
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.4);
 }
 @media (max-width: 720px) {
   .fc-save-bar { bottom: calc(var(--fc-bnav-h) + var(--fc-bnav-gap) + var(--fc-bnav-clear) + env(safe-area-inset-bottom)); }

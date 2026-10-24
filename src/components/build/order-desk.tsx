@@ -718,7 +718,7 @@ function StaffBuild({
               <p className="mt-2 flex items-center gap-2 text-[12.5px] text-[var(--fc-text-faint)]">
                 <span
                   className="size-3 rounded-full"
-                  style={{ background: pack.franchise.accent }}
+                  style={{ background: "var(--fc-text-faint)" }}
                   aria-hidden="true"
                 />
                 {multiBrand(plan)
