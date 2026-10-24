@@ -89,7 +89,7 @@ export function PlanChangeTicketActions({
         <div className="mt-3 rounded-2xl border border-line px-4 py-3" role="status" data-testid="plan-change-ticket-waiting">
           <Chip>Waiting on customer</Chip>
           <p className="mt-2 text-[13px] leading-relaxed text-[var(--fc-text-dim)]">
-            The customer pays the {v.setupDue} setup difference from the emailed link or Pay on their account. Nothing to do yet. This ticket moves on by itself when it is paid, and closes if the request is cancelled or expires.
+            Nothing to do yet. The customer pays {v.setupDue} (inc. VAT) from the email or their account, then this moves on by itself. It closes if the request is cancelled or expires.
           </p>
           {v.fileLink ? (
             <a href={v.fileLink} className="fc-tap mt-1 inline-flex min-h-11 items-center text-[13px] font-medium underline underline-offset-4" data-testid="plan-change-ticket-file-link">

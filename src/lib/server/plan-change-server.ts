@@ -502,6 +502,9 @@ export const resumePlanChangePayment = createServerFn({ method: "POST" })
         },
         { changeId: data.changeId, tenantId: data.tenantId, callerUserId: who.userId ?? null, ownerUserId: t?.user_id ?? null },
       );
+      // Pay also makes sure the Office ticket exists (requests from before it, or a failed first try).
+      // Idempotent: openTicket returns the linked support_item_id and never inserts twice.
+      if (r.ok) await openTicketFor(admin, data.changeId);
       if (r.ok && !r.reused) await note(admin, data.tenantId, "Payment page reopened", "The owner reopened the setup difference payment. A new Checkout page replaced the old one.", who.email ?? "owner");
       return r.ok ? { ok: true, url: r.url, message: "" } : { ok: false, url: null, message: r.message };
     } catch (e) {

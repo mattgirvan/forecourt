@@ -78,7 +78,7 @@ function Table({
   if (!items.length) return <p className="mt-4 text-sm text-muted">Nothing here.</p>;
   return (
     <>
-    <Rows as="ul" className={cn("mt-4", !compact && "md:hidden")}>
+    <Rows as="ul" className={cn("mt-4", !compact && "fc-tix-cards")}>
       {items.map((i) => (
         <Row
           as="li"
@@ -116,12 +116,20 @@ function Table({
         </Row>
       ))}
     </Rows>
-    {compact ? null : <div className="mt-4 hidden overflow-x-auto rounded-2xl border border-line md:block">
-      <table className="w-full min-w-[640px] text-left text-sm">
+    {compact ? null : <div className="fc-tix-table mt-4 overflow-x-auto rounded-2xl border border-line" data-testid="ticket-table">
+      <table className="w-full min-w-[640px] table-fixed text-left text-sm">
+        <colgroup>
+          {showDealer ? <col style={{ width: "14%" }} /> : null}
+          <col style={{ width: "11%" }} />
+          <col />
+          <col style={{ width: "128px" }} />
+          <col style={{ width: "196px" }} />
+          <col style={{ width: "112px" }} />
+        </colgroup>
         <thead className="text-[12px] text-subtle">
           <tr className="border-b border-line">
             {showDealer ? <th className="px-4 py-2 font-normal">Dealer</th> : null}
-            <th className="w-[150px] px-4 py-2 font-normal">Type</th>
+            <th className="px-4 py-2 font-normal">Type</th>
             <th className="px-4 py-2 font-normal">Title</th>
             <th className="whitespace-nowrap px-4 py-2 font-normal">Needs</th>
             <th className="px-4 py-2 font-normal">Status</th>
@@ -132,9 +140,9 @@ function Table({
           {items.map((i) => (
             <tr key={i.id} className="cursor-pointer border-b border-line last:border-0 hover:bg-elevated/50" onClick={() => onOpen(i)}>
               {showDealer ? <td className="px-4 py-3">{i.tenant_name || `#${i.tenant_id}`}</td> : null}
-              <td className="w-[150px] px-4 py-3 text-muted">{itemTypeLabel(i)}</td>
-              <td className="max-w-0 px-4 py-3">
-                <div className="truncate font-medium">{i.title}</div>
+              <td className="px-4 py-3 text-muted">{itemTypeLabel(i)}</td>
+              <td className="px-4 py-3">
+                <div className="line-clamp-2 font-medium" data-testid="ticket-table-title">{i.title}</div>
                 {lastLine(i) ? (
                   <div className="truncate text-[13px] text-muted" data-testid="ticket-preview">
                     {lastLine(i)}

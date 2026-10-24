@@ -3,9 +3,9 @@ import { formatUkDate } from "./uk-date.ts";
 import { WAITING_LABEL, isWaitingTicket } from "./server/plan-change-ticket.ts";
 
 /** Ticket detail chip (slice 12): amber only when it waits on us, green when solved, grey otherwise. */
-export function ticketChip(i: { status: SupportStatus; needs_reply: boolean; title?: string; change_type?: string | null }): { tone: "action" | "live" | "neutral"; label: string } {
+export function ticketChip(i: { status: SupportStatus; needs_reply: boolean; change_type?: string | null; waiting_on_customer?: boolean | null }): { tone: "action" | "live" | "neutral"; label: string } {
   // A plan change waiting for the customer to pay: grey, staff have nothing to do.
-  if (!i.needs_reply && i.title != null && isWaitingTicket({ change_type: i.change_type, title: i.title, status: i.status })) return { tone: "neutral", label: WAITING_LABEL };
+  if (!i.needs_reply && isWaitingTicket(i)) return { tone: "neutral", label: WAITING_LABEL };
   if (i.needs_reply) return { tone: "action", label: "Waiting on us" };
   if (i.status === "resolved") return { tone: "live", label: "Solved" };
   if (i.status === "done") return { tone: "live", label: STATUS_LABEL.done };

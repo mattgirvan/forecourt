@@ -186,7 +186,7 @@ test("Office wiring: plan change tickets use the shared confirm sheet and hide t
   const staff = readFileSync(new URL("./plan-change-staff.ts", import.meta.url), "utf8");
   assert.match(staff, /role: who\.role/);
   const server = readFileSync(new URL("./plan-change-server.ts", import.meta.url), "utf8");
-  assert.equal(server.match(/openTicketFor\(/g)?.length, 4, "awaiting payment, requested, booked and paid open the ticket");
+  assert.equal(server.match(/openTicketFor\(/g)?.length, 5, "awaiting payment, Pay, requested, booked and paid open the ticket");
 });
 
 test("setup difference uses the real catalog: Site £4,500 to Franchise £6,500 is £2,000", async () => {
