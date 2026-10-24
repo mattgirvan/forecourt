@@ -225,6 +225,7 @@ describe("auth invariant: every token-to-user lookup is the guarded one", () => 
       "src/lib/auth/client.ts": "template preview gate (VITE_AUTH_ENABLED), not Supabase",
       "src/lib/auth/verify.server.ts": "template preview gate (VITE_AUTH_ENABLED), not Supabase",
       "src/lib/app-data/client.server.ts": "template connector gate token, not a sign-in",
+      "src/lib/server/newsletter.ts": "Resend API key for newsletter mail and Audience contacts, not a sign-in",
     };
     // Template literals (`Bearer ${t}`) and concatenation ("Bearer " + t, 'Bearer ' + t, `Bearer ` + t).
     assert.deepEqual(hits(BEARER), Object.keys(known).sort());

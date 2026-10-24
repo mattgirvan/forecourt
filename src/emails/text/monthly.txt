@@ -1,0 +1,39 @@
+[MONTH] on the floor
+
+Hello [FIRST_NAME],
+
+[INTRO_PARAGRAPH]
+
+WHAT'S NEW IN FORECOURT
+[PLACEHOLDER: PRODUCT_UPDATE]
+
+ONE THING FOR THE DESK
+[PLACEHOLDER: DESK_TIP]
+
+FROM THE FLOOR
+[PLACEHOLDER: CUSTOMER_STORY_OR_OBSERVATION]
+
+WORTH A READ
+* [LINK_1_TITLE]: [ONE_LINE_WHY]
+  [LINK_1_URL]
+* [LINK_2_TITLE]: [ONE_LINE_WHY]
+  [LINK_2_URL]
+* [LINK_3_TITLE]: [ONE_LINE_WHY]
+  [LINK_3_URL]
+
+[CTA_SECTION_HEADING]
+[PLACEHOLDER: CTA_LEAD_IN]
+
+[CTA_LABEL]:
+[CTA_URL]
+
+Your CRM keeps the book. Forecourt keeps the floor moving.
+
+[SIGN_OFF_NAME]
+The Forecourt team
+Built in Scotland for UK motor trade desks.
+
+---
+Forecourt, 279 Clifton Road, Aberdeen, AB24 4HL
+You're receiving this because [WHY_YOU_GOT_THIS].
+Unsubscribe: [UNSUBSCRIBE_LINK]

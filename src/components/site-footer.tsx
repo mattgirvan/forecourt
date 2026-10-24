@@ -1,11 +1,21 @@
 import { Link } from "@tanstack/react-router";
 import { Mark } from "@/components/mark";
+import { NewsletterForm } from "@/components/newsletter-form";
 import { LEGAL, LEGAL_LINKS } from "@/lib/legal";
 import { SITE } from "@/lib/site";
 
 export function SiteFooter() {
   return (
     <footer className="px-4 pb-10 sm:px-6">
+      <div id="newsletter" className="mx-auto mb-4 grid max-w-5xl gap-4 rounded-[2rem] border border-line bg-surface px-6 py-7 sm:grid-cols-[1fr_1.3fr] sm:items-start sm:px-8">
+        <div>
+          <p className="text-sm font-medium">Forecourt updates</p>
+          <p className="mt-1 text-[13px] leading-relaxed text-muted">
+            New features for the desk, Roles and pricing changes. A few emails a year, nothing more.
+          </p>
+        </div>
+        <NewsletterForm />
+      </div>
       <div className="mx-auto flex max-w-5xl flex-col gap-8 rounded-[2rem] border border-line bg-surface px-6 py-8 sm:flex-row sm:items-center sm:justify-between sm:px-8">
         <div>
           <div className="flex items-center gap-2">

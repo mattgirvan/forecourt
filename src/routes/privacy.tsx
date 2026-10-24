@@ -38,6 +38,7 @@ function PrivacyPage() {
           <li>Dealership name, legal name, phone, domain, people you name, notes you leave.</li>
           <li>Payment details via Stripe. We do not see full card numbers.</li>
           <li>Messages you send us on your account.</li>
+          <li>Your email, if you sign up for Forecourt updates. Consent is the basis. We only add you after you confirm, and every email has an unsubscribe link.</li>
           <li>Technical logs Vercel keeps to run the site.</li>
         </ul>
         <p>We do not sell this. We do not run advertising cookies. Sign-in cookies are strictly necessary.</p>
@@ -59,7 +60,7 @@ function PrivacyPage() {
           <li>Stripe: payments.</li>
           <li>Supabase: the account database, in a project we control.</li>
           <li>Vercel: hosting.</li>
-          <li>Resend / our mailbox: sign-in codes, contact enquiries, and mail from hello@forecourt.me.</li>
+          <li>Resend / our mailbox: sign-in codes, contact enquiries, newsletter sign-ups (kept in a Resend Audience), and mail from hello@forecourt.me.</li>
         </ul>
         <p>A live desk is a separate database. Other dealers cannot read it. We do not put your book on a shared server with someone else.</p>
 

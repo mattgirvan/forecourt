@@ -1,0 +1,10 @@
+Hello,
+
+Someone, hopefully you, asked to get occasional Forecourt updates at this address.
+Confirm here (the link works for 48 hours):
+{{CONFIRM_URL}}
+
+If this was not you, ignore this email and nothing happens. We will not add you.
+
+Forecourt, hello@forecourt.me
+Privacy: https://www.forecourt.me/privacy

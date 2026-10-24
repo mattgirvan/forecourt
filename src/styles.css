@@ -4232,3 +4232,37 @@
     padding-top: 4rem;
   }
 }
+
+/* Newsletter sign-up (newsletter-form.tsx). Transform and opacity only. */
+.nl-hp {
+  position: absolute;
+  left: -10000px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+.nl-btn {
+  transition: transform 160ms ease, opacity 160ms ease;
+}
+.nl-btn:active {
+  transform: scale(0.97);
+}
+.nl-note {
+  opacity: 0;
+  transform: translateY(4px);
+  transition: transform 220ms ease, opacity 220ms ease;
+}
+.nl-note.is-on {
+  opacity: 1;
+  transform: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .nl-btn,
+  .nl-note {
+    transition: none;
+  }
+  .nl-btn:active,
+  .nl-note {
+    transform: none;
+  }
+}

@@ -1,0 +1,23 @@
+"Any update on my car?"
+
+Hello [FIRST_NAME],
+
+You know the call. Sometimes it's the third one that week. The exec puts the customer on hold, rings the port, rings the depot, rings the customer back. Nobody sold a car in that half hour.
+
+With Forecourt, the customer has their own view of their order. They sign in, see their car, and see where it is: at the international port, on the boat to the UK, at the UK port, with an estimated arrival window. Their order moves when the car does.
+
+They can also see their own to-do list, so the jobs that are theirs to do before handover are in front of them, not buried in a voicemail.
+
+The result is simple: fewer "any update?" calls, and your exec is no longer a switchboard.
+
+See what the customer sees:
+https://www.forecourt.me/#scene-customer
+
+Beside your CRM, not instead of it.
+
+The Forecourt team
+
+---
+Forecourt, 279 Clifton Road, Aberdeen, AB24 4HL
+You're receiving this because [WHY_YOU_GOT_THIS].
+Unsubscribe: [UNSUBSCRIBE_LINK]

@@ -1,0 +1,14 @@
+# Forecourt emails
+
+Copy: marketing/email/forecourt-email-drafts-v3.md (approved, used as written).
+
+- `npm run emails:render` renders every template with React Email to `src/emails/dist/<name>.html` and `.txt` (gitignored) and regenerates `src/lib/email/newsletter-confirm.generated.ts`. It sends nothing.
+- Hero images are real site UI, served from `https://www.forecourt.me/email/*.png` (public/email) once this ships.
+- Fill per recipient with `fillPlaceholders()` from `fill.ts` ([FIRST_NAME], [WHY_YOU_GOT_THIS], [UNSUBSCRIBE_LINK]). Monthly slots are filled by hand before a send.
+
+## Every newsletter send must
+
+1. Go only to Audience contacts with `unsubscribed: false`.
+2. Be one email per recipient, with `[UNSUBSCRIBE_LINK]` set to `unsubscribeUrl(config, email)` from `src/lib/server/newsletter.ts`.
+3. Pass `headers: newsletterUnsubscribeHeaders(config, email)` to Resend. That sets `List-Unsubscribe` (our signed one-click URL plus mailto) and `List-Unsubscribe-Post: List-Unsubscribe=One-Click`. Mail clients POST to `/api/newsletter/unsubscribe`, which sets `unsubscribed: true` with no further click.
+4. Use a subject starting `Forecourt: ` and send from `Forecourt <hello@forecourt.me>`.
