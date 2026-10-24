@@ -48,3 +48,20 @@ test("downgrade with the switch on now: pro-rated credit", () => {
   assert.equal(q.proratedPence, Math.round((39_900 - 74_700) / 2));
   assert.match(quoteLines(q)[1], /credit on your next bill: £174/);
 });
+
+test("Matt: downgrade to Site mid contract takes the Site price at the period end, no 12-month lock", async () => {
+  const { readFileSync } = await import("node:fs");
+  const start = 1_760_000_000, end = start + 30 * 86_400;
+  for (const from of ["franchise", "group"] as const) {
+    const q = quotePlanChange({ from, to: "site", live: 3, periodStart: start, periodEnd: end, now: start + 10 * 86_400 });
+    assert.equal(q.effective, "period_end");
+    assert.equal(q.setupDiffPence, 0);
+    assert.equal(q.proratedPence, 0);
+    assert.equal(q.newMonthlyPence, 39_900);
+  }
+  assert.equal(DOWNGRADE_TIMING, "period_end");
+  assert.doesNotMatch(readFileSync("src/lib/plan-change.ts", "utf8"), /Provisional/);
+  for (const f of ["src/lib/plan-change.ts", "src/lib/migration.ts", "src/lib/account-events.ts", "src/components/account/plan-change.tsx", "src/components/account/migration-tracker.tsx", "src/components/office/migration-panel.tsx", "src/lib/server/plan-change-server.ts"]) {
+    assert.doesNotMatch(readFileSync(f, "utf8"), /finish (the|your) (contract|12 months)|until the contract ends|contract end/i, f);
+  }
+});
