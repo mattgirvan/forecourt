@@ -10,7 +10,7 @@ export const LEGAL = {
   email: SITE.email,
   url: SITE.url,
   vat:
-    "Prices are in pounds sterling. If we are VAT-registered, VAT is added on the invoice and we will say so. If we are not, the price you see is what you pay.",
+    "Prices are in pounds sterling. All prices include VAT.",
 } as const;
 
 export const LEGAL_LINKS = [
