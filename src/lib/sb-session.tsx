@@ -76,16 +76,31 @@ export function UserButton() {
   );
 }
 
-export function useSbAccessToken() {
+/**
+ * The signed-in access token, plus `known`: false until the stored session has
+ * been read, so callers can tell "no token yet" from "signed out".
+ */
+export function useSbSessionToken() {
   const [token, setToken] = useState<string | null>(null);
+  const [known, setKnown] = useState(false);
   useEffect(() => {
-    if (!supabaseReady()) return;
+    if (!supabaseReady()) {
+      setKnown(true);
+      return;
+    }
     const sb = getSb();
-    void sb.auth.getSession().then(({ data }) => setToken(data.session?.access_token ?? null));
+    void sb.auth
+      .getSession()
+      .then(({ data }) => setToken(data.session?.access_token ?? null))
+      .finally(() => setKnown(true));
     const { data } = sb.auth.onAuthStateChange((_e, session) => {
       setToken(session?.access_token ?? null);
     });
     return () => data.subscription.unsubscribe();
   }, []);
-  return token;
+  return { token, known };
+}
+
+export function useSbAccessToken() {
+  return useSbSessionToken().token;
 }
