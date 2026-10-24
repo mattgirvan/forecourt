@@ -9,7 +9,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServerFn } from "@tanstack/react-start";
 import { normalizePlan, type PlanId } from "@/lib/catalog";
 import { SITE } from "@/lib/site";
-import { quotePlanChange, type PlanChangeQuote } from "@/lib/plan-change";
+import { planChangeDryRunMessage, quotePlanChange, type PlanChangeQuote } from "@/lib/plan-change";
 import { applyPlanChange, planChangeMessage, upgradeCheckoutParams, type PlanChangeDeps } from "@/lib/server/plan-change-sync";
 import { siteBillingModeFrom, type SiteSubLike } from "@/lib/server/site-billing-sync";
 import { actor, planChangeSyncFlag, sbAdmin, stripeSecret } from "@/lib/server/staff-actor";
@@ -103,7 +103,7 @@ export const requestPlanChange = createServerFn({ method: "POST" })
     if (q.direction === "same") return { message: "Already on that plan.", url: null as string | null, mode };
     if (mode !== "live") {
       return {
-        message: `Dry run, nothing charged and the plan is unchanged. ${q.direction === "upgrade" ? "The customer would pay the setup difference first." : "The new price would start at the end of the period."}`,
+        message: planChangeDryRunMessage(q),
         url: null as string | null,
         mode,
       };
