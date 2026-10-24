@@ -11,6 +11,8 @@ import { ResumeOrder } from "@/components/office/resume-order";
 import { StaffPanel } from "@/components/office/staff-panel";
 import { SignInMethods } from "@/components/account/sign-in-methods";
 import { SiteShell } from "@/components/site-shell";
+import { AppShell, type ShellNavItem } from "@/components/app-shell";
+import { LifeBuoy, MapPin, Store, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SignInGate, useSbAccessToken } from "@/lib/sb-session";
 import { getSb } from "@/lib/sb";
@@ -38,11 +40,11 @@ type OfficeTab = "customers" | "queue" | "staff" | "security" | "sites";
 type OfficeSearch = { id?: number; tab?: OfficeTab };
 
 const TAB_LABEL: Record<OfficeTab, string> = {
-  customers: "Customers",
-  queue: "Queue",
+  customers: "Dealers",
+  queue: "Tickets",
   sites: "Sites",
-  staff: "Staff",
-  security: "Sign-in & security",
+  staff: "Team",
+  security: "Sign in and security",
 };
 
 export const Route = createFileRoute("/office")({
@@ -60,9 +62,9 @@ export const Route = createFileRoute("/office")({
 
 function OfficePage() {
   return (
-    <SiteShell>
-      <SignInGate
-        fallback={
+    <SignInGate
+      fallback={
+        <SiteShell>
           <div className="mx-auto max-w-lg px-4 py-20 text-center">
             <h1 className="text-3xl font-semibold tracking-tight">Office is for Forecourt staff.</h1>
             <p className="mt-3 text-sm text-muted">Customers have their own account. Staff sign in here.</p>
@@ -70,11 +72,11 @@ function OfficePage() {
               <Link to="/login">Sign in</Link>
             </Button>
           </div>
-        }
-      >
-        <OfficeInner />
-      </SignInGate>
-    </SiteShell>
+        </SiteShell>
+      }
+    >
+      <OfficeInner />
+    </SignInGate>
   );
 }
 
@@ -132,11 +134,17 @@ function OfficeInner() {
     );
   }, [rows, q]);
 
-  if (pending) return <div className="mx-auto max-w-5xl px-4 py-20 text-sm text-muted">Checking access…</div>;
+  if (pending)
+    return (
+      <SiteShell>
+        <div className="mx-auto max-w-5xl px-4 py-20 text-sm text-muted">Checking access…</div>
+      </SiteShell>
+    );
 
   if (!me?.team && me?.pendingInvite && me.acceptProblem) {
     const otherSignIn = me.acceptProblem === "other-sign-in";
     return (
+      <SiteShell>
       <div className="mx-auto max-w-lg px-4 py-20 text-center">
         <h1 className="text-3xl font-semibold tracking-tight">{"Your invite isn't accepted yet."}</h1>
         <p className="mt-3 text-sm text-muted" data-testid="accept-problem">
@@ -159,11 +167,13 @@ function OfficeInner() {
           </Button>
         )}
       </div>
+      </SiteShell>
     );
   }
 
   if (!me?.team && me?.pendingInvite) {
     return (
+      <SiteShell>
       <div className="mx-auto max-w-lg px-4 py-20 text-center">
         <h1 className="text-3xl font-semibold tracking-tight">{"You've been invited."}</h1>
         <p className="mt-3 text-sm text-muted">
@@ -180,11 +190,13 @@ function OfficeInner() {
           Sign out and get an email code
         </Button>
       </div>
+      </SiteShell>
     );
   }
 
   if (!me?.team) {
     return (
+      <SiteShell>
       <div className="mx-auto max-w-lg px-4 py-20 text-center">
         <h1 className="text-3xl font-semibold tracking-tight">This is the staff office.</h1>
         <p className="mt-3 text-sm text-muted">Your login is a dealer account. An owner has to add you as staff.</p>
@@ -192,6 +204,7 @@ function OfficeInner() {
           <Link to="/account">Go to account</Link>
         </Button>
       </div>
+      </SiteShell>
     );
   }
 
@@ -199,28 +212,31 @@ function OfficeInner() {
     void navigate({ search: next });
   }
 
+  const nav: ShellNavItem[] = [
+    { key: "customers", label: "Dealers", icon: Store, to: "/office", search: { tab: "customers" }, count: rows.length, bottom: true },
+    { key: "queue", label: "Tickets", icon: LifeBuoy, to: "/office", search: { tab: "queue" }, bottom: true },
+    { key: "sites", label: "Sites", icon: MapPin, to: "/office", search: { tab: "sites" }, bottom: true },
+    { key: "staff", label: "Team", icon: Users, to: "/office", search: { tab: "staff" }, bottom: true },
+  ];
+
   return (
-    <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="text-[13px] font-medium text-muted">Forecourt staff</p>
-          <h1 className="mt-2 text-4xl font-semibold tracking-tight">Office</h1>
-        </div>
-        <div className="flex flex-wrap gap-1.5">
-          {(["customers", "queue", "sites", "staff", "security"] as const).map((id) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => go({ tab: id })}
-              className={cn(
-                "h-9 rounded-full px-4 text-[13px]",
-                tab === id && !search.id ? "bg-fg text-accent-fg" : "bg-elevated text-muted",
-              )}
-            >
-              {TAB_LABEL[id]}
-            </button>
-          ))}
-        </div>
+    <AppShell
+      area="office"
+      items={nav}
+      active={search.id ? "customers" : tab}
+      pageKey={search.id ? `file-${search.id}` : tab}
+      user={{ name: me.name || me.email, sub: me.role === "owner" ? "Owner" : "Office team" }}
+      menu={[
+        { label: "Sign in and security", to: "/office", search: { tab: "security" } },
+        { label: "Your account", to: "/account" },
+      ]}
+    >
+    <div className="mx-auto max-w-5xl px-4 py-8 sm:px-8">
+      <div>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[var(--fc-text-faint)]">Office</p>
+        <h1 className="mt-1 text-[26px] font-semibold tracking-tight sm:text-[34px]">
+          {search.id ? "Dealer file" : TAB_LABEL[tab]}
+        </h1>
       </div>
       {err && <p className="mt-4 text-sm text-muted">{err}</p>}
 
@@ -296,10 +312,10 @@ function OfficeInner() {
         <div className="mt-10">
           <button
             type="button"
-            className="text-sm text-muted underline-offset-4 hover:text-fg hover:underline"
+            className="inline-flex min-h-11 items-center text-sm text-muted underline-offset-4 hover:text-fg hover:underline"
             onClick={() => go({ tab: "customers" })}
           >
-            All customers
+            All dealers
           </button>
           <div className="mt-6">
             <TenantFile token={token} tenantId={search.id} onSaved={() => void reload()} />
@@ -307,6 +323,7 @@ function OfficeInner() {
         </div>
       )}
     </div>
+    </AppShell>
   );
 }
 

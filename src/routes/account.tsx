@@ -6,7 +6,10 @@ import { useEffect, useState, type ReactNode } from "react";
 
 import { DealerPortal } from "@/components/account/portal";
 import { SignInMethods } from "@/components/account/sign-in-methods";
-import { SignInGate } from "@/lib/sb-session";
+import { SignInGate, useSbUser } from "@/lib/sb-session";
+import { useWhoAmI } from "@/lib/who-am-i";
+import { AppShell, type ShellNavItem } from "@/components/app-shell";
+import { Building2, KeyRound, LayoutGrid, LifeBuoy } from "lucide-react";
 import { SiteShell } from "@/components/site-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -83,9 +86,9 @@ type OrderRow = Awaited<ReturnType<typeof listMyOrders>>[number];
 
 function AccountPage() {
   return (
-    <SiteShell>
-      <SignInGate
-        fallback={
+    <SignInGate
+      fallback={
+        <SiteShell>
           <div className="mx-auto max-w-lg px-4 py-20 text-center">
             <h1 className="font-display text-3xl">Your Forecourt account.</h1>
             <p className="mt-3 text-sm text-muted">
@@ -95,12 +98,39 @@ function AccountPage() {
               <Link to="/login">Sign in</Link>
             </Button>
           </div>
-        }
-      >
+        </SiteShell>
+      }
+    >
+      <AccountShell>
         <AccountInner />
-        <SignInMethods />
-      </SignInGate>
-    </SiteShell>
+        <div id="security" className="scroll-mt-20">
+          <SignInMethods />
+        </div>
+      </AccountShell>
+    </SignInGate>
+  );
+}
+
+function AccountShell({ children }: { children: ReactNode }) {
+  const { me } = useWhoAmI();
+  const { user } = useSbUser();
+  const email = me?.email || user?.email || "";
+  const nav: ShellNavItem[] = [
+    { key: "overview", label: "Overview", icon: LayoutGrid, to: "/account", bottom: true },
+    { key: "security", label: "Sign in and security", short: "Sign in", icon: KeyRound, to: "/account", hash: "security", bottom: true },
+    { key: "help", label: "Help", icon: LifeBuoy, to: "/contact", bottom: true },
+    ...(me?.team ? [{ key: "office", label: "Office", icon: Building2, to: "/office" as const, search: {}, bottom: true }] : []),
+  ];
+  return (
+    <AppShell
+      area="account"
+      items={nav}
+      active="overview"
+      user={{ name: me?.name || email || "Your account", sub: me?.team ? "Forecourt team" : email }}
+      menu={[]}
+    >
+      {children}
+    </AppShell>
   );
 }
 
