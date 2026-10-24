@@ -34,3 +34,16 @@ export async function saveStaffSites(email, sites, allSites) {
   });
   if (error) throw error;
 }
+
+/** Archived sites an admin can still restore (30 days from archiving). */
+export async function loadRestorableSites() {
+  const { data, error } = await supabase.rpc("admin_restorable_sites");
+  if (error) throw error;
+  return (data || []).map((r) => ({ code: r.code, name: r.name, restoreUntil: r.restore_until }));
+}
+
+export async function restoreSite(code) {
+  const { data, error } = await supabase.rpc("admin_restore_site", { p_code: code });
+  if (error) throw error;
+  return data;
+}

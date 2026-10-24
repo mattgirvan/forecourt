@@ -86,3 +86,36 @@ export function siteAddedEvent(d: { tenantId: number; eventKey: string; siteName
     dedupe: `site-added:${d.eventKey}`,
   };
 }
+
+/** A site was archived in the desk. Forecourt billing changes from Office. */
+export function siteRemovedEvent(d: { eventKey: string; siteName: string; by?: string }): AccountEvent {
+  return {
+    kind: "site_removed",
+    title: `${d.siteName} removed`,
+    lines: [
+      `${d.siteName} was archived on your Forecourt desk${d.by ? ` by ${d.by}` : ""}.`,
+      "We will take it off your bill from the end of this billing period. We don't refund part months. You can restore it within 30 days.",
+    ],
+    dedupe: `site-removed:${d.eventKey}`,
+  };
+}
+
+export function siteRestoredEvent(d: { eventKey: string; siteName: string; by?: string }): AccountEvent {
+  return {
+    kind: "site_restored",
+    title: `${d.siteName} restored`,
+    lines: [`${d.siteName} was restored on your Forecourt desk${d.by ? ` by ${d.by}` : ""}.`, "It is back on your bill once it is live again."],
+    dedupe: `site-restored:${d.eventKey}`,
+  };
+}
+
+export function staffAccessEvent(d: { eventKey: string; email: string; allSites: boolean | null; sites: string[]; siteNames: Record<string, string>; by?: string }): AccountEvent {
+  const names = d.sites.map((c) => d.siteNames[c] ?? c);
+  const now = d.allSites ? "All sites" : names.length ? names.join(", ") : "no sites";
+  return {
+    kind: "staff_access_changed",
+    title: `Site access changed for ${d.email}`,
+    lines: [`${d.email} can now see: ${now}.`, d.by ? `Changed by ${d.by} on your Forecourt desk.` : "Changed on your Forecourt desk."],
+    dedupe: `staff-access:${d.eventKey}`,
+  };
+}

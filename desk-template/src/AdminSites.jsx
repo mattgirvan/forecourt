@@ -4,7 +4,7 @@ import { useDesk } from "./data/store";
 import { normaliseStaff, roleOf } from "./roles";
 import { normaliseSites, seatSiteCodes } from "./data/sites";
 import { supabase } from "./data/supabase";
-import { loadStaffSites, saveStaffSites } from "./data/siteAccess";
+import { loadRestorableSites, loadStaffSites, restoreSite, saveStaffSites } from "./data/siteAccess";
 
 /** Admin tab: choose each person's sites. Staff can be on several sites. */
 export function AdminSites({ me }) {
@@ -12,10 +12,12 @@ export function AdminSites({ me }) {
   const sites = (access?.sites || []).length ? access.sites : normaliseSites(tenant.sites).filter((s) => s.status !== "archived");
   const [people, setPeople] = useState(null);
   const [msg, setMsg] = useState("");
+  const [archived, setArchived] = useState([]);
 
   useEffect(() => {
     if (supabase) {
       loadStaffSites().then(setPeople).catch((e) => setMsg(String(e.message || e)));
+      loadRestorableSites().then(setArchived).catch(() => setArchived([]));
     } else {
       setPeople(
         normaliseStaff(tenant.staff).map((s) => ({ email: s.email, name: s.name, role: s.role, allSites: s.allSites, sites: seatSiteCodes(s) })),
@@ -31,6 +33,17 @@ export function AdminSites({ me }) {
       if (supabase) await saveStaffSites(p.email, p.sites, p.allSites);
       setPeople((list) => list.map((x) => (x.email === p.email ? { ...x, dirty: false } : x)));
       setMsg(`Saved ${p.name}.`);
+    } catch (e) {
+      setMsg(String(e.message || e));
+    }
+  }
+
+  async function restore(s) {
+    setMsg("");
+    try {
+      await restoreSite(s.code);
+      setArchived((list) => list.filter((x) => x.code !== s.code));
+      setMsg(`Restored ${s.name}. Forecourt has been told.`);
     } catch (e) {
       setMsg(String(e.message || e));
     }
@@ -92,6 +105,25 @@ export function AdminSites({ me }) {
             );
           })}
         </ul>
+      )}
+      {archived.length > 0 && (
+        <div data-testid="admin-archived" style={{ marginTop: 18 }}>
+          <h3 style={{ margin: "0 0 6px" }}>Archived sites</h3>
+          <p className="faint" style={{ marginTop: 0 }}>You can restore an archived site within 30 days.</p>
+          <ul className="admin-list">
+            {archived.map((s) => (
+              <li key={s.code}>
+                <div className="admin-who">
+                  <strong>{s.name}</strong>
+                  <span className="faint">Restore by {new Date(s.restoreUntil).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span>
+                </div>
+                <button type="button" className="ghost" onClick={() => restore(s)}>
+                  Restore
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </div>
   );

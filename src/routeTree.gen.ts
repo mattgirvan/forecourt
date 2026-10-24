@@ -30,6 +30,7 @@ import { Route as ForPhotoStatusRouteImport } from './routes/for/photo-status'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as ApiBuildSendRouteImport } from './routes/api/build/send'
 import { Route as ApiBuildTokenStatusRouteImport } from './routes/api/build/token-status'
+import { Route as ApiDeskEventsRouteImport } from './routes/api/desk/events'
 import { Route as ApiStripeWebhookRouteImport } from './routes/api/stripe/webhook'
 
 const IndexRoute = IndexRouteImport.update({
@@ -137,6 +138,11 @@ const ApiBuildTokenStatusRoute = ApiBuildTokenStatusRouteImport.update({
   path: '/api/build/token-status',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiDeskEventsRoute = ApiDeskEventsRouteImport.update({
+  id: '/api/desk/events',
+  path: '/api/desk/events',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiStripeWebhookRoute = ApiStripeWebhookRouteImport.update({
   id: '/api/stripe/webhook',
   path: '/api/stripe/webhook',
@@ -165,6 +171,7 @@ export interface FileRoutesByFullPath {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/build/send': typeof ApiBuildSendRoute
   '/api/build/token-status': typeof ApiBuildTokenStatusRoute
+  '/api/desk/events': typeof ApiDeskEventsRoute
   '/api/stripe/webhook': typeof ApiStripeWebhookRoute
 }
 export interface FileRoutesByTo {
@@ -189,6 +196,7 @@ export interface FileRoutesByTo {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/build/send': typeof ApiBuildSendRoute
   '/api/build/token-status': typeof ApiBuildTokenStatusRoute
+  '/api/desk/events': typeof ApiDeskEventsRoute
   '/api/stripe/webhook': typeof ApiStripeWebhookRoute
 }
 export interface FileRoutesById {
@@ -214,6 +222,7 @@ export interface FileRoutesById {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/build/send': typeof ApiBuildSendRoute
   '/api/build/token-status': typeof ApiBuildTokenStatusRoute
+  '/api/desk/events': typeof ApiDeskEventsRoute
   '/api/stripe/webhook': typeof ApiStripeWebhookRoute
 }
 export interface FileRouteTypes {
@@ -240,6 +249,7 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/api/build/send'
     | '/api/build/token-status'
+    | '/api/desk/events'
     | '/api/stripe/webhook'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -264,6 +274,7 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/api/build/send'
     | '/api/build/token-status'
+    | '/api/desk/events'
     | '/api/stripe/webhook'
   id:
     | '__root__'
@@ -288,6 +299,7 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/api/build/send'
     | '/api/build/token-status'
+    | '/api/desk/events'
     | '/api/stripe/webhook'
   fileRoutesById: FileRoutesById
 }
@@ -313,6 +325,7 @@ export interface RootRouteChildren {
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiBuildSendRoute: typeof ApiBuildSendRoute
   ApiBuildTokenStatusRoute: typeof ApiBuildTokenStatusRoute
+  ApiDeskEventsRoute: typeof ApiDeskEventsRoute
   ApiStripeWebhookRoute: typeof ApiStripeWebhookRoute
 }
 
@@ -465,6 +478,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiBuildTokenStatusRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/desk/events': {
+      id: '/api/desk/events'
+      path: '/api/desk/events'
+      fullPath: '/api/desk/events'
+      preLoaderRoute: typeof ApiDeskEventsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/stripe/webhook': {
       id: '/api/stripe/webhook'
       path: '/api/stripe/webhook'
@@ -497,6 +517,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiBuildSendRoute: ApiBuildSendRoute,
   ApiBuildTokenStatusRoute: ApiBuildTokenStatusRoute,
+  ApiDeskEventsRoute: ApiDeskEventsRoute,
   ApiStripeWebhookRoute: ApiStripeWebhookRoute,
 }
 export const routeTree = rootRouteImport
