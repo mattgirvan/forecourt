@@ -100,7 +100,7 @@ export function PricingPage() {
         body="If the cards do not quite fit, send a short note. We will reply from hello@forecourt.me."
       />
 
-      <NewsletterBlock id="pricing-updates" eyebrow="Not ready to pick" title="Hear about pricing changes first." />
+      <NewsletterBlock id="pricing-updates" eyebrow="Not ready to pick yet?" title="Hear about pricing changes first." />
 
       <div className="mx-auto max-w-5xl px-4 pb-16 sm:px-6 sm:pb-24">
         <div className="mx-auto max-w-2xl text-center">
