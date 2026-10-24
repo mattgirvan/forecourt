@@ -34,7 +34,7 @@ export const ROLES = [
   },
   {
     id: "progressor",
-    label: "Progressor / driver",
+    label: "Progressor or driver",
     title: "Vehicle progressor",
     sees: "Locator and inbound stock. Stage the car. No GP.",
     cannot: "Gross, customer thread, month-end numbers.",

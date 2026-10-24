@@ -154,6 +154,7 @@ export function DealerPortal({
       <div className="mt-6">
         {tab === "overview" && (
           <Overview
+            token={token}
             tenant={tenant}
             plan={plan}
             billing={billing}
@@ -239,6 +240,7 @@ function nextStep(
 }
 
 function Overview({
+  token,
   tenant,
   plan,
   days,
@@ -249,6 +251,7 @@ function Overview({
   onNewPackage,
   go,
 }: {
+  token: string;
   tenant: Tenant;
   plan: PlanId;
   days: number | null;
@@ -439,7 +442,7 @@ function Overview({
         </Section>
       ) : null}
 
-      <RolesCard plan={plan} billing={billing} staffJson={tenant.staff_json} onInvite={() => go("people")} />
+      <RolesCard token={token} tenantId={tenant.id} plan={plan} billing={billing} staffJson={tenant.staff_json} onInvite={() => go("people")} />
       <div className="flex flex-wrap items-center gap-2">
         <Button variant="secondary" className="min-h-11" asChild>
           <Link to="/how">How we set it up</Link>

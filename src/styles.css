@@ -3524,10 +3524,6 @@
   animation: fc-rise 0.32s ease-out both;
 }
 @media (min-width: 1024px) {
-  .fc-roles {
-    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
-    align-items: start;
-  }
   .fc-team-grid {
     grid-template-columns: minmax(0, 1.4fr) minmax(300px, 1fr);
     align-items: start;
@@ -3565,48 +3561,39 @@
   text-align: center;
   padding: 0 2px;
 }
-.fc-switch {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
+.fc-role-switch {
+  display: inline-grid;
+  place-items: center;
   min-width: 44px;
   min-height: 44px;
-  justify-content: center;
-}
-.fc-switch::before {
-  content: "";
-  width: 36px;
-  height: 20px;
   border-radius: 999px;
-  background: var(--fc-solid-2);
-  border: 1px solid var(--fc-panel-border);
+  cursor: pointer;
 }
-.fc-switch[data-on]::before {
-  background: #3fae6a;
-  border-color: transparent;
+.fc-role-switch:disabled {
+  cursor: default;
+  opacity: 0.85;
 }
-.fc-switch-knob {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 14px;
-  height: 14px;
-  margin: -7px 0 0 -15px;
-  border-radius: 999px;
-  background: #fff;
-  opacity: 0.7;
-  transition: transform 0.2s ease;
+.fc-role-switch:focus-visible {
+  outline: 2px solid var(--fc-rail-blue);
+  outline-offset: 2px;
 }
-.fc-switch[data-on] .fc-switch-knob {
-  transform: translateX(16px);
+.fc-role-switch.is-on .fc-switch-track::after {
   opacity: 1;
 }
-.fc-roles-dock,
+.fc-role-switch.is-on .fc-switch-thumb {
+  transform: translateX(14px);
+}
+.fc-role-grid tbody th,
+.fc-role-grid td {
+  height: 44px;
+}
 .fc-team-dock {
   margin-top: 12px;
 }
+.fc-roles-dock {
+  margin-top: 16px;
+}
 @media (max-width: 720px) {
-  .fc-roles-dock,
   .fc-team-dock {
     position: sticky;
     bottom: calc(var(--fc-bnav-h) + var(--fc-bnav-gap) + 8px + env(safe-area-inset-bottom));
@@ -3638,8 +3625,5 @@
   .fc-team-grid,
   .fc-signin-card {
     animation: fc-fade-in 0.2s linear both;
-  }
-  .fc-switch-knob {
-    transition: none;
   }
 }
