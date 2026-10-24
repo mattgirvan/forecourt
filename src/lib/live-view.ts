@@ -137,6 +137,16 @@ export function ukDate(iso: string | null | undefined) {
   return sep(formatUkDate(iso));
 }
 
+/**
+ * One line preview for a ticket row: the latest message, else the opening
+ * details, with line breaks and runs of spaces folded to single spaces.
+ * The row truncates it with an ellipsis (slice 11).
+ */
+export function lastLine(i: { details?: string | null; last_line?: string | null; messages?: { body: string }[] }) {
+  const latest = i.messages?.length ? i.messages[i.messages.length - 1].body : (i.last_line ?? i.details ?? "");
+  return latest.replace(/\s+/g, " ").trim();
+}
+
 /** "Today, 09:12", "Yesterday" or "12 Oct". */
 export function updatedWhen(iso: string, now = new Date()) {
   const d = new Date(iso);

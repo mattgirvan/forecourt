@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { inviteStaff, sendStaffSignIn, setStaffRole, setStaffStatus } from "@/lib/server/portal";
 import { STAFF_ROLES, roleLabel, type StaffRole } from "@/lib/team";
+import { formatUkDate } from "@/lib/uk-date";
 
 type Member = {
   email: string;
@@ -68,7 +69,7 @@ export function StaffPanel({
           }}
         >
           <div className="text-sm font-medium">Add someone</div>
-          <p className="mt-1 text-sm text-muted">They use a code, same as you — not a password.</p>
+          <p className="mt-1 text-sm text-muted">They use a code, same as you, not a password.</p>
           <div className="mt-4 grid gap-2 sm:grid-cols-[1fr_1fr_8rem_auto]">
             <input
               required
@@ -108,8 +109,8 @@ export function StaffPanel({
             <div>
               <div className="font-medium">{m.name || m.email}</div>
               <div className="text-xs text-muted">
-                {m.email} · {roleLabel(m.role)} · {m.status}
-                {m.last_seen_at ? ` · last ${new Date(m.last_seen_at).toLocaleDateString("en-GB")}` : ""}
+                {m.email}, {roleLabel(m.role)}, {m.status}
+                {m.last_seen_at ? `, last seen ${formatUkDate(m.last_seen_at)}` : ""}
               </div>
             </div>
             {owner && (
@@ -117,7 +118,7 @@ export function StaffPanel({
                 {m.role !== "owner" ? (
                   <button
                     type="button"
-                    className="h-8 rounded-full bg-elevated px-3 text-xs text-muted"
+                    className="h-11 min-w-11 rounded-full bg-elevated px-4 text-[13px] text-muted"
                     disabled={busy}
                     onClick={() => void run(() => setStaffRole({ data: { token, email: m.email, role: "owner" } }), "Now an owner.")}
                   >
@@ -126,7 +127,7 @@ export function StaffPanel({
                 ) : m.email !== meEmail ? (
                   <button
                     type="button"
-                    className="h-8 rounded-full bg-elevated px-3 text-xs text-muted"
+                    className="h-11 min-w-11 rounded-full bg-elevated px-4 text-[13px] text-muted"
                     disabled={busy}
                     onClick={() =>
                       void run(() => setStaffRole({ data: { token, email: m.email, role: "operator" } }), "Now an operator.")
@@ -137,7 +138,7 @@ export function StaffPanel({
                 ) : null}
                 <button
                   type="button"
-                  className="h-8 rounded-full bg-elevated px-3 text-xs text-muted"
+                  className="h-11 min-w-11 rounded-full bg-elevated px-4 text-[13px] text-muted"
                   disabled={busy}
                   onClick={() => void run(() => sendStaffSignIn({ data: { token, email: m.email } }), "Sign-in sent.")}
                 >
@@ -146,7 +147,7 @@ export function StaffPanel({
                 {m.status !== "revoked" && m.email !== meEmail && (
                   <button
                     type="button"
-                    className="h-8 rounded-full bg-elevated px-3 text-xs text-muted"
+                    className="h-11 min-w-11 rounded-full bg-elevated px-4 text-[13px] text-muted"
                     disabled={busy}
                     onClick={() =>
                       void run(
@@ -161,7 +162,7 @@ export function StaffPanel({
                 {m.status === "revoked" && (
                   <button
                     type="button"
-                    className="h-8 rounded-full bg-fg px-3 text-xs text-accent-fg"
+                    className="h-11 min-w-11 rounded-full bg-fg px-4 text-[13px] text-accent-fg"
                     disabled={busy}
                     onClick={() =>
                       void run(

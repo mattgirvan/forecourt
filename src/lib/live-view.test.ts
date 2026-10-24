@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { addMonths, cardLabel, siteDetails, statusTone, validStatus, isOpenStatus, STATUS_LABEL, CHANGE_TYPES, updatedWhen, ukDate } from "./live-view.ts";
+import { addMonths, cardLabel, siteDetails, statusTone, validStatus, isOpenStatus, STATUS_LABEL, CHANGE_TYPES, updatedWhen, ukDate, lastLine } from "./live-view.ts";
 
 test("term end is go live plus contract months, clamped to month end", () => {
   assert.equal(addMonths("2026-09-14T10:00:00.000Z", 12).slice(0, 10), "2027-09-14");
@@ -45,4 +45,11 @@ test("updated when", () => {
   assert.match(updatedWhen("2026-10-23T08:12:00Z", now), /^Today, 09:12$/);
   assert.equal(updatedWhen("2026-10-22T08:12:00Z", now), "Yesterday");
   assert.equal(updatedWhen("2026-10-12T08:12:00Z", now), "12 Oct");
+});
+
+test("ticket row preview is the latest message on one line, else the details", () => {
+  assert.equal(lastLine({ details: "First", messages: [{ body: "Hi" }, { body: "Thanks,\n\n  we will  look" }] }), "Thanks, we will look");
+  assert.equal(lastLine({ details: "Opening\nnote", last_line: null, messages: [] }), "Opening note");
+  assert.equal(lastLine({ details: "Opening", last_line: "Latest   reply", messages: [] }), "Latest reply");
+  assert.equal(lastLine({ details: "" }), "");
 });
