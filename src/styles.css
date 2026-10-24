@@ -3668,9 +3668,58 @@
   font-size: 14px;
   color: var(--fc-text-dim);
 }
-.fc-tix-note input {
-  width: 18px;
-  height: 18px;
+.fc-tix-note {
+  padding: 0 8px 0 0;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.fc-tix-note {
+  white-space: nowrap;
+}
+.fc-tix-note[aria-checked="true"] {
+  color: var(--fc-text);
+}
+/* Toggle in the Roles switch style: 44px target, green when on, knob slides with transform. */
+.fc-note-toggle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+}
+.fc-note-toggle::before {
+  content: "";
+  width: 36px;
+  height: 20px;
+  border-radius: 999px;
+  background: var(--fc-solid-2);
+  border: 1px solid var(--fc-panel-border);
+}
+.fc-note-toggle[data-on]::before {
+  background: #3fae6a;
+  border-color: transparent;
+}
+.fc-note-toggle-knob {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -15px;
+  border-radius: 999px;
+  background: #fff;
+  opacity: 0.7;
+  transition: transform 0.2s ease;
+}
+.fc-note-toggle[data-on] .fc-note-toggle-knob {
+  transform: translateX(16px);
+  opacity: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .fc-note-toggle-knob {
+    transition: none;
+  }
 }
 .fc-tix-err {
   margin: 0;

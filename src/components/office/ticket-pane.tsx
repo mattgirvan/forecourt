@@ -143,10 +143,18 @@ export function TicketPane({
           onChange={(e) => setBody(e.target.value)}
         />
         <div className="fc-tix-dock-row">
-          <label className="fc-tix-note">
-            <input type="checkbox" checked={internal} onChange={(e) => setInternal(e.target.checked)} />
+          <button
+            type="button"
+            role="switch"
+            aria-checked={internal}
+            className="fc-tix-note"
+            onClick={() => setInternal((v) => !v)}
+          >
+            <span className="fc-note-toggle" data-on={internal || undefined} aria-hidden="true">
+              <span className="fc-note-toggle-knob" />
+            </span>
             Internal note
-          </label>
+          </button>
           <Button type="submit" disabled={busy || !body.trim()}>
             {busy ? "Sending" : internal ? "Add note" : "Send"}
           </Button>
