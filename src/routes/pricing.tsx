@@ -51,12 +51,12 @@ export function PricingPage() {
                 <div className="mt-8 text-5xl font-semibold tracking-tight">{gbpPence(t.setupPence)}</div>
                 <div className="mt-2 text-sm text-muted">
                   setup
-                  {t.trialPence ? ` · or ${gbpPence(t.trialPence)} for 60 days` : ""}
+                  {t.trialPence ? `, or ${gbpPence(t.trialPence)} for 60 days` : ""}
                 </div>
                 <div className="mt-1 text-sm text-muted">
                   then {gbpPence(t.monthPence)}
                   {t.perSite ? " / site / month" : " / month"} from go live (180 days after payment at the latest)
-                  {t.contractMonths ? ` · ${t.contractMonths}-month contract` : " · month to month"}
+                  {t.contractMonths ? `, ${t.contractMonths}-month contract` : ", month to month"}
                 </div>
                 <p className="mt-6 text-[15px] leading-relaxed text-muted">{t.body}</p>
                 <ul className="mt-6 flex-1 space-y-2 text-sm text-muted">
@@ -128,9 +128,10 @@ export function PricingPage() {
 function SwitchingPlans() {
   const { site, franchise, group } = PLANS;
   const points = [
-    `You can move between ${site.name}, ${franchise.name} and ${group.name} at any time. Moving up part way through a month? The part month is added to your next bill.`,
+    `You can move between ${site.name}, ${franchise.name} and ${group.name} at any time from your account.`,
+    "Moving to a pricier plan? The new price starts the day your change goes live, and the part month is added to your next bill.",
     `Moving up? You pay the difference in setup fee up front. Setup is ${gbpPence(site.setupPence)} for ${site.name}, ${gbpPence(franchise.setupPence)} for ${franchise.name} and ${gbpPence(group.setupPence)} for ${group.name}.`,
-    "Moving down? There is no refund on the setup fee, and the lower monthly price starts at the end of your current billing period.",
+    "Moving to a cheaper plan? The lower price starts at the end of your current billing period. There is no refund on the setup fee.",
     "Adding sites never comes with a setup fee.",
     `A ${site.name} account covers one brand. For more than one brand, you need ${group.name}.`,
   ];
