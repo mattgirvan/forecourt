@@ -8,6 +8,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { PGlite } from "@electric-sql/pglite";
+import { pgcrypto } from "@electric-sql/pglite/contrib/pgcrypto";
 import { projectRoot } from "./with-app-env.mjs";
 
 const root = join(projectRoot(), "desk-template", "supabase");
@@ -28,7 +29,7 @@ const P = {
 };
 
 async function desk() {
-  const d = new PGlite();
+  const d = new PGlite({ extensions: { pgcrypto } });
   await d.exec(STUB);
   for (const f of MIGS) await d.exec(readFileSync(join(root, "migrations", f), "utf8"));
   await d.exec(readFileSync(join(root, "migrations", "0006_sites_admin.sql"), "utf8")); // re-run

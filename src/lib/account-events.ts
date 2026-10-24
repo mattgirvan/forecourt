@@ -101,3 +101,66 @@ export function siteAddedEvent(d: { tenantId: number; siteCode: string; siteName
     dedupe: siteAddedKey(d.tenantId, d.siteCode),
   };
 }
+
+/** What the bill did when a site was archived or restored in the desk (from changeSiteState). */
+export type DeskBilling = {
+  from: string;
+  to: string;
+  beforePence: number;
+  afterPence: number;
+  plan: string;
+  periodEnd: string | null;
+  samePeriod: boolean;
+} | null;
+
+function staysReason(b: NonNullable<DeskBilling>, archiving: boolean): string {
+  if (archiving && b.from === "setting_up") return ", because it was not live yet";
+  if (!archiving && b.to === "setting_up") return ", until it goes live";
+  if (b.plan === "group") return ", because Group already bills a 2 site minimum";
+  if (b.plan === "franchise") return ", because Franchise includes up to 5 sites";
+  return "";
+}
+
+/** A site was archived in the desk. The bill follows automatically (SITE_BILLING_SYNC). */
+/** Archived in the desk. Same subject, wording and dedupe key as the Office archive (siteArchivedEvent), so one archive is one email. */
+export function siteRemovedEvent(d: { tenantId: number; siteCode: string; siteName: string; by?: string; billing?: DeskBilling; at?: string | Date }): AccountEvent {
+  const b = d.billing ?? null;
+  const bill = !b
+    ? "You can restore it in your desk within 30 days."
+    : b.afterPence < b.beforePence
+      ? archivedBillLine(b.periodEnd)
+      : `Your bill stays at ${money(b.afterPence)} a month${staysReason(b, true)}. You can restore it in your desk within 30 days.`;
+  return {
+    kind: "site_archived",
+    title: `${d.siteName} archived`,
+    lines: [`${d.siteName} has been archived. ${bill}`, `Archived in your Forecourt desk${d.by ? ` by ${d.by}` : ""}.`],
+    dedupe: siteArchivedKey(d.tenantId, d.siteCode, d.at ?? new Date()),
+  };
+}
+
+export function siteRestoredEvent(d: { eventKey: string; siteName: string; by?: string; billing?: DeskBilling }): AccountEvent {
+  const b = d.billing ?? null;
+  let bill: string;
+  if (!b) bill = "";
+  else if (b.to === "setting_up") bill = "It is still setting up, so it is billed from its go live day.";
+  else if (b.samePeriod) bill = "Its archive is cancelled and it stays on your bill as before.";
+  else if (b.afterPence > b.beforePence) bill = `It goes back on your bill from today, so your monthly total is ${money(b.afterPence)}. The part month is added to the next invoice.`;
+  else bill = `It goes back on your desk from today. Your bill stays at ${money(b.afterPence)} a month${staysReason(b, false)}.`;
+  return {
+    kind: "site_restored",
+    title: `${d.siteName} restored`,
+    lines: [`${d.siteName} was restored on your Forecourt desk${d.by ? ` by ${d.by}` : ""}.`, bill].filter(Boolean),
+    dedupe: `site-restored:${d.eventKey}`,
+  };
+}
+
+export function staffAccessEvent(d: { eventKey: string; email: string; allSites: boolean | null; sites: string[]; siteNames: Record<string, string>; by?: string }): AccountEvent {
+  const names = d.sites.map((c) => d.siteNames[c] ?? c);
+  const now = d.allSites ? "All sites" : names.length ? names.join(", ") : "no sites";
+  return {
+    kind: "staff_access_changed",
+    title: `Site access changed for ${d.email}`,
+    lines: [`${d.email} can now see: ${now}.`, d.by ? `Changed by ${d.by} on your Forecourt desk.` : "Changed on your Forecourt desk."],
+    dedupe: `staff-access:${d.eventKey}`,
+  };
+}

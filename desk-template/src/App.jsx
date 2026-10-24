@@ -12,6 +12,9 @@ import { AdminSites } from "./AdminSites";
 import { listHint, normaliseSites, resolveSiteAccess, rowSiteTag } from "./data/sites";
 import { loadServerSiteAccess } from "./data/siteAccess";
 
+/** Each desk links back to the Forecourt account (billing, sites, support). */
+const FORECOURT_ACCOUNT_URL = "https://forecourt.me/account";
+
 const ALL_TABS = [
   { id: "overview", label: "Overview" },
   { id: "stock", label: "Stock" },
@@ -150,6 +153,9 @@ function Desk() {
               ))}
             </select>
           ) : null}
+          <a className="forecourt-link" href={FORECOURT_ACCOUNT_URL} target="_blank" rel="noopener noreferrer" title="Your Forecourt account: billing, sites and support">
+            Forecourt
+          </a>
           <span className="person" title={`Signed in as ${seat?.email || ""}`}>
             <span className="person-name">{seat?.name || ""}, {pack.label}</span>
             <span className="avatar">{initials}</span>

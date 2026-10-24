@@ -4,7 +4,20 @@ import { useDesk } from "./data/store";
 import { normaliseStaff, roleOf } from "./roles";
 import { normaliseSites, seatSiteCodes } from "./data/sites";
 import { supabase } from "./data/supabase";
-import { loadStaffSites, saveStaffSites } from "./data/siteAccess";
+import { loadRestorableSites, loadStaffSites, restoreSite, saveStaffSites } from "./data/siteAccess";
+
+const DAY = 86_400_000;
+/** Whole days left to restore, never below 0. */
+export function daysLeft(until, now = Date.now()) {
+  return Math.max(0, Math.ceil((new Date(until).getTime() - now) / DAY));
+}
+/** Without Supabase (preview), archived sites in tenant.json with archivedAt get the same 30 day window. */
+function demoArchived(list) {
+  return (Array.isArray(list) ? list : [])
+    .filter((s) => s && typeof s === "object" && s.status === "archived" && s.archivedAt)
+    .map((s) => ({ code: s.code, name: s.name, restoreUntil: new Date(new Date(s.archivedAt).getTime() + 30 * DAY).toISOString() }))
+    .filter((s) => daysLeft(s.restoreUntil) > 0);
+}
 
 /** Admin tab: choose each person's sites. Staff can be on several sites. */
 export function AdminSites({ me }) {
@@ -12,11 +25,14 @@ export function AdminSites({ me }) {
   const sites = (access?.sites || []).length ? access.sites : normaliseSites(tenant.sites).filter((s) => s.status !== "archived");
   const [people, setPeople] = useState(null);
   const [msg, setMsg] = useState("");
+  const [archived, setArchived] = useState([]);
 
   useEffect(() => {
     if (supabase) {
       loadStaffSites().then(setPeople).catch((e) => setMsg(String(e.message || e)));
+      loadRestorableSites().then(setArchived).catch(() => setArchived([]));
     } else {
+      setArchived(demoArchived(tenant.sites));
       setPeople(
         normaliseStaff(tenant.staff).map((s) => ({ email: s.email, name: s.name, role: s.role, allSites: s.allSites, sites: seatSiteCodes(s) })),
       );
@@ -31,6 +47,17 @@ export function AdminSites({ me }) {
       if (supabase) await saveStaffSites(p.email, p.sites, p.allSites);
       setPeople((list) => list.map((x) => (x.email === p.email ? { ...x, dirty: false } : x)));
       setMsg(`Saved ${p.name}.`);
+    } catch (e) {
+      setMsg(String(e.message || e));
+    }
+  }
+
+  async function restore(s) {
+    setMsg("");
+    try {
+      await restoreSite(s.code);
+      setArchived((list) => list.filter((x) => x.code !== s.code));
+      setMsg(`Restored ${s.name}. Forecourt has been told.`);
     } catch (e) {
       setMsg(String(e.message || e));
     }
@@ -92,6 +119,28 @@ export function AdminSites({ me }) {
             );
           })}
         </ul>
+      )}
+      {archived.length > 0 && (
+        <div data-testid="admin-archived" style={{ marginTop: 18 }}>
+          <h3 style={{ margin: "0 0 6px" }}>Archived sites</h3>
+          <p className="faint" style={{ marginTop: 0 }}>Archived sites are hidden from your site lists and can be restored any time in their 30 days.</p>
+          <ul className="admin-list">
+            {archived.map((s) => (
+              <li key={s.code}>
+                <div className="admin-who">
+                  <strong>{s.name}</strong>
+                  <span className="pill-grey" data-testid="archived-pill">
+                    Archived, restore within {daysLeft(s.restoreUntil)} {daysLeft(s.restoreUntil) === 1 ? "day" : "days"}
+                  </span>
+                  <span className="faint">Restore by {new Date(s.restoreUntil).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span>
+                </div>
+                <button type="button" className="ghost" onClick={() => restore(s)}>
+                  Restore
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </div>
   );
