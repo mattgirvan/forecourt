@@ -3967,3 +3967,242 @@
     transition: none;
   }
 }
+
+/* Scenes: stock in transit + group sites (home-scroll-scenes.tsx) */
+.scene-transit-row {
+  align-items: flex-start;
+  min-height: 56px;
+}
+.scene-transit-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  max-width: 128px;
+  height: 28px;
+  padding: 0 10px 0 9px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: var(--shell-text-dim);
+  font-size: 11.5px;
+  font-weight: 700;
+  white-space: nowrap;
+  animation: scene-label-in 320ms ease both;
+}
+.scene-transit-pill.is-arrived {
+  background: var(--wash-emerald-bg);
+  border-color: var(--wash-emerald-border);
+  color: #c5f0b0;
+  animation: scene-pop 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.scene-transit-target {
+  position: relative;
+}
+.scene-route {
+  position: relative;
+  height: 20px;
+  margin-right: 4px;
+}
+.scene-route-line {
+  position: absolute;
+  left: 9px;
+  right: 9px;
+  top: 9px;
+  height: 2px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+}
+.scene-route-fill {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.45);
+  transform-origin: left center;
+  transform: scaleX(1);
+}
+.scene-transit-target.is-arrived .scene-route-fill {
+  background: var(--emerald);
+}
+.scene-route-end {
+  position: absolute;
+  top: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: #222b35;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: var(--shell-text-dim);
+}
+.scene-route-end.is-start {
+  left: 0;
+}
+.scene-route-end.is-finish {
+  right: 0;
+  transition: background 260ms ease, color 260ms ease;
+}
+.scene-route-end.is-finish.is-done {
+  background: var(--emerald);
+  border-color: var(--emerald);
+  color: #fff;
+}
+.scene-route-lorry {
+  --x: 1;
+  position: absolute;
+  top: -1px;
+  left: 0;
+  width: calc(100% - 22px);
+  height: 22px;
+  pointer-events: none;
+  transform: translate3d(calc(var(--x) * 100%), 0, 0);
+  will-change: transform;
+}
+.scene-route-lorry > svg {
+  position: absolute;
+  left: 4px;
+  top: 4px;
+  color: #fff;
+  transform: translateX(-50%);
+}
+.scene-transit-target.is-arrived .scene-route-lorry {
+  opacity: 0;
+  transition: opacity 260ms ease;
+}
+.scene-group-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: var(--wash-emerald-bg);
+  border: 1px solid var(--wash-emerald-border);
+  color: #c5f0b0;
+  font-size: 11.5px;
+  font-weight: 700;
+}
+.scene-site-switch {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  padding: 4px;
+  border-radius: 16px;
+  background: #151c24;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.scene-site-tab {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 8px;
+  border-radius: 12px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--shell-text-dim);
+  transition:
+    background 200ms ease,
+    color 200ms ease,
+    transform 140ms ease;
+}
+.scene-site-tab.is-on {
+  background: rgba(255, 255, 255, 0.14);
+  color: var(--shell-text);
+}
+.scene-site-tab.is-pressed {
+  transform: scale(0.96);
+}
+.scene-site-stat {
+  min-width: 0;
+  padding: 11px 13px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition:
+    background 300ms ease,
+    border-color 300ms ease;
+}
+.scene-site-stat-label {
+  color: var(--shell-text-faint);
+}
+.scene-site-stat.is-amber {
+  background: var(--wash-amber-bg);
+  border-color: var(--wash-amber-border);
+}
+.scene-site-stat.is-amber .scene-site-stat-label {
+  color: var(--shell-accent);
+}
+@media (prefers-reduced-motion: reduce) {
+  .scene-transit-pill,
+  .scene-route-end,
+  .scene-route-lorry,
+  .scene-site-tab,
+  .scene-site-stat {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* Group scene: tap ripple on phones, pointer only on wider screens */
+.scene-site-tab {
+  position: relative;
+  overflow: hidden;
+}
+.scene-tap {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 56px;
+  height: 56px;
+  margin: -28px 0 0 -28px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.28);
+  opacity: 0;
+  transform: scale(0.2);
+  pointer-events: none;
+  display: none;
+}
+@media (max-width: 1023px) {
+  .scene-group-card .scene-cursor {
+    display: none;
+  }
+  .scene-tap {
+    display: block;
+  }
+  .scene-tap.is-on {
+    animation: scene-tap 560ms ease-out both;
+  }
+}
+@keyframes scene-tap {
+  from {
+    opacity: 0.9;
+    transform: scale(0.2);
+  }
+  to {
+    opacity: 0;
+    transform: scale(2.4);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .scene-tap {
+    display: none !important;
+    animation: none !important;
+  }
+}
+@media (max-width: 767px) {
+  /* Keep at least 24px between the sticky tab bar and these eyebrows. */
+  #scene-transit .scene-sticky,
+  #scene-group .scene-sticky {
+    padding-top: 9.25rem;
+  }
+}
+@media (max-width: 767px) and (prefers-reduced-motion: reduce) {
+  #scene-transit .scene-sticky,
+  #scene-group .scene-sticky {
+    padding-top: 4rem;
+  }
+}
