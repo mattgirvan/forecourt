@@ -54,7 +54,8 @@ export function CountUp({ value, format = (n) => String(Math.round(n)), id, dura
   }, [value, duration, id]);
 
   return (
-    <span ref={ref} className="tabular-nums" aria-label={format(value)}>
+    // Reserve the final width (in digit widths) so counting never shifts layout.
+    <span ref={ref} className="inline-block tabular-nums" style={{ minWidth: `${format(value).length}ch` }} aria-label={format(value)}>
       <span aria-hidden>{format(n)}</span>
     </span>
   );

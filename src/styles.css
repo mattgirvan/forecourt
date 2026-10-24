@@ -3435,3 +3435,10 @@
     transition: none;
   }
 }
+
+/* The overview card stagger runs once per session; later visits show cards at rest. */
+.fc-entered .fc-stats > :nth-child(n),
+.fc-entered .fc-overview-grid > :nth-child(n),
+.fc-entered .fc-section-stack > :nth-child(n) {
+  animation: none;
+}
