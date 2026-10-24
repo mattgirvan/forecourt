@@ -38,7 +38,7 @@ type Pending = { tenantId: number; code: string; name: string; to: "live" | "arc
 
 function confirmCopy(p: Pending, a: OfficeSiteBillingRow) {
   const after = totalIf(a.plan, a.billingSites, p.code, p.to);
-  return p.to === "archived" ? archiveConfirmCopy(p.name, a.total, after, a.periodEnd) : goLiveConfirmCopy(p.name, a.total, after);
+  return p.to === "archived" ? archiveConfirmCopy(p.name, a.total, after, a.periodEnd) : goLiveConfirmCopy(p.name, a.total, after, a.plan);
 }
 
 /** Each Group and Franchise account, its sites, what they are billed, and Go live or Archive. */

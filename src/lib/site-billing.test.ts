@@ -95,7 +95,8 @@ test("Atlas copy: go live and archive confirms use real totals, period end from 
   ];
   assert.equal(totalIf("group", sites, "R", "live"), 74_700);
   assert.equal(goLiveConfirmCopy("Ridgeway Retail", 49_800, 74_700), "Put Ridgeway Retail live? From today the bill goes up by £249 to £747 a month. The part month is added to the next invoice.");
-  assert.equal(goLiveConfirmCopy("Ridgeway South", 49_800, 49_800), "Put Ridgeway South live? The bill stays at £498 a month.");
+  assert.equal(goLiveConfirmCopy("Ridgeway South", 49_800, 49_800, "group"), "Put Ridgeway South live? The bill stays at £498 a month, because Group already bills a 2 site minimum.");
+  assert.equal(goLiveConfirmCopy("Harbourline 5", 89_900, 89_900, "franchise"), "Put Harbourline 5 live? The bill stays at £899 a month, because Franchise includes up to 5 sites.");
   const end = periodEndFrom("2026-08-31T10:00:00Z", new Date("2026-10-24T07:00:00Z"));
   assert.equal(end, "2026-10-31T10:00:00.000Z");
   assert.equal(periodEndFrom("2026-01-31T10:00:00Z", new Date("2026-02-10T00:00:00Z")), "2026-02-28T10:00:00.000Z");
