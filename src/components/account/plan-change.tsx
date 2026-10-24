@@ -1,16 +1,48 @@
 import { Button } from "@/components/ui/button";
-import { PillRow } from "@/components/ui/pill-row";
-import { Section } from "@/components/ui/section";
-import { useState } from "react";
-import { PLANS, type PlanId } from "@/lib/catalog";
-import { quoteLines, type PlanChangeQuote } from "@/lib/plan-change";
+import { Chip } from "@/components/ui/chip";
+import { Row, Rows, Section } from "@/components/ui/section";
+import { useEffect, useState } from "react";
+import { FRANCHISE_INCLUDED_SITES, PLANS, gbpPence, type PlanId } from "@/lib/catalog";
+import { type PlanChangeQuote } from "@/lib/plan-change";
+import { formatUkDate } from "@/lib/uk-date";
+import { cn } from "@/lib/utils";
 import { previewPlanChange, requestPlanChange } from "@/lib/server/plan-change-server";
 
 const ORDER: PlanId[] = ["site", "franchise", "group"];
 const LABEL: Record<PlanId, string> = { site: "Site", franchise: "Franchise", group: "Group" };
 
+/** Pence to pounds, with pence only when there are any (part months). */
+const money = (p: number) =>
+  p % 100
+    ? `£${(p / 100).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    : gbpPence(p);
+
+function priceUnit(p: PlanId) {
+  return PLANS[p].perSite ? "/site /mo" : "/mo";
+}
+
+function planLine(p: PlanId) {
+  const reach =
+    p === "site"
+      ? "One site"
+      : p === "franchise"
+        ? `Up to ${FRANCHISE_INCLUDED_SITES} sites`
+        : `${PLANS.group.minSites} site minimum`;
+  return `${reach}. ${money(PLANS[p].setupPence)} setup.`;
+}
+
 /** Change account type. Customer (live accounts) and Office use the same panel. */
-export function PlanChangePanel({ token, tenantId, plan, where }: { token: string; tenantId: number; plan: PlanId; where: "account" | "office" }) {
+export function PlanChangePanel({
+  token,
+  tenantId,
+  plan,
+  where,
+}: {
+  token: string;
+  tenantId: number;
+  plan: PlanId;
+  where: "account" | "office";
+}) {
   return (
     <PlanChangeView
       plan={plan}
@@ -23,6 +55,56 @@ export function PlanChangePanel({ token, tenantId, plan, where }: { token: strin
       }}
     />
   );
+}
+
+/** The rows of the "What changes" sheet, from the real quote. */
+export function changeRows(
+  q: PlanChangeQuote,
+): { label: string; value: string; strong?: boolean; sub?: string }[] {
+  const from = LABEL[q.from];
+  const to = LABEL[q.to];
+  if (q.direction === "upgrade") {
+    return [
+      { label: `Setup paid for ${from}`, value: money(PLANS[q.from].setupPence) },
+      { label: `${to} setup`, value: money(PLANS[q.to].setupPence) },
+      { label: "Setup difference, paid today", value: money(q.setupDiffPence), strong: true },
+      {
+        label: "New monthly price",
+        value: `${money(q.newMonthlyPence)}/mo`,
+        sub: `Was ${money(q.oldMonthlyPence)}`,
+      },
+      {
+        label: `Part month${q.periodEnd ? ` to ${formatUkDate(q.periodEnd)}` : ""}`,
+        sub: "Added to your next bill",
+        value: money(q.proratedPence),
+      },
+    ];
+  }
+  if (q.direction === "downgrade") {
+    const until = q.periodEnd ? formatUkDate(q.periodEnd) : "the end of this billing period";
+    return [
+      { label: "Setup refund", value: "None" },
+      { label: `Your price until ${until}`, value: `${money(q.oldMonthlyPence)}/mo`, strong: true },
+      {
+        label: q.effective === "now" ? `${to} from today` : `${to} from ${until}`,
+        value: `${money(q.newMonthlyPence)}/mo`,
+      },
+      ...(q.effective === "now"
+        ? [{ label: "Credit on your next bill", value: money(-q.proratedPence) }]
+        : []),
+    ];
+  }
+  return [{ label: `You are already on ${to}`, value: "" }];
+}
+
+export function changeHint(q: PlanChangeQuote): string {
+  if (q.direction === "upgrade")
+    return `${LABEL[q.to]} starts as soon as the setup payment goes through. Adding more sites later never has a setup fee.`;
+  if (q.direction === "downgrade")
+    return q.effective === "period_end"
+      ? "Moving down keeps your current price until the end of the billing period. There is no setup refund and no refund for part months."
+      : "Moving down has no setup refund. The difference for the rest of this month comes off your next bill.";
+  return "";
 }
 
 export function PlanChangeView({
@@ -47,6 +129,7 @@ export function PlanChangeView({
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(initialNotice);
   const pick = async (p: PlanId) => {
+    if (p === plan) return;
     setTo(p);
     setQuote(null);
     setNotice(null);
@@ -59,54 +142,119 @@ export function PlanChangeView({
       setBusy(false);
     }
   };
+  const close = () => {
+    setQuote(null);
+    setTo(null);
+  };
   const confirm = async () => {
     if (!to) return;
     setBusy(true);
     try {
       setNotice(await onConfirm(to));
-      setQuote(null);
-      setTo(null);
+      close();
     } catch (e) {
       setNotice(e instanceof Error ? e.message : "Could not change the account type.");
     } finally {
       setBusy(false);
     }
   };
+  useEffect(() => {
+    if (!quote) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && close();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [quote]);
+
   return (
-    <Section testId="plan-change" title="Account type" rail="teal">
-      <p className="text-sm text-muted">
-        {where === "office" ? "This account is" : "You are"} on {LABEL[plan]}. Moving up means paying the setup difference first. Moving down has no setup refund.
-      </p>
-      <PillRow
-        className="mt-4"
-        kind="radio"
-        label="Account type"
-        value={to ?? plan}
-        onChange={(p) => void pick(p)}
-        options={ORDER.map((p) => ({ id: p, label: `${LABEL[p]}${p === plan ? " (current)" : ""}`, disabled: busy || p === plan }))}
-      />
-      {busy && !quote ? <p className="mt-4 text-sm text-muted">Working out the cost.</p> : null}
-      {quote && to ? (
-        <div className="mt-5 rounded-2xl border border-line bg-elevated p-4" data-testid="plan-change-quote">
-          <h3 className="text-sm font-semibold">
-            {LABEL[quote.from]} to {LABEL[quote.to]}
-          </h3>
-          <ul className="mt-2 space-y-1 text-sm">
-            {quoteLines(quote).map((l) => (
-              <li key={l}>{l}</li>
-            ))}
-          </ul>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <Button disabled={busy} onClick={() => void confirm()}>
-              {quote.direction === "upgrade" ? `Pay £${(quote.setupDiffPence / 100).toLocaleString("en-GB")} and switch` : `Switch to ${PLANS[quote.to].name}`}
-            </Button>
-            <Button variant="secondary" disabled={busy} onClick={() => { setQuote(null); setTo(null); }}>
-              Cancel
-            </Button>
-          </div>
+    <div className="fc-section-stack" data-testid="plan-change">
+      <div>
+        <p className="text-sm text-muted">
+          {where === "office" ? "This account is" : "You are"} on {LABEL[plan]}. Pick a plan to see
+          what changes.
+        </p>
+        <div className="fc-plan-cards mt-4" role="radiogroup" aria-label="Plan">
+          {ORDER.map((p) => {
+            const current = p === plan;
+            const on = (to ?? null) === p;
+            return (
+              <button
+                key={p}
+                type="button"
+                role="radio"
+                aria-checked={on || (current && !to)}
+                disabled={busy || current}
+                onClick={() => void pick(p)}
+                className={cn("fc-plan-card", current && "is-current", on && "is-on")}
+                data-testid={`plan-card-${p}`}
+              >
+                <span className="flex items-start justify-between gap-2">
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--fc-text-faint)]">
+                    {LABEL[p]}
+                  </span>
+                  {current ? (
+                    <Chip tone="neutral">Current</Chip>
+                  ) : on ? (
+                    <Chip tone="progress">Selected</Chip>
+                  ) : null}
+                </span>
+                <span className="mt-2 block">
+                  <span className="text-2xl font-semibold tracking-tight tabular-nums">
+                    {money(PLANS[p].monthPence)}
+                  </span>
+                  <span className="ml-1 text-sm text-muted">{priceUnit(p)}</span>
+                </span>
+                <span className="mt-1 block text-[12.5px] text-[var(--fc-text-dim)]">
+                  {planLine(p)}
+                </span>
+              </button>
+            );
+          })}
         </div>
+        {busy && !quote ? <p className="mt-4 text-sm text-muted">Working out the cost.</p> : null}
+        {notice ? (
+          <p role="status" className="mt-4 text-sm text-muted" data-testid="plan-change-notice">
+            {notice}
+          </p>
+        ) : null}
+      </div>
+      {quote && to ? (
+        <>
+          <button type="button" aria-label="Close" className="fc-change-dim" onClick={close} />
+          <div
+            className="fc-change-sheet"
+            role="dialog"
+            aria-modal="false"
+            aria-label="What changes"
+          >
+            <Section title="What changes" rail="blue" testId="plan-change-quote">
+              <Rows as="ul">
+                {changeRows(quote).map((r) => (
+                  <Row
+                    as="li"
+                    key={r.label}
+                    title={
+                      <span className={r.strong ? "font-semibold" : "font-normal"}>{r.label}</span>
+                    }
+                    sub={r.sub}
+                    trailing={<span className="font-semibold tabular-nums">{r.value}</span>}
+                  />
+                ))}
+              </Rows>
+              <p className="mt-3 text-[12.5px] text-[var(--fc-text-faint)]">{changeHint(quote)}</p>
+              <div className="mt-4 flex flex-wrap items-center gap-2">
+                <Button variant="action" disabled={busy} onClick={() => void confirm()}>
+                  {quote.direction === "upgrade"
+                    ? `Pay ${money(quote.setupDiffPence)} and move to ${LABEL[quote.to]}`
+                    : `Move to ${LABEL[quote.to]}`}
+                </Button>
+                <Button variant="ghost" disabled={busy} onClick={close}>
+                  Keep {LABEL[quote.from]}
+                </Button>
+              </div>
+            </Section>
+          </div>
+        </>
       ) : null}
-      {notice ? <p role="status" className="mt-4 text-sm text-muted" data-testid="plan-change-notice">{notice}</p> : null}
-    </Section>
+    </div>
   );
 }

@@ -1,10 +1,21 @@
 import { gbpPence, type PlanId } from "@/lib/catalog";
 import { Chip } from "@/components/ui/chip";
-import { amountLabel, lineLabel, parseBillingSites, siteBreakdown, type SiteBillRow, type SiteStatus } from "@/lib/site-billing";
+import {
+  amountLabel,
+  lineLabel,
+  parseBillingSites,
+  siteBreakdown,
+  type SiteBillRow,
+  type SiteStatus,
+} from "@/lib/site-billing";
 import { cn } from "@/lib/utils";
 import { Row, Rows, Section } from "@/components/ui/section";
 
-const STATUS: Record<string, string> = { live: "Live", setting_up: "Setting up", archived: "Archived" };
+const STATUS: Record<string, string> = {
+  live: "Live",
+  setting_up: "Setting up",
+  archived: "Archived",
+};
 
 /** Live is green. Setting up and Archived stay grey. */
 export function SitePill({ status }: { status: SiteStatus }) {
@@ -15,7 +26,11 @@ export function SitePill({ status }: { status: SiteStatus }) {
 export function SiteAmount({ row, className }: { row: SiteBillRow; className?: string }) {
   const text = amountLabel(row);
   const grey = row.included || row.status !== "live";
-  return <span className={cn("text-right", grey ? "text-subtle" : "tabular-nums", className)}>{text}</span>;
+  return (
+    <span className={cn("text-right", grey ? "text-subtle" : "tabular-nums", className)}>
+      {text}
+    </span>
+  );
 }
 
 /** Account billing: what each site adds to the month (Group and Franchise only). */
@@ -29,7 +44,9 @@ export function SiteBillingSummary({ plan, sites }: { plan: PlanId; sites: unkno
       eyebrow="Billing"
       title="Your sites"
       count={`${b.live} live`}
-      actions={<span className="text-sm font-semibold tabular-nums">{gbpPence(b.total)} a month</span>}
+      actions={
+        <span className="text-sm font-semibold tabular-nums">{gbpPence(b.total)} a month</span>
+      }
     >
       <Rows as="ul">
         {b.rows.map((r) => (
@@ -60,7 +77,9 @@ export function SiteBillingSummary({ plan, sites }: { plan: PlanId; sites: unkno
         </div>
       </dl>
       <p className="mt-4 text-xs text-subtle">
-        Adding a site has no setup fee. The monthly fee starts at go live or 180 days after payment, whichever comes first. An archived site comes off your bill at the end of this billing period, with no refund for part months. You can restore it within 30 days.
+        Adding a site has no setup fee. The monthly fee starts at go live or 180 days after payment,
+        whichever comes first. An archived site comes off your bill at the end of this billing
+        period, with no refund for part months. You can restore it within 30 days.
       </p>
     </Section>
   );

@@ -3,6 +3,7 @@
  * site details we can derive. Pure module, no `@/` imports, so it can be unit
  * tested with plain `node --test`. Copy follows the Live view design spec.
  */
+import { formatUkDate } from "./uk-date.ts";
 
 export type SupportKind = "ticket" | "change";
 export type TicketStatus = "open" | "in_progress" | "resolved";
@@ -11,7 +12,12 @@ export type SupportStatus = TicketStatus | ChangeStatus;
 export type ChangeType = "new_page" | "content_tweak" | "add_staff" | "other";
 
 export const TICKET_STATUSES: readonly TicketStatus[] = ["open", "in_progress", "resolved"];
-export const CHANGE_STATUSES: readonly ChangeStatus[] = ["submitted", "in_progress", "done", "declined"];
+export const CHANGE_STATUSES: readonly ChangeStatus[] = [
+  "submitted",
+  "in_progress",
+  "done",
+  "declined",
+];
 
 export const STATUS_LABEL: Record<SupportStatus, string> = {
   open: "Open",
@@ -24,7 +30,11 @@ export const STATUS_LABEL: Record<SupportStatus, string> = {
 
 export const CHANGE_TYPES: readonly { id: ChangeType; label: string; hint: string }[] = [
   { id: "new_page", label: "New page", hint: "A new page on your site" },
-  { id: "content_tweak", label: "Content or branding tweak", hint: "Words, photos, colours or logo" },
+  {
+    id: "content_tweak",
+    label: "Content or branding tweak",
+    hint: "Words, photos, colours or logo",
+  },
   { id: "add_staff", label: "Add staff member", hint: "Give someone access to the desk" },
   { id: "other", label: "Other", hint: "Anything else" },
 ];
@@ -38,7 +48,9 @@ export function isChangeType(v: unknown): v is ChangeType {
 }
 
 export function validStatus(kind: SupportKind, s: unknown): s is SupportStatus {
-  return kind === "ticket" ? (TICKET_STATUSES as readonly unknown[]).includes(s) : (CHANGE_STATUSES as readonly unknown[]).includes(s);
+  return kind === "ticket"
+    ? (TICKET_STATUSES as readonly unknown[]).includes(s)
+    : (CHANGE_STATUSES as readonly unknown[]).includes(s);
 }
 
 /** Green pill on the customer side. Amber is never used there. */
@@ -58,7 +70,9 @@ export function ticketRef(ref: number | null | undefined) {
 }
 
 /** The desk is live: the account page switches to the Live view. */
-export function isLiveTenant(t: { stage?: string | null; status?: string | null } | null | undefined) {
+export function isLiveTenant(
+  t: { stage?: string | null; status?: string | null } | null | undefined,
+) {
   return Boolean(t && (t.stage === "live" || t.status === "live"));
 }
 
@@ -66,7 +80,9 @@ export function isLiveTenant(t: { stage?: string | null; status?: string | null 
 export function addMonths(iso: string, months: number): string {
   const d = new Date(iso);
   const day = d.getUTCDate();
-  const out = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + months, 1, d.getUTCHours(), d.getUTCMinutes()));
+  const out = new Date(
+    Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + months, 1, d.getUTCHours(), d.getUTCMinutes()),
+  );
   const last = new Date(Date.UTC(out.getUTCFullYear(), out.getUTCMonth() + 1, 0)).getUTCDate();
   out.setUTCDate(Math.min(day, last));
   return out.toISOString();
@@ -116,17 +132,19 @@ export const PAYMENT_BANNER =
   "Your last payment didn't go through. It happens. Your site is still live. Update your card in billing and we'll try again automatically.";
 
 export function ukDate(iso: string | null | undefined) {
-  if (!iso) return "";
-  return sep(new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/London" }));
+  return sep(formatUkDate(iso));
 }
 
 /** "Today, 09:12", "Yesterday" or "12 Oct". */
 export function updatedWhen(iso: string, now = new Date()) {
   const d = new Date(iso);
   const key = (x: Date) => x.toLocaleDateString("en-GB", { timeZone: "Europe/London" });
-  if (key(d) === key(now)) return `Today, ${d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" })}`;
+  if (key(d) === key(now))
+    return `Today, ${d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" })}`;
   if (key(d) === key(new Date(now.getTime() - 86_400_000))) return "Yesterday";
-  return sep(d.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "Europe/London" }));
+  return sep(
+    d.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "Europe/London" }),
+  );
 }
 
 /** What Plan and billing shows. All read from Stripe, never typed in our UI. */
@@ -161,4 +179,5 @@ export const PAYMENT_BANNER_MANAGER =
 export const ACCESS_COPY =
   "Managers see the plan, billing summary, tickets and change requests, and can raise and reply to them. Only you can manage billing or change who has access.";
 
-export const MANAGER_COPY = "You have manager access. Billing and account access are looked after by the account owner.";
+export const MANAGER_COPY =
+  "You have manager access. Billing and account access are looked after by the account owner.";

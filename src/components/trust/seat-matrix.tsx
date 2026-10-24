@@ -19,14 +19,20 @@ export function SeatMatrix({
 }) {
   const rows = rowsFor(plan, billing);
   return (
-    <div className={cn("overflow-x-auto rounded-[1.75rem] border border-line bg-surface", compact ? "p-4" : "p-4 sm:p-8")}>
+    <div
+      className={cn(
+        "overflow-x-auto rounded-[1.75rem] border border-line bg-surface",
+        compact ? "p-4" : "p-4 sm:p-8",
+      )}
+    >
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-[13px] font-medium text-muted">Roles</p>
           <h3 className="mt-1 text-2xl font-semibold tracking-tight">Who sees what</h3>
         </div>
         <p className="max-w-sm text-xs leading-relaxed text-subtle">
-          Trial roles: sales, management, host, progressor. Administrator is a desk role, not the Forecourt team.
+          Trial roles: sales, management, host, progressor. Administrator is a desk role, not the
+          Forecourt team.
         </p>
       </div>
       {/* Phones: fixed layout like the CRM comparison table. Seat and what it
@@ -42,7 +48,7 @@ export function SeatMatrix({
         <thead>
           <tr className="border-b border-line text-[11px] uppercase tracking-[0.12em] text-subtle">
             <th scope="col" className="py-2 pr-2 font-medium sm:pr-3">
-              Seat
+              Role
             </th>
             <th scope="col" className="hidden py-2 pr-3 font-medium sm:table-cell">
               Sees
@@ -62,7 +68,9 @@ export function SeatMatrix({
             <tr key={r.id} className="border-b border-line align-top">
               <td className="py-2.5 pr-2 sm:py-3 sm:pr-3">
                 <span className="block font-medium">{r.label}</span>
-                <span className="mt-0.5 block leading-snug text-muted sm:hidden">{r.matrixSees}</span>
+                <span className="mt-0.5 block leading-snug text-muted sm:hidden">
+                  {r.matrixSees}
+                </span>
               </td>
               <td className="hidden py-3 pr-3 text-muted sm:table-cell">{r.matrixSees}</td>
               <td className="py-2.5 pr-2 text-muted sm:py-3 sm:pr-3">{r.seesGp}</td>
