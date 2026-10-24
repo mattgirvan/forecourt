@@ -128,3 +128,9 @@ test("one event, one email: added and archived share one dedupe key per site whi
   }
   assert.equal(emails, 2);
 });
+
+test("Office Sites client stays browser safe: site-billing-server loads the email engine lazily, never at the top", () => {
+  const s = src("src/lib/server/site-billing-server.ts");
+  assert.doesNotMatch(s, /^import[^;]*journey-email/m);
+  assert.match(s, /await import\("@\/lib\/server\/journey-email"\)/);
+});
