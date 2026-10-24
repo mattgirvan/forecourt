@@ -155,3 +155,35 @@ test("desk restore after the period rolled over: live_at is today, so it is pror
   await syncSiteBilling({ subscriptions: subs }, { tenantId: 7, plan: "group", subscriptionId: "sub_g", sites: sites(2, [back]), event: { code: "R", from: "archived", to: "live" } });
   assert.deepEqual(calls[0].params, { items: [{ id: "si_g", quantity: 3 }], proration_behavior: "create_prorations" });
 });
+
+test("billed through: go live mid period is prorated once and reports the period end to record", async () => {
+  const sub = { ...groupSub(2), current_period_end: Date.parse("2026-11-01T00:00:00Z") / 1000 };
+  const { subs, calls } = fake(sub);
+  const n: BillingSite = { code: "N", name: "N", status: "live", liveAt: "2026-10-10T00:00:00Z" };
+  const r = await syncSiteBilling({ subscriptions: subs }, { tenantId: 7, plan: "group", subscriptionId: "sub_g", sites: sites(2, [n]), event: goLive("N") });
+  assert.equal(calls.length, 1);
+  assert.ok(r.changed && r.proration === "create_prorations" && r.periodEnd === "2026-11-01T00:00:00.000Z");
+});
+
+test("billed through: live mid period, archived and restored in the same period is not prorated again", async () => {
+  const { subs, calls } = fake(groupSub(3));
+  const back: BillingSite = { code: "N", name: "N", status: "live", liveAt: "2026-10-10T00:00:00Z", billedThrough: "2026-11-01T00:00:00Z" };
+  await syncSiteBilling({ subscriptions: subs }, { tenantId: 7, plan: "group", subscriptionId: "sub_g", sites: sites(3, [back]), event: { code: "N", from: "archived", to: "live" } });
+  assert.deepEqual(calls[0].params, { items: [{ id: "si_g", quantity: 4 }], proration_behavior: "none" });
+});
+
+test("billed through: without the record the same restore would prorate, and an old period's record does not count", async () => {
+  for (const billedThrough of [null, "2026-10-01T00:00:00Z"]) {
+    const { subs, calls } = fake(groupSub(3));
+    const back: BillingSite = { code: "N", name: "N", status: "live", liveAt: "2026-10-10T00:00:00Z", billedThrough };
+    await syncSiteBilling({ subscriptions: subs }, { tenantId: 7, plan: "group", subscriptionId: "sub_g", sites: sites(3, [back]), event: { code: "N", from: "archived", to: "live" } });
+    assert.equal((calls[0].params as { proration_behavior: string }).proration_behavior, "create_prorations");
+  }
+});
+
+test("billed through: franchise extra site restored in the same period is not prorated again", async () => {
+  const { subs, calls } = fake(franchiseSub(0));
+  const back: BillingSite = { code: "N", name: "N", status: "live", liveAt: "2026-10-10T00:00:00Z", billedThrough: "2026-11-01T00:00:00Z" };
+  await syncSiteBilling({ subscriptions: subs }, { tenantId: 7, plan: "franchise", subscriptionId: "sub_f", sites: sites(5, [back]), event: { code: "N", from: "archived", to: "live" } });
+  assert.deepEqual(calls[0].params, { items: [{ id: "si_extra", quantity: 1 }], proration_behavior: "none" });
+});

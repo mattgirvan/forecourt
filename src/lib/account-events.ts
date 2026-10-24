@@ -21,13 +21,24 @@ export function ukDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/London" }).replace("Sept", "Sep");
 }
 
-export function siteArchivedEvent(d: { tenantId: number; eventKey: string; siteName: string; billing: string; periodEnd?: string | null }): AccountEvent {
-  const when = d.periodEnd ? `${ukDate(d.periodEnd)}, the end of this billing period` : "the end of this billing period";
+/** One archive of one site is one email, whichever path archived it (Office or the desk, #55):
+ *  account, site code and the London day it was archived. */
+export function siteArchivedKey(tenantId: number, siteCode: string, at: string | Date = new Date()): string {
+  const day = new Date(at).toLocaleDateString("en-CA", { timeZone: "Europe/London" });
+  return `site-archived:${tenantId}:${siteCode.trim().toLowerCase()}:${day}`;
+}
+
+export function archivedBillLine(periodEnd?: string | null): string {
+  const when = periodEnd ? ukDate(periodEnd) : "the end of this billing period";
+  return `Your bill goes down by one site from ${when}. We don't refund part months. You can restore it in your desk within 30 days.`;
+}
+
+export function siteArchivedEvent(d: { tenantId: number; siteCode: string; siteName: string; billing: string; periodEnd?: string | null; at?: string | Date }): AccountEvent {
   return {
     kind: "site_archived",
     title: `${d.siteName} archived`,
-    lines: [`${d.siteName} has been archived.`, `Your bill goes down by one site from ${when}. We don't refund part months. You can restore it within 30 days.`, d.billing].filter(Boolean),
-    dedupe: `site-archived:${d.eventKey}`,
+    lines: [`${d.siteName} has been archived. ${archivedBillLine(d.periodEnd)}`, d.billing].filter(Boolean),
+    dedupe: siteArchivedKey(d.tenantId, d.siteCode, d.at ?? new Date()),
   };
 }
 
@@ -111,20 +122,19 @@ function staysReason(b: NonNullable<DeskBilling>, archiving: boolean): string {
 }
 
 /** A site was archived in the desk. The bill follows automatically (SITE_BILLING_SYNC). */
-export function siteRemovedEvent(d: { eventKey: string; siteName: string; by?: string; billing?: DeskBilling }): AccountEvent {
+/** Archived in the desk. Same subject, wording and dedupe key as the Office archive (siteArchivedEvent), so one archive is one email. */
+export function siteRemovedEvent(d: { tenantId: number; siteCode: string; siteName: string; by?: string; billing?: DeskBilling; at?: string | Date }): AccountEvent {
   const b = d.billing ?? null;
-  const when = b?.periodEnd ? ukDate(b.periodEnd) : "the end of this billing period";
-  const money2 = (p: number) => money(p);
   const bill = !b
     ? "You can restore it in your desk within 30 days."
     : b.afterPence < b.beforePence
-      ? `Your bill goes down by one site from ${when}. We don't refund part months. You can restore it in your desk within 30 days.`
-      : `Your bill stays at ${money2(b.afterPence)} a month${staysReason(b, true)}. You can restore it in your desk within 30 days.`;
+      ? archivedBillLine(b.periodEnd)
+      : `Your bill stays at ${money(b.afterPence)} a month${staysReason(b, true)}. You can restore it in your desk within 30 days.`;
   return {
-    kind: "site_removed",
+    kind: "site_archived",
     title: `${d.siteName} archived`,
-    lines: [`${d.siteName} was archived on your Forecourt desk${d.by ? ` by ${d.by}` : ""}.`, bill],
-    dedupe: `site-removed:${d.eventKey}`,
+    lines: [`${d.siteName} has been archived. ${bill}`, `Archived in your Forecourt desk${d.by ? ` by ${d.by}` : ""}.`],
+    dedupe: siteArchivedKey(d.tenantId, d.siteCode, d.at ?? new Date()),
   };
 }
 

@@ -74,7 +74,7 @@ export function OfficeSiteBilling({
     <div className="space-y-4" data-testid="office-site-billing">
       <p className="text-sm text-muted">
         Setting up and archived sites are not billed. Group bills at least 2 sites.{" "}
-        {dry ? "Billing sync is in dry run. Sites change state here and Stripe is not changed." : "Going live or archiving a site updates Stripe."}
+        {dry ? "Billing sync is in dry run. Sites change state here, and archiving or restoring in the desk updates the bill. Stripe is not changed." : "Going live or archiving a site updates Stripe."}
       </p>
       {notice ? (
         <p role="status" className="rounded-xl border border-line bg-elevated px-3 py-2 text-sm" data-testid="site-notice">

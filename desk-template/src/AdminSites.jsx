@@ -123,7 +123,7 @@ export function AdminSites({ me }) {
       {archived.length > 0 && (
         <div data-testid="admin-archived" style={{ marginTop: 18 }}>
           <h3 style={{ margin: "0 0 6px" }}>Archived sites</h3>
-          <p className="faint" style={{ marginTop: 0 }}>You can restore an archived site within 30 days.</p>
+          <p className="faint" style={{ marginTop: 0 }}>Archived sites are hidden from your site lists and can be restored any time in their 30 days.</p>
           <ul className="admin-list">
             {archived.map((s) => (
               <li key={s.code}>

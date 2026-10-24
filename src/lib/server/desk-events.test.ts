@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { parseDeskEvent, signDeskBody, verifyDeskSignature } from "../desk-events.ts";
 import { handleDeskEvent, type DeskEventDeps } from "./desk-events-server.ts";
-import { siteAddedEvent, type AccountEvent } from "../account-events.ts";
+import { siteAddedEvent, siteArchivedEvent, type AccountEvent } from "../account-events.ts";
 import { siteBreakdown, type BillingSite } from "../site-billing.ts";
 
 const SECRET = "k".repeat(40);
@@ -90,8 +90,8 @@ test("archived in the desk: bill drops one site from the period end, through the
   assert.deepEqual(calls, ["C:archived:false"]);
   assert.equal(sent[0].title, "Ridgeway East archived");
   assert.deepEqual(sent[0].lines, [
-    "Ridgeway East was archived on your Forecourt desk by boss@ridgeway.test.",
-    "Your bill goes down by one site from 14 Nov 2026. We don't refund part months. You can restore it in your desk within 30 days.",
+    "Ridgeway East has been archived. Your bill goes down by one site from 14 Nov 2026. We don't refund part months. You can restore it in your desk within 30 days.",
+    "Archived in your Forecourt desk by boss@ridgeway.test.",
   ]);
   assert.match(notes[0], /Billing: Dry run\. Stripe is not changed\./);
 });
@@ -99,11 +99,11 @@ test("archived in the desk: bill drops one site from the period end, through the
 test("archived in the desk at the Group minimum or within Franchise's 5: bill stays, with the reason", async () => {
   const g = deps();
   await handleDeskEvent(post({ event_id: "r1", kind: "site_removed", site: { code: "B", name: "Ridgeway South" } }), g.d);
-  assert.equal(g.sent[0].lines[1], "Your bill stays at £498 a month, because Group already bills a 2 site minimum. You can restore it in your desk within 30 days.");
+  assert.equal(g.sent[0].lines[0], "Ridgeway South has been archived. Your bill stays at £498 a month, because Group already bills a 2 site minimum. You can restore it in your desk within 30 days.");
   const fr = sites.map((x) => ({ ...x }));
   const f = deps({ applySiteState: fakeApply("franchise", fr), loadAccount: async () => ({ plan: "franchise", sites: fr }) });
   await handleDeskEvent(post({ event_id: "r2", kind: "site_removed", site: { code: "B", name: "Ridgeway South" } }), f.d);
-  assert.equal(f.sent[0].lines[1], "Your bill stays at £899 a month, because Franchise includes up to 5 sites. You can restore it in your desk within 30 days.");
+  assert.equal(f.sent[0].lines[0], "Ridgeway South has been archived. Your bill stays at £899 a month, because Franchise includes up to 5 sites. You can restore it in your desk within 30 days.");
 });
 
 test("restored within the same period: archive cancelled, bill as before; after rollover: back on the bill from today", async () => {
@@ -124,7 +124,7 @@ test("restored within the same period: archive cancelled, bill as before; after 
 test("a site the account does not know: email without a billing claim, note says nothing changed", async () => {
   const { d, sent, notes } = deps();
   await handleDeskEvent(post({ event_id: "z", kind: "site_removed", site: { code: "Q", name: "Quarry Lane" } }), d);
-  assert.deepEqual(sent[0].lines, ["Quarry Lane was archived on your Forecourt desk.", "You can restore it in your desk within 30 days."]);
+  assert.deepEqual(sent[0].lines, ["Quarry Lane has been archived. You can restore it in your desk within 30 days.", "Archived in your Forecourt desk."]);
   assert.match(notes[0], /site not on the account in Forecourt, nothing changed/);
 });
 
@@ -162,4 +162,14 @@ test("no dashes and no banned words in the desk email copy", async () => {
   await handleDeskEvent(post(added), d);
   await handleDeskEvent(post({ event_id: "r", kind: "site_removed", site: { code: "B", name: "Ridgeway South" } }), d);
   for (const e of sent) assert.doesNotMatch([e.title, ...e.lines].join(" "), /[\u2013\u2014]|glass/i);
+});
+
+test("one archive, one email: Office archive and the desk archive of the same site share the key", async () => {
+  const { d, sent } = deps();
+  const office = siteArchivedEvent({ tenantId: 7, siteCode: "B", siteName: "Ridgeway South", billing: "" });
+  await d.send(7, office);
+  await handleDeskEvent(post({ event_id: "site_removed:B:1", kind: "site_removed", site: { code: "B", name: "Ridgeway South" } }), d);
+  await handleDeskEvent(post({ event_id: "site_removed:B:2", kind: "site_removed", site: { code: "B", name: "Ridgeway South" } }), d);
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].dedupe, office.dedupe);
 });

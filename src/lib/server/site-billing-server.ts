@@ -76,10 +76,17 @@ async function pickSubs(deps: { subscriptions?: SiteSubsLike | null; mode?: Site
   return { mode, subscriptions: mode === "live" ? real : dryRunSubs(real, sent) };
 }
 
-type SiteRow = { code: string; name: string; status: SiteStatus; live_at: string | null; archived_at: string | null };
+type SiteRow = { code: string; name: string; status: SiteStatus; live_at: string | null; archived_at: string | null; billed_through?: string | null };
+
+/** tenant_sites rows, with billed_through when supabase/site-billed-through.sql has been run. */
+async function readSites(sb: SupabaseClient, tenantId: number) {
+  const full = await sb.from("tenant_sites").select("code, name, status, live_at, archived_at, billed_through").eq("tenant_id", tenantId);
+  if (!full.error) return full;
+  return sb.from("tenant_sites").select("code, name, status, live_at, archived_at").eq("tenant_id", tenantId);
+}
 
 function toBilling(r: SiteRow): BillingSite {
-  return { code: r.code, name: r.name, status: r.status, liveAt: r.live_at, archivedAt: r.archived_at };
+  return { code: r.code, name: r.name, status: r.status, liveAt: r.live_at, archivedAt: r.archived_at, billedThrough: r.billed_through ?? null };
 }
 
 async function stripeSubs(): Promise<SiteSubsLike | null> {
@@ -100,7 +107,7 @@ export async function changeSiteState(
 ): Promise<{ result: SiteSyncResult; message: string; mode?: SiteBillingMode; billing?: SiteBillingOutcome }> {
   const now = (deps.now ?? (() => new Date()))().toISOString();
   const { data: t } = await sb.from("tenants").select("id, plan, status, stripe_subscription_id").eq("id", input.tenantId).maybeSingle();
-  const { data: rows, error } = await sb.from("tenant_sites").select("code, name, status, live_at, archived_at").eq("tenant_id", input.tenantId);
+  const { data: rows, error } = await readSites(sb, input.tenantId);
   if (error || !t) return { result: { changed: false, reason: "no_subscription", detail: error?.message }, message: "Could not read the account." };
   const all = (rows ?? []) as SiteRow[];
   const site = all.find((r) => r.code === input.code);
@@ -149,6 +156,14 @@ export async function changeSiteState(
       event: { code: input.code, from, to: input.to },
     },
   );
+  // A part month was really charged for this site: remember it, so a same period archive and restore never charges again.
+  if (mode === "live" && result.changed && result.proration === "create_prorations" && input.to === "live" && result.periodEnd) {
+    try {
+      await sb.from("tenant_sites").update({ billed_through: result.periodEnd }).eq("tenant_id", input.tenantId).eq("code", input.code);
+    } catch {
+      /* column not added yet: best effort */
+    }
+  }
   const message = withMode(mode, result, siteBreakdown(normalizePlan(t.plan as string), sites).total);
   try {
     await sb.from("site_billing_events").update({ result: result.changed ? "changed" : result.reason, detail: message }).eq("event_key", eventKey);
@@ -175,13 +190,10 @@ export async function changeSiteState(
     mode,
   };
   if (input.notify !== false && (input.to === "live" || input.to === "archived")) {
-    const ev = (input.to === "live" ? siteLiveEvent : siteArchivedEvent)({
-      tenantId: input.tenantId,
-      eventKey,
-      siteName: site.name,
-      billing: input.to === "archived" ? "" : result.changed ? `Billing: ${siteSyncMessage(result)}` : "Your monthly bill does not change.",
-      periodEnd: input.to === "archived" ? await periodEndFor(sb, input.tenantId) : null,
-    });
+    const ev =
+      input.to === "live"
+        ? siteLiveEvent({ tenantId: input.tenantId, eventKey, siteName: site.name, billing: result.changed ? `Billing: ${siteSyncMessage(result)}` : "Your monthly bill does not change." })
+        : siteArchivedEvent({ tenantId: input.tenantId, siteCode: input.code, siteName: site.name, billing: "", periodEnd: billing.periodEnd, at: now });
     await sendAccountEventEmail({ tenantId: input.tenantId, ...ev });
   }
   return { result, message, mode, billing };
@@ -201,7 +213,7 @@ export async function trueUpSiteBilling(
   const { data: t } = await sb.from("tenants").select("id, plan, status, stripe_subscription_id").eq("id", tenantId).maybeSingle();
   const plan = normalizePlan((t?.plan as string) ?? "site");
   if (!t || (plan !== "group" && plan !== "franchise")) return { result: null, message: null };
-  const { data: rows, error } = await sb.from("tenant_sites").select("code, name, status, live_at, archived_at").eq("tenant_id", tenantId);
+  const { data: rows, error } = await readSites(sb, tenantId);
   if (error || !rows?.length) return { result: null, message: null };
   const sent: ItemChange[][] = [];
   const { mode, subscriptions } = await pickSubs(deps, sent);

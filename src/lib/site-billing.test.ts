@@ -104,3 +104,13 @@ test("Atlas copy: go live and archive confirms use real totals, period end from 
   assert.equal(archiveConfirmCopy("Ridgeway North", 74_700, 49_800, end), "Archive Ridgeway North? The bill goes down by one site from 31 Oct 2026, the end of this billing period. We don't refund part months. New monthly total: £498.");
   assert.equal(archiveConfirmCopy("Ridgeway North", 49_800, 49_800, null), "Archive Ridgeway North? The bill stays at £498 a month. We don't refund part months.");
 });
+
+test("paidSlotsThisPeriod counts a site already charged this period (billedThrough), live or archived in it", () => {
+  const start = "2026-10-01T00:00:00Z";
+  const mid = { liveAt: "2026-10-10T00:00:00Z", billedThrough: "2026-11-01T00:00:00Z" };
+  assert.equal(paidSlotsThisPeriod([{ code: "a", name: "a", status: "live", ...mid }], start), 1);
+  assert.equal(paidSlotsThisPeriod([{ code: "a", name: "a", status: "archived", archivedAt: "2026-10-12T00:00:00Z", ...mid }], start), 1);
+  assert.equal(paidSlotsThisPeriod([{ code: "a", name: "a", status: "live", liveAt: mid.liveAt }], start), 0);
+  assert.equal(paidSlotsThisPeriod([{ code: "a", name: "a", status: "live", liveAt: mid.liveAt, billedThrough: start }], start), 0);
+  assert.equal(parseBillingSites([{ code: "a", name: "a", status: "live", billed_through: "2026-11-01T00:00:00Z" }])[0].billedThrough, "2026-11-01T00:00:00Z");
+});

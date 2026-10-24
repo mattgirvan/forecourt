@@ -35,6 +35,8 @@ export function buildDeskEmail(input: {
   sites: BillingSite[];
   event: NonNullable<ReturnType<typeof parseDeskEvent>>;
   billing?: DeskBilling;
+  /** When it happened, for the shared archived key. Defaults to now. */
+  at?: string | Date;
 }): AccountEvent {
   const e = input.event;
   const key = deskEventKey(input.tenantId, input.keyId, e.event_id);
@@ -49,7 +51,7 @@ export function buildDeskEmail(input: {
     const after = siteBreakdown(input.plan, [...known, { code: e.site.code, name: e.site.name, status: "live" }]).total;
     return siteAddedEvent({ tenantId: input.tenantId, siteCode: e.site.code, siteName: e.site.name, addsPence: after - before, totalAfterPence: after });
   }
-  if (e.kind === "site_removed") return siteRemovedEvent({ eventKey: key, siteName: e.site.name, by, billing: input.billing });
+  if (e.kind === "site_removed") return siteRemovedEvent({ tenantId: input.tenantId, siteCode: e.site.code, siteName: e.site.name, by, billing: input.billing, at: input.at });
   return siteRestoredEvent({ eventKey: key, siteName: e.site.name, by, billing: input.billing });
 }
 

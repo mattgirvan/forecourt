@@ -29,3 +29,8 @@ month. Same if a site is archived and brought back live in one period. Accepted 
 3. 04-tenant-sites.backfill.sql.
 4. Per desk: `DESK_DB_URL=... 04-desk-backfill.sh --desk <slug> --yes` (backup, 0005, 0006, backfill).
 5. Check Office Sites in dry run, then decide whether to set SITE_BILLING_SYNC=on.
+
+Billed through (no double part month)
+- supabase/site-billed-through.sql adds tenant_sites.billed_through (not run yet). When a go live is really prorated (SITE_BILLING_SYNC=on), the app stores the subscription period end there.
+- A site with billed_through after the current period start counts as a paid slot, so a site that went live this period, was archived and is restored in the same period is not prorated again. After the period rolls over the record no longer counts.
+- Without the column the app reads sites as before (old count), so order does not matter, but run it before turning sync on.

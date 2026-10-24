@@ -5,7 +5,7 @@ What it does
 - Desk migration 0007 queues an event when a site is added, archived (removed) or restored, and when a staff member's site access changes (one event per person per save). At commit it signs the event (HMAC SHA256 over "timestamp.body", per desk secret) and posts it with pg_net to /api/desk/events.
 - /api/desk/events looks up the desk by X-Forecourt-Desk in desk_links, checks the signature and a 5 minute window, then emails the account admin and hello@ through sendAccountEventEmail (email_log dedupe key per desk event, so resends never email twice) and adds a build_events note.
 - Site added email carries the price preview from the account's plan and tenant_sites: what the site adds a month from its go live day and the new monthly total (Group £249, Franchise included up to 5 then £100).
-- Restore within 30 days: desk admins get an Archived sites list in Admin (grey pill "Archived, restore within {n} days" and the hint "You can restore an archived site within 30 days.") and admin_restore_site(code). It refuses after 30 days, refuses staff who are not desk admins or cannot see the site, and puts the site back to the state it had before archiving. The event carries that state (site.status).
+- Restore within 30 days: desk admins get an Archived sites list in Admin (grey pill "Archived, restore within {n} days" and the hint "Archived sites are hidden from your site lists and can be restored any time in their 30 days.") and admin_restore_site(code). It refuses after 30 days, refuses staff who are not desk admins or cannot see the site, and puts the site back to the state it had before archiving. The event carries that state (site.status).
 
 Billing follows the desk (Matt's decision, #55)
 - Customers archive and restore sites themselves in the desk. There is no Office step.
@@ -27,8 +27,10 @@ Order (nothing run yet)
 3. Each desk: 07-desk-0007_forecourt_events.sql, then the desk template code (link and restore UI) via the forecourt-desk follow up. That repo is not pushed from here.
 4. Each desk: 07-desk-link-setup.sql steps 1 and 2.
 
-Known edge
-- A site that went live in the current period, is archived and then restored in the same period may be prorated a second time, because paid slots only count sites live before the period start. Rare; worth a look before SITE_BILLING_SYNC goes on.
+Same period archive and restore (fixed, #52 billed_through)
+- A site that went live this period, is archived and then restored in the same period is not prorated again: the prorated go live records tenant_sites.billed_through (supabase/site-billed-through.sql, not run yet) and that counts as a paid slot until the period ends.
+- Archived wording: an archived site is hidden from the site switcher and site lists and cannot be given to staff, but its records stay readable to staff who can see it, so the desk does not call it offline.
+- One archive is one email: Office and desk archives share siteArchivedKey (account, site, London day).
 
 Unverified here
 - pg_net on a real desk: tests stub net.http_post. The signature is over body::text, which is what pg_net sends; worth one test event on the first desk.
