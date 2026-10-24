@@ -5,6 +5,7 @@ import { SignedIn, SignedOut, UserButton } from "@/lib/sb-session";
 import { useWhoAmI } from "@/lib/who-am-i";
 import { cn } from "@/lib/utils";
 import { headerAccountLink } from "@/lib/staff-nav";
+import { GetUpdatesButton } from "@/components/newsletter-reach";
 
 const links = [
   { to: "/", label: "Product" },
@@ -60,6 +61,7 @@ export function SiteHeader() {
             {links.map((l) => (
               <NavLink key={l.label} to={l.to} label={l.label} />
             ))}
+            <GetUpdatesButton />
           </nav>
           <div className="flex items-center gap-1">
             <SignedIn>

@@ -70,7 +70,7 @@ export function PhrasePage({ eyebrow, h1, lead, points, ctaLabel, links }: Phras
         <p className="mt-10 text-center text-sm text-muted">
           {links.map((l, i) => (
             <span key={l.to}>
-              {i > 0 ? " · " : null}
+              {i > 0 ? ", " : null}
               <Link to={l.to} className="text-fg underline-offset-4 hover:underline">
                 {l.label}
               </Link>

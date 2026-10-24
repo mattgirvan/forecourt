@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { ContactPromo } from "@/components/contact-promo";
 import { Reveal } from "@/components/reveal";
 import { SiteShell } from "@/components/site-shell";
+import { NewsletterBlock } from "@/components/newsletter-reach";
 import { Button } from "@/components/ui/button";
 import { AfterYouPayStrip } from "@/components/journey/after-you-pay";
 import { PLAN_ORDER, PLANS, gbpPence } from "@/lib/catalog";
@@ -98,6 +99,8 @@ export function PricingPage() {
         title="Group or franchise pricing can need a conversation."
         body="If the cards do not quite fit, send a short note. We will reply from hello@forecourt.me."
       />
+
+      <NewsletterBlock id="pricing-updates" eyebrow="Not ready to pick yet?" title="Hear about pricing changes first." />
 
       <div className="mx-auto max-w-5xl px-4 pb-16 sm:px-6 sm:pb-24">
         <div className="mx-auto max-w-2xl text-center">
