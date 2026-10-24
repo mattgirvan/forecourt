@@ -1,5 +1,5 @@
 import { AccountSectionContext } from "@/components/account/section-context";
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useLocation, useNavigate } from "@tanstack/react-router";
 import { planFromParam, staffAccountRedirect } from "@/lib/staff-nav";
 import { PillRow } from "@/components/ui/pill-row";
 import { LiveView } from "@/components/account/live-view";
@@ -122,6 +122,7 @@ function AccountShell({ children }: { children: ReactNode }) {
   const { user } = useSbUser();
   const email = me?.email || user?.email || "";
   const [section, setSection] = useState("overview");
+  const hash = useLocation({ select: (l) => l.hash });
   const nav: ShellNavItem[] = [
     { key: "overview", label: "Overview", icon: LayoutGrid, to: "/account", bottom: true },
     {
@@ -151,7 +152,8 @@ function AccountShell({ children }: { children: ReactNode }) {
     <AppShell
       area="account"
       items={nav}
-      active={section === "overview" ? "overview" : null}
+      // Only the view that is showing is current: Sites and Change plan mark nothing.
+      active={hash === "security" ? "security" : section === "overview" ? "overview" : null}
       pageKey="account"
       user={{ name: me?.name || email || "Your account", sub: me?.team ? "Forecourt team" : email }}
       menu={[]}
