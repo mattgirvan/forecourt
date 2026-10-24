@@ -168,7 +168,8 @@ export const requestPlanChange = createServerFn({ method: "POST" })
     if (ok) {
       // Matt: on a downgrade the plan name changes now, the price at period end.
       // site_count follows the plan shape (PR 9): Site is 1, Group at least 2.
-      await admin.from("tenants").update({ plan: q.to, site_count: clampSiteCount(q.to, t.site_count) }).eq("id", t.id);
+      // Matt: a move down to Site ends the 12-month term; Site has no contract.
+      await admin.from("tenants").update({ plan: q.to, site_count: clampSiteCount(q.to, t.site_count), ...(q.to === "site" ? { term_months: null } : {}) }).eq("id", t.id);
       // Migration tracker (PR 8): requested and switched now, the price step waits for the period end.
       const mig = dn?.id ? await readMigration(admin, dn.id as number) : null;
       if (mig && (await setMigrationStage(admin, mig, "switched", { effective_at: q.periodEnd ? new Date(q.periodEnd).toISOString() : null }))) {
