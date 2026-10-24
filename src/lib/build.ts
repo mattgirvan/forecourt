@@ -395,7 +395,7 @@ Forecourt creates private \`mattgirvan/desk-${pack.slug}\` from the template and
 
 ## Still do by hand (Phase 2+)
 
-1. New Supabase \`forecourt-${pack.slug}\`. Paste migrations \`0001\` → \`0004\` in order.
+1. New Supabase \`forecourt-${pack.slug}\`. Paste migrations \`0001\` to \`0007\` in order, enable pg_net, then the desk link steps in \`supabase/desk-link-setup.sql\`. No sites backfill on a new desk.
 2. Insert staff_users from the pack. Magic link. Site URL = preview then their domain.
 3. Vercel → link \`mattgirvan/desk-${pack.slug}\`, custom domain \`${pack.domain || "desk.…"}\`.
 4. Put the preview URL back on the order. Stage → Preview. They click around. Then Live.
