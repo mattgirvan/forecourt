@@ -146,6 +146,8 @@ function label(text: string, color = C.ok) {
 
 /** Bulletproof amber button: VML roundrect for Outlook, a padded link elsewhere. */
 function primaryButton(href: string, text: string) {
+  // "Open your account" is never the amber call to action: neutral secondary style everywhere.
+  if (text === "Open your account") return ghostButton(href, text);
   const width = Math.max(200, Math.round(text.length * 8.6 + 56));
   return `<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td class="cta-td" bgcolor="${C.amber}" style="border-radius:999px;background:${C.amber};">
 <!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${esc(href)}" style="height:46px;v-text-anchor:middle;width:${width}px;" arcsize="50%" strokecolor="${C.amber}" fillcolor="${C.amber}"><w:anchorlock/><center style="color:${C.ink};font-family:Arial,sans-serif;font-size:15px;font-weight:bold;">${esc(text)}</center></v:roundrect><![endif]-->
