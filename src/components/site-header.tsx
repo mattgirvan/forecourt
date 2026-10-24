@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { SignedIn, SignedOut, UserButton } from "@/lib/sb-session";
 import { useWhoAmI } from "@/lib/who-am-i";
 import { cn } from "@/lib/utils";
+import { headerAccountLink } from "@/lib/staff-nav";
 
 const links = [
   { to: "/", label: "Product" },
@@ -43,7 +44,8 @@ function NavLink({
 
 export function SiteHeader() {
   const { me } = useWhoAmI();
-  const team = Boolean(me?.team);
+  // Staff land on the office, not the dealer account page.
+  const accountLink = headerAccountLink(me?.team);
 
   return (
     <header className="sticky top-0 z-40">
@@ -61,17 +63,10 @@ export function SiteHeader() {
           </nav>
           <div className="flex items-center gap-1">
             <SignedIn>
-              {team && (
-                <Link
-                  to="/office"
-                  search={{}}
-                  className="hidden rounded-full px-3 py-1.5 text-[13px] text-muted hover:text-fg sm:inline"
-                >
-                  Office
-                </Link>
-              )}
               <Button size="sm" variant="secondary" className="rounded-full" asChild>
-                <Link to="/account">Account</Link>
+                <Link to={accountLink.to} search={{}}>
+                  {accountLink.label}
+                </Link>
               </Button>
               <UserButton />
             </SignedIn>

@@ -1,4 +1,5 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { planFromParam, staffAccountRedirect } from "@/lib/staff-nav";
 import { PillRow } from "@/components/ui/pill-row";
 import { LiveView } from "@/components/account/live-view";
 import { isLiveTenant } from "@/lib/live-view";
@@ -63,7 +64,9 @@ type Search = {
 
 export const Route = createFileRoute("/account")({
   validateSearch: (raw: Record<string, unknown>): Search => ({
-    plan: isPlanId(raw.plan) ? raw.plan : undefined,
+    // Any plan param counts as asking for a plan, so staff skip the Office redirect.
+    // An unknown value falls back to Site, the default plan, instead of being dropped.
+    plan: planFromParam(raw.plan, isPlanId, "site"),
     billing: isBillingKind(raw.billing) ? raw.billing : undefined,
     checkout: typeof raw.checkout === "string" ? raw.checkout : undefined,
     paid: typeof raw.paid === "string" ? raw.paid : undefined,
@@ -163,6 +166,18 @@ function AccountInner() {
   const [termsOk, setTermsOk] = useState(false);
   const [team, setTeam] = useState(false);
   const [wantCheckout, setWantCheckout] = useState(Boolean(search.plan || search.checkout));
+  const navigate = useNavigate();
+  // Staff with no dealer account of their own belong in the office. Replace,
+  // so Back does not bounce them into /account again.
+  const sendToOffice = staffAccountRedirect({
+    team,
+    tenantCount: tenants.length,
+    plan: search.plan,
+    checkout: wantCheckout,
+  });
+  useEffect(() => {
+    if (sendToOffice) void navigate({ to: "/office", search: {}, replace: true });
+  }, [sendToOffice, navigate]);
 
   const chosen = PLANS[plan];
   // One trial per site (the checkout guard refuses a second): a site that has
@@ -407,24 +422,7 @@ function AccountInner() {
     }
   }
 
-  if (team && tenants.length === 0 && !search.plan && !wantCheckout) {
-    return (
-      <div className="mx-auto max-w-lg px-4 py-20 text-center">
-        <h1 className="text-3xl font-semibold tracking-tight">You’re on the team.</h1>
-        <p className="mt-3 text-sm text-muted">Dealer accounts live here. The office is where you work the files.</p>
-        <div className="mt-6 flex flex-wrap justify-center gap-2">
-          <Button asChild>
-            <Link to="/office" search={{}}>
-              Open the office
-            </Link>
-          </Button>
-          <Button variant="secondary" type="button" onClick={() => setWantCheckout(true)}>
-            Start a test package
-          </Button>
-        </div>
-      </div>
-    );
-  }
+  if (sendToOffice) return null;
 
   if (showPortal && current && token && isLiveTenant(current)) {
     return <LiveView token={token} tenant={current} />;
