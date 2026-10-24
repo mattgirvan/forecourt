@@ -360,12 +360,12 @@ const LOC_STYLE: Record<Loc, { bg: string; fg: string }> = {
 const MENU_LOCS: Loc[] = ["Bodyshop", "Workshop", "Prep Carpark", "Forecourt 1st Row", "Showroom"];
 
 const STOCK: { model: string; trim: string; reg: string; loc: Loc; keys: string; fan: number }[] = [
-  { model: "Ford Puma", trim: "ST-Line", reg: "SV74 KDX", loc: "Showroom", keys: "Box 4", fan: -13 },
-  { model: "Kia Sportage", trim: "GT-Line", reg: "SK24 OYH", loc: "Bodyshop", keys: "Box 9", fan: -10 },
-  { model: "Hyundai Ioniq 5", trim: "Premium", reg: "SY25 FWN", loc: "Workshop", keys: "Box 11", fan: -7 },
-  { model: "VW ID.3", trim: "Pro", reg: "SV75 UJR", loc: "Not set", keys: "Box 2", fan: -5 },
-  { model: "Vauxhall Corsa", trim: "Design", reg: "SA73 PLE", loc: "Prep Carpark", keys: "Prep", fan: -3 },
-  { model: "Toyota C-HR", trim: "Hybrid", reg: "SJ24 NRV", loc: "Forecourt 1st Row", keys: "Box 7", fan: -2 },
+  { model: "Ford Puma", trim: "ST-Line", reg: "LD74 DMA", loc: "Showroom", keys: "Box 4", fan: -13 },
+  { model: "Kia Sportage", trim: "GT-Line", reg: "MA24 DMB", loc: "Bodyshop", keys: "Box 9", fan: -10 },
+  { model: "Hyundai Ioniq 5", trim: "Premium", reg: "YK25 DMC", loc: "Workshop", keys: "Box 11", fan: -7 },
+  { model: "VW ID.3", trim: "Pro", reg: "BD75 DMD", loc: "Not set", keys: "Box 2", fan: -5 },
+  { model: "Vauxhall Corsa", trim: "Design", reg: "GL73 DME", loc: "Prep Carpark", keys: "Prep", fan: -3 },
+  { model: "Toyota C-HR", trim: "Hybrid", reg: "WR24 DMF", loc: "Forecourt 1st Row", keys: "Box 7", fan: -2 },
 ];
 
 function LocPill({ loc, className, innerRef }: { loc: Loc; className?: string; innerRef?: React.Ref<HTMLSpanElement> }) {
@@ -658,7 +658,7 @@ function CustomerScene() {
                 className="rounded-[9px] px-2.5 py-0.5 font-mono text-xs font-bold tracking-widest"
                 style={{ background: "var(--shell-accent)", color: "var(--shell-accent-ink)" }}
               >
-                SV75 LRQ
+                LN75 DMG
               </div>
             </div>
             <div className="mb-1 flex items-center gap-3">
@@ -772,7 +772,7 @@ function NudgeScene() {
             <div className="min-w-0">
               <div className="truncate text-[15px] font-semibold">Priya Shah</div>
               <div className="text-[12px] text-[var(--shell-text-faint)]">
-                BMW iX1 xDrive30, <span className="whitespace-nowrap">SY25 PSH</span>
+                BMW iX1 xDrive30, <span className="whitespace-nowrap">CA25 DMH</span>
               </div>
             </div>
             <span className="scene-chip shrink-0">Handover Sat 10:00</span>
@@ -848,9 +848,9 @@ function NudgeScene() {
 /* ------------------------------------------------------------------ */
 
 const V5_CHASES = [
-  { name: "Hannah Wallace", px: "SF17 KLM", car: "VW Golf Estate Life", date: "12 Sep" },
-  { name: "Gregor Munro", px: "SN19 XRD", car: "Nissan Qashqai N-Connecta", date: "16 Sep" },
-  { name: "Leah Robertson", px: "SA66 TWN", car: "Toyota Yaris Design", date: "19 Sep" },
+  { name: "Hannah Wallace", px: "BX17 DMJ", car: "VW Golf Estate Life", date: "12 Sep" },
+  { name: "Gregor Munro", px: "NA19 DMK", car: "Nissan Qashqai N-Connecta", date: "16 Sep" },
+  { name: "Leah Robertson", px: "OU66 DML", car: "Toyota Yaris Design", date: "19 Sep" },
 ] as const;
 
 // Tick order: middle, top, bottom, so the cursor actually travels.
@@ -1212,7 +1212,7 @@ function QuoteScene() {
             <div className="mt-2.5">
               <div className="scene-quote-label">Stock cars (optional)</div>
               <span className="scene-quote-chip">
-                <Car size={12} /> Nissan Ariya, SY25 KTE
+                <Car size={12} /> Nissan Ariya, EF25 DMN
               </span>
             </div>
             <div className="mt-2.5">
@@ -1493,10 +1493,10 @@ function OverviewScene() {
 type TransitStatus = "Ordered" | "At port" | "On the lorry" | "In stock";
 
 const TRANSIT: { model: string; trim: string; reg: string; status: TransitStatus; eta: string; target?: boolean }[] = [
-  { model: "Vauxhall Corsa", trim: "Griffin", reg: "AB12 CDE", status: "On the lorry", eta: "Due Thu" },
-  { model: "Škoda Octavia Estate", trim: "SE L", reg: "XY34 ZZZ", status: "At port", eta: "Lorry booked", target: true },
-  { model: "Hyundai Kona", trim: "Electric", reg: "QQ00 TST", status: "At port", eta: "Waiting for lorry" },
-  { model: "BMW X5", trim: "xDrive30d", reg: "DM99 OOO", status: "Ordered", eta: "Build week 48" },
+  { model: "Vauxhall Corsa", trim: "Griffin", reg: "KM74 DMP", status: "On the lorry", eta: "Due Thu" },
+  { model: "Škoda Octavia Estate", trim: "SE L", reg: "DY25 DMR", status: "At port", eta: "Lorry booked", target: true },
+  { model: "Hyundai Kona", trim: "Electric", reg: "HN75 DMS", status: "At port", eta: "Waiting for lorry" },
+  { model: "BMW X5", trim: "xDrive30d", reg: "PE24 DMT", status: "Ordered", eta: "Build week 48" },
 ];
 
 /** Target car path, in scroll progress: at port, on the lorry, arrived. */
