@@ -39,6 +39,16 @@ export const CHANGE_TYPES: readonly { id: ChangeType; label: string; hint: strin
   { id: "other", label: "Other", hint: "Anything else" },
 ];
 
+/**
+ * Type label for a ticket row. Anything that is not a ticket or a change
+ * request reads "Question", never "Other" (slice 11 tweak).
+ */
+export function itemTypeLabel(i: { kind: string; ref: number; change_type: string | null }) {
+  if (i.kind === "ticket") return `Ticket ${ticketRef(i.ref)}`;
+  if (i.kind === "change") return changeTypeLabel(i.change_type);
+  return "Question";
+}
+
 export function changeTypeLabel(t: string | null | undefined) {
   // Opened by the plan change flow, never picked by a customer.
   if (t === "plan_change") return "Plan change";
@@ -135,6 +145,16 @@ export const PAYMENT_BANNER =
 
 export function ukDate(iso: string | null | undefined) {
   return sep(formatUkDate(iso));
+}
+
+/**
+ * One line preview for a ticket row: the latest message, else the opening
+ * details, with line breaks and runs of spaces folded to single spaces.
+ * The row truncates it with an ellipsis (slice 11).
+ */
+export function lastLine(i: { details?: string | null; last_line?: string | null; messages?: { body: string }[] }) {
+  const latest = i.messages?.length ? i.messages[i.messages.length - 1].body : (i.last_line ?? i.details ?? "");
+  return latest.replace(/\s+/g, " ").trim();
 }
 
 /** "Today, 09:12", "Yesterday" or "12 Oct". */

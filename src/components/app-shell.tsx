@@ -1,5 +1,5 @@
-import { Link } from "@tanstack/react-router";
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { Link, useNavigate, useRouter } from "@tanstack/react-router";
+import { useEffect, useId, useRef, useState, type MouseEvent, type ReactNode } from "react";
 import { MoreHorizontal, type LucideIcon } from "lucide-react";
 import { getSb } from "@/lib/sb";
 import { cn } from "@/lib/utils";
@@ -115,23 +115,18 @@ export function AppShell({
         data-testid="shell-bottom-bar"
       >
         {bottom.map((i) => (
-          <Link
+          <ShellLink
             key={i.key}
-            to={i.to}
-            search={i.search as never}
-            hash={i.hash}
+            target={i}
             className={cn("fc-bnav-item fc-press", active === i.key && "is-on")}
-            aria-current={active === i.key ? "page" : undefined}
-            // Items can share a path (/account and /account#security), so the
-            // router only treats an exact path and hash match as current.
-            activeOptions={{ exact: true, includeHash: true }}
+            current={active === i.key}
           >
             <span className="fc-bnav-ic">
               <i.icon aria-hidden />
               {i.action ? <span className="fc-bnav-dot" aria-label="Needs you" /> : null}
             </span>
             <span>{i.short ?? i.label}</span>
-          </Link>
+          </ShellLink>
         ))}
         <button
           type="button"
@@ -151,16 +146,14 @@ export function AppShell({
         {items
           .filter((i) => !bottom.includes(i))
           .map((i) => (
-            <Link
+            <ShellLink
               key={i.key}
-              to={i.to}
-              search={i.search as never}
-              hash={i.hash}
+              target={i}
               className="fc-sheet-item fc-press fc-only-m"
               onClick={() => setMenuOpen(false)}
             >
               {i.label}
-            </Link>
+            </ShellLink>
           ))}
         {fullMenu.map((m) =>
           m.onSelect ? (
@@ -177,17 +170,15 @@ export function AppShell({
               {m.label}
             </button>
           ) : (
-            <Link
+            <ShellLink
               key={m.label}
               role="menuitem"
-              to={m.to}
-              search={m.search as never}
-              hash={m.hash}
+              target={m}
               className="fc-sheet-item fc-press"
               onClick={() => setMenuOpen(false)}
             >
               {m.label}
-            </Link>
+            </ShellLink>
           ),
         )}
       </ShellSheet>
@@ -210,19 +201,58 @@ function Brand({ sub }: { sub: string }) {
 function NavLink({ item, on }: { item: ShellNavItem; on: boolean }) {
   const Icon = item.icon;
   return (
-    <Link
-      to={item.to}
-      search={item.search as never}
-      hash={item.hash}
-      className={cn("fc-nav-item fc-press", on && "is-on")}
-      aria-current={on ? "page" : undefined}
-    >
+    <ShellLink target={item} className={cn("fc-nav-item fc-press", on && "is-on")} current={on}>
       <Icon className="fc-nav-ic" aria-hidden />
       <span>{item.label}</span>
       {item.count != null && item.count > 0 ? (
         <span className={cn("fc-count", item.action && "is-action")}>{item.count}</span>
       ) : null}
-    </Link>
+    </ShellLink>
+  );
+}
+
+/**
+ * Shell links. The router's Link marks any link whose URL matches as
+ * aria-current="page", but the account views (Overview, Sites, Change plan)
+ * share one URL. So the shell renders a plain link and sets aria-current only
+ * on the item it knows is showing (slice 10).
+ */
+function ShellLink({
+  target,
+  current = false,
+  className,
+  role,
+  onClick,
+  children,
+}: {
+  target: LinkTarget;
+  current?: boolean;
+  className?: string;
+  role?: string;
+  onClick?: () => void;
+  children: ReactNode;
+}) {
+  const router = useRouter();
+  const navigate = useNavigate();
+  const loc = { to: target.to, search: (target.search ?? {}) as never, hash: target.hash };
+  const href = router.buildLocation(loc).href;
+  const go = (e: MouseEvent<HTMLAnchorElement>) => {
+    onClick?.();
+    if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey)
+      return;
+    e.preventDefault();
+    void navigate(loc);
+  };
+  return (
+    <a
+      href={href}
+      className={className}
+      role={role}
+      aria-current={current ? "page" : undefined}
+      onClick={go}
+    >
+      {children}
+    </a>
   );
 }
 
