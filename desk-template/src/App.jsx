@@ -2,11 +2,15 @@ import { useEffect, useMemo, useState } from "react";
 import { KeyRound, MapPin, TriangleAlert } from "lucide-react";
 import { tenant, groupMark, featureOn, applyBrand } from "./tenant";
 import { locatorLane, pipelineStages } from "./config/locator";
-import { useDesk } from "./data/store";
+import { useDesk, useSiteRows } from "./data/store";
 import { useStaffSeat, previewSeats } from "./data/staffSession";
 import { gbp } from "./lib/money";
 import { LoginGate } from "./LoginGate";
 import { roleOf } from "./roles";
+import { SiteControl } from "./SiteControl";
+import { AdminSites } from "./AdminSites";
+import { listHint, normaliseSites, resolveSiteAccess, rowSiteTag } from "./data/sites";
+import { loadServerSiteAccess } from "./data/siteAccess";
 
 const ALL_TABS = [
   { id: "overview", label: "Overview" },
@@ -43,7 +47,22 @@ function Desk() {
   const mark = groupMark();
   const word = tenant.franchise?.word || "";
   const logo = "/brand/logo.svg";
-  const siteLabel = seat?.site || tenant.sites?.[0] || "Main";
+  const setSiteAccess = useDesk((s) => s.setSiteAccess);
+  const deskAdmin = ["management", "admin", "principal"].includes(seat?.role);
+  const initials = String(seat?.name || pack.label).split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase();
+
+  // Which sites this person sees. Supabase (0006) when present, tenant.json in preview.
+  useEffect(() => {
+    if (!seat) return;
+    let live = true;
+    const sites = normaliseSites(tenant.sites);
+    (authMode === "staff" ? loadServerSiteAccess() : Promise.resolve(null)).then((server) => {
+      if (live) setSiteAccess(resolveSiteAccess(seat, sites, server));
+    });
+    return () => {
+      live = false;
+    };
+  }, [seat?.email, seat?.role, authMode, setSiteAccess]);
 
   useEffect(() => {
     applyBrand();
@@ -63,8 +82,9 @@ function Desk() {
   }, [authMode, seat?.role]);
 
   useEffect(() => {
+    if (tab === "admin" && deskAdmin) return;
     if (!tabs.find((t) => t.id === tab)) setTab(tabs[0]?.id || "overview");
-  }, [tab, tabs]);
+  }, [tab, tabs, deskAdmin]);
 
   if (!ready || authMode === "loading") return null;
 
@@ -98,7 +118,7 @@ function Desk() {
       <div className="orb" />
       <div className="orb orb-2" />
       <header className="nav">
-        <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
+        <div className="brand" style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
           <span className="mark">
             <img
               src={logo}
@@ -109,17 +129,10 @@ function Desk() {
               }}
             />
           </span>
-          <div>
-            <div className="word">
-              {mark} <span style={{ color: "rgba(255,255,255,0.35)" }}>+</span> <span>{word}</span>
-            </div>
-            <div className="eyebrow">
-              My order portal · {siteLabel}
-            </div>
-          </div>
+          <div className="word desk-name">{tenant.name} desk</div>
+          <SiteControl />
         </div>
         <div className="eyebrow" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span>{tenant.domain}</span>
           {authMode === "preview" ? (
             <select
               value={seat?.email || ""}
@@ -127,35 +140,20 @@ function Desk() {
                 setPreviewEmail(e.target.value);
                 setView("staff");
               }}
-              title="Preview only — trial seats for local demos. Not used when Supabase auth is on."
+              title="Preview only, for local demos. Not used when Supabase auth is on."
               style={{ height: 32, fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase" }}
             >
               {previewList.map((s) => (
                 <option key={s.email || s.role} value={s.email}>
-                  Preview · {roleOf(s.role).label}
-                  {s.site ? ` · ${s.site}` : ""}
+                  Preview · {s.name}, {roleOf(s.role).label}
                 </option>
               ))}
             </select>
-          ) : (
-            <span
-              title={`Bound to ${seat?.email || ""} via ${seat?.source || "staff_users"}`}
-              style={{
-                height: 32,
-                display: "inline-flex",
-                alignItems: "center",
-                padding: "0 10px",
-                borderRadius: 8,
-                background: "rgba(255,255,255,0.08)",
-                fontSize: 11,
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
-              }}
-            >
-              {pack.label}
-              {seat?.site ? ` · ${seat.site}` : ""}
-            </span>
-          )}
+          ) : null}
+          <span className="person" title={`Signed in as ${seat?.email || ""}`}>
+            <span className="person-name">{seat?.name || ""}, {pack.label}</span>
+            <span className="avatar">{initials}</span>
+          </span>
         </div>
       </header>
 
@@ -165,6 +163,11 @@ function Desk() {
             {t.label}
           </button>
         ))}
+        {deskAdmin && (
+          <button className={tab === "admin" ? "on" : ""} onClick={() => { setTab("admin"); setView("staff"); }} type="button">
+            Admin
+          </button>
+        )}
         {pack.tabs.includes("customer") && (
           <button type="button" onClick={() => setView(view === "staff" ? "customer" : "staff")} style={{ marginLeft: "auto" }}>
             {view === "staff" ? "As customer" : "As staff"}
@@ -175,6 +178,8 @@ function Desk() {
       <div className="pane">
         {view === "customer" ? (
           <Customer />
+        ) : tab === "admin" && deskAdmin ? (
+          <AdminSites me={seat?.email} />
         ) : tab === "stock" ? (
           <Stock canEdit={pack.editStock} />
         ) : tab === "locator" ? (
@@ -192,7 +197,7 @@ function Desk() {
 }
 
 function Overview({ showGp = true, canEdit = true }) {
-  const deals = useDesk((s) => s.deals);
+  const deals = useSiteRows("deals");
   const selectDeal = useDesk((s) => s.selectDeal);
   const toggleMonthEnd = useDesk((s) => s.toggleMonthEnd);
   const live = deals.filter((d) => d.stageIndex < 5);
@@ -260,9 +265,14 @@ function Overview({ showGp = true, canEdit = true }) {
 }
 
 function Stock({ canEdit = true }) {
-  const stock = useDesk((s) => s.stock);
+  const stock = useSiteRows("stock");
   const ingestFile = useDesk((s) => s.ingestFile);
+  const access = useDesk((s) => s.siteAccess);
+  const pick = useDesk((s) => s.sitePick);
   const [msg, setMsg] = useState("");
+  const scopeName = access?.canSwitch
+    ? pick === "all" ? (access.allSites ? "All sites" : "All my sites") : access.sites.find((x) => x.code === pick)?.name || pick
+    : access?.sites?.length === 1 ? access.sites[0].name : "Your sites";
 
   async function onFile(e) {
     const file = e.target.files?.[0];
@@ -274,6 +284,12 @@ function Stock({ canEdit = true }) {
 
   return (
     <div>
+      {access?.scoped && (
+        <div style={{ marginBottom: 8 }}>
+          <div className="eyebrow">{scopeName}</div>
+          <p className="faint" style={{ margin: "4px 0 0" }} data-testid="site-hint">{listHint(access, pick)}</p>
+        </div>
+      )}
       <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
         <p className="muted">
           {stock.length} units. Ingest is Excel / CSV, upsert by VIN
@@ -298,8 +314,10 @@ function Stock({ canEdit = true }) {
             <div>
               <strong>{car.vehicle}</strong>
               <div className="faint" style={{ display: "flex", gap: 12, marginTop: 4 }}>
+                {rowSiteTag(access, pick, car.site) && (
+                  <span className="site-tag" data-testid="row-site"><MapPin size={12} /> {rowSiteTag(access, pick, car.site)}</span>
+                )}
                 <span>{car.type}</span>
-                <span><MapPin size={12} /> {car.site}</span>
                 <span><KeyRound size={12} /> {car.keys}</span>
                 {car.missing && <span className="bad">Missing</span>}
               </div>
@@ -313,7 +331,7 @@ function Stock({ canEdit = true }) {
 }
 
 function Locator({ canEdit = true, showGp = true }) {
-  const deals = useDesk((s) => s.deals);
+  const deals = useSiteRows("deals");
   const selectedDealId = useDesk((s) => s.selectedDealId);
   const selectDeal = useDesk((s) => s.selectDeal);
   const setLocator = useDesk((s) => s.setLocator);
@@ -399,8 +417,10 @@ function Locator({ canEdit = true, showGp = true }) {
 }
 
 function Pipeline({ canEdit = true }) {
-  const deals = useDesk((s) => s.deals);
+  const deals = useSiteRows("deals");
   const setStage = useDesk((s) => s.setStage);
+  const access = useDesk((s) => s.siteAccess);
+  const pick = useDesk((s) => s.sitePick);
   if (!deals.length) return <div className="glass empty">No pipeline yet.</div>;
   return (
     <div style={{ display: "grid", gap: 10 }}>
@@ -408,7 +428,7 @@ function Pipeline({ canEdit = true }) {
         <div key={d.id} className="glass" style={{ padding: 14 }}>
           <div>
             <strong>{d.customer}</strong>
-            <div className="faint">{d.vehicle} · {d.customerType} · {d.site}</div>
+            <div className="faint">{d.vehicle} · {d.customerType}{rowSiteTag(access, pick, d.site) ? <> · <span className="site-tag" data-testid="row-site">{rowSiteTag(access, pick, d.site)}</span></> : null}</div>
           </div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 10 }}>
             {pipelineStages.map((stage, i) => (
@@ -436,7 +456,7 @@ function Pipeline({ canEdit = true }) {
 }
 
 function Customer() {
-  const deals = useDesk((s) => s.deals);
+  const deals = useSiteRows("deals");
   const selectedDealId = useDesk((s) => s.selectedDealId);
   const deal = deals.find((d) => d.id === selectedDealId) ?? deals[0];
   if (!deal) return <div className="glass empty">No customer order to show.</div>;
@@ -460,7 +480,7 @@ function Customer() {
 
 function Mind() {
   const briefs = useDesk((s) => s.briefs);
-  const stock = useDesk((s) => s.stock);
+  const stock = useSiteRows("stock");
   const matches = useMemo(
     () =>
       briefs.map((b) => ({
