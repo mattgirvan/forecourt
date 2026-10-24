@@ -233,7 +233,7 @@ export const requestPlanChange = createServerFn({ method: "POST" })
         // Separate write so a database without plan-change-flow.sql still records the row.
         await admin.from("plan_changes").update({ effective_at: effectiveAt }).eq("id", started.changeId);
         await note(admin, t.id, "Plan change requested", `Plan sync is off. The team applies this at period end${effectiveAt ? ` (${effectiveAt.slice(0, 10)})` : ""}.`, actorEmail);
-        return reply("recorded", mode !== "live" && data.from === "office" ? planChangeOfficeRecordedMessage(q) : "Request sent. Nothing to pay. Your new plan starts at the end of this billing period.");
+        return reply("recorded", mode !== "live" && data.from === "office" ? planChangeOfficeRecordedMessage(q) : "Request sent. Nothing to pay. Your new price starts at the end of this billing period.");
       }
       await note(admin, t.id, "Plan change requested", "No setup difference. Waiting for the team.", actorEmail);
       return reply("recorded", mode !== "live" && data.from === "office" ? planChangeOfficeRecordedMessage(q) : "Request sent. Nothing to pay now. We will be in touch to set up your change.");
