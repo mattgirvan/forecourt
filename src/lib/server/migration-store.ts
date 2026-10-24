@@ -8,7 +8,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { advance, trackerFor, type MigrationRow, type MigrationStage } from "@/lib/migration";
 
-export const MIGRATION_COLS = "id, tenant_id, from_plan, to_plan, status, direction, setup_diff_pence, new_monthly_pence, migration_stage, stage_times, effective_at, migration_cancelled_at, created_at";
+export const MIGRATION_COLS = "id, tenant_id, from_plan, to_plan, status, direction, setup_diff_pence, new_monthly_pence, migration_stage, stage_times, effective_at, go_live_at, migration_cancelled_at, created_at";
 export type StoredMigration = MigrationRow & { tenant_id: number; direction: string; setup_diff_pence: number; new_monthly_pence: number };
 
 /** Move a plan change to `stage`. Returns false when the columns are missing or the write failed. */

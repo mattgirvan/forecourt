@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { SCENARIOS, accountStatusLabel, advance, isUpgrade, nextStage, officeCanMark, priceDue, scenarioFor, trackerFor, type MigrationRow } from "./migration.ts";
+import { SCENARIOS, accountStatusLabel, advance, downgradePrice, requestStatusLabel, isUpgrade, nextStage, officeCanMark, priceDue, scenarioFor, trackerFor, type MigrationRow } from "./migration.ts";
 import { migrationEvent, migrationKey } from "./account-events.ts";
 
 const row = (p: Partial<MigrationRow>): MigrationRow => ({ id: 7, from_plan: "site", to_plan: "group", status: "pending_payment", migration_stage: "requested", stage_times: {}, created_at: "2026-10-01T09:00:00Z", ...p });
@@ -114,4 +114,57 @@ test("downgrade keeps the current price until the period end, with a hint", asyn
   assert.equal(downgradePrice(mk("site", "group"), { monthlyPence: 74_700 }, 3, now), null, "upgrades unchanged");
   assert.equal(downgradePrice(mk("group", "site"), { monthlyPence: 39_900 }, 3, new Date("2026-11-15T00:00:00Z")), null, "after period end");
   assert.equal(downgradePrice(mk("group", "site", "priced"), { monthlyPence: 39_900 }, 3, now), null, "price step done");
+});
+
+// Plan change flow PR 6: steps follow the price, not the plan rank.
+const flowRow = (from: string, to: string, direction: string, setup: number, monthly: number, extra: Partial<MigrationRow> = {}): MigrationRow => ({
+  id: 9, from_plan: from, to_plan: to, status: "paid", migration_stage: "requested", created_at: "2026-10-24T09:00:00Z",
+  direction, setup_diff_pence: setup, new_monthly_pence: monthly, ...extra,
+});
+
+test("price rise with setup: paid step, go live line, no period end step", () => {
+  const t = trackerFor(flowRow("site", "franchise", "up", 200000, 89900))!;
+  assert.deepEqual(t.steps.map((s) => s.stage), ["requested", "paid", "switched", "setup", "complete"]);
+  const sw = t.steps.find((s) => s.stage === "switched")!;
+  assert.match(sw.line, /From the day your change goes live, your new price of £899 a month \(inc\. VAT\) starts/);
+  assert.doesNotMatch(sw.line, /as soon as the payment/);
+  assert.ok(t.rise);
+});
+
+test("group to franchise at 3 sites is a price rise with no setup: no payment, no period end", () => {
+  const t = trackerFor(flowRow("group", "franchise", "up", 0, 120000))!;
+  assert.deepEqual(t.steps.map((s) => s.stage), ["requested", "switched", "setup", "complete"]);
+  assert.match(t.steps[0]!.line, /No payment is needed/);
+  assert.equal(downgradePrice(t, { monthlyPence: 100000 }, 3), null);
+});
+
+test("price drop: no payment, price at period end, no charge no refund", () => {
+  const t = trackerFor(flowRow("franchise", "site", "down", 0, 39900))!;
+  assert.deepEqual(t.steps.map((s) => s.stage), ["requested", "switched", "setup", "priced", "complete"]);
+  assert.match(t.steps.find((s) => s.stage === "priced")!.title, /£399 a month \(inc\. VAT\)/);
+  assert.ok(!t.rise);
+});
+
+test("onto group with a lower price still pays the setup difference first", () => {
+  const t = trackerFor(flowRow("franchise", "group", "down", 200000, 150000))!;
+  assert.deepEqual(t.steps.map((s) => s.stage), ["requested", "paid", "switched", "setup", "priced", "complete"]);
+});
+
+test("office cannot mark go live by hand on flow rows, and next stage follows the row's steps", () => {
+  const t = trackerFor(flowRow("group", "franchise", "up", 0, 120000))!;
+  assert.equal(nextStage(t.scenario, "requested", t.steps), "switched");
+  assert.equal(officeCanMark(t.scenario, "requested", "switched", t.steps), false);
+  assert.equal(officeCanMark(t.scenario, "switched", "setup", t.steps), true);
+  assert.equal(officeCanMark(t.scenario, "setup", "complete", t.steps), true);
+});
+
+test("request status words", () => {
+  assert.equal(requestStatusLabel(trackerFor(flowRow("site", "group", "up", 300000, 150000, { status: "pending_payment" }))!), "Waiting for payment");
+  assert.equal(requestStatusLabel(trackerFor(flowRow("franchise", "site", "down", 0, 39900, { status: "scheduled" }))!), "Booked for period end");
+  assert.equal(requestStatusLabel(trackerFor(flowRow("site", "franchise", "up", 200000, 89900, { go_live_at: "2026-10-24T12:00:00Z", migration_stage: "switched" }))!), "Live, finishing setup");
+});
+
+test("old rows without direction keep the fixed scenario steps", () => {
+  const t = trackerFor({ id: 1, from_plan: "group", to_plan: "franchise", status: "applied", migration_stage: "switched", created_at: "2026-10-01T09:00:00Z" })!;
+  assert.deepEqual(t.steps.map((s) => s.stage), ["requested", "switched", "setup", "priced", "complete"]);
 });

@@ -11,7 +11,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServerFn } from "@tanstack/react-start";
 import { normalizePlan } from "@/lib/catalog";
 import { migrationEvent } from "@/lib/account-events";
-import { isUpgrade, officeCanMark, trackerFor, type MigrationStage, type Tracker } from "@/lib/migration";
+import { officeCanMark, trackerFor, type MigrationStage, type Tracker } from "@/lib/migration";
 import { openMigrationFor, openMigrations, setMigrationStage, type StoredMigration } from "@/lib/server/migration-store";
 import { sendAccountEventEmail } from "@/lib/server/journey-email";
 import { actor, sbAdmin } from "@/lib/server/staff-actor";
@@ -62,7 +62,7 @@ export const markMigration = createServerFn({ method: "POST" })
     const r = row as StoredMigration | null;
     const t = r ? trackerFor(r) : null;
     if (!r || !t || !t.open) throw new Error("No open migration with that id.");
-    const base = { tenantId: r.tenant_id, from: normalizePlan(r.from_plan), to: normalizePlan(r.to_plan), changeId: r.id, upgrade: isUpgrade(t.scenario) };
+    const base = { tenantId: r.tenant_id, from: normalizePlan(r.from_plan), to: normalizePlan(r.to_plan), changeId: r.id, upgrade: t.rise };
     if (data.action === "cancel") {
       const at = new Date().toISOString();
       const patch: Record<string, unknown> = { migration_cancelled_at: at };
@@ -86,7 +86,7 @@ export const markMigration = createServerFn({ method: "POST" })
       return { message: "Cancelled. The account is back to Live. The plan and Stripe were not changed." };
     }
     const target = data.action as MigrationStage;
-    if (!officeCanMark(t.scenario, t.stage, target)) throw new Error("That step is not next, or is not one Office marks.");
+    if (!officeCanMark(t.scenario, t.stage, target, t.steps)) throw new Error("That step is not next, or is not one Office marks.");
     if (!(await setMigrationStage(sb, r, target))) throw new Error("Could not save the step. Has 08-migration-tracker.sql been run?");
     if (target === "complete") await sendAccountEventEmail({ tenantId: r.tenant_id, ...migrationEvent({ ...base, stage: "complete" }) });
     const step = t.steps.find((s) => s.stage === target)!;

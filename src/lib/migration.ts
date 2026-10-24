@@ -138,10 +138,65 @@ export type MigrationRow = {
   /** Set when Office closes the tracker. Does not undo the plan or Stripe. */
   migration_cancelled_at?: string | null;
   created_at: string;
+  /** Plan change flow (PR 1 columns). When set, the steps follow the price, not the scenario. */
+  direction?: string | null;
+  setup_diff_pence?: number | null;
+  new_monthly_pence?: number | null;
+  go_live_at?: string | null;
 };
 
 export type TrackerStep = MigrationStep & { state: "done" | "now" | "next"; at: string | null };
-export type Tracker = { id: number; scenario: MigrationScenario; from: PlanId; to: PlanId; stage: MigrationStage; open: boolean; cancelled: boolean; steps: TrackerStep[]; effectiveAt: string | null };
+export type Tracker = {
+  id: number;
+  scenario: MigrationScenario;
+  from: PlanId;
+  to: PlanId;
+  stage: MigrationStage;
+  open: boolean;
+  cancelled: boolean;
+  steps: TrackerStep[];
+  effectiveAt: string | null;
+  /** True when the monthly price goes up: it starts on the go live day. */
+  rise: boolean;
+  status: string;
+  setupDiffPence: number | null;
+  newMonthlyPence: number | null;
+  goLiveAt: string | null;
+};
+
+const money = (p: number) => `£${(p / 100).toLocaleString("en-GB", { minimumFractionDigits: p % 100 ? 2 : 0, maximumFractionDigits: 2 })}`;
+
+/**
+ * Steps for one plan change. Rows from the plan change flow carry direction and
+ * setup_diff_pence, so the steps follow Matt's price rules:
+ * - payment step only when there is a setup difference to pay (always onto Group);
+ * - price up: the new price starts on the go live day, part month on the next bill;
+ * - price down or equal: the price changes at period end, no charge, no refund.
+ * Older rows without direction keep the fixed scenario steps.
+ */
+export function stepsFor(row: Pick<MigrationRow, "direction" | "setup_diff_pence" | "new_monthly_pence">, scenario: MigrationScenario, to: PlanId): MigrationStep[] {
+  const dir = row.direction;
+  if (dir !== "up" && dir !== "down" && dir !== "equal") return SCENARIOS[scenario];
+  const rise = dir === "up";
+  const setup = Math.max(0, row.setup_diff_pence ?? 0);
+  const price = row.new_monthly_pence != null ? `${money(row.new_monthly_pence)} a month (inc. VAT)` : "";
+  const name = PLANS[to].name;
+  const out: MigrationStep[] = [
+    { stage: "requested", title: "Change requested", line: setup > 0 ? `You asked to move to ${name}.` : `You asked to move to ${name}. No payment is needed.`, by: "customer", email: true },
+  ];
+  if (setup > 0)
+    out.push({ stage: "paid", title: "Setup difference paid", line: `The one off setup difference of ${money(setup)} (inc. VAT) has gone through. Stripe sends your receipt.`, by: "stripe", email: true });
+  out.push(
+    rise
+      ? { stage: "switched", title: `${name} goes live`, line: `From the day your change goes live, your new price${price ? ` of ${price}` : ""} starts. The part month is added to your next bill.`, by: "forecourt", email: false }
+      : { stage: "switched", title: `Plan switched to ${name}`, line: `Your account shows ${name} once your change goes live. Your price stays the same until the end of your billing period.`, by: "forecourt", email: false },
+  );
+  out.push(SCENARIOS[scenario].find((x) => x.stage === "setup")!);
+  if (!rise)
+    out.push({ stage: "priced", title: price ? `New price of ${price}` : "New price from period end", line: "Starts at the end of your billing period. No charge and no refund.", by: "period_end", email: true });
+  out.push(done);
+  return out;
+}
 
 const PLAN_IDS: PlanId[] = ["site", "franchise", "group"];
 const asPlan = (p: string): PlanId | null => (PLAN_IDS.includes(p as PlanId) ? (p as PlanId) : null);
@@ -162,9 +217,9 @@ export function trackerFor(row: MigrationRow): Tracker | null {
   if (!from || !to) return null;
   const scenario = scenarioFor(from, to);
   if (!scenario) return null;
-  const steps = SCENARIOS[scenario];
+  const steps = stepsFor(row, scenario, to);
   const stage = (steps.some((s) => s.stage === row.migration_stage) ? row.migration_stage : "requested") as MigrationStage;
-  const at = stageIndex(scenario, stage);
+  const at = steps.findIndex((s) => s.stage === stage);
   const open = isOpen(row);
   const times = row.stage_times ?? {};
   return {
@@ -176,6 +231,11 @@ export function trackerFor(row: MigrationRow): Tracker | null {
     open,
     cancelled: row.status === "cancelled" || Boolean(row.migration_cancelled_at),
     effectiveAt: row.effective_at ?? null,
+    rise: row.direction ? row.direction === "up" : isUpgrade(scenario),
+    status: row.status,
+    setupDiffPence: row.setup_diff_pence ?? null,
+    newMonthlyPence: row.new_monthly_pence ?? null,
+    goLiveAt: row.go_live_at ?? null,
     steps: steps.map((s, i) => ({
       ...s,
       // The current stage is the last one reached, so it is done; the one after it is now.
@@ -191,29 +251,30 @@ export function accountStatusLabel(t: Tracker | null | undefined): AccountStatus
   return t?.open ? "Migration" : "Live";
 }
 
-export function nextStage(s: MigrationScenario, stage: MigrationStage): MigrationStage | null {
-  const steps = SCENARIOS[s];
-  const i = stageIndex(s, stage);
+export function nextStage(s: MigrationScenario, stage: MigrationStage, steps: MigrationStep[] = SCENARIOS[s]): MigrationStage | null {
+  const i = steps.findIndex((x) => x.stage === stage);
   return i >= 0 && i < steps.length - 1 ? steps[i + 1]!.stage : null;
 }
 
 /** Only the Forecourt steps can be marked by hand in Office. Payment comes from Stripe, the price change from the period end. */
-export function officeCanMark(s: MigrationScenario, current: MigrationStage, target: MigrationStage): boolean {
-  if (nextStage(s, current) !== target) return false;
-  return SCENARIOS[s][stageIndex(s, target)]!.by === "forecourt";
+export function officeCanMark(s: MigrationScenario, current: MigrationStage, target: MigrationStage, steps: MigrationStep[] = SCENARIOS[s]): boolean {
+  if (nextStage(s, current, steps) !== target) return false;
+  // Go live is set by Apply on the ticket, not by hand here.
+  if (target === "switched" && steps !== SCENARIOS[s]) return false;
+  return steps.find((x) => x.stage === target)!.by === "forecourt";
 }
 
 /** Downgrade price step is due once the period end has passed and the trim is done. */
 export function priceDue(t: Tracker, now: Date = new Date()): boolean {
   if (!t.open || !t.effectiveAt) return false;
-  return nextStage(t.scenario, t.stage) === "priced" && Date.parse(t.effectiveAt) <= now.getTime();
+  return nextStage(t.scenario, t.stage, t.steps) === "priced" && Date.parse(t.effectiveAt) <= now.getTime();
 }
 
 /** Stage times after moving to `stage` (fills any skipped earlier stages with the same time). */
 export function advance(row: MigrationRow, stage: MigrationStage, at: string): { migration_stage: MigrationStage; stage_times: Record<string, string>; completed_at: string | null } {
   const t = trackerFor(row);
   const times = { ...(row.stage_times ?? {}) };
-  if (t) for (const s of t.steps.slice(0, stageIndex(t.scenario, stage) + 1)) times[s.stage] ??= at;
+  if (t) for (const s of t.steps.slice(0, t.steps.findIndex((x) => x.stage === stage) + 1)) times[s.stage] ??= at;
   times[stage] ??= at;
   return { migration_stage: stage, stage_times: times, completed_at: stage === "complete" ? at : null };
 }
@@ -239,17 +300,27 @@ export function downgradePrice(
   siteCount: number,
   now: Date = new Date(),
 ): { currentPence: number; nextPence: number; hint: string } | null {
-  if (!tracker || !tracker.open || isUpgrade(tracker.scenario)) return null;
+  if (!tracker || !tracker.open || tracker.rise) return null;
   const reached = tracker.steps.find((s) => s.stage === "priced")?.state === "done";
   if (reached) return null;
   const endIso = tracker.effectiveAt ?? bill?.nextPaymentAt ?? null;
   if (endIso && new Date(endIso).getTime() <= now.getTime()) return null;
-  const nextPence = monthTotalPence(tracker.to, siteCount);
+  const nextPence = tracker.newMonthlyPence ?? monthTotalPence(tracker.to, siteCount);
   const live = bill?.monthlyPence ?? null;
   const currentPence = live != null && live !== nextPence ? live : monthTotalPence(tracker.from, siteCount);
-  const gbp = (p: number) => `£${(p / 100).toLocaleString("en-GB", { minimumFractionDigits: p % 100 ? 2 : 0, maximumFractionDigits: 2 })}`;
+  const gbp = money;
   const day = endIso
     ? new Date(endIso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/London" }).replace("Sept", "Sep")
     : "";
   return { currentPence, nextPence, hint: `${gbp(nextPence)} a month${day ? ` from ${day}` : " from your next billing date"}` };
+}
+
+/** Status of the request in plain words, for the request card. */
+export function requestStatusLabel(t: Pick<Tracker, "status" | "stage" | "open" | "cancelled" | "rise" | "goLiveAt">): string {
+  if (t.cancelled) return "Cancelled";
+  if (!t.open) return "Complete";
+  if (t.status === "pending_payment") return "Waiting for payment";
+  if (t.status === "scheduled") return "Booked for period end";
+  if (t.goLiveAt || t.status === "applied") return "Live, finishing setup";
+  return "With the Forecourt team";
 }
