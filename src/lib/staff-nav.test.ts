@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { headerAccountLink, planFromParam, staffAccountRedirect } from "./staff-nav.ts";
+import { headerAccountLink, officeProfileMenu, planFromParam, staffAccountRedirect } from "./staff-nav.ts";
 
 test("staff get Office, everyone else keeps Account", () => {
   assert.deepEqual(headerAccountLink(true), { to: "/office", label: "Office" });
@@ -36,4 +36,14 @@ test("any plan param on /account counts as a plan, so staff skip the redirect", 
     assert.equal(staffAccountRedirect({ team: true, tenantCount: 0, plan: planFromParam(raw, isPlan, "site") }), false);
   }
   assert.match(readFileSync("src/routes/account.tsx", "utf8"), /plan: planFromParam\(raw\.plan, isPlanId, "site"\)/);
+});
+
+test("staff do not get Your account in the profile menu, everyone else does", () => {
+  assert.deepEqual(officeProfileMenu(true).map((m) => m.label), ["Sign in and security"]);
+  assert.deepEqual(officeProfileMenu(false).map((m) => m.label), ["Sign in and security", "Your account"]);
+  assert.deepEqual(officeProfileMenu(undefined).map((m) => m.label), ["Sign in and security", "Your account"]);
+  const office = readFileSync("src/routes/office.tsx", "utf8");
+  assert.match(office, /menu=\{officeProfileMenu\(me\.team\)\}/);
+  assert.doesNotMatch(office, /label: "Your account"/);
+  assert.match(readFileSync("src/components/app-shell.tsx", "utf8"), /label: "Sign out"/);
 });
