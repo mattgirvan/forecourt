@@ -1,4 +1,5 @@
 import { PlanChangePanel } from "@/components/account/plan-change";
+import { officeProfileMenu } from "@/lib/staff-nav";
 import { PillRow } from "@/components/ui/pill-row";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { OfficeSiteBillingPanel } from "@/components/office/site-billing";
@@ -230,10 +231,7 @@ function OfficeInner() {
       active={search.id ? "customers" : tab}
       pageKey={search.id ? `file-${search.id}` : tab}
       user={{ name: me.name || me.email, sub: me.role === "owner" ? "Owner" : "Office team" }}
-      menu={[
-        { label: "Sign in and security", to: "/office", search: { tab: "security" } },
-        { label: "Your account", to: "/account" },
-      ]}
+      menu={officeProfileMenu(me.team)}
     >
     <div className="mx-auto max-w-5xl px-4 py-8 sm:px-8">
       <div className={tab === "overview" && !search.id ? "sr-only" : undefined}>
