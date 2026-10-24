@@ -27,6 +27,7 @@ function deps(): Deps {
       apiKey: resendKey(),
       // Resend renamed Audiences to Segments; the old name still works as a fallback.
       segmentId: env("RESEND_NEWSLETTER_SEGMENT_ID") ?? env("RESEND_NEWSLETTER_AUDIENCE_ID"),
+      monthlySegmentId: env("RESEND_NEWSLETTER_MONTHLY_SEGMENT_ID"),
       secret: env("NEWSLETTER_TOKEN_SECRET"),
       // Same sender as contact mail.
       from: `Forecourt <${SITE.email}>`,

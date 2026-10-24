@@ -18,6 +18,8 @@
  *     one email per person per run: anyone who joined before the flag went on
  *     catches up one step a day and never gets a burst.
  *  4. Re-read the contact from Resend and skip anyone unsubscribed.
+ *     The re-check is per send, so an unsubscribe stops every remaining
+ *     launch email from the very next send, even mid-run.
  *  5. Claim the (email, step) row in newsletter_sequence_sends BEFORE the send.
  *     The unique (email, step) constraint means a second run, a retry or two
  *     overlapping runs can never send the same step twice. A failed send can
@@ -58,6 +60,26 @@ export function nextStep(confirmedAtMs: number, had: ReadonlySet<number>, now: n
   return daysSince(confirmedAtMs, now) >= next.day ? next : null;
 }
 
+/** Launch fortnight is over: launch-2d sent (or in flight) AND 15+ days since confirm. */
+export function monthlyEligible(confirmedAtMs: number, had: ReadonlySet<number>, now: number): boolean {
+  return had.has(SEQUENCE[SEQUENCE.length - 1].step) && daysSince(confirmedAtMs, now) >= 15;
+}
+
+export const SEND_WINDOW = { startHour: 9, endHour: 17, timeZone: "Europe/London" } as const;
+
+/** Hour and minute on the wall clock in London (handles BST and GMT). */
+export function londonTime(now: number): { hour: number; minute: number } {
+  const parts = new Intl.DateTimeFormat("en-GB", { timeZone: SEND_WINDOW.timeZone, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(new Date(now));
+  const n = (t: string) => Number(parts.find((p) => p.type === t)?.value);
+  return { hour: n("hour"), minute: n("minute") };
+}
+
+/** True from 09:00 up to (not including) 17:00 Europe/London. */
+export function inSendWindow(now: number): boolean {
+  const { hour } = londonTime(now);
+  return Number.isFinite(hour) && hour >= SEND_WINDOW.startHour && hour < SEND_WINDOW.endHour;
+}
+
 /** Resend returns "2026-10-06 23:47:56.678+00". Also accepts ISO. */
 export function parseResendTime(raw: unknown): number | null {
   if (typeof raw !== "string" || !raw) return null;
@@ -76,11 +98,11 @@ function authed(c: NewsletterConfig, extra: Record<string, string> = {}) {
 export type Contact = { email: string; created_at: string; unsubscribed: boolean };
 
 /** Every contact in the Segment (paged, 100 at a time). Null on any error. */
-export async function listSegmentContacts(c: NewsletterConfig, f: Fetch): Promise<Contact[] | null> {
+export async function listSegmentContacts(c: NewsletterConfig, f: Fetch, segmentId: string = c.segmentId!): Promise<Contact[] | null> {
   const out: Contact[] = [];
   let after: string | null = null;
   for (let page = 0; page < 100; page++) {
-    const q = new URLSearchParams({ limit: "100", segment_id: c.segmentId! });
+    const q = new URLSearchParams({ limit: "100", segment_id: segmentId });
     if (after) q.set("after", after);
     const res = await f(`${RESEND_API}/contacts?${q}`, { method: "GET", headers: authed(c) });
     if (!res.ok) return null;
@@ -172,14 +194,18 @@ export type RunResult = {
   unsubscribed: number;
   duplicate: number;
   failed: number;
+  /** Added to the monthly Segment this run. */
+  monthlyAdded: number;
+  monthlyNote?: string;
 };
 
 export async function runSequence(d: RunDeps): Promise<RunResult> {
-  const r: RunResult = { enabled: d.enabled, ok: true, contacts: 0, sent: 0, notDue: 0, unsubscribed: 0, duplicate: 0, failed: 0 };
+  const r: RunResult = { enabled: d.enabled, ok: true, contacts: 0, sent: 0, notDue: 0, unsubscribed: 0, duplicate: 0, failed: 0, monthlyAdded: 0 };
   if (!d.enabled) return { ...r, reason: "NEWSLETTER_SEQUENCE_ENABLED is not true, nothing sent" };
   const c = d.config;
   if (!c.apiKey || !c.segmentId || !c.secret || c.secret.length < 16) return { ...r, ok: false, reason: "newsletter not configured" };
   const now = d.now?.() ?? Date.now();
+  if (!inSendWindow(now)) return { ...r, reason: "outside 09:00-17:00 Europe/London, nothing sent" };
   const sleep = d.sleep ?? ((ms: number) => new Promise<void>((res) => setTimeout(res, ms)));
   const max = d.maxSends ?? MAX_SENDS_PER_RUN;
 
@@ -240,6 +266,7 @@ export async function runSequence(d: RunDeps): Promise<RunResult> {
         const body = (await res.json().catch(() => ({}))) as { id?: string };
         await d.store.finish(x.email, step.step, { status: "sent", provider_id: body.id ?? "" });
         r.sent++;
+        had.set(x.email, new Set(had.get(x.email) ?? []).add(step.step));
       } else {
         await d.store.finish(x.email, step.step, { status: "failed", error: `resend ${res.status}` });
         r.failed++;
@@ -250,7 +277,56 @@ export async function runSequence(d: RunDeps): Promise<RunResult> {
     }
     await sleep(600);
   }
+  await addToMonthly(d, r, live, confirmed, had, now, sleep, max);
   return r;
+}
+
+/**
+ * Add everyone past their launch fortnight to the monthly Segment. Reads the
+ * Segment first so only missing people are added. Never removes anyone.
+ * Unsubscribed contacts are never added (and Broadcasts skip them anyway).
+ */
+async function addToMonthly(
+  d: RunDeps,
+  r: RunResult,
+  live: Contact[],
+  confirmed: Map<string, string>,
+  had: Map<string, Set<number>>,
+  now: number,
+  sleep: (ms: number) => Promise<void>,
+  max: number,
+) {
+  const c = d.config;
+  if (!c.monthlySegmentId) {
+    r.monthlyNote = "RESEND_NEWSLETTER_MONTHLY_SEGMENT_ID not set, nobody added";
+    return;
+  }
+  // Steps sent during this run count too.
+  const eligible = live.filter((x) => {
+    const at = parseResendTime(confirmed.get(x.email));
+    return at !== null && monthlyEligible(at, had.get(x.email) ?? new Set(), now);
+  });
+  if (!eligible.length) return;
+  const members = await listSegmentContacts(c, d.fetch, c.monthlySegmentId);
+  if (!members) {
+    r.monthlyNote = "could not list the monthly segment";
+    return;
+  }
+  const inMonthly = new Set(members.map((m) => m.email));
+  for (const x of eligible) {
+    if (inMonthly.has(x.email)) continue;
+    if (r.monthlyAdded >= max) break;
+    try {
+      const res = await d.fetch(`${RESEND_API}/contacts/${encodeURIComponent(x.email)}/segments/${encodeURIComponent(c.monthlySegmentId)}`, {
+        method: "POST",
+        headers: authed(c),
+      });
+      if (res.ok || res.status === 409) r.monthlyAdded++;
+    } catch {
+      /* next run tries again */
+    }
+    await sleep(600);
+  }
 }
 
 /* ---------------- Monthly Broadcast draft ---------------- */
@@ -260,7 +336,8 @@ export type DraftResult =
   | { ok: false; status: number; error: string; missing?: string[] };
 
 /**
- * Create the monthly newsletter as a Resend Broadcast DRAFT for the Segment.
+ * Create the monthly newsletter as a Resend Broadcast DRAFT for the monthly
+ * Segment only (people past their launch fortnight).
  * Never sends and never schedules: the body has no `send` and no
  * `scheduled_at`, and Resend's default for `send` is false. Matt reviews and
  * sends it from the Resend dashboard. Refuses if any slot is left unfilled.
@@ -272,7 +349,10 @@ export async function createMonthlyDraft(
 ): Promise<DraftResult> {
   if (!d.enabled) return { ok: false, status: 403, error: "NEWSLETTER_SEQUENCE_ENABLED is not true." };
   const c = d.config;
-  if (!c.apiKey || !c.segmentId) return { ok: false, status: 503, error: "Newsletter is not configured." };
+  if (!c.apiKey) return { ok: false, status: 503, error: "Newsletter is not configured." };
+  // Only the monthly Segment: never the main one, which holds people mid-launch-sequence.
+  if (!c.monthlySegmentId)
+    return { ok: false, status: 503, error: "RESEND_NEWSLETTER_MONTHLY_SEGMENT_ID is not set, so there is no safe audience for the monthly note." };
   const t = LIST_EMAILS.monthly;
   const extra: Record<string, string> = {};
   for (const [k, v] of Object.entries(slots ?? {})) {
@@ -288,7 +368,7 @@ export async function createMonthlyDraft(
   if (missing.length) return { ok: false, status: 400, error: "Fill every slot before creating the draft.", missing };
   const unsub = "{{{RESEND_UNSUBSCRIBE_URL}}}";
   const body = {
-    segment_id: c.segmentId,
+    segment_id: c.monthlySegmentId,
     from: c.from,
     reply_to: c.replyTo,
     subject,

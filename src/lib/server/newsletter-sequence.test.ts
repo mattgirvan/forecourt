@@ -11,6 +11,8 @@ import {
   runSequence,
   sequenceEnabled,
   sequenceIdempotencyKey,
+  inSendWindow,
+  monthlyEligible,
   type SequenceStore,
 } from "./newsletter-sequence.ts";
 import { supabaseSequenceStore, recordConfirmed } from "./newsletter-sequence-store.ts";
@@ -23,6 +25,7 @@ const config: NewsletterConfig = {
   from: "Forecourt <hello@forecourt.me>",
   replyTo: "hello@forecourt.me",
   baseUrl: "https://www.forecourt.me",
+  monthlySegmentId: "seg_monthly",
 };
 
 const T0 = Date.parse("2026-10-23T12:00:00Z");
@@ -31,8 +34,9 @@ const resendTime = (ms: number) => new Date(ms).toISOString().replace("T", " ").
 type Call = { url: string; method: string; headers: Record<string, string>; body: any };
 type Person = { email: string; created: number; unsubscribed?: boolean; unsubscribeOnGet?: boolean };
 
-function mockResend(people: Person[], opts: { failSend?: boolean } = {}) {
+function mockResend(people: Person[], opts: { failSend?: boolean; monthly?: Set<string> } = {}) {
   const calls: Call[] = [];
+  const monthly = opts.monthly ?? new Set<string>();
   const f = async (url: string, init: RequestInit) => {
     const c: Call = {
       url,
@@ -42,6 +46,14 @@ function mockResend(people: Person[], opts: { failSend?: boolean } = {}) {
     };
     calls.push(c);
     const u = new URL(url);
+    if (c.method === "GET" && u.pathname === "/contacts" && u.searchParams.get("segment_id") === "seg_monthly") {
+      return Response.json({ object: "list", has_more: false, data: [...monthly].map((e, i) => ({ id: `m${i}`, email: e, created_at: "", unsubscribed: false })) });
+    }
+    const seg = u.pathname.match(/^\/contacts\/([^/]+)\/segments\/([^/]+)$/);
+    if (c.method === "POST" && seg) {
+      if (seg[2] === "seg_monthly") monthly.add(decodeURIComponent(seg[1]));
+      return Response.json({ id: seg[2] });
+    }
     if (c.method === "GET" && u.pathname === "/contacts") {
       return Response.json({
         object: "list",
@@ -62,7 +74,7 @@ function mockResend(people: Person[], opts: { failSend?: boolean } = {}) {
     return new Response("{}", { status: 400 });
   };
   const sends = () => calls.filter((c) => c.method === "POST" && c.url.endsWith("/emails"));
-  return { calls, f, sends };
+  return { calls, f, sends, monthly };
 }
 
 /** In-memory store with the same unique (email, step) rule as the SQL. */
@@ -360,6 +372,7 @@ test("monthly: creates a Broadcast DRAFT only, never sent or scheduled", async (
   const m = mockResend([]);
   const r = await createMonthlyDraft({ enabled: true, config, fetch: m.f }, SLOTS);
   assert.deepEqual(r, { ok: true, id: "bc_1", status: "draft" });
+  assert.notEqual(m.calls[0].body.segment_id, "seg_test");
   assert.equal(m.calls.length, 1);
   const c = m.calls[0];
   assert.equal(c.method, "POST");
@@ -367,10 +380,137 @@ test("monthly: creates a Broadcast DRAFT only, never sent or scheduled", async (
   assert.ok(!("send" in c.body));
   assert.ok(!("scheduled_at" in c.body));
   assert.ok(!m.calls.some((x) => /\/broadcasts\/[^/]+\/send/.test(x.url)));
-  assert.equal(c.body.segment_id, "seg_test");
+  assert.equal(c.body.segment_id, "seg_monthly");
   assert.equal(c.body.subject, "Forecourt: November on the floor");
   assert.match(c.body.html, /\{\{\{RESEND_UNSUBSCRIBE_URL\}\}\}/);
   assert.match(c.body.text, /\{\{\{RESEND_UNSUBSCRIBE_URL\}\}\}/);
   assert.doesNotMatch(c.body.html.replaceAll("{{{RESEND_UNSUBSCRIBE_URL}}}", ""), /\{\{/);
   assert.doesNotMatch(c.body.html, /unsubscribe\.invalid/);
+});
+
+/* ---------------- Rule 1: unsubscribe stops the rest at once ---------------- */
+
+test("rule 1: unsubscribing via the link stops every remaining launch email from the next send", async () => {
+  const people: Person[] = [{ email: "a@x.co", created: T0 }];
+  const m = mockResend(people);
+  const s = memStore();
+  const r1 = await run(m.f, s.store, T0 + 2 * DAY_MS);
+  assert.equal(r1.sent, 1); // launch-2a
+  // They click unsubscribe; handleToken PATCHes the contact unsubscribed:true in (mocked) Resend.
+  const tok = signToken(config.secret!, "a@x.co", "u", T0 + 3 * DAY_MS);
+  const res = await handleToken(tok, "u", {
+    config,
+    fetch: async (url: string, init: RequestInit) => {
+      if (String(init.method) === "PATCH") people[0].unsubscribeOnGet = true;
+      return Response.json({});
+    },
+    now: () => T0 + 3 * DAY_MS,
+    ipLimited: () => false,
+    emailLimited: () => false,
+  } as any);
+  assert.equal(res, "ok");
+  // The list still shows them as subscribed (stale), but the pre-send re-check catches it.
+  for (const day of [5, 9, 14, 20]) await run(m.f, s.store, T0 + day * DAY_MS);
+  assert.equal(m.sends().length, 1);
+  assert.equal(m.monthly.size, 0);
+});
+
+test("rule 1: the re-check runs before every single send, and an unknown answer also skips", async () => {
+  const m = mockResend([{ email: "a@x.co", created: T0 }]);
+  const s = memStore();
+  const flaky = async (url: string, init: RequestInit) =>
+    String(init.method) === "GET" && /\/contacts\/[^/?]+$/.test(new URL(url).pathname) ? new Response("{}", { status: 500 }) : m.f(url, init);
+  const r = await run(flaky, s.store, T0 + 3 * DAY_MS);
+  assert.equal(r.sent, 0);
+  assert.equal(r.failed, 1);
+  assert.equal(s.rows.size, 0);
+});
+
+/* ---------------- Rule 2: no monthly note during the launch fortnight ---------------- */
+
+test("rule 2: eligibility needs launch-2d sent AND 15+ days since confirm", () => {
+  const all = new Set([1, 2, 3, 4]);
+  assert.equal(monthlyEligible(T0, all, T0 + 14 * DAY_MS), false);
+  assert.equal(monthlyEligible(T0, all, T0 + 15 * DAY_MS), true);
+  assert.equal(monthlyEligible(T0, new Set([1, 2, 3]), T0 + 60 * DAY_MS), false);
+  assert.equal(monthlyEligible(T0, new Set(), T0 + 400 * DAY_MS), false);
+});
+
+test("rule 2: added to the monthly segment only after the fortnight, once, never while mid-sequence", async () => {
+  const m = mockResend([{ email: "a@x.co", created: T0 }]);
+  const s = memStore();
+  for (let day = 0; day <= 14; day++) {
+    await run(m.f, s.store, T0 + day * DAY_MS);
+    assert.equal(m.monthly.has("a@x.co"), false, `day ${day}`);
+  }
+  const r = await run(m.f, s.store, T0 + 15 * DAY_MS);
+  assert.equal(r.monthlyAdded, 1);
+  assert.ok(m.monthly.has("a@x.co"));
+  const r2 = await run(m.f, s.store, T0 + 16 * DAY_MS);
+  assert.equal(r2.monthlyAdded, 0);
+  const adds = m.calls.filter((c) => c.method === "POST" && c.url.includes("/segments/seg_monthly"));
+  assert.equal(adds.length, 1);
+});
+
+test("rule 2: backfill of old contacts waits for their catch-up launch-2d", async () => {
+  const m = mockResend([{ email: "old@x.co", created: T0 - 90 * DAY_MS }]);
+  const s = memStore();
+  for (let i = 0; i < 4; i++) {
+    await run(m.f, s.store, T0 + i * DAY_MS);
+    assert.equal(m.monthly.has("old@x.co"), i === 3, `run ${i}`); // 2d goes on the 4th run, add follows in the same run
+  }
+});
+
+test("rule 2: unsubscribed contacts are never added; no monthly env means nobody added", async () => {
+  const m = mockResend([{ email: "gone@x.co", created: T0 - 90 * DAY_MS, unsubscribed: true }]);
+  const s = memStore();
+  for (let i = 0; i < 5; i++) await run(m.f, s.store, T0 + i * DAY_MS);
+  assert.equal(m.monthly.size, 0);
+  const m2 = mockResend([{ email: "a@x.co", created: T0 - 90 * DAY_MS }]);
+  const s2 = memStore();
+  let last: any;
+  for (let i = 0; i < 4; i++)
+    last = await runSequence({ enabled: true, config: { ...config, monthlySegmentId: undefined }, fetch: m2.f as any, store: s2.store, now: () => T0 + i * DAY_MS, sleep: noSleep });
+  assert.equal(last.monthlyAdded, 0);
+  assert.match(last.monthlyNote, /MONTHLY_SEGMENT_ID/);
+  assert.ok(!m2.calls.some((c) => c.url.includes("/segments/")));
+});
+
+test("rule 2: monthly draft refuses, calling nothing, when the monthly segment is not set", async () => {
+  const m = mockResend([]);
+  const r = await createMonthlyDraft({ enabled: true, config: { ...config, monthlySegmentId: undefined }, fetch: m.f }, SLOTS);
+  assert.equal(r.ok, false);
+  assert.match((r as any).error, /MONTHLY_SEGMENT_ID/);
+  assert.equal(m.calls.length, 0);
+});
+
+/* ---------------- Rule 3: UK working hours only ---------------- */
+
+test("rule 3: send window is 09:00-17:00 Europe/London in BST and GMT", () => {
+  // BST (UTC+1)
+  assert.equal(inSendWindow(Date.parse("2026-07-01T07:59:00Z")), false); // 08:59
+  assert.equal(inSendWindow(Date.parse("2026-07-01T08:00:00Z")), true); // 09:00
+  assert.equal(inSendWindow(Date.parse("2026-07-01T15:59:00Z")), true); // 16:59
+  assert.equal(inSendWindow(Date.parse("2026-07-01T16:00:00Z")), false); // 17:00
+  // GMT
+  assert.equal(inSendWindow(Date.parse("2026-12-01T08:59:00Z")), false);
+  assert.equal(inSendWindow(Date.parse("2026-12-01T09:00:00Z")), true); // the cron time
+  assert.equal(inSendWindow(Date.parse("2026-12-01T16:59:00Z")), true);
+  assert.equal(inSendWindow(Date.parse("2026-12-01T17:00:00Z")), false);
+  assert.equal(inSendWindow(Date.parse("2026-07-01T09:00:00Z")), true); // cron in BST = 10:00
+});
+
+test("rule 3: a run outside hours makes no Resend calls and no writes", async () => {
+  const m = mockResend([{ email: "a@x.co", created: T0 - 3 * DAY_MS }]);
+  const s = memStore();
+  const late = Date.parse("2026-10-23T21:30:00Z"); // 22:30 BST
+  const r = await run(m.f, s.store, late);
+  assert.equal(r.ok, true);
+  assert.equal(r.sent, 0);
+  assert.match(r.reason ?? "", /outside 09:00-17:00/);
+  assert.equal(m.calls.length, 0);
+  assert.equal(s.subs.size, 0);
+  const early = await run(m.f, s.store, Date.parse("2026-12-01T06:00:00Z"));
+  assert.equal(early.sent, 0);
+  assert.equal(m.calls.length, 0);
 });

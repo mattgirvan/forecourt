@@ -27,6 +27,12 @@ export type NewsletterConfig = {
   apiKey?: string;
   /** Resend Segment ID (formerly Audience ID). */
   segmentId?: string;
+  /**
+   * Second Segment the monthly Broadcast goes to. The daily cron adds a
+   * contact only once their launch fortnight is over (launch-2d sent and
+   * at least 15 days since confirm). RESEND_NEWSLETTER_MONTHLY_SEGMENT_ID.
+   */
+  monthlySegmentId?: string;
   secret?: string;
   /** e.g. "Forecourt <hello@forecourt.me>" */
   from: string;
