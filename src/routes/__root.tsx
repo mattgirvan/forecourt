@@ -1,3 +1,4 @@
+import { ConfirmHost } from "@/components/ui/confirm-sheet";
 import { createRootRoute, HeadContent, Outlet, Scripts } from "@tanstack/react-router";
 import { AuthProvider } from "@/lib/auth/provider";
 import { AuthCatcher } from "@/components/auth-catcher";
@@ -56,6 +57,7 @@ export const Route = createRootRoute({
         <AuthProvider>
           <Outlet />
         </AuthProvider>
+        <ConfirmHost />
         <Scripts />
       </body>
     </html>
