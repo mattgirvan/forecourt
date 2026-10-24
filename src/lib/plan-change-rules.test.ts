@@ -72,7 +72,10 @@ test("Copy: inc. VAT, go live wording, no dashes, no glass", () => {
     ...moveLines(planMove({ from: "franchise", to: "group", live: 2 }), "1 Dec 2026"),
     ...moveLines(planMove({ from: "group", to: "group", live: 2 })),
   ];
-  assert.ok(all.some((l) => l.includes("From the day your change goes live")));
+  assert.ok(all.some((l) => /^New monthly price: £[\d,]+ inc\. VAT, from the day your change goes live\.$/.test(l)));
+  assert.ok(all.some((l) => /^New monthly price: £[\d,]+ inc\. VAT \(was £[\d,]+\), from 1 Dec 2026\.$/.test(l)));
+  assert.ok(all.some((l) => l === "There is no refund for setup or part months."));
+  assert.ok(!all.some((l) => l.startsWith("New monthly:")));
   assert.ok(all.some((l) => l.includes("£2,000 inc. VAT")));
   assert.ok(all.some((l) => l === "Nothing to pay now."));
   for (const l of all) {
