@@ -303,7 +303,7 @@ export function OrderBuild({
         />
         {build.events.length ? (
           <CollapsibleSection id="dealer-history" title="History" count={build.events.length} rail="slate" testId="dealer-history">
-            <Timeline events={build.events} />
+            <Timeline events={build.events} order="newest" />
           </CollapsibleSection>
         ) : null}
       </SectionStack>
@@ -1198,11 +1198,17 @@ function MeetingList({ meetings }: { meetings: Build["meetings"] }) {
   );
 }
 
-function Timeline({ events }: { events: Build["events"] }) {
+function Timeline({
+  events,
+  order = "oldest",
+}: {
+  events: Build["events"];
+  order?: "oldest" | "newest";
+}) {
   if (!events.length) return null;
   return (
     <ol className="space-y-3 border-l border-line pl-4">
-      {newestFirst(events).map((e) => (
+      {(order === "newest" ? newestFirst(events) : events).map((e) => (
         <li key={e.id}>
           <div className="text-sm font-medium">{e.title}</div>
           <div className="text-xs text-muted">

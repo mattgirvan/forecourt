@@ -24,6 +24,10 @@ test("events show newest first", () => {
 
 test("Timeline uses the helpers", () => {
   const src = readFileSync("src/components/build/order-desk.tsx", "utf8");
-  assert.match(src, /newestFirst\(events\)\.map/);
+  assert.match(src, /order = "oldest"/);
+  assert.match(src, /order === "newest" \? newestFirst\(events\) : events/);
+  const uses = src.match(/<Timeline [^>]*\/>/g) ?? [];
+  assert.equal(uses.filter((u) => u.includes('order="newest"')).length, 1);
+  assert.ok(uses.some((u) => !u.includes("order=")));
   assert.match(src, /timelineMeta\(e\.body/);
 });
