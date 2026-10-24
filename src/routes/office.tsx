@@ -48,7 +48,7 @@ import { useWhoAmI } from "@/lib/who-am-i";
 import { SupportPane, SupportQueue } from "@/components/office/support-desk";
 
 type OfficeTab = "overview" | "customers" | "queue" | "staff" | "security" | "sites";
-type OfficeSearch = { id?: number; tab?: OfficeTab };
+type OfficeSearch = { id?: number; tab?: OfficeTab; pane?: "billing" };
 
 const TAB_LABEL: Record<OfficeTab, string> = {
   overview: "Overview",
@@ -75,6 +75,8 @@ export const Route = createFileRoute("/office")({
     const out: OfficeSearch = {};
     if (typeof n === "number" && Number.isFinite(n)) out.id = n;
     if (tab) out.tab = tab;
+    // Waiting on customer tickets link here to open the dealer file on Billing (the tracker).
+    if (raw.pane === "billing") out.pane = "billing";
     return out;
   },
   component: OfficePage,
@@ -438,8 +440,9 @@ function TenantFile({
   const [group, setGroup] = useState("");
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const startPane = Route.useSearch().pane;
   const [pane, setPane] = useState<"build" | "file" | "requests" | "support" | "notes" | "billing">(
-    "build",
+    startPane === "billing" ? "billing" : "build",
   );
   const [migration, setMigration] = useState<Tracker | null>(null);
   const loadMigration = () =>

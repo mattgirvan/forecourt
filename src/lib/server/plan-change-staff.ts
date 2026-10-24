@@ -10,7 +10,7 @@ import { clampSiteCount } from "@/lib/plan-shape";
 import { PLANS } from "@/lib/catalog";
 import { readMigration, setMigrationStage } from "@/lib/server/migration-store";
 import { actor, sbAdmin } from "@/lib/server/staff-actor";
-import { applyTicket, gbp, rejectTicket, type TicketChange } from "@/lib/server/plan-change-ticket";
+import { applyTicket, gbp, officeFileLink, rejectTicket, type TicketChange } from "@/lib/server/plan-change-ticket";
 import { readTicketChange } from "@/lib/server/plan-change-ticket-store";
 import { appliedStage, notify } from "@/lib/server/plan-change-notify";
 import { planMove } from "@/lib/plan-change-rules";
@@ -29,6 +29,10 @@ export type PlanChangeTicketView = {
   canApply: boolean;
   canReject: boolean;
   isOwner: boolean;
+  /** Waiting on customer: pending_payment with a setup difference. Staff have no action. */
+  waiting?: boolean;
+  setupDue?: string | null;
+  fileLink?: string;
 };
 
 async function team(token: string) {
@@ -83,6 +87,9 @@ export const getPlanChangeTicket = createServerFn({ method: "POST" })
       canApply: open,
       canReject: ["paid", "requested", "scheduled"].includes(c.status),
       isOwner: who.role === "owner",
+      waiting: c.status === "pending_payment" && c.setup_diff_pence > 0,
+      setupDue: c.status === "pending_payment" && c.setup_diff_pence > 0 ? gbp(c.setup_diff_pence) : null,
+      fileLink: officeFileLink(c.tenant_id),
     };
   });
 

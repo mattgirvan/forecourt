@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Chip } from "@/components/ui/chip";
 import { Row, Rows } from "@/components/ui/section";
 import { askConfirm } from "@/components/ui/confirm-sheet";
 import { applyPlanChangeTicket, getPlanChangeTicket, rejectPlanChangeTicket, type PlanChangeTicketView } from "@/lib/server/plan-change-staff";
@@ -75,11 +76,28 @@ export function PlanChangeTicketActions({
     <div data-testid="plan-change-ticket">
       <Rows>
         <Row title="Move" trailing={<span className="font-semibold">{v.from} to {v.to}</span>} />
-        <Row title="Setup difference" sub={v.setupPaid ? "Paid, inc. VAT" : undefined} trailing={<span className="font-semibold tabular-nums">{v.setupPaid ?? "Nothing to pay"}</span>} />
+        <Row
+          title="Setup difference"
+          sub={v.setupPaid ? "Paid, inc. VAT" : v.setupDue ? "Customer to pay, inc. VAT" : undefined}
+          trailing={<span className="font-semibold tabular-nums">{v.setupPaid ?? v.setupDue ?? "Nothing to pay"}</span>}
+        />
         <Row title="New monthly price" sub="Inc. VAT" trailing={<span className="font-semibold tabular-nums">{v.newMonthly}</span>} />
         <Row title="Price starts" trailing={<span className="text-muted">{starts}</span>} />
         <Row title="Billing switch" trailing={<span className="text-muted">{v.syncOn ? "On: Stripe updates itself" : "Off: set the price by hand"}</span>} />
       </Rows>
+      {v.waiting ? (
+        <div className="mt-3 rounded-2xl border border-line px-4 py-3" role="status" data-testid="plan-change-ticket-waiting">
+          <Chip>Waiting on customer</Chip>
+          <p className="mt-2 text-[13px] leading-relaxed text-[var(--fc-text-dim)]">
+            Nothing to do yet. The customer pays {v.setupDue} (inc. VAT) from the email or their account, then this moves on by itself. It closes if the request is cancelled or expires.
+          </p>
+          {v.fileLink ? (
+            <a href={v.fileLink} className="fc-tap mt-1 inline-flex min-h-11 items-center text-[13px] font-medium underline underline-offset-4" data-testid="plan-change-ticket-file-link">
+              Open the dealer file and tracker
+            </a>
+          ) : null}
+        </div>
+      ) : null}
       {notice ? (
         <div
           role={notice.tone === "error" ? "alert" : "status"}

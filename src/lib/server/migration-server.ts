@@ -81,6 +81,10 @@ export const markMigration = createServerFn({ method: "POST" })
       }
       const { error } = await sb.from("plan_changes").update(patch).eq("id", r.id);
       if (error) throw new Error(error.message);
+      if (r.status === "pending_payment") {
+        const { closeWaitingTicketFor } = await import("@/lib/server/plan-change-ticket-store");
+        await closeWaitingTicketFor(sb, r.id, "cancelled");
+      }
       await sendAccountEventEmail({ tenantId: r.tenant_id, ...migrationEvent({ ...base, stage: "cancelled" }) });
       await audit(sb, r.tenant_id, "Migration cancelled", `Tracker closed by ${who.email ?? "Office"}. ${r.status === "scheduled" ? "The booked change was released." : "The plan and Stripe were not changed."}`, who.email);
       return { message: "Cancelled. The account is back to Live. The plan and Stripe were not changed." };

@@ -27,7 +27,7 @@ import { applyPlanChange, planChangeMessage, upgradeCheckoutParams, type PlanCha
 import { siteBillingModeFrom, type SiteSubLike } from "@/lib/server/site-billing-sync";
 import { migrationEvent, planChangedEvent } from "@/lib/account-events";
 import { readMigration, setMigrationStage } from "@/lib/server/migration-store";
-import { openTicketFor } from "@/lib/server/plan-change-ticket-store";
+import { closeWaitingTicketFor, openTicketFor } from "@/lib/server/plan-change-ticket-store";
 import { inputFor, invoiceUrl, notify, sendReminderOnce, type ChangeRow } from "@/lib/server/plan-change-notify";
 import { planChangeEmail } from "@/lib/plan-change-emails";
 import { keepOnExpiry, markPaidOffline, type MarkPaidChange } from "@/lib/server/plan-change-mark-paid";
@@ -230,6 +230,9 @@ export const requestPlanChange = createServerFn({ method: "POST" })
       const mig = await readMigration(admin, started.changeId);
       // PR 5: no email while Checkout is open; the receipt (or one reminder) follows from the webhook.
       if (mig) await setMigrationStage(admin, mig, "requested");
+      // Waiting on customer: a grey Office ticket from the start, Office or customer started.
+      // Idempotent through support_item_id; it moves on when paid and closes on expiry or cancel.
+      if (started.kind === "checkout") await openTicketFor(admin, started.changeId);
       if (started.kind === "requested") {
         await notify(sendAccountEventEmail, t.id, {
           changeId: started.changeId,
@@ -403,6 +406,7 @@ export async function expirePlanChange(sb: SupabaseClient, session: SessionLike)
         return (data ?? []).length > 0;
       },
       afterExpired: async (id, tenantId) => {
+        await closeWaitingTicketFor(sb, id, "expired");
         await note(sb, tenantId, "Plan change cancelled", "Checkout expired before the setup difference was paid. The plan is unchanged.", "stripe");
         // PR 5: ONE reminder, claimed through reminder_sent_at.
         try {
@@ -498,6 +502,9 @@ export const resumePlanChangePayment = createServerFn({ method: "POST" })
         },
         { changeId: data.changeId, tenantId: data.tenantId, callerUserId: who.userId ?? null, ownerUserId: t?.user_id ?? null },
       );
+      // Pay also makes sure the Office ticket exists (requests from before it, or a failed first try).
+      // Idempotent: openTicket returns the linked support_item_id and never inserts twice.
+      if (r.ok) await openTicketFor(admin, data.changeId);
       if (r.ok && !r.reused) await note(admin, data.tenantId, "Payment page reopened", "The owner reopened the setup difference payment. A new Checkout page replaced the old one.", who.email ?? "owner");
       return r.ok ? { ok: true, url: r.url, message: "" } : { ok: false, url: null, message: r.message };
     } catch (e) {
