@@ -37,6 +37,24 @@ import {
 } from "@/lib/server/site-billing-sync";
 
 export type { SiteBillingMode };
+export const RESTORE_DAYS = 30;
+
+export type SiteBillingOutcome = {
+  from: SiteStatus;
+  to: SiteStatus;
+  beforePence: number;
+  afterPence: number;
+  plan: ReturnType<typeof normalizePlan>;
+  periodEnd: string | null;
+  samePeriod: boolean;
+  mode: SiteBillingMode;
+};
+
+async function periodAnchorFor(sb: { from: (t: string) => any }, tenantId: number): Promise<string | null> {
+  const { data } = await sb.from("build_events").select("created_at").eq("tenant_id", tenantId).eq("title", "Monthly billing started").order("created_at", { ascending: true }).limit(1);
+  return (data?.[0]?.created_at as string) ?? null;
+}
+
 /** End of this monthly period from the go live timeline entry. No Stripe call. */
 async function periodEndFor(sb: { from: (t: string) => any }, tenantId: number): Promise<string | null> {
   const { data } = await sb.from("build_events").select("created_at").eq("tenant_id", tenantId).eq("title", "Monthly billing started").order("created_at", { ascending: true }).limit(1);
@@ -77,9 +95,9 @@ async function stripeSubs(): Promise<SiteSubsLike | null> {
 
 export async function changeSiteState(
   sb: SupabaseClient,
-  input: { tenantId: number; code: string; to: SiteStatus; actorEmail: string },
+  input: { tenantId: number; code: string; to: SiteStatus; actorEmail: string; restore?: boolean; notify?: boolean },
   deps: { subscriptions?: SiteSubsLike | null; now?: () => Date; mode?: SiteBillingMode } = {},
-): Promise<{ result: SiteSyncResult; message: string; mode?: SiteBillingMode }> {
+): Promise<{ result: SiteSyncResult; message: string; mode?: SiteBillingMode; billing?: SiteBillingOutcome }> {
   const now = (deps.now ?? (() => new Date()))().toISOString();
   const { data: t } = await sb.from("tenants").select("id, plan, status, stripe_subscription_id").eq("id", input.tenantId).maybeSingle();
   const { data: rows, error } = await sb.from("tenant_sites").select("code, name, status, live_at, archived_at").eq("tenant_id", input.tenantId);
@@ -87,8 +105,17 @@ export async function changeSiteState(
   const all = (rows ?? []) as SiteRow[];
   const site = all.find((r) => r.code === input.code);
   if (!site) return { result: { changed: false, reason: "no_state_change", detail: "unknown site" }, message: "Unknown site." };
+  const nowDate = new Date(now);
+  let samePeriod = false;
   if (site.status === "archived" && input.to !== "archived") {
-    return { result: { changed: false, reason: "no_state_change", detail: "archived sites stay archived" }, message: "Archived sites are not brought back here." };
+    // Only the desk restore (within 30 days) brings a site back. Office does not.
+    const archivedAt = site.archived_at ? Date.parse(site.archived_at) : NaN;
+    if (!input.restore || Number.isNaN(archivedAt) || nowDate.getTime() - archivedAt > RESTORE_DAYS * 86_400_000) {
+      return { result: { changed: false, reason: "no_state_change", detail: "archived sites stay archived" }, message: "Archived sites are not brought back here." };
+    }
+    const end = periodEndFrom(await periodAnchorFor(sb, input.tenantId), new Date(archivedAt));
+    // No anchor: monthly billing has not started, so nothing was billed for it.
+    samePeriod = end ? Date.parse(end) > nowDate.getTime() : true;
   }
   const from = site.status;
   if (from === input.to) {
@@ -101,8 +128,12 @@ export async function changeSiteState(
     { onConflict: "event_key", ignoreDuplicates: true },
   );
   const patch: Partial<SiteRow> & { updated_at: string } = { status: input.to, updated_at: now };
-  if (input.to === "live") patch.live_at = now;
+  // A restore inside the same period keeps its old go live time, so it counts
+  // as already paid and nothing changes on the bill. After the period rolled
+  // over it is billed again from today, like a go live.
+  if (input.to === "live" && !(input.restore && samePeriod && site.live_at)) patch.live_at = now;
   if (input.to === "archived") patch.archived_at = now;
+  if (input.restore) patch.archived_at = null;
   await sb.from("tenant_sites").update(patch).eq("tenant_id", input.tenantId).eq("code", input.code).eq("status", from);
   const sites = all.map((r) => (r.code === input.code ? toBilling({ ...r, ...patch } as SiteRow) : toBilling(r)));
   const sent: ItemChange[][] = [];
@@ -132,7 +163,18 @@ export async function changeSiteState(
   } catch {
     /* best effort */
   }
-  if (input.to === "live" || input.to === "archived") {
+  const planId = normalizePlan(t.plan as string);
+  const billing: SiteBillingOutcome = {
+    from,
+    to: input.to,
+    beforePence: siteBreakdown(planId, all.map(toBilling)).total,
+    afterPence: siteBreakdown(planId, sites).total,
+    plan: planId,
+    periodEnd: input.to === "archived" ? await periodEndFor(sb, input.tenantId) : null,
+    samePeriod,
+    mode,
+  };
+  if (input.notify !== false && (input.to === "live" || input.to === "archived")) {
     const ev = (input.to === "live" ? siteLiveEvent : siteArchivedEvent)({
       tenantId: input.tenantId,
       eventKey,
@@ -142,7 +184,7 @@ export async function changeSiteState(
     });
     await sendAccountEventEmail({ tenantId: input.tenantId, ...ev });
   }
-  return { result, message, mode };
+  return { result, message, mode, billing };
 }
 
 /**

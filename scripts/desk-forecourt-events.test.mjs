@@ -82,7 +82,8 @@ test("site added, removed and restored each queue one event and post it signed a
   const want = createHmac("sha256", SECRET).update(`${h["X-Forecourt-Timestamp"]}.${sent[0].raw}`).digest("hex");
   assert.equal(h["X-Forecourt-Signature"], `v1=${want}`);
   assert.equal(sent[0].body.kind, "site_added");
-  assert.deepEqual(sent[0].body.site, { code: "E", name: "Ridgeway East" });
+  assert.deepEqual(sent[0].body.site, { code: "E", name: "Ridgeway East", status: "setting_up" });
+  assert.deepEqual(sent[2].body.site, { code: "B", name: "Ridgeway South Yard", status: "live" }, "restore carries the state it went back to");
   assert.match(sent[0].body.event_id, /^site_added:E:\d+$/);
 });
 

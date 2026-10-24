@@ -39,6 +39,14 @@ export const Route = createFileRoute("/api/desk/events")({
               const sites = rows?.length ? (rows as BillingSite[]) : parseBillingSites(t.sites);
               return { plan: t.plan as string, sites };
             },
+            applySiteState: async (tenantId, code, to, opts) => {
+              const { changeSiteState } = await import("@/lib/server/site-billing-server");
+              const r = await changeSiteState(sb, { tenantId, code, to, actorEmail: opts.actor, restore: opts.restore, notify: false });
+              return r.billing ? { billing: r.billing, message: r.message } : null;
+            },
+            recordSite: async (tenantId, code, name) => {
+              await sb.from("tenant_sites").upsert({ tenant_id: tenantId, code, name, status: "setting_up" }, { onConflict: "tenant_id,code", ignoreDuplicates: true });
+            },
             send: (tenantId, ev) => sendAccountEventEmail({ tenantId, ...ev }),
             note: async (tenantId, title, body) => {
               await sb.from("build_events").insert({ tenant_id: tenantId, kind: "note", title, body });

@@ -6,6 +6,19 @@ import { normaliseSites, seatSiteCodes } from "./data/sites";
 import { supabase } from "./data/supabase";
 import { loadRestorableSites, loadStaffSites, restoreSite, saveStaffSites } from "./data/siteAccess";
 
+const DAY = 86_400_000;
+/** Whole days left to restore, never below 0. */
+export function daysLeft(until, now = Date.now()) {
+  return Math.max(0, Math.ceil((new Date(until).getTime() - now) / DAY));
+}
+/** Without Supabase (preview), archived sites in tenant.json with archivedAt get the same 30 day window. */
+function demoArchived(list) {
+  return (Array.isArray(list) ? list : [])
+    .filter((s) => s && typeof s === "object" && s.status === "archived" && s.archivedAt)
+    .map((s) => ({ code: s.code, name: s.name, restoreUntil: new Date(new Date(s.archivedAt).getTime() + 30 * DAY).toISOString() }))
+    .filter((s) => daysLeft(s.restoreUntil) > 0);
+}
+
 /** Admin tab: choose each person's sites. Staff can be on several sites. */
 export function AdminSites({ me }) {
   const access = useDesk((s) => s.siteAccess);
@@ -19,6 +32,7 @@ export function AdminSites({ me }) {
       loadStaffSites().then(setPeople).catch((e) => setMsg(String(e.message || e)));
       loadRestorableSites().then(setArchived).catch(() => setArchived([]));
     } else {
+      setArchived(demoArchived(tenant.sites));
       setPeople(
         normaliseStaff(tenant.staff).map((s) => ({ email: s.email, name: s.name, role: s.role, allSites: s.allSites, sites: seatSiteCodes(s) })),
       );
@@ -115,6 +129,9 @@ export function AdminSites({ me }) {
               <li key={s.code}>
                 <div className="admin-who">
                   <strong>{s.name}</strong>
+                  <span className="pill-grey" data-testid="archived-pill">
+                    Archived, restore within {daysLeft(s.restoreUntil)} {daysLeft(s.restoreUntil) === 1 ? "day" : "days"}
+                  </span>
                   <span className="faint">Restore by {new Date(s.restoreUntil).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span>
                 </div>
                 <button type="button" className="ghost" onClick={() => restore(s)}>

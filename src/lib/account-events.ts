@@ -91,24 +91,55 @@ export function siteAddedEvent(d: { tenantId: number; siteCode: string; siteName
   };
 }
 
-/** A site was archived in the desk. Forecourt billing changes from Office. */
-export function siteRemovedEvent(d: { eventKey: string; siteName: string; by?: string }): AccountEvent {
+/** What the bill did when a site was archived or restored in the desk (from changeSiteState). */
+export type DeskBilling = {
+  from: string;
+  to: string;
+  beforePence: number;
+  afterPence: number;
+  plan: string;
+  periodEnd: string | null;
+  samePeriod: boolean;
+} | null;
+
+function staysReason(b: NonNullable<DeskBilling>, archiving: boolean): string {
+  if (archiving && b.from === "setting_up") return ", because it was not live yet";
+  if (!archiving && b.to === "setting_up") return ", until it goes live";
+  if (b.plan === "group") return ", because Group already bills a 2 site minimum";
+  if (b.plan === "franchise") return ", because Franchise includes up to 5 sites";
+  return "";
+}
+
+/** A site was archived in the desk. The bill follows automatically (SITE_BILLING_SYNC). */
+export function siteRemovedEvent(d: { eventKey: string; siteName: string; by?: string; billing?: DeskBilling }): AccountEvent {
+  const b = d.billing ?? null;
+  const when = b?.periodEnd ? ukDate(b.periodEnd) : "the end of this billing period";
+  const money2 = (p: number) => money(p);
+  const bill = !b
+    ? "You can restore it in your desk within 30 days."
+    : b.afterPence < b.beforePence
+      ? `Your bill goes down by one site from ${when}. We don't refund part months. You can restore it in your desk within 30 days.`
+      : `Your bill stays at ${money2(b.afterPence)} a month${staysReason(b, true)}. You can restore it in your desk within 30 days.`;
   return {
     kind: "site_removed",
-    title: `${d.siteName} removed`,
-    lines: [
-      `${d.siteName} was archived on your Forecourt desk${d.by ? ` by ${d.by}` : ""}.`,
-      "We will take it off your bill from the end of this billing period. We don't refund part months. You can restore it within 30 days.",
-    ],
+    title: `${d.siteName} archived`,
+    lines: [`${d.siteName} was archived on your Forecourt desk${d.by ? ` by ${d.by}` : ""}.`, bill],
     dedupe: `site-removed:${d.eventKey}`,
   };
 }
 
-export function siteRestoredEvent(d: { eventKey: string; siteName: string; by?: string }): AccountEvent {
+export function siteRestoredEvent(d: { eventKey: string; siteName: string; by?: string; billing?: DeskBilling }): AccountEvent {
+  const b = d.billing ?? null;
+  let bill: string;
+  if (!b) bill = "";
+  else if (b.to === "setting_up") bill = "It is still setting up, so it is billed from its go live day.";
+  else if (b.samePeriod) bill = "Its archive is cancelled and it stays on your bill as before.";
+  else if (b.afterPence > b.beforePence) bill = `It goes back on your bill from today, so your monthly total is ${money(b.afterPence)}. The part month is added to the next invoice.`;
+  else bill = `It goes back on your desk from today. Your bill stays at ${money(b.afterPence)} a month${staysReason(b, false)}.`;
   return {
     kind: "site_restored",
     title: `${d.siteName} restored`,
-    lines: [`${d.siteName} was restored on your Forecourt desk${d.by ? ` by ${d.by}` : ""}.`, "It is back on your bill once it is live again."],
+    lines: [`${d.siteName} was restored on your Forecourt desk${d.by ? ` by ${d.by}` : ""}.`, bill].filter(Boolean),
     dedupe: `site-restored:${d.eventKey}`,
   };
 }

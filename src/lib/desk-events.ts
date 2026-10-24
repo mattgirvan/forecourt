@@ -9,7 +9,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 export const DESK_EVENT_WINDOW_SECONDS = 300;
 
 export type DeskEvent =
-  | { event_id: string; kind: "site_added" | "site_removed" | "site_restored"; site: { code: string; name: string }; actor?: string; at?: string }
+  | { event_id: string; kind: "site_added" | "site_removed" | "site_restored"; site: { code: string; name: string; status?: string }; actor?: string; at?: string }
   | { event_id: string; kind: "staff_access_changed"; staff: { email: string; all_sites: boolean | null; sites: string[] }; actor?: string; at?: string };
 
 export function signDeskBody(secret: string, timestamp: string, body: string): string {
@@ -49,7 +49,8 @@ export function parseDeskEvent(raw: string): DeskEvent | null {
     const code = str(s?.code, 40);
     const name = str(s?.name);
     if (!code || !name) return null;
-    return { event_id, kind, site: { code, name }, actor, at };
+    const status = s?.status === "live" || s?.status === "setting_up" || s?.status === "archived" ? (s.status as string) : undefined;
+    return { event_id, kind, site: status ? { code, name, status } : { code, name }, actor, at };
   }
   if (kind === "staff_access_changed") {
     const s = j.staff as Record<string, unknown> | undefined;

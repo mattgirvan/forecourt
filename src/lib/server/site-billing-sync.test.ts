@@ -140,3 +140,18 @@ test("a Stripe failure is reported, never thrown", async () => {
   assert.equal((r as { reason: string }).reason, "stripe_error");
   assert.match(siteSyncMessage(r), /nothing changed/);
 });
+
+test("desk restore in the same period: live_at kept, the paid slot is reused, no proration", async () => {
+  const { subs, calls } = fake(groupSub(3));
+  const back: BillingSite = { code: "R", name: "R", status: "live", liveAt: "2026-09-01T00:00:00Z" };
+  const r = await syncSiteBilling({ subscriptions: subs }, { tenantId: 7, plan: "group", subscriptionId: "sub_g", sites: sites(2, [back]), event: { code: "R", from: "archived", to: "live" } });
+  assert.equal(calls.length, 0);
+  assert.equal(r.changed, false);
+});
+
+test("desk restore after the period rolled over: live_at is today, so it is prorated like a go live", async () => {
+  const { subs, calls } = fake(groupSub(2));
+  const back: BillingSite = { code: "R", name: "R", status: "live", liveAt: "2026-10-20T00:00:00Z" };
+  await syncSiteBilling({ subscriptions: subs }, { tenantId: 7, plan: "group", subscriptionId: "sub_g", sites: sites(2, [back]), event: { code: "R", from: "archived", to: "live" } });
+  assert.deepEqual(calls[0].params, { items: [{ id: "si_g", quantity: 3 }], proration_behavior: "create_prorations" });
+});

@@ -41,6 +41,7 @@ create table if not exists public.forecourt_events (
   kind text not null check (kind in ('site_added', 'site_removed', 'site_restored', 'staff_access_changed')),
   site_code text,
   site_name text,
+  site_status text,
   email text,
   actor text,
   created_at timestamptz not null default now(),
@@ -48,6 +49,7 @@ create table if not exists public.forecourt_events (
   request_id bigint,
   last_error text
 );
+alter table public.forecourt_events add column if not exists site_status text;
 alter table public.forecourt_events enable row level security;
 revoke all on public.forecourt_events from public, anon, authenticated;
 
@@ -63,7 +65,7 @@ as $$
   select jsonb_strip_nulls(jsonb_build_object(
     'event_id', e.id,
     'kind', e.kind,
-    'site', case when e.site_code is null then null else jsonb_build_object('code', e.site_code, 'name', e.site_name) end,
+    'site', case when e.site_code is null then null else jsonb_strip_nulls(jsonb_build_object('code', e.site_code, 'name', e.site_name, 'status', e.site_status)) end,
     'staff', case when e.email is null then null else jsonb_build_object(
       'email', e.email,
       'all_sites', (select u.all_sites from staff_users u where u.email = e.email),
@@ -154,8 +156,8 @@ begin
   else
     return null;
   end if;
-  insert into forecourt_events (id, kind, site_code, site_name, actor)
-  values (k || ':' || new.code || ':' || txid_current()::text, k, new.code, new.name, public.forecourt_actor())
+  insert into forecourt_events (id, kind, site_code, site_name, site_status, actor)
+  values (k || ':' || new.code || ':' || txid_current()::text, k, new.code, new.name, new.status, public.forecourt_actor())
   on conflict (id) do nothing;
   return null;
 end;
