@@ -37,6 +37,9 @@ export function PillRow<T extends string>(props: Single<T> | Multi<T>) {
   const selected = (id: T) => (props.kind === "toggle" ? props.isOn(id) : props.value === id);
   const current = props.kind === "toggle" ? null : props.value;
   const [focusId, setFocusId] = useState<T | null>(null);
+  // White pill that slides to the selected option (tabs and radio only).
+  const [glide, setGlide] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+  const [glideReady, setGlideReady] = useState(false);
 
   const measure = useCallback(() => {
     const el = ref.current;
@@ -45,7 +48,19 @@ export function PillRow<T extends string>(props: Single<T> | Multi<T>) {
     const start = el.scrollLeft > 1;
     const end = max - el.scrollLeft > 1;
     setEdges((e) => (e.start === start && e.end === end ? e : { start, end }));
-  }, []);
+    if (current == null) return;
+    const pill = el.querySelector<HTMLElement>(`[data-pill="${CSS.escape(current)}"]`);
+    if (!pill) return setGlide(null);
+    const g = { x: pill.offsetLeft, y: pill.offsetTop, w: pill.offsetWidth, h: pill.offsetHeight };
+    setGlide((o) => (o && o.x === g.x && o.y === g.y && o.w === g.w && o.h === g.h ? o : g));
+  }, [current]);
+
+  useEffect(() => {
+    if (!glide || glideReady) return;
+    // Place it first without motion, then let later moves slide.
+    const id = requestAnimationFrame(() => setGlideReady(true));
+    return () => cancelAnimationFrame(id);
+  }, [glide, glideReady]);
 
   useLayoutEffect(() => {
     measure();
@@ -54,7 +69,7 @@ export function PillRow<T extends string>(props: Single<T> | Multi<T>) {
     const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [measure, options.length]);
+  }, [measure, options.length, current]);
 
   const reveal = useCallback((id: T, smooth: boolean) => {
     const el = ref.current;
@@ -108,8 +123,15 @@ export function PillRow<T extends string>(props: Single<T> | Multi<T>) {
       data-testid={testId}
       onScroll={measure}
       onKeyDown={onKey}
-      className={cn("fc-pills", size === "sm" && "is-sm", edges.start && "fade-start", edges.end && "fade-end", className)}
+      className={cn("fc-pills", glide && "has-glide", size === "sm" && "is-sm", edges.start && "fade-start", edges.end && "fade-end", className)}
     >
+      {glide ? (
+        <span
+          aria-hidden
+          className={cn("fc-pill-glide", glideReady && "is-ready")}
+          style={{ width: glide.w, height: glide.h, top: glide.y, left: 0, transform: `translate3d(${glide.x}px, 0, 0)` }}
+        />
+      ) : null}
       {options.map((o) => {
         const on = selected(o.id);
         const a11y =

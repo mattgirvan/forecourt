@@ -1,3 +1,4 @@
+import { SkeletonCards } from "@/components/ui/skeleton";
 import { askConfirm } from "@/components/ui/confirm-sheet";
 import { PlanChangePanel } from "@/components/account/plan-change";
 import { formatUkDate } from "@/lib/uk-date";
@@ -171,7 +172,9 @@ function OfficeInner() {
   if (pending)
     return (
       <SiteShell>
-        <div className="mx-auto max-w-5xl px-4 py-20 text-sm text-muted">Checking access…</div>
+        <div className="mx-auto max-w-5xl px-4 py-10">
+          <SkeletonCards kind="page" count={2} label="Checking access" />
+        </div>
       </SiteShell>
     );
 
@@ -460,7 +463,7 @@ function TenantFile({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, tenantId]);
 
-  if (!file) return <p className="text-sm text-muted">Loading file…</p>;
+  if (!file) return <SkeletonCards kind="build" count={2} label="Loading file" />;
 
   const plan = normalizePlan(file.plan);
   const billing = normalizeBilling(plan, file.billing);

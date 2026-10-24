@@ -3256,3 +3256,182 @@
     animation: fc-fade-in 120ms linear both;
   }
 }
+
+/* Redesign 9: motion pass. Transform and opacity only; reduced motion keeps fades. */
+.fc-section-stack > :nth-child(-n + 6),
+.fc-overview-grid > :nth-child(-n + 6),
+.fc-stats > :nth-child(-n + 6) {
+  animation: fc-rise var(--fc-m-surface) backwards;
+}
+.fc-section-stack > :nth-child(2),
+.fc-overview-grid > :nth-child(2),
+.fc-stats > :nth-child(2) {
+  animation-delay: 45ms;
+}
+.fc-section-stack > :nth-child(3),
+.fc-overview-grid > :nth-child(3),
+.fc-stats > :nth-child(3) {
+  animation-delay: 90ms;
+}
+.fc-section-stack > :nth-child(4),
+.fc-overview-grid > :nth-child(4),
+.fc-stats > :nth-child(4) {
+  animation-delay: 135ms;
+}
+.fc-section-stack > :nth-child(5),
+.fc-overview-grid > :nth-child(5),
+.fc-stats > :nth-child(5) {
+  animation-delay: 180ms;
+}
+.fc-section-stack > :nth-child(6),
+.fc-overview-grid > :nth-child(6),
+.fc-stats > :nth-child(6) {
+  animation-delay: 225ms;
+}
+
+/* Amber buttons: a soft light while pressed. */
+.fc-amber-btn {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+}
+.fc-amber-btn::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: radial-gradient(120% 140% at 50% 0%, rgba(255, 255, 255, 0.45), transparent 60%);
+  opacity: 0;
+  transition: opacity 150ms ease;
+  pointer-events: none;
+}
+.fc-amber-btn:active::after {
+  opacity: 1;
+}
+
+/* Steps bar: segments fill left to right, 80ms apart. */
+.fc-steps > span.is-done,
+.fc-steps > span.is-now {
+  transform-origin: left center;
+  animation: fc-fill 420ms var(--fc-ease) backwards;
+}
+.fc-steps > span:nth-child(2) {
+  animation-delay: 80ms;
+}
+.fc-steps > span:nth-child(3) {
+  animation-delay: 160ms;
+}
+.fc-steps > span:nth-child(4) {
+  animation-delay: 240ms;
+}
+.fc-steps > span:nth-child(5) {
+  animation-delay: 320ms;
+}
+.fc-steps > span:nth-child(6) {
+  animation-delay: 400ms;
+}
+.fc-steps > span:nth-child(7) {
+  animation-delay: 480ms;
+}
+@keyframes fc-fill {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/* Pill select: one white pill slides between options. */
+.fc-pill-glide {
+  position: absolute;
+  z-index: 0;
+  border-radius: 99px;
+  background: #fff;
+  pointer-events: none;
+}
+.fc-pill-glide.is-ready {
+  transition: transform 320ms var(--fc-ease);
+}
+.fc-pills.has-glide .fc-pill {
+  position: relative;
+  z-index: 1;
+}
+.fc-pills.has-glide .fc-pill.is-on {
+  background: transparent;
+  border-color: transparent;
+}
+
+/* Loading: shaped skeleton cards with a slow shimmer. */
+.fc-skel-card {
+  border-radius: var(--fc-r-xl);
+  border: 1px solid var(--fc-panel-border);
+  background: var(--fc-solid);
+  padding: 20px;
+}
+.fc-skel {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+}
+.fc-skel::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.07), transparent);
+  transform: translateX(-100%);
+  animation: fc-shimmer 1.8s ease-in-out infinite;
+}
+@keyframes fc-shimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+/* Live: the green dot pulses once when it appears. */
+.fc-chip.is-live::before {
+  animation: fc-live-pulse 900ms var(--fc-ease) 200ms 1 backwards;
+}
+@keyframes fc-live-pulse {
+  0% {
+    transform: scale(0.6);
+    opacity: 0.4;
+  }
+  45% {
+    transform: scale(1.8);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fc-section-stack > :nth-child(-n + 6),
+  .fc-overview-grid > :nth-child(-n + 6),
+  .fc-stats > :nth-child(-n + 6) {
+    animation: fc-fade-in 200ms ease backwards;
+    animation-delay: 0ms;
+  }
+  .fc-steps > span.is-done,
+  .fc-steps > span.is-now {
+    animation: fc-fade-in 200ms ease backwards;
+    animation-delay: 0ms;
+  }
+  .fc-pill-glide.is-ready {
+    transition: none;
+  }
+  .fc-skel::after {
+    animation: none;
+    opacity: 0;
+  }
+  .fc-chip.is-live::before {
+    animation: none;
+  }
+  .fc-amber-btn::after {
+    transition: none;
+  }
+}

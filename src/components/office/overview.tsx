@@ -1,3 +1,4 @@
+import { CountUp } from "@/components/ui/count-up";
 import { BUILD_STAGES, stageIndex } from "@/lib/build";
 import { PLANS, gbpPence, monthTotalPence, normalizeBilling, normalizePlan } from "@/lib/catalog";
 import { packageLive } from "@/lib/team";
@@ -87,10 +88,10 @@ export function OfficeOverview({
   const date = now.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
 
   const stats = [
-    { n: String(live.length), label: "Live dealers" },
-    { n: String(queue.length), label: "In build" },
-    { n: String(needs.length), label: "Need you", action: needs.length > 0 },
-    { n: gbpPence(monthly), label: "Monthly, all dealers" },
+    { n: live.length, label: "Live dealers" },
+    { n: queue.length, label: "In build" },
+    { n: needs.length, label: "Need you", action: needs.length > 0 },
+    { n: monthly, label: "Monthly, all dealers", money: true },
   ];
 
   return (
@@ -132,7 +133,9 @@ export function OfficeOverview({
             className={cn("fc-stat", s.action && "is-action")}
             data-testid={`stat-${s.label.split(",")[0].toLowerCase().replace(/ /g, "-")}`}
           >
-            <div className="fc-stat-n">{s.n}</div>
+            <div className="fc-stat-n">
+              <CountUp id={`office-${s.label}`} value={s.n} format={s.money ? gbpPence : undefined} />
+            </div>
             <div className="fc-stat-l">{s.label}</div>
           </div>
         ))}
