@@ -12,6 +12,9 @@ import {
   normalizePlan,
   type BillingKind,
   type PlanId,
+  FRANCHISE_EXTRA_SITE_PENCE,
+  FRANCHISE_INCLUDED_SITES,
+  franchiseExtraSites,
 } from "@/lib/catalog";
 import { seedPaidOrder } from "@/lib/server/build";
 import { sendStaffAlert } from "@/lib/server/journey-email";
@@ -195,15 +198,10 @@ export const upsertTenant = createServerFn({ method: "POST" })
         if (error) throw new Error(error.message);
         return { id: existing.id as number, slug, plan, billing, siteCount };
       }
+      // The old plan = 'pilot' fallback is retired (Matt): billing, site_count and term_months
+      // are always written, so a failed write is a real error.
       const { error } = await sb.from("tenants").update(patch).eq("id", existing.id);
-      if (error) {
-        const { billing: _b, site_count: _s, term_months: _t, ...legacy } = patch;
-        const { error: err2 } = await sb
-          .from("tenants")
-          .update({ ...legacy, plan: billing === "trial" ? "pilot" : plan })
-          .eq("id", existing.id);
-        if (err2) throw new Error(err2.message);
-      }
+      if (error) throw new Error(error.message);
       return { id: existing.id as number, slug, plan, billing, siteCount };
     }
     const insert = {
@@ -213,32 +211,7 @@ export const upsertTenant = createServerFn({ method: "POST" })
       status: "briefing",
     };
     const { data: inserted, error } = await sb.from("tenants").insert(insert).select("id").single();
-    if (error) {
-      const { billing: _b, site_count: _s, term_months: _t, ...legacy } = patch;
-      const { data: fallback, error: err2 } = await sb
-        .from("tenants")
-        .insert({
-          user_id: userId,
-          slug,
-          ...legacy,
-          plan: billing === "trial" ? "pilot" : plan,
-          status: "briefing",
-        })
-        .select("id")
-        .single();
-      if (err2 || !fallback) throw new Error(err2?.message ?? error.message);
-      const id = fallback.id as number;
-      await sb.from("provision_steps").insert(
-        ["brand", "config", "data", "ingest", "ship"].map((step) => ({
-          tenant_id: id,
-          user_id: userId,
-          step,
-          done: step === "data",
-          note: step === "data" ? "Rows created for this site." : "",
-        })),
-      );
-      return { id, slug, plan, billing, siteCount };
-    }
+    if (error || !inserted) throw new Error(error?.message ?? "Could not save the account.");
     const id = inserted.id as number;
     await sb.from("provision_steps").insert(
       ["brand", "config", "data", "ingest", "ship"].map((step) => ({
@@ -395,23 +368,9 @@ export const startCheckout = createServerFn({ method: "POST" })
     };
     let orderId: number | null = null;
     const { data: order, error } = await sb.from("orders").insert(orderInsert).select("id").single();
-    if (error) {
-      const { data: fallback, error: err2 } = await sb
-        .from("orders")
-        .insert({
-          user_id: userId,
-          tenant_id: data.tenantId,
-          plan: data.billing === "trial" ? "pilot" : data.plan,
-          amount_pence: amount,
-          status: "pending",
-        })
-        .select("id")
-        .single();
-      if (err2 || !fallback) return { url: null, message: err2?.message ?? error.message };
-      orderId = fallback.id as number;
-    } else {
-      orderId = order.id as number;
-    }
+    // No 'pilot' fallback (retired): a failed order insert stops checkout.
+    if (error || !order) return { url: null, message: error?.message ?? "Could not save the order." };
+    orderId = order.id as number;
 
     const success = `${data.origin.replace(/\/$/, "")}/account?paid=1`;
     const cancel = `${data.origin.replace(/\/$/, "")}/account?canceled=1`;
@@ -432,6 +391,7 @@ export const startCheckout = createServerFn({ method: "POST" })
       site_count: String(siteCount),
     };
 
+    const extraSites = data.plan === "franchise" && data.billing !== "trial" ? franchiseExtraSites(siteCount) : 0;
     const productName =
       data.billing === "trial"
         ? "Forecourt 60-day site trial"
@@ -499,7 +459,7 @@ export const startCheckout = createServerFn({ method: "POST" })
                   recurring: { interval: "month" },
                   product_data: {
                     name: plan.perSite ? `${productName} (per site)` : productName,
-                    description: `${plan.perSite ? `${gbp(monthly)} a month for ${siteCount} sites` : `${gbp(monthly)} a month`}${
+                    description: `${plan.perSite || extraSites > 0 ? `${gbp(monthly)} a month for ${siteCount} sites` : `${gbp(monthly)} a month`}${
                       monthlyNow
                         ? ", starting today."
                         : `, starting on your go live day, or ${MONTHLY_START_LATEST_DAYS} days after payment if that comes first.`
@@ -507,6 +467,23 @@ export const startCheckout = createServerFn({ method: "POST" })
                   },
                 },
               },
+              // Franchise: sites past the first 5 bill under the Franchise name, £100 a month each.
+              ...(extraSites > 0
+                ? [
+                    {
+                      quantity: extraSites,
+                      price_data: {
+                        currency: "gbp",
+                        unit_amount: FRANCHISE_EXTRA_SITE_PENCE,
+                        recurring: { interval: "month" as const },
+                        product_data: {
+                          name: `${productName} (extra site)`,
+                          description: `${extraSites} ${extraSites === 1 ? "site" : "sites"} past the ${FRANCHISE_INCLUDED_SITES} included, at ${gbp(FRANCHISE_EXTRA_SITE_PENCE)} a month each.`,
+                        },
+                      },
+                    },
+                  ]
+                : []),
             ],
             metadata: { ...metadata, monthly_from: monthlyNow ? "checkout" : "go_live" },
             subscription_data: {

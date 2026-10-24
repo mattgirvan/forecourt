@@ -344,6 +344,21 @@ export function packGapsTip(gaps: string[]): string | null {
   return PACK_GAPS_SUMMARY;
 }
 
+/** Office pack hint (Atlas QA): live and specific; null hides it. tokenConfigured null = still checking. */
+export const PACK_HINTS = {
+  domain: "Add a web address before we can build.",
+  staff: "Add at least one person to the desk before we can build.",
+  token: "We'll unlock this once the build token is set.",
+} as const;
+
+export function packHint(pack: TenantPack, tokenConfigured: boolean | null): string | null {
+  const out: string[] = [];
+  if (!pack.domain.trim()) out.push(PACK_HINTS.domain);
+  if (!pack.staff.some((s) => s.name.trim() && s.email.includes("@"))) out.push(PACK_HINTS.staff);
+  if (out.length === 0 && tokenConfigured === false) out.push(PACK_HINTS.token);
+  return out.length ? out.join(" ") : null;
+}
+
 export function packGapsHelper(gaps: string[]): string {
   return gaps.length === 0 ? PACK_READY_HELPER : PACK_LOCKED_HELPER;
 }

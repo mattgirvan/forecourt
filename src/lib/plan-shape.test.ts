@@ -40,6 +40,9 @@ test("Office pack picker reads the plan shape, not a fixed Franchise label", () 
   assert.match(desk, /pickBrand\(pack, b\.id, plan\)/);
   assert.doesNotMatch(desk, /<div className="text-sm">Franchise<\/div>/);
   assert.doesNotMatch(desk, /Add a seat/);
+  assert.match(desk, /"Site name"/);
+  assert.match(desk, /Separate sites with a comma\./);
+  assert.doesNotMatch(desk, /Sites \(comma\)|Site \(one on Site\)/);
 });
 
 test("pack gaps, checkout and plan changes use the shape", () => {
@@ -47,4 +50,9 @@ test("pack gaps, checkout and plan changes use the shape", () => {
   assert.match(src("src/lib/server/commerce.ts"), /clampSiteCount\(plan, /);
   assert.match(src("src/lib/server/plan-change-server.ts"), /site_count: clampSiteCount\(q\.to/);
   for (const f of ["src/lib/build.ts", "src/lib/roles.ts", "src/lib/server/build-api.ts"]) assert.doesNotMatch(src(f), /staff seat|role is the seat|existing seat/);
+});
+
+test("Office pack hint is live and specific", () => {
+  const src = readFileSync(new URL("./build.ts", import.meta.url), "utf8");
+  for (const s of ["Add a web address before we can build.", "Add at least one person to the desk before we can build.", "We'll unlock this once the build token is set."]) assert.ok(src.includes(s), s);
 });

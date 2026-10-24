@@ -10,7 +10,7 @@ import {
   isBuildStage,
   packGaps,
   packGapsHelper,
-  packGapsTip,
+  packHint,
   stageIndex,
   stageMeta,
   tenantJson,
@@ -414,7 +414,7 @@ function StaffBuild({
   const untouchedBrand = pack.franchise.id === "independent" && (pack.franchises ?? []).length === 0;
   const picked = multiBrand(plan) && untouchedBrand ? [] : brandsOf(pack);
   const sendHelper = packGapsHelper(gaps);
-  const sendTip = packGapsTip(gaps);
+  const sendTip = packHint(pack, tokenStatus ? tokenStatus.configured : null);
   useEffect(() => {
     setPack(build.pack);
     setPreview(build.preview_url);
@@ -506,7 +506,7 @@ function StaffBuild({
           <Field label="Domain">
             <input className={inp} value={pack.domain} onChange={(e) => setPack({ ...pack, domain: e.target.value })} />
           </Field>
-          <Field label={PLAN_SHAPE[plan].maxSites === 1 ? "Site (one on Site)" : "Sites (comma)"}>
+          <Field label={PLAN_SHAPE[plan].maxSites === 1 ? "Site name" : "Sites"} hint={PLAN_SHAPE[plan].maxSites === 1 ? undefined : "Separate sites with a comma."}>
             <input
               className={inp}
               value={pack.sites.join(", ")}
@@ -882,10 +882,11 @@ function Timeline({ events }: { events: Build["events"] }) {
 
 const inp = "h-11 w-full rounded-2xl border border-line bg-elevated px-3 text-sm";
 
-function Field({ label, children }: { label: string; children: ReactNode }) {
+function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   return (
     <label className="block text-sm">
       {label}
+      {hint ? <span className="block text-[11px] text-subtle">{hint}</span> : null}
       <div className="mt-1.5">{children}</div>
     </label>
   );
