@@ -18,6 +18,8 @@ No SQL needed: email_log already exists (supabase/email-log.sql).
 | Manager removed from the account | "Access removed from your account" | yes | yes | Added (PR 6) |
 | Paid order, thank you | existing thank you | yes | team alert only on flags | Existed, unchanged |
 | Duplicate or look-alike payment | existing staff alert | no (staff only) | team list | Existed, unchanged |
-| Site add, remove, restore | none | | | Gap: no app action exists. Sites are added in the desk (per desk database) and archived sites cannot be brought back from Office. Needs a desk to app hook. |
+| Site added | admin + hello@ (builder `siteAddedEvent`, with price preview) | | `site-added:{key}` | Builder only in this PR. Sites are added in the desk, so the trigger is the desk event hook in #55. |
+| Site removed (archived) | admin + hello@ | | `site-archived:{key}` | Sent from Office Archive. Says the bill goes down from the period end date, no part month refunds, restore within 30 days. |
+| Site restored | none | | | Gap in this PR: restore does not exist anywhere yet. The desk 0006 has no restore and Office refuses archived to any other state. The 30 day restore promised in the copy is built in the desk in #55, with its email. Office has no restore action. |
 | Desk staff site access change | none | | | Gap: happens in each desk database, which cannot reach the app email engine. |
 | Payment recovered after a failure | none | | | Gap: not in scope list, flag only. |

@@ -96,3 +96,13 @@ test("every event is wired to sendAccountEventEmail, and existing customer email
   assert.match(j, /officeCopy\(t\.id, "payment_failed"/);
   assert.match(j, /officeCopy\(t\.id, "monthly_restart"/);
 });
+
+test("Atlas wording: archived, billing started and site added", async () => {
+  const { siteAddedEvent } = await import("../account-events.ts");
+  const a = siteArchivedEvent({ tenantId: 7, eventKey: "k", siteName: "Ridgeway South", billing: "", periodEnd: "2026-11-14T10:00:00Z" });
+  assert.deepEqual(a.lines, ["Ridgeway South has been archived.", "Your bill goes down by one site from 14 Nov 2026, the end of this billing period. We don't refund part months. You can restore it within 30 days."]);
+  assert.match(monthlyStartedEvent({ tenantId: 7, subscriptionId: "s" }).lines[0], /at go live or 180 days after payment, whichever comes first/);
+  const s = siteAddedEvent({ tenantId: 7, eventKey: "d1", siteName: "Ridgeway East", addsPence: 24_900, totalAfterPence: 74_700 });
+  assert.equal(s.dedupe, "site-added:d1");
+  assert.equal(s.lines[1], "From its go live day this adds £249 a month, bringing your monthly total to £747. Until then it is not billed.");
+});
