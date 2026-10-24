@@ -778,7 +778,10 @@ function NudgeScene() {
                 BMW iX1 xDrive30, <span className="whitespace-nowrap">CA25 DMH</span>
               </div>
             </div>
-            <span className="scene-chip shrink-0">Handover Sat 10:00</span>
+            <span className="scene-chip-swap shrink-0">
+              <span className={cn("scene-chip scene-swap", !done && "is-on")}>Handover Sat 10:00</span>
+              <span className={cn("scene-chip is-neutral scene-swap", done && "is-on")}>Handover Sat 10:00</span>
+            </span>
           </div>
 
           {/* Both banner states share one reserved cell, so nothing below moves when it appears or changes. */}
@@ -936,6 +939,7 @@ function ChaseScene() {
               {waiting > 0 && <span className="scene-count">{waiting} waiting</span>}
             </div>
             <div className="scene-chase-list flex flex-col">
+              <div className="scene-chase-rows">
               {V5_CHASES.map((c, i) => {
                 const t = isTicked(i);
                 return (
@@ -969,8 +973,10 @@ function ChaseScene() {
                   </div>
                 );
               })}
-              <div className={cn("scene-chase-clear py-1.5 text-[12.5px] text-[var(--mist)]", waiting === 0 && "is-on")}>
-                No chases set. You're clear.
+              <div className={cn("scene-chase-clear text-[12.5px] text-[var(--mist)]", waiting === 0 && "is-on")}>
+                <CheckCircle2 size={18} color="var(--emerald)" />
+                <span>No chases set. You're clear.</span>
+              </div>
               </div>
               <div className="mt-1 flex items-center gap-1.5 text-[12.5px] font-semibold" style={{ color: "var(--emerald)" }}>
                 <Plus size={14} /> Add customer

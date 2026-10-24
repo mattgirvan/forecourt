@@ -1416,6 +1416,23 @@
   grid-area: 1 / 1;
   margin-top: 0;
 }
+.scene-nudge-slot {
+  min-height: 64px;
+}
+.scene-nudge-slot > .dealer-nudge-banner {
+  align-content: center;
+}
+.scene-chip-swap {
+  display: inline-grid;
+}
+.scene-chip-swap > .scene-chip {
+  grid-area: 1 / 1;
+}
+.scene-chip.is-neutral {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.14);
+  color: var(--mist);
+}
 .scene-swap {
   opacity: 0;
   transition: opacity 360ms ease;
@@ -1456,11 +1473,18 @@
 .scene-chase-row.is-ticked {
   opacity: 0;
 }
+.scene-chase-rows {
+  position: relative;
+}
 .scene-chase-clear {
   position: absolute;
-  left: 0;
-  right: 0;
-  top: 0;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  text-align: center;
   opacity: 0;
   transition: opacity 260ms ease;
 }
