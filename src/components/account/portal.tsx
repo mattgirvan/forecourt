@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { PillRow } from "@/components/ui/pill-row";
+import { useReportAccountSection } from "@/components/account/section-context";
 import { Link } from "@tanstack/react-router";
 import { OrderBuild } from "@/components/build/order-desk";
 import { SeatMatrix } from "@/components/trust/seat-matrix";
@@ -89,6 +90,7 @@ export function DealerPortal({
   onNewPackage?: () => void;
 }) {
   const [tab, setTab] = useState<Tab>("overview");
+  useReportAccountSection(tab);
   const plan = normalizePlan(tenant.plan);
   const billing = normalizeBilling(plan, tenant.billing);
   const chosen = PLANS[plan];
@@ -129,23 +131,24 @@ export function DealerPortal({
 
       <PaymentIssueNotice token={token} tenantId={tenant.id} />
 
-      <PillRow
-        className="mt-6"
-        label="Account sections"
-        value={tab}
-        onChange={setTab}
-        options={(
-          [
-            ["overview", "Overview"],
-            ...(multiSite(plan) ? ([["sites", "Sites"]] as const) : []),
-            ["billing", "Plan and billing"],
-            ["build", "Your desk"],
-            ["messages", "Support"],
-            ["notes", "Notes"],
-            ...(isLive ? [] : ([["people", "People"]] as const)),
-          ] as const
-        ).map(([id, label]) => ({ id, label }))}
-      />
+      <div className="mt-3">
+        <PillRow
+          label="Account sections"
+          value={tab}
+          onChange={setTab}
+          options={(
+            [
+              ["overview", "Overview"],
+              ...(multiSite(plan) ? ([["sites", "Sites"]] as const) : []),
+              ["billing", "Plan and billing"],
+              ["build", "Your desk"],
+              ["messages", "Support"],
+              ["notes", "Notes"],
+              ...(isLive ? [] : ([["people", "People"]] as const)),
+            ] as const
+          ).map(([id, label]) => ({ id, label }))}
+        />
+      </div>
 
       <div className="mt-6">
         {tab === "overview" && (

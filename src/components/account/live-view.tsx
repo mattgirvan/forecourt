@@ -34,6 +34,7 @@ import {
 } from "@/lib/live-view";
 import { cn } from "@/lib/utils";
 import { PillRow } from "@/components/ui/pill-row";
+import { useReportAccountSection } from "@/components/account/section-context";
 import { AccountSites } from "@/components/account/account-sites";
 import { PlanChangePanel } from "@/components/account/plan-change";
 import { Row as FcRow, Rows, Section } from "@/components/ui/section";
@@ -466,6 +467,7 @@ export function LiveView({
   const [migration, setMigration] = useState<Tracker | null>(initial?.migration ?? null);
   const multi = plan === "group" || plan === "franchise";
   const [view, setView] = useState<"overview" | "sites" | "plan">("overview");
+  useReportAccountSection(view);
 
   const loadSupport = () =>
     void listSupport({ data: { token, tenantId: tenant.id } })
@@ -533,19 +535,20 @@ export function LiveView({
         {site?.renewsAt ? `${monthly ? ", " : ""}renews ${ukDate(site.renewsAt)}` : ""}
       </p>
 
-      <PillRow
-        className="mt-6"
-        label="Account sections"
-        value={view}
-        onChange={setView}
-        options={(
-          [
-            ["overview", "Overview"],
-            ...(multi ? ([["sites", "Sites"]] as const) : []),
-            ...(manager ? [] : ([["plan", "Change plan"]] as const)),
-          ] as const
-        ).map(([id, label]) => ({ id, label }))}
-      />
+      <div className="mt-3">
+        <PillRow
+          label="Account sections"
+          value={view}
+          onChange={setView}
+          options={(
+            [
+              ["overview", "Overview"],
+              ...(multi ? ([["sites", "Sites"]] as const) : []),
+              ...(manager ? [] : ([["plan", "Change plan"]] as const)),
+            ] as const
+          ).map(([id, label]) => ({ id, label }))}
+        />
+      </div>
 
       {view === "sites" ? (
         <div className="mt-6">

@@ -122,6 +122,9 @@ export function AppShell({
             hash={i.hash}
             className={cn("fc-bnav-item fc-press", active === i.key && "is-on")}
             aria-current={active === i.key ? "page" : undefined}
+            // Items can share a path (/account and /account#security), so the
+            // router only treats an exact path and hash match as current.
+            activeOptions={{ exact: true, includeHash: true }}
           >
             <span className="fc-bnav-ic">
               <i.icon aria-hidden />

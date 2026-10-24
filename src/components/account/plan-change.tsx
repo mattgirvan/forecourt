@@ -69,8 +69,9 @@ export function changeRows(
       { label: `${to} setup`, value: money(PLANS[q.to].setupPence) },
       { label: "Setup difference, paid today", value: money(q.setupDiffPence), strong: true },
       {
-        label: `Monthly: ${money(q.oldMonthlyPence)} now, ${to} after`,
+        label: "New monthly price",
         value: `${money(q.newMonthlyPence)}/mo`,
+        sub: `Was ${money(q.oldMonthlyPence)}`,
       },
       {
         label: `Part month${q.periodEnd ? ` to ${formatUkDate(q.periodEnd)}` : ""}`,

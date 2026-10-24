@@ -5,7 +5,14 @@ import { Button } from "@/components/ui/button";
 import type { OpenPaymentIssue } from "@/lib/server/payment-issues";
 
 function ukDay(iso: string) {
-  return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/London" }).replace("Sept", "Sep");
+  return new Date(iso)
+    .toLocaleDateString("en-GB", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      timeZone: "Europe/London",
+    })
+    .replace("Sept", "Sep");
 }
 
 /** Exact customer banner copy (Atlas, 23 Oct 2026). */
@@ -16,7 +23,15 @@ export const PAYMENT_BANNER =
  * Banner for an open failed monthly payment. `team` shows the staff detail
  * (amount, attempts, Stripe invoice) for the Office billing pane.
  */
-export function PaymentIssueNotice({ token, tenantId, team = false }: { token: string; tenantId: number; team?: boolean }) {
+export function PaymentIssueNotice({
+  token,
+  tenantId,
+  team = false,
+}: {
+  token: string;
+  tenantId: number;
+  team?: boolean;
+}) {
   const [issue, setIssue] = useState<OpenPaymentIssue | null>(null);
   useEffect(() => {
     let live = true;
@@ -34,9 +49,13 @@ export function PaymentIssueNotice({ token, tenantId, team = false }: { token: s
       <div className="rounded-[1.75rem] border border-line-strong bg-surface p-6">
         <div className="text-sm font-medium">Monthly payment failed</div>
         <p className="mt-1 text-sm text-muted">
-          {gbpPence(issue.amountDuePence)} did not go through on {ukDay(issue.firstFailedAt)} (attempt {issue.attemptCount}).{" "}
-          {issue.nextRetryAt ? `Stripe retries on ${ukDay(issue.nextRetryAt)}.` : "Stripe has no further retry scheduled."}
-          {issue.invoiceId ? ` Invoice ${issue.invoiceId}.` : ""} The customer sees a banner asking them to update their card. This clears by itself when Stripe collects the payment.
+          {gbpPence(issue.amountDuePence)} did not go through on {ukDay(issue.firstFailedAt)}{" "}
+          (attempt {issue.attemptCount}).{" "}
+          {issue.nextRetryAt
+            ? `Stripe retries on ${ukDay(issue.nextRetryAt)}.`
+            : "Stripe has no further retry scheduled."}
+          {issue.invoiceId ? ` Invoice ${issue.invoiceId}.` : ""} The customer sees a banner asking
+          them to update their card. This clears by itself when Stripe collects the payment.
         </p>
       </div>
     );

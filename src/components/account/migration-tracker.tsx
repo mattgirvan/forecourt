@@ -16,7 +16,15 @@ export function MigrationPill({ tracker }: { tracker?: Tracker | null }) {
 }
 
 /** Step by step tracker for an account type change, modelled on the setup tracker. */
-export function MigrationTracker({ tracker, office = false, actions }: { tracker: Tracker; office?: boolean; actions?: ReactNode }) {
+export function MigrationTracker({
+  tracker,
+  office = false,
+  actions,
+}: {
+  tracker: Tracker;
+  office?: boolean;
+  actions?: ReactNode;
+}) {
   const done = tracker.steps.filter((s) => s.state === "done").length;
   return (
     <section className="rounded-2xl border border-line bg-surface px-4 py-4 sm:px-5">
@@ -48,15 +56,25 @@ export function MigrationTracker({ tracker, office = false, actions }: { tracker
               <span className={cn("block", s.state === "next" && "text-muted")}>{s.title}</span>
               <span className="block text-[12px] text-subtle">
                 {s.line}
-                {s.stage === "priced" && tracker.effectiveAt ? ` From ${ukDay(tracker.effectiveAt)}.` : ""}
+                {s.stage === "priced" && tracker.effectiveAt
+                  ? ` From ${ukDay(tracker.effectiveAt)}.`
+                  : ""}
               </span>
-              {office && s.state === "now" ? <span className="mt-0.5 block text-[11px] text-subtle">{whoMoves(s.by, s.stage, tracker.scenario)}</span> : null}
+              {office && s.state === "now" ? (
+                <span className="mt-0.5 block text-[11px] text-subtle">
+                  {whoMoves(s.by, s.stage, tracker.scenario)}
+                </span>
+              ) : null}
             </span>
-            <span className="shrink-0 text-[12px] text-subtle">{s.at && s.state === "done" ? ukDay(s.at) : s.state === "now" ? "Next" : ""}</span>
+            <span className="shrink-0 text-[12px] text-subtle">
+              {s.at && s.state === "done" ? ukDay(s.at) : s.state === "now" ? "Next" : ""}
+            </span>
           </li>
         ))}
       </ol>
-      {actions ? <div className="mt-3 flex flex-wrap gap-2 border-t border-line pt-3">{actions}</div> : null}
+      {actions ? (
+        <div className="mt-3 flex flex-wrap gap-2 border-t border-line pt-3">{actions}</div>
+      ) : null}
     </section>
   );
 }
@@ -65,8 +83,10 @@ function whoMoves(by: string, stage: string, scenario: Tracker["scenario"]): str
   if (by === "stripe") return "Moves on when Stripe confirms the payment.";
   if (by === "period_end") return "Moves on by itself at the period end.";
   // Trims are manual (Matt): staff do them in the customer's desk, Office only records it.
-  if (by === "forecourt" && stage === "setup" && scenario === "group_to_franchise") return "Remove the brands to drop in the customer's desk, then mark this step done.";
-  if (by === "forecourt" && stage === "setup" && !isUpgrade(scenario)) return "Archive the sites to drop in the customer's desk, then mark this step done.";
+  if (by === "forecourt" && stage === "setup" && scenario === "group_to_franchise")
+    return "Remove the brands to drop in the customer's desk, then mark this step done.";
+  if (by === "forecourt" && stage === "setup" && !isUpgrade(scenario))
+    return "Archive the sites to drop in the customer's desk, then mark this step done.";
   if (by === "forecourt") return "Mark this done below when it is finished.";
   return "";
 }

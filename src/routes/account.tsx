@@ -1,3 +1,4 @@
+import { AccountSectionContext } from "@/components/account/section-context";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { planFromParam, staffAccountRedirect } from "@/lib/staff-nav";
 import { PillRow } from "@/components/ui/pill-row";
@@ -96,7 +97,8 @@ function AccountPage() {
           <div className="mx-auto max-w-lg px-4 py-20 text-center">
             <h1 className="font-display text-3xl">Your Forecourt account.</h1>
             <p className="mt-3 text-sm text-muted">
-              Package, billing, receipts, and a line to us. Sign in with the email you used to start.
+              Package, billing, receipts, and a line to us. Sign in with the email you used to
+              start.
             </p>
             <Button className="mt-6" asChild>
               <Link to="/login">Sign in</Link>
@@ -119,21 +121,42 @@ function AccountShell({ children }: { children: ReactNode }) {
   const { me } = useWhoAmI();
   const { user } = useSbUser();
   const email = me?.email || user?.email || "";
+  const [section, setSection] = useState("overview");
   const nav: ShellNavItem[] = [
     { key: "overview", label: "Overview", icon: LayoutGrid, to: "/account", bottom: true },
-    { key: "security", label: "Sign in and security", short: "Sign in", icon: KeyRound, to: "/account", hash: "security", bottom: true },
+    {
+      key: "security",
+      label: "Sign in and security",
+      short: "Sign in",
+      icon: KeyRound,
+      to: "/account",
+      hash: "security",
+      bottom: true,
+    },
     { key: "help", label: "Help", icon: LifeBuoy, to: "/contact", bottom: true },
-    ...(me?.team ? [{ key: "office", label: "Office", icon: Building2, to: "/office" as const, search: {}, bottom: true }] : []),
+    ...(me?.team
+      ? [
+          {
+            key: "office",
+            label: "Office",
+            icon: Building2,
+            to: "/office" as const,
+            search: {},
+            bottom: true,
+          },
+        ]
+      : []),
   ];
   return (
     <AppShell
       area="account"
       items={nav}
-      active="overview"
+      active={section === "overview" ? "overview" : null}
+      pageKey="account"
       user={{ name: me?.name || email || "Your account", sub: me?.team ? "Forecourt team" : email }}
       menu={[]}
     >
-      {children}
+      <AccountSectionContext.Provider value={setSection}>{children}</AccountSectionContext.Provider>
     </AppShell>
   );
 }
@@ -156,7 +179,9 @@ function AccountInner() {
   const [domain, setDomain] = useState("");
   const [sites, setSites] = useState("Main");
   const [ingest, setIngest] = useState("excel");
-  const [features, setFeatures] = useState<Record<string, boolean>>(defaultFeaturesFor("site", "trial"));
+  const [features, setFeatures] = useState<Record<string, boolean>>(
+    defaultFeaturesFor("site", "trial"),
+  );
   const [plan, setPlan] = useState<PlanId>(search.plan ?? "site");
   const [billing, setBilling] = useState<BillingKind>(
     search.billing ?? (search.plan && search.plan !== "site" ? "subscription" : "trial"),
@@ -182,7 +207,8 @@ function AccountInner() {
   const chosen = PLANS[plan];
   // One trial per site (the checkout guard refuses a second): a site that has
   // had its trial goes straight to the full plan and Trial is hidden.
-  const trialUsed = activeId != null && trialAlreadyUsed(orders.filter((o) => o.tenant_id === activeId));
+  const trialUsed =
+    activeId != null && trialAlreadyUsed(orders.filter((o) => o.tenant_id === activeId));
   const trialLocked = plan !== "site" || trialUsed;
   const effectiveBilling: BillingKind = trialLocked ? "subscription" : billing;
   const activeTenant = tenants.find((x) => x.id === activeId);
@@ -193,7 +219,8 @@ function AccountInner() {
     plan,
     billing: effectiveBilling,
     siteCount,
-    convertFromTrial: plan === "site" && effectiveBilling === "subscription" && onPaidTrial(activeTenant),
+    convertFromTrial:
+      plan === "site" && effectiveBilling === "subscription" && onPaidTrial(activeTenant),
     tenant: activeTenant,
   });
   const converting = quote.convert;
@@ -249,7 +276,10 @@ function AccountInner() {
         },
       }).then((r) => {
         if (r.ok) setNotice("Paid, thank you. Next, book your kickoff call.");
-        else if (sessionId) setNotice("We could not confirm the payment yet. If Stripe took it, it will show here shortly.");
+        else if (sessionId)
+          setNotice(
+            "We could not confirm the payment yet. If Stripe took it, it will show here shortly.",
+          );
         void reload();
       });
     }
@@ -293,7 +323,10 @@ function AccountInner() {
       .split(",")
       .map((s) => s.trim())
       .filter(Boolean);
-    const count = plan === "group" ? Math.max(PLANS.group.minSites, siteCount, siteList.length) : siteList.length || 1;
+    const count =
+      plan === "group"
+        ? Math.max(PLANS.group.minSites, siteCount, siteList.length)
+        : siteList.length || 1;
     const res = await upsertTenant({
       data: {
         token,
@@ -380,7 +413,9 @@ function AccountInner() {
     effectiveBilling === "trial"
       ? "Only if you stay, from the day you convert"
       : `${gbpPence(monthly)} a month${chosen.perSite ? ` for ${siteCount} sites` : ""}, ${
-          monthlyNow ? "from today" : `from your go live day, or ${MONTHLY_START_LATEST_DAYS} days after payment if that comes first`
+          monthlyNow
+            ? "from today"
+            : `from your go live day, or ${MONTHLY_START_LATEST_DAYS} days after payment if that comes first`
         }`;
 
   const payLabel = (() => {
@@ -441,7 +476,11 @@ function AccountInner() {
         tenant={current}
         notice={notice}
         converting={busy}
-        onConvert={normalizeBilling(normalizePlan(current.plan), current.billing) === "trial" ? () => void convert() : undefined}
+        onConvert={
+          normalizeBilling(normalizePlan(current.plan), current.billing) === "trial"
+            ? () => void convert()
+            : undefined
+        }
         onNewPackage={() => setWantCheckout(true)}
       />
     );
@@ -465,7 +504,9 @@ function AccountInner() {
           </button>
         )}
         {notice && (
-          <p className="mt-4 rounded-md border border-line bg-elevated px-3 py-2 text-sm">{notice}</p>
+          <p className="mt-4 rounded-md border border-line bg-elevated px-3 py-2 text-sm">
+            {notice}
+          </p>
         )}
 
         <div className="mt-8 grid gap-2 sm:grid-cols-3">
@@ -479,10 +520,14 @@ function AccountInner() {
                 onClick={() => setPlan(id)}
                 className={cn(
                   "rounded-2xl border px-4 py-4 text-left transition-colors",
-                  on ? "border-line-strong bg-elevated" : "border-line bg-bg hover:border-line-strong",
+                  on
+                    ? "border-line-strong bg-elevated"
+                    : "border-line bg-bg hover:border-line-strong",
                 )}
               >
-                <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-subtle">{p.tag}</div>
+                <div className="text-[11px] font-medium uppercase tracking-[0.14em] text-subtle">
+                  {p.tag}
+                </div>
                 <div className="mt-1 text-lg font-semibold tracking-tight">{p.name}</div>
                 <div className="mt-2 text-xs leading-relaxed text-muted">
                   {p.trial ? "60-day trial available" : "12-month contract"}
@@ -493,7 +538,9 @@ function AccountInner() {
         </div>
 
         {plan === "site" && trialUsed && (
-          <p className="mt-4 text-sm text-muted">This site has already had its 60-day trial, so it goes on the full plan.</p>
+          <p className="mt-4 text-sm text-muted">
+            This site has already had its 60-day trial, so it goes on the full plan.
+          </p>
         )}
         {plan === "site" && (
           <div className={cn("mt-4 grid gap-2", !trialUsed && "sm:grid-cols-2")}>
@@ -508,7 +555,8 @@ function AccountInner() {
               >
                 <div className="text-sm font-medium">60-day trial</div>
                 <div className="mt-1 text-xs text-muted">
-                  {gbpPence(PLANS.site.trialPence!)} once. Sales + manager. Comes off setup if you stay.
+                  {gbpPence(PLANS.site.trialPence!)} once. Sales + manager. Comes off setup if you
+                  stay.
                 </div>
               </button>
             )}
@@ -517,19 +565,24 @@ function AccountInner() {
               onClick={() => setBilling("subscription")}
               className={cn(
                 "rounded-2xl border px-4 py-3 text-left",
-                effectiveBilling === "subscription" ? "border-line-strong bg-elevated" : "border-line",
+                effectiveBilling === "subscription"
+                  ? "border-line-strong bg-elevated"
+                  : "border-line",
               )}
             >
               <div className="text-sm font-medium">Subscribe</div>
               <div className="mt-1 text-xs text-muted">
-                {gbpPence(PLANS.site.setupPence)} setup + {gbpPence(PLANS.site.monthPence)}/month. Every role, unlimited staff logins.
+                {gbpPence(PLANS.site.setupPence)} setup + {gbpPence(PLANS.site.monthPence)}/month.
+                Every role, unlimited staff logins.
               </div>
             </button>
           </div>
         )}
 
         {plan !== "site" && (
-          <p className="mt-4 rounded-md border border-line bg-surface px-3 py-2 text-sm text-muted">{chosen.why}</p>
+          <p className="mt-4 rounded-md border border-line bg-surface px-3 py-2 text-sm text-muted">
+            {chosen.why}
+          </p>
         )}
 
         <div className="mt-8 space-y-4">
@@ -548,7 +601,12 @@ function AccountInner() {
             </Field>
           </div>
           <Field label="Website you’d like" htmlFor="d">
-            <Input id="d" value={domain} onChange={(e) => setDomain(e.target.value)} placeholder="sales.yourdealership.co.uk" />
+            <Input
+              id="d"
+              value={domain}
+              onChange={(e) => setDomain(e.target.value)}
+              placeholder="sales.yourdealership.co.uk"
+            />
           </Field>
           <Field label={plan === "group" ? "Sites (comma separated)" : "Site"} htmlFor="s">
             <Input id="s" value={sites} onChange={(e) => setSites(e.target.value)} />
@@ -560,7 +618,11 @@ function AccountInner() {
                 type="number"
                 min={PLANS.group.minSites}
                 value={siteCount}
-                onChange={(e) => setSiteCount(Math.max(PLANS.group.minSites, Number(e.target.value) || PLANS.group.minSites))}
+                onChange={(e) =>
+                  setSiteCount(
+                    Math.max(PLANS.group.minSites, Number(e.target.value) || PLANS.group.minSites),
+                  )
+                }
               />
             </Field>
           )}
@@ -593,17 +655,25 @@ function AccountInner() {
             <ul className="mt-2 space-y-1 text-muted">
               <li>
                 Due today: {gbpPence(dueToday)}
-                {effectiveBilling === "trial" ? "" : monthlyNow ? " (setup and your first month)" : " (one-off setup)"}
+                {effectiveBilling === "trial"
+                  ? ""
+                  : monthlyNow
+                    ? " (setup and your first month)"
+                    : " (one-off setup)"}
               </li>
               {effectiveBilling !== "trial" && (
                 <li>
                   {monthlyNow
                     ? `Then ${gbpPence(monthly)} a month${chosen.perSite ? ` for ${siteCount} sites` : ""}, from today.`
                     : monthlyStartSentence(monthly)}
-                  {chosen.contractMonths ? ` ${chosen.contractMonths} month contract.` : " Month to month."}
+                  {chosen.contractMonths
+                    ? ` ${chosen.contractMonths} month contract.`
+                    : " Month to month."}
                 </li>
               )}
-              {effectiveBilling === "trial" && <li>60-day site trial. The £1,500 comes off setup if you stay.</li>}
+              {effectiveBilling === "trial" && (
+                <li>60-day site trial. The £1,500 comes off setup if you stay.</li>
+              )}
               <li>
                 Full terms, including payment and sign-off:{" "}
                 <Link to="/terms" className="text-fg underline-offset-4 hover:underline">
@@ -626,8 +696,10 @@ function AccountInner() {
                 onChange={(e) => setContractOk(e.target.checked)}
               />
               <span>
-                {chosen.contractMonths}-month contract. Setup {gbpPence(setup)}, then {gbpPence(monthly)}
-                {chosen.perSite ? ` for ${siteCount} sites` : ""} each month. No 60-day trial on {chosen.name.toLowerCase()}.
+                {chosen.contractMonths}-month contract. Setup {gbpPence(setup)}, then{" "}
+                {gbpPence(monthly)}
+                {chosen.perSite ? ` for ${siteCount} sites` : ""} each month. No 60-day trial on{" "}
+                {chosen.name.toLowerCase()}.
               </span>
             </label>
           )}
@@ -655,7 +727,8 @@ function AccountInner() {
             </span>
           </label>
           <p className="text-sm text-muted lg:hidden">
-            After you pay: book your kickoff call, we set up your desk, you try a preview and test it, then you go live.
+            After you pay: book your kickoff call, we set up your desk, you try a preview and test
+            it, then you go live.
           </p>
           <div className="flex flex-wrap items-center gap-2 pt-2">
             <Button
@@ -666,7 +739,12 @@ function AccountInner() {
             >
               {payLabel}
             </Button>
-            <Button type="button" variant="ghost" onClick={() => void save()} disabled={busy || !name.trim()}>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => void save()}
+              disabled={busy || !name.trim()}
+            >
               Save
             </Button>
           </div>
@@ -714,9 +792,7 @@ function AccountInner() {
           </ul>
           <p className="mt-4 text-sm">
             {effectiveBilling === "trial" ? (
-              <>
-                First charge {gbpPence(setup)}. Monthly starts when you convert.
-              </>
+              <>First charge {gbpPence(setup)}. Monthly starts when you convert.</>
             ) : (
               <>
                 Today {gbpPence(dueToday)}
@@ -728,7 +804,11 @@ function AccountInner() {
             )}
           </p>
         </div>
-        <BeforePayPanel className="hidden lg:block" todayLine={todayLine} monthlyLine={monthlyLine} />
+        <BeforePayPanel
+          className="hidden lg:block"
+          todayLine={todayLine}
+          monthlyLine={monthlyLine}
+        />
         <div className="rounded-lg border border-line p-5">
           <h2 className="font-medium">Orders</h2>
           {orders.length === 0 ? (
