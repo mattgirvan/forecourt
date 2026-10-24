@@ -17,6 +17,8 @@ import {
   Ship,
   Sparkles,
   Truck,
+  Building2,
+  PackageCheck,
   UserPlus,
   type LucideProps,
 } from "lucide-react";
@@ -1483,16 +1485,284 @@ function OverviewScene() {
   );
 }
 
+/* ------------------------------------------------------------------ */
+/* Scene: stock in transit (demo data only)                            */
+/* ------------------------------------------------------------------ */
+
+type TransitStatus = "Ordered" | "At port" | "On the lorry" | "In stock";
+
+const TRANSIT: { model: string; trim: string; reg: string; status: TransitStatus; eta: string; target?: boolean }[] = [
+  { model: "Hatchback", trim: "SE Petrol", reg: "AB12 CDE", status: "On the lorry", eta: "Due Thu" },
+  { model: "Estate", trim: "Sport Hybrid", reg: "XY34 ZZZ", status: "At port", eta: "Lorry booked", target: true },
+  { model: "Compact SUV", trim: "Electric", reg: "QQ00 TST", status: "At port", eta: "Waiting for lorry" },
+  { model: "Large SUV", trim: "Diesel Auto", reg: "DM99 OOO", status: "Ordered", eta: "Build week 48" },
+];
+
+/** Target car path, in scroll progress: at port, on the lorry, arrived. */
+const TRANSIT_STEPS: { at: number; status: TransitStatus; eta: string }[] = [
+  { at: 0, status: "At port", eta: "Lorry booked" },
+  { at: 0.38, status: "On the lorry", eta: "Due today" },
+  { at: 0.72, status: "In stock", eta: "Arrived 10:42" },
+];
+
+function TransitPill({ status }: { status: TransitStatus }) {
+  const done = status === "In stock";
+  return (
+    <span key={status} className={cn("scene-transit-pill", done && "is-arrived")}>
+      {done ? <PackageCheck size={12} /> : status === "At port" ? <Anchor size={12} /> : status === "On the lorry" ? <Truck size={12} /> : <Calendar size={12} />}
+      <span className="truncate">{status}</span>
+    </span>
+  );
+}
+
+function TransitScene() {
+  const [step, setStep] = useState(TRANSIT_STEPS.length - 1);
+  const rowRefs = useRef<(HTMLLIElement | null)[]>([]);
+  const lorryRef = useRef<HTMLSpanElement>(null);
+  const fillRef = useRef<HTMLSpanElement>(null);
+
+  const trackRef = useScrollScene<HTMLElement>((p) => {
+    rowRefs.current.forEach((row, i) => {
+      if (!row) return;
+      const a = 0.02 + i * 0.05;
+      row.style.setProperty("--t", ease(seg(p, a, a + 0.12)).toFixed(4));
+    });
+    let s = 0;
+    TRANSIT_STEPS.forEach((st, i) => {
+      if (p >= st.at) s = i;
+    });
+    setStep(s);
+    // Lorry drives along the route between the two steps.
+    const t = ease(seg(p, 0.4, 0.72));
+    if (lorryRef.current) lorryRef.current.style.setProperty("--x", t.toFixed(4));
+    if (fillRef.current) fillRef.current.style.transform = `scaleX(${t.toFixed(4)})`;
+  });
+
+  const current = TRANSIT_STEPS[step];
+  const arrived = current.status === "In stock";
+  const inTransit = TRANSIT.filter((c) => !c.target).length + (arrived ? 0 : 1);
+
+  return (
+    <SceneTrack
+      trackRef={trackRef}
+      id="scene-transit"
+      length="long"
+      copy={
+        <SceneCopy
+          id="scene-transit-title"
+          eyebrow="Stock in transit"
+          title="Know where every car is before it lands"
+          line="At port, on the lorry, then in stock. Everyone sees the same status, so nobody has to ring the depot."
+        />
+      }
+    >
+      <div
+        className="desk-shell scene-card relative w-full max-w-[540px]"
+        role="img"
+        aria-label="Incoming stock list with a status pill per car. One estate moves from At port to On the lorry, then arrives in stock."
+      >
+        <div aria-hidden>
+          <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3.5 sm:px-5">
+            <div className="min-w-0">
+              <div className="text-[15px] font-semibold">Incoming stock</div>
+              <div className="truncate font-mono text-[11px] text-[var(--shell-text-faint)]">
+                {inTransit} in transit, {arrived ? "1 arrived today" : "0 arrived today"}
+              </div>
+            </div>
+            <span className="rounded-full bg-white/5 px-3 py-1.5 font-mono text-[11px] text-[var(--shell-text-dim)]">Kelso Autos</span>
+          </div>
+          <ul className="px-3 pt-1 pb-2 sm:px-4">
+            {TRANSIT.map((car, i) => {
+              const status = car.target ? current.status : car.status;
+              const eta = car.target ? current.eta : car.eta;
+              return (
+                <li
+                  key={car.reg}
+                  ref={(el) => {
+                    rowRefs.current[i] = el;
+                  }}
+                  className={cn("scene-row scene-transit-row", car.target && "scene-transit-target", car.target && arrived && "is-arrived")}
+                  style={{ ["--fan" as string]: `${-10 + i * 3}deg` }}
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-[13.5px] font-medium">
+                      {car.model} <span className="font-normal text-[var(--shell-text-dim)]">{car.trim}</span>
+                    </div>
+                    <div className="mt-0.5 truncate font-mono text-[11px] text-[var(--shell-text-faint)]">
+                      {car.reg}, {eta}
+                    </div>
+                    {car.target && (
+                      <div className="scene-route mt-2">
+                        <span className="scene-route-line">
+                          <span ref={fillRef} className="scene-route-fill" />
+                        </span>
+                        <span className="scene-route-end is-start">
+                          <Anchor size={10} />
+                        </span>
+                        <span className={cn("scene-route-end is-finish", arrived && "is-done")}>
+                          <Building2 size={10} />
+                        </span>
+                        <span ref={lorryRef} className="scene-route-lorry">
+                          <Truck size={13} />
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  <TransitPill status={status} />
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      </div>
+    </SceneTrack>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Scene: group and franchise sites (demo data only)                   */
+/* ------------------------------------------------------------------ */
+
+const SITES: { name: string; stock: number; transit: number; live: number; action: number; roles: number }[] = [
+  { name: "Kelso Autos", stock: 42, transit: 6, live: 11, action: 2, roles: 9 },
+  { name: "Harbourline Cars", stock: 67, transit: 12, live: 18, action: 0, roles: 14 },
+  { name: "Brackenford Motors", stock: 29, transit: 3, live: 7, action: 4, roles: 6 },
+];
+const SITE_SHORT = ["Kelso", "Harbourline", "Brackenford"];
+/** Scroll progress at which each site is picked (first is preselected). */
+const SITE_AT = [0, 0.36, 0.68];
+
+function GroupScene() {
+  const [site, setSite] = useState(SITES.length - 1);
+  const [pressed, setPressed] = useState(-1);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const cursorRef = useRef<HTMLDivElement>(null);
+  const tabRefs = useRef<(HTMLSpanElement | null)[]>([]);
+
+  const trackRef = useScrollScene<HTMLElement>((p) => {
+    let s = 0;
+    SITE_AT.forEach((a, i) => {
+      if (p >= a) s = i;
+    });
+    setSite(s);
+    setPressed(SITE_AT.findIndex((a, i) => i > 0 && p >= a - 0.03 && p < a));
+
+    const box = stageRef.current?.getBoundingClientRect();
+    if (!box) return;
+    const from = { x: box.width * 0.9, y: box.height * 0.97 };
+    const tab = (i: number) => pointIn(box, tabRefs.current[i], 0.5, 0.6);
+    let prev = from;
+    let x = from.x;
+    let y = from.y;
+    for (let i = 1; i < SITE_AT.length; i++) {
+      const a = SITE_AT[i] - 0.16;
+      if (p < a) break;
+      const target = tab(i);
+      const t = ease(seg(p, a, SITE_AT[i] - 0.04));
+      x = lerp(prev.x, target.x, t);
+      y = lerp(prev.y, target.y, t);
+      prev = target;
+    }
+    placeCursor(cursorRef.current, x, y, seg(p, 0.12, 0.18) * (1 - seg(p, 0.86, 0.94)));
+  });
+
+  const d = SITES[site];
+  const stats: { label: string; value: number; tone?: "amber" | "green" }[] = [
+    { label: "In stock", value: d.stock },
+    { label: "In transit", value: d.transit },
+    { label: "Live deals", value: d.live, tone: "green" },
+    { label: "Needs action", value: d.action, tone: d.action > 0 ? "amber" : undefined },
+  ];
+
+  return (
+    <SceneTrack
+      trackRef={trackRef}
+      id="scene-group"
+      length="long"
+      copy={
+        <SceneCopy
+          id="scene-group-title"
+          eyebrow="Groups and franchises"
+          title="Run every site from one Office"
+          line="Switch site and the numbers follow. Stock, deals and Roles stay separate per site, with one login for the group."
+        />
+      }
+    >
+      <div
+        ref={stageRef}
+        className="desk-shell scene-card relative w-full max-w-[520px]"
+        role="img"
+        aria-label={`Office for a dealer group with three sites. The site switcher moves between sites and each site's numbers change. Showing ${d.name}.`}
+      >
+        <div aria-hidden className="px-4 py-3.5 sm:px-5 sm:py-4">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-[15px] font-semibold">Office</div>
+              <div className="truncate font-mono text-[11px] text-[var(--shell-text-faint)]">Harbourline Group, 3 sites</div>
+            </div>
+            <span className="scene-group-live">
+              <span className="scene-loc-dot" /> Live
+            </span>
+          </div>
+
+          <div className="scene-site-switch mt-3">
+            {SITES.map((s, i) => (
+              <span
+                key={s.name}
+                ref={(el) => {
+                  tabRefs.current[i] = el;
+                }}
+                className={cn("scene-site-tab", i === site && "is-on", i === pressed && "is-pressed")}
+              >
+                <span className="truncate sm:hidden">{SITE_SHORT[i]}</span>
+                <span className="hidden truncate sm:inline">{s.name}</span>
+              </span>
+            ))}
+          </div>
+
+          <div className="mt-3 flex items-center gap-2 text-[12.5px] text-[var(--shell-text-dim)]">
+            <Building2 size={14} className="shrink-0" />
+            <span key={d.name} className="scene-month-label truncate font-semibold text-white">
+              {d.name}
+            </span>
+          </div>
+
+          <div className="mt-2.5 grid grid-cols-2 gap-2">
+            {stats.map((st) => (
+              <div key={st.label} className={cn("scene-site-stat", st.tone && `is-${st.tone}`)}>
+                <div className="font-mono text-[20px] leading-none font-bold tabular-nums text-white">
+                  <CountUp value={st.value} />
+                </div>
+                <div className="scene-site-stat-label mt-1 truncate text-[11px]">{st.label}</div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-2.5 flex items-center justify-between gap-2 rounded-[14px] bg-white/5 px-3.5 py-2.5 text-[12px] text-[var(--shell-text-dim)]">
+            <span className="truncate">Roles at this site</span>
+            <strong className="font-mono tabular-nums text-white">
+              <CountUp value={d.roles} />
+            </strong>
+          </div>
+        </div>
+        <FakeCursor innerRef={cursorRef} down={pressed >= 0} />
+      </div>
+    </SceneTrack>
+  );
+}
+
 export function HomeScrollScenes() {
   return (
     <div className="scroll-scenes" id="showcase">
       <TeamScene />
       <StockScene />
+      <TransitScene />
       <QuoteScene />
       <CustomerScene />
       <NudgeScene />
       <ChaseScene />
       <OverviewScene />
+      <GroupScene />
     </div>
   );
 }
