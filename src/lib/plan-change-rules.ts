@@ -92,12 +92,12 @@ export function moveLines(move: PlanMove, periodEndLabel?: string | null): strin
   const lines: string[] = [];
   lines.push(move.needsPayment ? `Setup difference, paid now: ${gbp(move.setupDuePence)} inc. VAT` : "Nothing to pay now.");
   if (move.direction === "up") {
-    lines.push(`New monthly: ${gbp(move.newMonthlyPence)} inc. VAT. From the day your change goes live.`);
+    lines.push(`New monthly price: ${gbp(move.newMonthlyPence)} inc. VAT, from the day your change goes live.`);
     lines.push("The part month from that day to the end of your billing month is added to your next bill.");
   } else {
     const when = periodEndLabel ? `from ${periodEndLabel}` : "from your next billing month";
-    lines.push(`New monthly: ${gbp(move.newMonthlyPence)} inc. VAT (was ${gbp(move.oldMonthlyPence)}), ${when}.`);
-    lines.push("No refund for setup or part months.");
+    lines.push(`New monthly price: ${gbp(move.newMonthlyPence)} inc. VAT (was ${gbp(move.oldMonthlyPence)}), ${when}.`);
+    lines.push("There is no refund for setup or part months.");
   }
   return lines;
 }
