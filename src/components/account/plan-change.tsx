@@ -107,7 +107,7 @@ export function changeRows(
 
 export function changeHint(q: PlanChangeQuote): string {
   if (q.direction === "upgrade")
-    return `${LABEL[q.to]} starts as soon as the setup payment goes through. Adding more sites later never has a setup fee.`;
+    return `The setup difference is paid when you send your request. Your new price of ${money(q.newMonthlyPence)} a month (inc. VAT) starts from the day your change goes live. The part month is added to your next bill. Adding more sites later never has a setup fee.`;
   if (q.direction === "downgrade")
     return q.effective === "period_end"
       ? `Your account moves to ${LABEL[q.to]} when the team applies your change. You keep your current price until the end of the billing period. No setup refund, and no refund for part months.`

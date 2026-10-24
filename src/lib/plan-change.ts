@@ -108,9 +108,8 @@ export function quoteLines(q: PlanChangeQuote): string[] {
   if (q.direction === "same") return [`You are already on ${name(q.to)}.`];
   if (q.direction === "upgrade") {
     return [
-      `Setup difference, paid when your change goes live: ${gbp(q.setupDiffPence)}`,
-      `Part month for the rest of this month, added to your next bill: ${gbp(q.proratedPence)}`,
-      `${name(q.to)} starts as soon as the setup payment goes through. Your new monthly total is ${gbp(q.newMonthlyPence)}.`,
+      `Setup difference, paid when you send your request: ${gbp(q.setupDiffPence)} (inc. VAT)`,
+      `Your new price of ${gbp(q.newMonthlyPence)} a month (inc. VAT) starts from the day your change goes live. The part month is added to your next bill.`,
     ];
   }
   const when =
