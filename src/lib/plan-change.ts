@@ -108,7 +108,7 @@ export function quoteLines(q: PlanChangeQuote): string[] {
   if (q.direction === "same") return [`You are already on ${name(q.to)}.`];
   if (q.direction === "upgrade") {
     return [
-      `Setup difference, paid now when you send your request: ${gbp(q.setupDiffPence)} (inc. VAT)`,
+      `Setup difference, paid when you send your request: ${gbp(q.setupDiffPence)} (inc. VAT)`,
       `Your new price of ${gbp(q.newMonthlyPence)} a month (inc. VAT) starts from the day your change goes live. The part month is added to your next bill.`,
     ];
   }
