@@ -596,7 +596,10 @@ function GlideRail({ index }: { index: number }) {
               </div>
             );
           })}
-          <span className="arrived-pill shell-glass-float scene-rail-bubble" style={{ left: centre }}>
+          <span
+            className="arrived-pill shell-glass-float scene-rail-bubble"
+            style={layout ? { left: 0, transform: `translate(calc(${centre} - 50%), -50%)` } : { left: centre }}
+          >
             <PillIcon size={13} /> {LOCATOR_LABEL[index]}
           </span>
           {LOCATOR_LABEL.map((stop, i) => {
@@ -778,25 +781,20 @@ function NudgeScene() {
             <span className="scene-chip shrink-0">Handover Sat 10:00</span>
           </div>
 
-          <div className={cn("scene-collapse", bannerIn && "is-open")}>
-            <div>
-              <div className={cn("dealer-nudge-banner scene-nudge", done && "is-done")}>
-                {done ? (
-                  <CheckCircle2 size={18} className="shrink-0" color="var(--emerald)" />
-                ) : (
-                  <AlertTriangle size={18} className="shrink-0" color="#F3B4A8" />
-                )}
-                <div className="dealer-nudge-banner__body">
-                  {done
-                    ? "All tasks done. Handover is good to go."
-                    : "Handover is in 18 hours and Priya still has 2 outstanding tasks. Worth a nudge."}
-                </div>
-                {!done && (
-                  <span ref={ctaRef} className={cn("dealer-nudge-banner__cta", stage === 2 && "is-pressed", sent && "is-sent")}>
-                    Message customer
-                  </span>
-                )}
+          {/* Both banner states share one reserved cell, so nothing below moves when it appears or changes. */}
+          <div className={cn("scene-reserve scene-nudge-slot", bannerIn && "is-in")}>
+            <div className={cn("dealer-nudge-banner scene-nudge scene-swap", !done && "is-on")}>
+              <AlertTriangle size={18} className="shrink-0" color="#F3B4A8" />
+              <div className="dealer-nudge-banner__body">
+                Handover is in 18 hours and Priya still has 2 outstanding tasks. Worth a nudge.
               </div>
+              <span ref={ctaRef} className={cn("dealer-nudge-banner__cta", stage === 2 && "is-pressed", sent && "is-sent")}>
+                Message customer
+              </span>
+            </div>
+            <div className={cn("dealer-nudge-banner scene-nudge is-done scene-swap", done && "is-on")}>
+              <CheckCircle2 size={18} className="shrink-0" color="var(--emerald)" />
+              <div className="dealer-nudge-banner__body">All tasks done. Handover is good to go.</div>
             </div>
           </div>
 
@@ -826,13 +824,12 @@ function NudgeScene() {
                 <MessageSquare size={13} /> Messages
               </div>
               <div className="scene-msg-list flex min-h-[96px] flex-col justify-end gap-2">
-                {!sent && <div className="text-[12px] text-[var(--shell-text-faint)]">Nothing new since Tuesday.</div>}
-                {sent && (
-                  <div className="scene-bubble is-mine">
-                    Hi Priya, quick one before Saturday. Could you upload your ID and sign the documents? It is all in your customer view.
-                  </div>
-                )}
-                {replied && <div className="scene-bubble">Done both. See you at 10!</div>}
+                {/* Bubbles keep their space from the start and only fade in. */}
+                <div className={cn("scene-msg-empty text-[12px] text-[var(--shell-text-faint)]", !sent && "is-on")}>Nothing new since Tuesday.</div>
+                <div className={cn("scene-bubble is-mine", sent && "is-in")}>
+                  Hi Priya, quick one before Saturday. Could you upload your ID and sign the documents? It is all in your customer view.
+                </div>
+                <div className={cn("scene-bubble", replied && "is-in")}>Done both. See you at 10!</div>
               </div>
             </div>
           </div>
@@ -893,6 +890,21 @@ function ChaseScene() {
 
   const isTicked = (row: number) => V5_ORDER.indexOf(row as 0 | 1 | 2) < ticked;
   const waiting = 3 - ticked;
+  // Rows keep their layout slot; ticked rows fade and the rest slide up with a transform.
+  const rowRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const [rowH, setRowH] = useState<number[]>([]);
+  useIsoLayoutEffect(() => {
+    const read = () => setRowH(rowRefs.current.map((el) => (el ? el.offsetHeight : 0)));
+    read();
+    const ro = new ResizeObserver(read);
+    rowRefs.current.forEach((el) => el && ro.observe(el));
+    return () => ro.disconnect();
+  }, []);
+  const lift = (row: number) => {
+    let sum = 0;
+    for (let j = 0; j < row; j++) if (isTicked(j)) sum += rowH[j] ?? 0;
+    return sum;
+  };
 
   return (
     <SceneTrack
@@ -927,7 +939,14 @@ function ChaseScene() {
               {V5_CHASES.map((c, i) => {
                 const t = isTicked(i);
                 return (
-                  <div key={c.px} className={cn("scene-collapse", !t && "is-open")}>
+                  <div
+                    key={c.px}
+                    ref={(el) => {
+                      rowRefs.current[i] = el;
+                    }}
+                    className={cn("scene-chase-row", t && "is-ticked")}
+                    style={{ transform: `translateY(${-lift(i)}px)` }}
+                  >
                     <div>
                       <div className="flex items-center gap-2.5 py-1.5">
                         <span
@@ -950,10 +969,8 @@ function ChaseScene() {
                   </div>
                 );
               })}
-              <div className={cn("scene-collapse", waiting === 0 && "is-open")}>
-                <div>
-                  <div className="py-1.5 text-[12.5px] text-[var(--mist)]">No chases set. You're clear.</div>
-                </div>
+              <div className={cn("scene-chase-clear py-1.5 text-[12.5px] text-[var(--mist)]", waiting === 0 && "is-on")}>
+                No chases set. You're clear.
               </div>
               <div className="mt-1 flex items-center gap-1.5 text-[12.5px] font-semibold" style={{ color: "var(--emerald)" }}>
                 <Plus size={14} /> Add customer
