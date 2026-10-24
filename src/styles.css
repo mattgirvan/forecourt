@@ -1152,7 +1152,7 @@
   top: 21px;
   z-index: 3;
   transform: translate(-50%, -50%);
-  transition: left 560ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition: transform 560ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 .scene-rail .scene-rail-measure {
   position: absolute;
@@ -1396,6 +1396,115 @@
   min-height: 80px;
 }
 
+/* Layout-stable reveals: space is reserved, only opacity and transform animate. */
+.scene-reserve {
+  opacity: 0;
+  transform: translateY(-6px);
+  transition:
+    opacity 260ms ease,
+    transform 380ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.scene-reserve.is-in {
+  opacity: 1;
+  transform: none;
+}
+.scene-nudge-slot {
+  display: grid;
+  margin-top: 12px;
+}
+.scene-nudge-slot > .scene-swap {
+  grid-area: 1 / 1;
+  margin-top: 0;
+}
+.scene-nudge-slot {
+  min-height: 64px;
+}
+.scene-nudge-slot > .dealer-nudge-banner {
+  align-content: center;
+}
+.scene-chip-swap {
+  display: inline-grid;
+}
+.scene-chip-swap > .scene-chip {
+  grid-area: 1 / 1;
+}
+.scene-chip.is-neutral {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.14);
+  color: var(--mist);
+}
+.scene-swap {
+  opacity: 0;
+  transition: opacity 360ms ease;
+}
+.scene-swap.is-on {
+  opacity: 1;
+}
+.scene-msg-list {
+  position: relative;
+}
+.scene-msg-list .scene-bubble {
+  animation: none;
+  opacity: 0;
+  transform: translateY(8px) scale(0.98);
+  transition:
+    opacity 360ms ease,
+    transform 360ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.scene-msg-list .scene-bubble.is-in {
+  opacity: 1;
+  transform: none;
+}
+.scene-msg-empty {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  opacity: 0;
+  transition: opacity 260ms ease;
+}
+.scene-msg-empty.is-on {
+  opacity: 1;
+}
+.scene-chase-row {
+  transition:
+    transform 380ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 260ms ease;
+}
+.scene-chase-row.is-ticked {
+  opacity: 0;
+}
+.scene-chase-rows {
+  position: relative;
+}
+.scene-chase-clear {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  text-align: center;
+  opacity: 0;
+  transition: opacity 260ms ease;
+}
+.scene-chase-clear.is-on {
+  opacity: 1;
+}
+.scene-chase-list {
+  position: relative;
+}
+@media (prefers-reduced-motion: reduce) {
+  .scene-reserve,
+  .scene-swap,
+  .scene-msg-list .scene-bubble,
+  .scene-msg-empty,
+  .scene-chase-row,
+  .scene-chase-clear {
+    transition: none !important;
+  }
+}
+
 /* Short or narrow phones: compact scenes 3 and 4 so the whole pinned card fits. */
 .scene-rail .rail-label {
   overflow-wrap: normal;
@@ -1410,7 +1519,7 @@
     margin-bottom: 0;
   }
   .dealer-nudge-banner__cta.is-sent {
-    display: none;
+    visibility: hidden;
   }
   .scene-locator-label {
     font-size: 11px;
@@ -1466,6 +1575,10 @@
   /* Stock rows tighten so the list clears the 24px eyebrow gap on 667px phones. */
   .scene-stock-list .scene-row {
     padding-block: 8px;
+  }
+  /* Chase rows keep their reserved space, so tighten them to fit 667px phones. */
+  .scene-chase-row > div > div {
+    padding-block: 3px;
   }
 }
 
@@ -4230,6 +4343,18 @@
   #scene-transit .scene-sticky,
   #scene-group .scene-sticky {
     padding-top: 4rem;
+  }
+}
+
+/* iOS Safari zooms the page when a focused field is under 16px and keeps that
+   zoom after the next page loads, which is why Office could open zoomed in
+   after sign in. Unlayered so it beats text-xs or text-sm utilities on phones.
+   Pinch zoom stays on: the viewport tag is untouched. */
+@media (max-width: 767px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]),
+  select,
+  textarea {
+    font-size: max(16px, 1em);
   }
 }
 
