@@ -128,7 +128,7 @@ export function PricingPage() {
 function SwitchingPlans() {
   const { site, franchise, group } = PLANS;
   const points = [
-    `You can move between ${site.name}, ${franchise.name} and ${group.name} at any time. Your subscription is adjusted pro rata.`,
+    `You can move between ${site.name}, ${franchise.name} and ${group.name} at any time. Moving up part way through a month? The part month is added to your next bill.`,
     `Moving up? You pay the difference in setup fee up front. Setup is ${gbpPence(site.setupPence)} for ${site.name}, ${gbpPence(franchise.setupPence)} for ${franchise.name} and ${gbpPence(group.setupPence)} for ${group.name}.`,
     "Moving down? There is no refund on the setup fee, and the lower monthly price starts at the end of your current billing period.",
     "Adding sites never comes with a setup fee.",
