@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Chip } from "@/components/ui/chip";
 import { Row, Rows } from "@/components/ui/section";
 import { PillRow } from "@/components/ui/pill-row";
 import { ThreadDrawer, Pill } from "@/components/account/live-view";
 import { listSupport, listSupportQueue, setSupportStatus, type SupportItem } from "@/lib/server/live-view";
+import { TicketPane } from "@/components/office/ticket-pane";
+import { cn } from "@/lib/utils";
 import { PlanChangeTicketActions } from "@/components/office/plan-change-ticket";
 import type { PlanChangeTicketView } from "@/lib/server/plan-change-staff";
 import { STATUS_LABEL, isOpenStatus, itemTypeLabel, lastLine, updatedWhen, type SupportStatus } from "@/lib/live-view";
@@ -46,14 +48,41 @@ function StatusSelect({ token, item, onChanged }: { token: string; item: Support
   );
 }
 
-function Table({ token, items, onChanged, showDealer, onOpen }: { token: string; items: SupportItem[]; onChanged: () => void; showDealer?: boolean; onOpen: (i: SupportItem) => void }) {
+function Table({
+  token,
+  items,
+  onChanged,
+  showDealer,
+  onOpen,
+  compact,
+  openId,
+}: {
+  token: string;
+  items: SupportItem[];
+  onChanged: () => void;
+  showDealer?: boolean;
+  onOpen: (i: SupportItem) => void;
+  /** Slice 12: the narrow list beside an open ticket. Rows only, no status picker. */
+  compact?: boolean;
+  openId?: number | null;
+}) {
   if (!items.length) return <p className="mt-4 text-sm text-muted">Nothing here.</p>;
   return (
     <>
-    <Rows as="ul" className="mt-4 md:hidden">
+    <Rows as="ul" className={cn("mt-4", !compact && "md:hidden")}>
       {items.map((i) => (
-        <Row as="li" key={i.id} tone={i.needs_reply ? "action" : "default"} className="!items-start flex-col !gap-2">
-          <button type="button" className="fc-row-btn w-full" onClick={() => onOpen(i)}>
+        <Row
+          as="li"
+          key={i.id}
+          tone={i.needs_reply ? "action" : "default"}
+          className={cn("!items-start flex-col !gap-2", openId === i.id && "fc-tix-row-on")}
+        >
+          <button
+            type="button"
+            className="fc-row-btn w-full"
+            aria-current={openId === i.id ? "true" : undefined}
+            onClick={() => onOpen(i)}
+          >
             <span className="min-w-0 flex-1">
               <span className="fc-row-title block whitespace-normal">{i.title}</span>
               <span className="fc-row-sub block">
@@ -67,14 +96,18 @@ function Table({ token, items, onChanged, showDealer, onOpen }: { token: string;
               ) : null}
             </span>
           </button>
-          <div className="flex w-full flex-wrap items-center gap-2">
-            {i.needs_reply ? <NeedsReply /> : null}
-            <StatusSelect token={token} item={i} onChanged={onChanged} />
-          </div>
+          {compact ? (
+            i.needs_reply ? <NeedsReply /> : null
+          ) : (
+            <div className="flex w-full flex-wrap items-center gap-2">
+              {i.needs_reply ? <NeedsReply /> : null}
+              <StatusSelect token={token} item={i} onChanged={onChanged} />
+            </div>
+          )}
         </Row>
       ))}
     </Rows>
-    <div className="mt-4 hidden overflow-x-auto rounded-2xl border border-line md:block">
+    {compact ? null : <div className="mt-4 hidden overflow-x-auto rounded-2xl border border-line md:block">
       <table className="w-full min-w-[640px] text-left text-sm">
         <thead className="text-[12px] text-subtle">
           <tr className="border-b border-line">
@@ -108,7 +141,7 @@ function Table({ token, items, onChanged, showDealer, onOpen }: { token: string;
           ))}
         </tbody>
       </table>
-    </div>
+    </div>}
     </>
   );
 }
@@ -177,6 +210,19 @@ export function SupportQueue({
     if (tab === "resolved") return all.filter((i) => !isOpenStatus(i.status));
     return all;
   }, [data, tab]);
+  const listScroll = useRef(0);
+  const pane = useRef<HTMLDivElement>(null);
+  const restore = useRef(false);
+  useLayoutEffect(() => {
+    // Back from a ticket: put the list where it was (after the list has rendered again).
+    if (open || !restore.current) return;
+    restore.current = false;
+    window.scrollTo({ top: listScroll.current });
+  }, [open]);
+  useEffect(() => {
+    // Mobile: the ticket is full screen, so start at its top.
+    if (open && window.matchMedia("(max-width: 1023px)").matches) pane.current?.scrollIntoView({ block: "start" });
+  }, [open?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   // Thread needs messages, which only listSupport returns.
   const [thread, setThread] = useState<SupportItem | null>(null);
   useEffect(() => {
@@ -187,34 +233,52 @@ export function SupportQueue({
   if (!data) return <p className="text-sm text-muted">Loading.</p>;
   if (!data.ready) return <p className="text-sm text-muted">Tickets need supabase/live-support.sql run first.</p>;
   const replyCount = data.items.filter((i) => i.needs_reply).length;
+  const openTicket = (i: SupportItem) => {
+    // Remember where the list was, so Back on mobile returns to the same place.
+    if (!open) listScroll.current = window.scrollY;
+    setOpen(i);
+  };
+  const back = () => {
+    restore.current = true;
+    setOpen(null);
+  };
   return (
-    <div>
-      <PillRow
-        label="Ticket filters"
-        size="sm"
-        value={tab}
-        onChange={setTab}
-        options={QUEUE_TABS.map(([id, label]) => ({
-          id,
-          label,
-          count: id === "reply" && replyCount ? replyCount : null,
-          countTone: "action" as const,
-        }))}
-      />
-      <Table token={token} items={items} onChanged={load} showDealer onOpen={setOpen} />
-      <ThreadDrawer
-        team
-        item={thread}
-        token={token}
-        onClose={() => setOpen(null)}
-        onChanged={load}
-        statusControl={thread ? <StatusSelect token={token} item={thread} onChanged={load} /> : <Pill status="open" />}
-        extra={
-          thread && isPlanChange(thread) ? (
-            <PlanChangeTicketActions token={token} itemId={thread.id} onChanged={load} initial={initialPlanChange?.[thread.id]} initialNotice={initialPlanChangeNotice} />
-          ) : undefined
-        }
-      />
+    <div className={cn("fc-tix", open && "has-open")} data-testid="tickets">
+      <div className="fc-tix-list">
+        <PillRow
+          label="Ticket filters"
+          size="sm"
+          value={tab}
+          onChange={setTab}
+          options={QUEUE_TABS.map(([id, label]) => ({
+            id,
+            label,
+            count: id === "reply" && replyCount ? replyCount : null,
+            countTone: "action" as const,
+          }))}
+        />
+        <Table token={token} items={items} onChanged={load} showDealer onOpen={openTicket} compact={!!open} openId={open?.id ?? null} />
+      </div>
+      {open ? (
+        <div className="fc-tix-pane" ref={pane}>
+          {thread ? (
+            <TicketPane
+              item={thread}
+              token={token}
+              onBack={back}
+              onChanged={load}
+              statusControl={<StatusSelect token={token} item={thread} onChanged={load} />}
+              extra={
+                isPlanChange(thread) ? (
+                  <PlanChangeTicketActions token={token} itemId={thread.id} onChanged={load} initial={initialPlanChange?.[thread.id]} initialNotice={initialPlanChangeNotice} />
+                ) : undefined
+              }
+            />
+          ) : (
+            <p className="text-sm text-muted">Loading the ticket.</p>
+          )}
+        </div>
+      ) : null}
     </div>
   );
 }
