@@ -1,6 +1,6 @@
 You're in. Thanks for confirming.
 
-Hello [FIRST_NAME],
+Hello,
 
 Thanks for confirming your subscription. Here's Forecourt in one line:
 
@@ -29,5 +29,5 @@ Built in Scotland for UK motor trade desks.
 
 ---
 Forecourt, 279 Clifton Road, Aberdeen, AB24 4HL
-You're receiving this because [WHY_YOU_GOT_THIS].
-Unsubscribe: [UNSUBSCRIBE_LINK]
+You're receiving this because you signed up for Forecourt updates at forecourt.me and confirmed by email.
+Unsubscribe: {{UNSUBSCRIBE_URL}}

@@ -1,6 +1,6 @@
 Fewer laps of the car park.
 
-Hello [FIRST_NAME],
+Hello,
 
 A customer is due in at 10. The car is "on site". The keys are "somewhere". Someone sets off round the car park with a hopeful look.
 
@@ -25,5 +25,5 @@ The Forecourt team
 
 ---
 Forecourt, 279 Clifton Road, Aberdeen, AB24 4HL
-You're receiving this because [WHY_YOU_GOT_THIS].
-Unsubscribe: [UNSUBSCRIBE_LINK]
+You're receiving this because you signed up for Forecourt updates at forecourt.me and confirmed by email.
+Unsubscribe: {{UNSUBSCRIBE_URL}}

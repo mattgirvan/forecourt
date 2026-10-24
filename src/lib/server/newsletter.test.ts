@@ -148,9 +148,10 @@ test("copy rules: no dashes, no middle dot, no banned word", () => {
   assert.ok(newsletterUnsubscribeHeaders(config, "a@b.com")["List-Unsubscribe"].includes("mailto:hello@forecourt.me"));
 });
 
-test("fillPlaceholders swaps recipient fields and escapes html", async () => {
-  const { fillPlaceholders } = await import("../../emails/fill.ts");
-  const out = fillPlaceholders('<a href="[UNSUBSCRIBE_LINK]">Hello [FIRST_NAME], [MONTH]</a>', { unsubscribeUrl: "https://x/u?t=a&b", firstName: "<Jo>" }, "html");
-  assert.equal(out, '<a href="https://x/u?t=a&amp;b">Hello &lt;Jo&gt;, [MONTH]</a>');
-  assert.equal(fillPlaceholders("Hello [FIRST_NAME]", { unsubscribeUrl: "u" }, "text"), "Hello there");
+test("fillPlaceholders resolves merge tags and escapes html", async () => {
+  const { fillPlaceholders, unfilled } = await import("../../emails/fill.ts");
+  const out = fillPlaceholders('<a href="{{UNSUBSCRIBE_URL}}">{{MONTH}}</a>', { unsubscribeUrl: "https://x/u?t=a&b", extra: { MONTH: "<Nov>" } }, "html");
+  assert.equal(out, '<a href="https://x/u?t=a&amp;b">&lt;Nov&gt;</a>');
+  assert.deepEqual(unfilled("Hi {{MONTH}} [X_Y]"), ["MONTH", "X_Y"]);
+  assert.deepEqual(unfilled(out), []);
 });

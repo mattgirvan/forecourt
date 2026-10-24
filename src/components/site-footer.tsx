@@ -11,7 +11,7 @@ export function SiteFooter() {
         <div>
           <p className="text-sm font-medium">Forecourt updates</p>
           <p className="mt-1 text-[13px] leading-relaxed text-muted">
-            New features for the desk, Roles and pricing changes. A few emails a year, nothing more.
+            Product news, new features and pricing changes. About one email a month.
           </p>
         </div>
         <NewsletterForm />

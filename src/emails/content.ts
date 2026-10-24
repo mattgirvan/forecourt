@@ -1,6 +1,7 @@
 /**
  * Approved copy from marketing/email/forecourt-email-drafts-v3.md, used as written.
- * Placeholders kept: [FIRST_NAME], [WHY_YOU_GOT_THIS], [UNSUBSCRIBE_LINK] and the
+ * No name is collected, so every email opens "Hello,". The only per-recipient merge
+ * tag is {{UNSUBSCRIBE_URL}}; the monthly template also has editorial {{SLOTS}}.
  * monthly [..] slots. fillPlaceholders() in render.ts swaps them per recipient.
  */
 import { SITE_URL, type EmailDoc } from "./layout.tsx";
@@ -24,7 +25,7 @@ export const EMAILS: EmailDoc[] = [
     title: "You're in. Thanks for confirming.",
     hero: CUSTOMER,
     blocks: [
-      { t: "p", text: "Hello [FIRST_NAME]," },
+      { t: "p", text: "Hello," },
       { t: "p", text: "Thanks for confirming your subscription. Here's Forecourt in one line:" },
       { t: "quote", text: LINE },
       { t: "p", text: "DealerWeb, the DMS, the manufacturer portal: they hold the book, and they do it well. They were never built for the person standing next to the car. Forecourt sits next to them and handles the floor work:" },
@@ -53,7 +54,7 @@ export const EMAILS: EmailDoc[] = [
     title: "Fewer laps of the car park.",
     hero: STOCK,
     blocks: [
-      { t: "p", text: "Hello [FIRST_NAME]," },
+      { t: "p", text: "Hello," },
       { t: "p", text: "A customer is due in at 10. The car is \"on site\". The keys are \"somewhere\". Someone sets off round the car park with a hopeful look." },
       { t: "p", text: "Your CRM knows the car is in stock. It doesn't know it's in Bodyshop Box 9 with the keys in the cabinet. That's the gap Forecourt fills." },
       {
@@ -79,7 +80,7 @@ export const EMAILS: EmailDoc[] = [
     title: "\"Any update on my car?\"",
     hero: CUSTOMER,
     blocks: [
-      { t: "p", text: "Hello [FIRST_NAME]," },
+      { t: "p", text: "Hello," },
       { t: "p", text: "You know the call. Sometimes it's the third one that week. The exec puts the customer on hold, rings the port, rings the depot, rings the customer back. Nobody sold a car in that half hour." },
       { t: "p", text: "With Forecourt, the customer has their own view of their order. They sign in, see their car, and see where it is: at the international port, on the boat to the UK, at the UK port, with an estimated arrival window. Their order moves when the car does." },
       { t: "p", text: "They can also see their own to-do list, so the jobs that are theirs to do before handover are in front of them, not buried in a voicemail." },
@@ -97,7 +98,7 @@ export const EMAILS: EmailDoc[] = [
     title: LINE,
     hero: CHASE,
     blocks: [
-      { t: "p", text: "Hello [FIRST_NAME]," },
+      { t: "p", text: "Hello," },
       { t: "p", text: "Most of a sales desk's day isn't selling. It's remembering. The PX V5 that still hasn't turned up. The customer who hasn't done their bits before Saturday's handover. The commission sheet at month end." },
       { t: "p", text: "Forecourt keeps that out of people's heads:" },
       {
@@ -125,7 +126,7 @@ export const EMAILS: EmailDoc[] = [
     title: "Site, franchise or group.",
     hero: OVERVIEW,
     blocks: [
-      { t: "p", text: "Hello [FIRST_NAME]," },
+      { t: "p", text: "Hello," },
       { t: "p", text: "Car people like to know the number. So here it is. All prices include VAT." },
       {
         t: "plans",
@@ -155,34 +156,34 @@ export const EMAILS: EmailDoc[] = [
   },
   {
     name: "monthly",
-    subject: "Forecourt: [MONTH] on the floor",
-    preview: "[PREVIEW_TEXT]",
+    subject: "Forecourt: {{MONTH}} on the floor",
+    preview: "{{PREVIEW_TEXT}}",
     eyebrow: "Monthly note",
-    title: "[MONTH] on the floor",
+    title: "{{MONTH}} on the floor",
     hero: STOCK,
     blocks: [
-      { t: "p", text: "Hello [FIRST_NAME]," },
-      { t: "p", text: "[INTRO_PARAGRAPH]" },
+      { t: "p", text: "Hello," },
+      { t: "p", text: "{{INTRO_PARAGRAPH}}" },
       { t: "h2", text: "What's new in Forecourt" },
-      { t: "p", text: "[PRODUCT_UPDATE]" },
+      { t: "p", text: "{{PRODUCT_UPDATE}}" },
       { t: "h2", text: "One thing for the desk" },
-      { t: "p", text: "[DESK_TIP]" },
+      { t: "p", text: "{{DESK_TIP}}" },
       { t: "h2", text: "From the floor" },
-      { t: "p", text: "[CUSTOMER_STORY_OR_OBSERVATION]" },
+      { t: "p", text: "{{CUSTOMER_STORY_OR_OBSERVATION}}" },
       { t: "h2", text: "Worth a read" },
       {
         t: "links",
         items: [
-          { label: "[LINK_1_TITLE]", href: "[LINK_1_URL]", why: "[ONE_LINE_WHY]" },
-          { label: "[LINK_2_TITLE]", href: "[LINK_2_URL]", why: "[ONE_LINE_WHY]" },
-          { label: "[LINK_3_TITLE]", href: "[LINK_3_URL]", why: "[ONE_LINE_WHY]" },
+          { label: "{{LINK_1_TITLE}}", href: "{{LINK_1_URL}}", why: "{{ONE_LINE_WHY}}" },
+          { label: "{{LINK_2_TITLE}}", href: "{{LINK_2_URL}}", why: "{{ONE_LINE_WHY}}" },
+          { label: "{{LINK_3_TITLE}}", href: "{{LINK_3_URL}}", why: "{{ONE_LINE_WHY}}" },
         ],
       },
-      { t: "h2", text: "[CTA_SECTION_HEADING]" },
-      { t: "p", text: "[CTA_LEAD_IN]" },
-      { t: "cta", label: "[CTA_LABEL]", href: "[CTA_URL]" },
+      { t: "h2", text: "{{CTA_SECTION_HEADING}}" },
+      { t: "p", text: "{{CTA_LEAD_IN}}" },
+      { t: "cta", label: "{{CTA_LABEL}}", href: "{{CTA_URL}}" },
       { t: "quote", text: LINE },
-      { t: "sign", lines: ["[SIGN_OFF_NAME]", "The Forecourt team"] },
+      { t: "sign", lines: ["{{SIGN_OFF_NAME}}", "The Forecourt team"] },
     ],
   },
   {

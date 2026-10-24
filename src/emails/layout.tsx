@@ -62,7 +62,7 @@ function rich(text: string): ReactNode {
   );
 }
 
-const pStyle = { margin: "0 0 18px", fontFamily: FONT, fontSize: "16px", lineHeight: "26px", color: C.text };
+const pStyle = { overflowWrap: "anywhere" as const, wordBreak: "break-word" as const, margin: "0 0 18px", fontFamily: FONT, fontSize: "16px", lineHeight: "26px", color: C.text };
 
 function Tile({ title, text }: { title: string; text: string }) {
   return (
@@ -96,13 +96,13 @@ function Tiles({ items }: { items: { title: string; text: string }[] }) {
               </td>
             ) : (
               <>
-                <td className="fc-col" width="50%" style={{ width: "50%", paddingBottom: "12px", verticalAlign: "top" }}>
+                <td className="fc-col" width="49%" style={{ width: "49%", paddingBottom: "12px", verticalAlign: "top" }}>
                   <Tile {...row[0]} />
                 </td>
-                <td className="fc-gap" width="12" style={{ width: "12px", fontSize: 0, lineHeight: 0 }}>
+                <td className="fc-gap" width="2%" style={{ width: "2%", fontSize: 0, lineHeight: 0 }}>
                   &nbsp;
                 </td>
-                <td className="fc-col" width="50%" style={{ width: "50%", paddingBottom: "12px", verticalAlign: "top" }}>
+                <td className="fc-col" width="49%" style={{ width: "49%", paddingBottom: "12px", verticalAlign: "top" }}>
                   <Tile {...row[1]} />
                 </td>
               </>
@@ -118,12 +118,12 @@ function Button({ label, href }: { label: string; href: string }) {
   const vml = `<!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${href}" style="height:48px;v-text-anchor:middle;width:280px;" arcsize="17%" stroke="f" fillcolor="${C.amber}"><w:anchorlock/><center style="color:${C.ink};font-family:Arial,sans-serif;font-size:16px;font-weight:bold;">${label}</center></v:roundrect><![endif]--><!--[if !mso]><!-->`;
   const end = `<!--<![endif]-->`;
   return (
-    <table role="presentation" cellPadding={0} cellSpacing={0} className="fc-btn-wrap" style={{ margin: "6px 0 24px" }}>
+    <table role="presentation" cellPadding={0} cellSpacing={0} className="fc-btn-wrap" width="100%" style={{ width: "100%", maxWidth: "280px", margin: "6px 0 24px" }}>
       <tbody>
         <tr>
           <td>
             <div dangerouslySetInnerHTML={{ __html: vml }} />
-            <table role="presentation" cellPadding={0} cellSpacing={0} className="fc-btn" width="280" style={{ width: "280px" }}>
+            <table role="presentation" cellPadding={0} cellSpacing={0} className="fc-btn" width="100%" style={{ width: "100%", maxWidth: "280px" }}>
               <tbody>
                 <tr>
                   <td align="center" height="48" style={{ height: "48px", background: C.amber, borderRadius: "8px", textAlign: "center" }} className="fc-amber">
@@ -201,7 +201,7 @@ function BlockView({ b }: { b: Block }) {
     case "small":
       return <p style={{ ...pStyle, fontSize: "14px", lineHeight: "22px", color: C.muted }}>{rich(b.text)}</p>;
     case "h2":
-      return <h2 style={{ margin: "28px 0 10px", fontFamily: FONT, fontSize: "20px", lineHeight: "26px", fontWeight: 700, color: C.text }}>{b.text}</h2>;
+      return <h2 style={{ overflowWrap: "anywhere", wordBreak: "break-word", margin: "28px 0 10px", fontFamily: FONT, fontSize: "20px", lineHeight: "26px", fontWeight: 700, color: C.text }}>{b.text}</h2>;
     case "quote":
       return <Quote text={b.text} />;
     case "tiles":
@@ -320,7 +320,7 @@ export function Email({ doc }: { doc: EmailDoc }) {
                         <p style={{ margin: "30px 0 10px", fontFamily: FONT, fontSize: "12px", lineHeight: "16px", fontWeight: 600, letterSpacing: "0.08em", textTransform: "uppercase", color: C.eyebrow }}>
                           {doc.eyebrow}
                         </p>
-                        <h1 className="fc-h1 fc-dark-text" style={{ margin: 0, fontFamily: FONT, fontSize: "30px", lineHeight: "36px", fontWeight: 700, color: C.heroText }}>
+                        <h1 className="fc-h1 fc-dark-text" style={{ overflowWrap: "anywhere", wordBreak: "break-word", margin: 0, fontFamily: FONT, fontSize: "30px", lineHeight: "36px", fontWeight: 700, color: C.heroText }}>
                           {doc.title}
                         </h1>
                       </td>
@@ -354,8 +354,8 @@ export function Email({ doc }: { doc: EmailDoc }) {
                                 <p style={{ margin: "0 0 6px" }}>Forecourt, 279 Clifton Road, Aberdeen, AB24 4HL</p>
                                 {footer === "list" ? (
                                   <p style={{ margin: 0 }}>
-                                    You&apos;re receiving this because [WHY_YOU_GOT_THIS].{" "}
-                                    <a href="[UNSUBSCRIBE_LINK]" style={{ color: C.foot, textDecoration: "underline", display: "inline-block", padding: "12px 0", lineHeight: "20px" }}>
+                                    You&apos;re receiving this because you signed up for Forecourt updates at forecourt.me and confirmed by email.{" "}
+                                    <a href="{{UNSUBSCRIBE_URL}}" style={{ color: C.foot, textDecoration: "underline", display: "inline-block", padding: "12px 0", lineHeight: "20px" }}>
                                       Unsubscribe
                                     </a>
                                   </p>

@@ -1,6 +1,6 @@
 "Any update on my car?"
 
-Hello [FIRST_NAME],
+Hello,
 
 You know the call. Sometimes it's the third one that week. The exec puts the customer on hold, rings the port, rings the depot, rings the customer back. Nobody sold a car in that half hour.
 
@@ -19,5 +19,5 @@ The Forecourt team
 
 ---
 Forecourt, 279 Clifton Road, Aberdeen, AB24 4HL
-You're receiving this because [WHY_YOU_GOT_THIS].
-Unsubscribe: [UNSUBSCRIBE_LINK]
+You're receiving this because you signed up for Forecourt updates at forecourt.me and confirmed by email.
+Unsubscribe: {{UNSUBSCRIBE_URL}}

@@ -1,6 +1,6 @@
 Your CRM keeps the book. Forecourt keeps the floor moving.
 
-Hello [FIRST_NAME],
+Hello,
 
 Most of a sales desk's day isn't selling. It's remembering. The PX V5 that still hasn't turned up. The customer who hasn't done their bits before Saturday's handover. The commission sheet at month end.
 
@@ -25,5 +25,5 @@ P.S. Our prices are on the website, not behind a "call us". More on that next we
 
 ---
 Forecourt, 279 Clifton Road, Aberdeen, AB24 4HL
-You're receiving this because [WHY_YOU_GOT_THIS].
-Unsubscribe: [UNSUBSCRIBE_LINK]
+You're receiving this because you signed up for Forecourt updates at forecourt.me and confirmed by email.
+Unsubscribe: {{UNSUBSCRIBE_URL}}

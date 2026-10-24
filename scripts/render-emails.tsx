@@ -21,6 +21,14 @@ for (const doc of EMAILS) {
   for (const [k, v] of [["html", html], ["text", text], ["subject", doc.subject]] as const) {
     if (BAD.test(v)) throw new Error(`${doc.name} ${k}: dash, middle dot or banned word`);
   }
+  // No [BRACKET] tokens anywhere. Merge tags only where intended.
+  const allowed = doc.name === "monthly" ? null : new Set(["UNSUBSCRIBE_URL", "CONFIRM_URL"]);
+  for (const [k, v] of [["html", html], ["text", text]] as const) {
+    if (/\[[A-Z][A-Z0-9_: ]+\]/.test(v)) throw new Error(`${doc.name} ${k}: [PLACEHOLDER] left`);
+    if (/FIRST_NAME/.test(v)) throw new Error(`${doc.name} ${k}: name tag left`);
+    for (const m of v.matchAll(/\{\{([A-Z0-9_]+)\}\}/g)) if (allowed && !allowed.has(m[1])) throw new Error(`${doc.name} ${k}: unexpected {{${m[1]}}}`);
+  }
+  if (doc.footer !== "confirm" && !html.includes('href="{{UNSUBSCRIBE_URL}}"')) throw new Error(`${doc.name}: no unsubscribe link`);
   if (!doc.subject.startsWith("Forecourt: ")) throw new Error(`${doc.name}: subject prefix`);
   writeFileSync(`${out}/${doc.name}.html`, html);
   if (text) writeFileSync(`${out}/${doc.name}.txt`, text);

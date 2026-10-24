@@ -206,7 +206,7 @@ function Home() {
               <p className="text-[13px] font-medium text-muted">Not ready to talk yet</p>
               <h2 className="mt-2 text-2xl font-semibold tracking-tight">Hear when the desk gets better.</h2>
               <p className="mt-2 text-[15px] leading-relaxed text-muted">
-                Short notes on new screens, Roles and what dealers asked for. Only if you confirm.
+                Product news, new features and pricing changes. About one email a month.
               </p>
             </div>
             <NewsletterForm />
