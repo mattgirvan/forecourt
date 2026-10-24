@@ -136,3 +136,8 @@ export function stripeSecret() {
 export function siteBillingSyncFlag() {
   return env("SITE_BILLING_SYNC");
 }
+
+/** Account type changes only touch Stripe when this is exactly "on" (group build PR 5). */
+export function planChangeSyncFlag() {
+  return env("PLAN_CHANGE_SYNC");
+}

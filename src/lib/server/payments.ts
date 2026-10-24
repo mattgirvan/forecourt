@@ -437,6 +437,8 @@ export type WebhookDeps = {
   onPaid?: (order: OrderRow, session: CheckoutSessionLike, event: WebhookEvent) => Promise<void>;
   /** Failed and recovered monthly payments (invoice.* events). Without it they are ignored. */
   invoices?: Omit<InvoiceDeps, "log" | "now" | "flagForStaff">;
+  /** Paid setup difference for an account type change (metadata kind plan_change). */
+  planChange?: (session: CheckoutSessionLike) => Promise<WebhookResult>;
 };
 
 export type WebhookResult = { status: number; body: string };
@@ -508,6 +510,14 @@ export async function handleStripeWebhook(
     }
     // A balance link staff sent from Resume order: no order row, nothing to
     // apply. Note it on the file so staff see it, and answer 200 so Stripe stops.
+    // Setup difference for an account type change: no order row either.
+    if (session.metadata?.kind === "plan_change") {
+      if (!deps.planChange) {
+        log.error("[stripe-webhook] plan change paid but not wired; answering 500 so Stripe retries", session.id);
+        return { status: 500, body: "plan change not wired" };
+      }
+      return await deps.planChange(session);
+    }
     const balance = balancePaidFlag(session);
     if (balance) {
       await store.flagForStaff(balance);

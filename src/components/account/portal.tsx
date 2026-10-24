@@ -21,6 +21,7 @@ import { JourneyNow } from "@/components/journey/after-you-pay";
 import { PaymentIssueNotice } from "@/components/account/payment-issue";
 import { accountSitesSummary } from "@/lib/sites";
 import { SiteBillingSummary } from "@/components/account/site-billing";
+import { PlanChangePanel } from "@/components/account/plan-change";
 
 type Tenant = {
   id: number;
@@ -137,6 +138,7 @@ export function DealerPortal({
         {tab === "billing" && (
           <div className="space-y-6">
             <SiteBillingSummary plan={plan} sites={tenant.sites} />
+            {tenant.status === "live" && <PlanChangePanel token={token} tenantId={tenant.id} plan={plan} where="account" />}
             <Billing token={token} tenant={tenant} converting={converting} onConvert={onConvert} />
           </div>
         )}

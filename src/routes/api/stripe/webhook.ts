@@ -48,6 +48,13 @@ export const Route = createFileRoute("/api/stripe/webhook")({
               return stripe.webhooks.constructEvent(body, sig, hookSecret) as unknown as WebhookEvent;
             },
             log: console,
+            // Account type change: setup difference paid, turn the new plan on.
+            planChange: sb
+              ? async (session) => {
+                  const { completePaidPlanChange, planChangeDeps } = await import("@/lib/server/plan-change-server");
+                  return completePaidPlanChange(sb, session as never, planChangeDeps(stripe));
+                }
+              : undefined,
             // Failed and recovered monthly payments (invoice.* events).
             invoices: sb
               ? {

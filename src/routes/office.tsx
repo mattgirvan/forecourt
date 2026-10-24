@@ -1,3 +1,4 @@
+import { PlanChangePanel } from "@/components/account/plan-change";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { OfficeSiteBillingPanel } from "@/components/office/site-billing";
 import { PaymentIssueNotice } from "@/components/account/payment-issue";
@@ -540,6 +541,7 @@ function TenantFile({ token, tenantId, onSaved }: { token: string; tenantId: num
       {pane === "billing" && (
         <div className="mt-8 space-y-6">
           <PaymentIssueNotice token={token} tenantId={tenantId} team />
+          {file && <PlanChangePanel token={token} tenantId={tenantId} plan={normalizePlan(file.plan as string)} where="office" />}
           <ul className="divide-y divide-line rounded-[1.75rem] border border-line bg-surface px-6">
             {receipts.length === 0 && <li className="py-6 text-sm text-muted">No receipts.</li>}
             {receipts.map((r) => (

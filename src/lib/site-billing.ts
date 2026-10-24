@@ -23,7 +23,7 @@ export type BillingSite = {
   billedThrough?: string | null;
 };
 
-export type LineKey = "group_site" | "franchise_base" | "franchise_extra";
+export type LineKey = "group_site" | "franchise_base" | "franchise_extra" | "site_base";
 export type BillingLine = { key: LineKey; label: string; unitPence: number; quantity: number; live?: number };
 
 export const GROUP_SITE_PENCE = PLANS.group.monthPence;
