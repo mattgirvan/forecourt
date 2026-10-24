@@ -535,6 +535,10 @@ export async function sendAccountEventEmail(input: {
   title: string;
   lines: string[];
   dedupe: string;
+  /** False: customer only, no hello@ copy (default true). */
+  office?: boolean;
+  /** Extra button, e.g. the Checkout invoice. */
+  link?: { url: string; label: string };
 }): Promise<{ customer: DeliverResult; office: DeliverResult } | null> {
   try {
     const config = gateConfig();
@@ -543,7 +547,7 @@ export async function sendAccountEventEmail(input: {
     if (!sb) return null;
     const t = await loadTenant(sb, input.tenantId);
     if (!t) return null;
-    const mail = accountEventEmail({ firstName: t.principal_name, dealer: t.name || "your dealership", title: input.title, lines: input.lines, accountUrl: ACCOUNT_URL });
+    const mail = accountEventEmail({ firstName: t.principal_name, dealer: t.name || "your dealership", title: input.title, lines: input.lines, accountUrl: ACCOUNT_URL, link: input.link });
     const { login, to } = await recipientFor(sb, t.user_id, t.email);
     const staff = (await isStaffEmail(sb, login)) || (await isStaffEmail(sb, to));
     return await deliverAccountEvent(
@@ -563,6 +567,7 @@ export async function sendAccountEventEmail(input: {
         stripeLivemode: null,
         archived: Boolean(t.archived_at),
       },
+      { officeCopy: input.office !== false },
     );
   } catch (err) {
     console.error("[email] account event failed", err);

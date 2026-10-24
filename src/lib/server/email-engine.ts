@@ -103,7 +103,8 @@ export type DeliverResult =
         | "no_sender"
         | "duplicate"
         | "log_unavailable"
-        | "send_failed";
+        | "send_failed"
+        | "not_copied";
       detail?: string;
     };
 
@@ -275,8 +276,10 @@ export async function deliverOfficeCopy(deps: DeliverDeps, email: OfficeCopyEmai
 export async function deliverAccountEvent(
   deps: DeliverDeps,
   email: JourneyEmail,
+  opts: { officeCopy?: boolean } = {},
 ): Promise<{ customer: DeliverResult; office: DeliverResult }> {
   const customer = await deliverJourneyEmail(deps, { ...email, dedupeKey: `account-event:${email.dedupeKey}` });
+  if (opts.officeCopy === false) return { customer, office: { sent: false, reason: "not_copied" } };
   const office = await deliverOfficeCopy(deps, {
     dedupeKey: `account-event:${email.dedupeKey}`,
     tenantId: email.tenantId,

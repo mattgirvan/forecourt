@@ -886,7 +886,7 @@ ${footer(reason, false)}`;
 
 // ------------------------------------------------------ account event confirmation
 
-export type AccountEventData = { firstName: string | null; dealer: string; title: string; lines: string[]; accountUrl: string };
+export type AccountEventData = { firstName: string | null; dealer: string; title: string; lines: string[]; accountUrl: string; link?: { url: string; label: string } };
 
 /** A confirmation that something changed on the account (sites, plan, billing, access). */
 export function accountEventEmail(d: AccountEventData): RenderedEmail {
@@ -895,6 +895,8 @@ export function accountEventEmail(d: AccountEventData): RenderedEmail {
   const preheader = d.lines[0] ?? d.title;
   const hello = first ? `Hi ${first},` : "Hi,";
   const reason = `You are getting this because you are the admin on the ${d.dealer} Forecourt account.`;
+  const extraUrl = d.link ? safeUrl(d.link.url) : null;
+  const extra = d.link && extraUrl ? { url: extraUrl, label: d.link.label } : null;
   const rows = `
 ${header(`${d.dealer} · Account`)}
 ${row(`${h1(d.title)}
@@ -902,10 +904,10 @@ ${row(`${h1(d.title)}
   ${d.lines.map((l) => p(esc(l))).join("\n  ")}
   ${p(esc("If this was not expected, reply to this email."))}
   <div style="height:20px;line-height:20px;font-size:0;">&nbsp;</div>
-  ${buttonsRow(primaryButton(d.accountUrl, "Open your account"))}`, 0)}
+  ${extra ? buttonsRow(primaryButton(extra.url, extra.label), ghostButton(d.accountUrl, "Open your account")) : buttonsRow(primaryButton(d.accountUrl, "Open your account"))}`, 0)}
 ${row(contactCard(), 16)}
 ${signoff("Thanks,")}
 ${footer(reason, false)}`;
-  const text = [d.title, "", hello, "", ...d.lines, "", "If this was not expected, reply to this email.", "", `Open your account: ${d.accountUrl}`, "", "Thanks,", "Matt Girvan", "Founder, Forecourt", ...textFooter(reason, false)].join("\n");
+  const text = [d.title, "", hello, "", ...d.lines, "", "If this was not expected, reply to this email.", "", ...(extra ? [`${extra.label}: ${extra.url}`] : []), `Open your account: ${d.accountUrl}`, "", "Thanks,", "Matt Girvan", "Founder, Forecourt", ...textFooter(reason, false)].join("\n");
   return { subject, preheader, html: shell({ title: subject, preheader, rows }), text };
 }

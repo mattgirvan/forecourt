@@ -26,6 +26,7 @@ import { siteBillingModeFrom, type SiteSubLike } from "@/lib/server/site-billing
 import { migrationEvent, planChangedEvent } from "@/lib/account-events";
 import { readMigration, setMigrationStage } from "@/lib/server/migration-store";
 import { openTicketFor } from "@/lib/server/plan-change-ticket-store";
+import { inputFor, invoiceUrl, notify, sendReminderOnce, type ChangeRow } from "@/lib/server/plan-change-notify";
 // Loaded on use, not at the top: the account and Office clients import this module, and the
 // email engine pulls in server only code (node:module createRequire) that breaks the browser in dev.
 async function sendAccountEventEmail(ev: Parameters<typeof import("@/lib/server/journey-email").sendAccountEventEmail>[0]) {
@@ -219,8 +220,18 @@ export const requestPlanChange = createServerFn({ method: "POST" })
     if (started.kind === "checkout" || started.kind === "requested") {
       // Migration tracker (PR 8): open at "requested" and email the admin and hello@.
       const mig = await readMigration(admin, started.changeId);
-      if (mig && (await setMigrationStage(admin, mig, "requested"))) {
-        await sendAccountEventEmail({ tenantId: t.id, ...migrationEvent({ changeId: mig.id, from: q.from, to: q.to, stage: "requested", upgrade: move.direction === "up", setupDiffPence: move.setupDuePence }) });
+      // PR 5: no email while Checkout is open; the receipt (or one reminder) follows from the webhook.
+      if (mig) await setMigrationStage(admin, mig, "requested");
+      if (started.kind === "requested") {
+        await notify(sendAccountEventEmail, t.id, {
+          changeId: started.changeId,
+          from: q.from,
+          to: q.to,
+          stage: "received",
+          newMonthlyPence: move.newMonthlyPence,
+          atPeriodEnd: move.monthlyStarts === "period_end",
+          periodEnd: q.periodEnd ? new Date(q.periodEnd).toISOString() : null,
+        });
       }
       if (started.kind === "checkout") {
         await note(admin, t.id, "Plan change requested", `Waiting for the setup difference (${move.setupDuePence / 100} GBP).`, actorEmail);
@@ -260,9 +271,8 @@ export const requestPlanChange = createServerFn({ method: "POST" })
       // Separate write so a database without plan-change-flow.sql still records the row.
       await admin.from("plan_changes").update({ effective_at: effectiveAt, ...(result.applied && result.mode === "scheduled" ? { stripe_schedule_id: result.scheduleId } : {}) }).eq("id", dn.id);
       const mig = await readMigration(admin, dn.id as number);
-      if (mig && (await setMigrationStage(admin, mig, "requested", { effective_at: effectiveAt }))) {
-        await sendAccountEventEmail({ tenantId: t.id, ...migrationEvent({ changeId: mig.id, from: q.from, to: q.to, stage: "requested", upgrade: false, periodEnd: effectiveAt }) });
-      }
+      if (mig) await setMigrationStage(admin, mig, "requested", { effective_at: effectiveAt });
+      await notify(sendAccountEventEmail, t.id, { changeId: dn.id as number, from: q.from, to: q.to, stage: "received", newMonthlyPence: move.newMonthlyPence, atPeriodEnd: true, periodEnd: effectiveAt });
       await openTicketFor(admin, dn.id as number);
       await note(admin, t.id, "Account type change booked", message, actorEmail);
       return reply("scheduled", message);
@@ -329,8 +339,13 @@ export async function completePaidPlanChange(
         await note(sb, tenantId, "Setup difference paid", "Plan change request is now with the team. The plan has not changed yet.", "stripe");
         await openTicketFor(sb, id);
         const mig = await readMigration(sb, id);
-        if (mig && (await setMigrationStage(sb, mig, "paid"))) {
-          await sendAccountEventEmail({ tenantId, ...migrationEvent({ changeId: id, from: normalizePlan(mig.from_plan), to: normalizePlan(mig.to_plan), stage: "paid", upgrade: true, newMonthlyPence: Number(mig.new_monthly_pence) || 0 }) });
+        if (mig) await setMigrationStage(sb, mig, "paid");
+        // PR 5: payment receipt with the Checkout invoice link; hello@ gets a copy.
+        const { data: row } = await sb.from("plan_changes").select("id, tenant_id, from_plan, to_plan, setup_diff_pence, new_monthly_pence, invoice_id").eq("id", id).maybeSingle();
+        if (row) {
+          const stripe = await stripeClient().catch(() => null);
+          const url = await invoiceUrl(stripe ? (inv) => stripe.invoices.retrieve(inv) as never : null, (row as ChangeRow).invoice_id);
+          await notify(sendAccountEventEmail, tenantId, inputFor(row as ChangeRow, "receipt", { invoiceUrl: url }));
         }
       },
     },
@@ -355,6 +370,24 @@ export async function expirePlanChange(sb: SupabaseClient, session: SessionLike)
       },
       afterExpired: async (id, tenantId) => {
         await note(sb, tenantId, "Plan change cancelled", "Checkout expired before the setup difference was paid. The plan is unchanged.", "stripe");
+        // PR 5: ONE reminder, claimed through reminder_sent_at.
+        try {
+          const { data: row } = await sb.from("plan_changes").select("id, tenant_id, from_plan, to_plan, setup_diff_pence, new_monthly_pence, reminder_sent_at").eq("id", id).maybeSingle();
+          if (row) {
+            await sendReminderOnce(
+              {
+                claimReminder: async (cid) => {
+                  const { data: won, error } = await sb.from("plan_changes").update({ reminder_sent_at: new Date().toISOString() }).eq("id", cid).is("reminder_sent_at", null).select("id");
+                  return !error && (won ?? []).length > 0;
+                },
+                send: sendAccountEventEmail,
+              },
+              row as ChangeRow,
+            );
+          }
+        } catch {
+          /* reminder SQL not run */
+        }
         try {
           await sb.from("plan_changes").update({ migration_cancelled_at: new Date().toISOString() }).eq("id", id);
         } catch {
