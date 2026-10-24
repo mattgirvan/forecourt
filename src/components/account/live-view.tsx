@@ -130,6 +130,7 @@ export function ThreadDrawer({
   onClose,
   onChanged,
   statusControl,
+  extra,
 }: {
   item: SupportItem | null;
   token: string;
@@ -137,6 +138,8 @@ export function ThreadDrawer({
   onClose: () => void;
   onChanged: () => void;
   statusControl?: ReactNode;
+  /** Shown under the title, above the thread (plan change Apply and Reject). */
+  extra?: ReactNode;
 }) {
   const [body, setBody] = useState("");
   const [internal, setInternal] = useState(false);
@@ -165,7 +168,7 @@ export function ThreadDrawer({
   const meta =
     item.kind === "ticket"
       ? `${ticketRef(item.ref)} · Opened ${ukDate(item.created_at)}`
-      : `${changeTypeLabel(item.change_type)} · ${ukDate(item.created_at)}`;
+      : `${changeTypeLabel(item.change_type)}${item.change_type === "plan_change" ? "," : " ·"} ${ukDate(item.created_at)}`;
   return (
     <Drawer open onClose={onClose}>
       <div className="flex items-start justify-between gap-3">
@@ -193,6 +196,7 @@ export function ThreadDrawer({
           {item.link}
         </a>
       ) : null}
+      {extra ? <div className="mt-4">{extra}</div> : null}
       <ul className="mt-6 space-y-3">
         {item.messages.map((m) => (
           <li key={m.id} className={cn("flex", m.from_team ? "justify-start" : "justify-end")}>

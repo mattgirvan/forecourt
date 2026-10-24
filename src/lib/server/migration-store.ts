@@ -44,7 +44,7 @@ export async function openMigrationFor(sb: SupabaseClient, tenantId: number): Pr
       .not("migration_stage", "is", null)
       .neq("migration_stage", "complete")
       .is("migration_cancelled_at", null)
-      .in("status", ["pending_payment", "applied", "scheduled"])
+      .in("status", ["pending_payment", "paid", "requested", "applied", "scheduled"])
       .order("created_at", { ascending: false })
       .limit(1);
     if (error) return null;
@@ -63,7 +63,7 @@ export async function openMigrations(sb: SupabaseClient): Promise<StoredMigratio
       .not("migration_stage", "is", null)
       .neq("migration_stage", "complete")
       .is("migration_cancelled_at", null)
-      .in("status", ["pending_payment", "applied", "scheduled"])
+      .in("status", ["pending_payment", "paid", "requested", "applied", "scheduled"])
       .order("created_at", { ascending: false });
     return error ? [] : ((data ?? []) as StoredMigration[]);
   } catch {
