@@ -130,12 +130,12 @@ function OfficeInner() {
     const ok = await askConfirm(
       archived
         ? {
-            title: "Archive this order?",
-            body: "It leaves the main list. You can find it under Show archived and restore it anytime. Nothing is deleted.",
+            title: "Archive this dealer?",
+            body: "It leaves the main list. You can restore it from Show archived at any time.",
             confirmLabel: "Archive",
           }
         : {
-            title: "Bring this order back?",
+            title: "Bring this dealer back?",
             body: "It goes back on the main Office list.",
             confirmLabel: "Restore",
           },
@@ -549,12 +549,12 @@ function TenantFile({
     const ok = await askConfirm(
       archived
         ? {
-            title: "Archive this order?",
-            body: "It leaves the main list. You can restore it from Show archived. Nothing is deleted.",
+            title: "Archive this dealer?",
+            body: "It leaves the main list. You can restore it from Show archived at any time.",
             confirmLabel: "Archive",
           }
         : {
-            title: "Bring this order back?",
+            title: "Bring this dealer back?",
             body: "It goes back on the main Office list.",
             confirmLabel: "Restore",
           },
@@ -848,7 +848,7 @@ function TenantFile({
               <p className="text-sm text-muted">
                 {file.signed_off_at
                   ? "Signed off live. Setup is not refundable from here."
-                  : "Refund sends the last card payment back. End subscription stops monthly Stripe, or marks a trial cancelled. Trials have no monthly."}
+                  : "Refund sends the last card payment back. End package stops the monthly payments, or cancels a trial."}
               </p>
               {notice && (
                 <p className="mt-3 rounded-xl border border-line-strong bg-elevated px-3 py-2 text-sm">
