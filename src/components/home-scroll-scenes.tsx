@@ -264,7 +264,7 @@ function TeamScene() {
           <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3.5 sm:px-5">
             <div>
               <div className="text-[15px] font-semibold">Team</div>
-              <div className="font-mono text-[11px] text-[var(--shell-text-faint)]">5 people · Northbridge Motors</div>
+              <div className="font-mono text-[11px] text-[var(--shell-text-faint)]">5 people, Northbridge Motors</div>
             </div>
             <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-[12px] font-semibold text-[var(--shell-text-dim)]">
               <UserPlus size={13} /> Invite
@@ -357,12 +357,12 @@ const LOC_STYLE: Record<Loc, { bg: string; fg: string }> = {
 const MENU_LOCS: Loc[] = ["Bodyshop", "Workshop", "Prep Carpark", "Forecourt 1st Row", "Showroom"];
 
 const STOCK: { model: string; trim: string; reg: string; loc: Loc; keys: string; fan: number }[] = [
-  { model: "Octavia Estate", trim: "SE L", reg: "SV74 KDX", loc: "Showroom", keys: "Box 4", fan: -13 },
-  { model: "Kodiaq", trim: "Sportline", reg: "SK24 OYH", loc: "Bodyshop", keys: "Box 9", fan: -10 },
-  { model: "Enyaq", trim: "85 Edition", reg: "SY25 FWN", loc: "Workshop", keys: "Box 11", fan: -7 },
-  { model: "Elroq", trim: "60 SE", reg: "SV75 UJR", loc: "Not set", keys: "Box 2", fan: -5 },
-  { model: "Fabia", trim: "Colour Edition", reg: "SA73 PLE", loc: "Prep Carpark", keys: "Prep", fan: -3 },
-  { model: "Karoq", trim: "SE Drive", reg: "SJ24 NRV", loc: "Forecourt 1st Row", keys: "Box 7", fan: -2 },
+  { model: "Compact estate", trim: "1.5 petrol", reg: "SV74 KDX", loc: "Showroom", keys: "Box 4", fan: -13 },
+  { model: "Family SUV", trim: "1.5 petrol", reg: "SK24 OYH", loc: "Bodyshop", keys: "Box 9", fan: -10 },
+  { model: "Electric SUV", trim: "Long range", reg: "SY25 FWN", loc: "Workshop", keys: "Box 11", fan: -7 },
+  { model: "Electric hatch", trim: "Standard range", reg: "SV75 UJR", loc: "Not set", keys: "Box 2", fan: -5 },
+  { model: "Small hatch", trim: "1.0 petrol", reg: "SA73 PLE", loc: "Prep Carpark", keys: "Prep", fan: -3 },
+  { model: "Compact SUV", trim: "1.5 petrol", reg: "SJ24 NRV", loc: "Forecourt 1st Row", keys: "Box 7", fan: -2 },
 ];
 
 function LocPill({ loc, className, innerRef }: { loc: Loc; className?: string; innerRef?: React.Ref<HTMLSpanElement> }) {
@@ -437,7 +437,7 @@ function StockScene() {
         ref={stageRef}
         className="desk-shell scene-card relative w-full max-w-[540px]"
         role="img"
-        aria-label="Stock list with a location and keys pill per car. The Elroq's location changes from Not set to Showroom."
+        aria-label="Stock list with a location and keys pill per car. The electric hatch's location changes from Not set to Showroom."
       >
         <div aria-hidden>
           <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3.5 sm:px-5">
@@ -664,7 +664,7 @@ function CustomerScene() {
               </span>
               <div className="text-[20px] leading-tight font-medium text-[#F6F5F1]">Elroq 85 Edition</div>
             </div>
-            <div className="scene-compact-hide mb-1.5 font-mono text-[11.5px] text-[#7C8F84]">VIN: TMBJR7NY0TF048213</div>
+            <div className="scene-compact-hide mb-1.5 font-mono text-[11.5px] text-[#7C8F84]">VIN: DEMO0000000000001</div>
             <div className="scene-compact-hide mb-4 text-sm text-[#9FB0A6]">Timiano Green</div>
             <div
               className="scene-short-hide flex items-center gap-3.5 rounded-[14px] px-4 py-2.5 sm:py-3"
@@ -984,26 +984,26 @@ function ChaseScene() {
 /* ------------------------------------------------------------------ */
 
 const QUOTE_BRIEF =
-  "Family of four and a spaniel. Wants an SUV, around £350 a month. Likes the Kodiaq Edition X and Karoq Sportline.";
+  "Family of four and a spaniel. Wants an SUV, around £350 a month. Likes the seven seat SUV and the compact SUV.";
 const QUOTE_HEADLINE = "Room for four, the dog and the weekend bags.";
 
 /** Rows the fill seeds: two named in the brief, one picked from stock. Finance is never filled. */
 const QUOTE_CARS = [
   {
-    name: "Škoda Kodiaq Edition X",
-    engine: "1.5 TSI e-TEC 150 PS DSG · 7 seats",
+    name: "Family SUV 1.5 petrol",
+    engine: "Automatic · 7 seats",
     tagline: "Seven seats, room for the dog.",
     monthly: "£367",
   },
   {
-    name: "Škoda Karoq Sportline Edition",
-    engine: "1.5 TSI 150 PS DSG",
+    name: "Compact SUV 1.5 petrol",
+    engine: "Automatic",
     tagline: "Same big boot, easier to park.",
     monthly: "£338",
   },
   {
-    name: "Škoda Enyaq 85 SE L",
-    engine: "Electric · 286 PS · from stock",
+    name: "Electric SUV",
+    engine: "Electric · long range · from stock",
     tagline: "Electric, and charged at home.",
     monthly: "£359",
   },
@@ -1117,7 +1117,7 @@ function QuoteScene() {
         ref={stageRef}
         className="desk-shell scene-card relative w-full max-w-[540px]"
         role="img"
-        aria-label="Proposal form. A short customer brief is typed and Fill story is pressed. Three Škoda vehicle rows and the proposal story fill in. A salesperson then types each monthly figure by hand."
+        aria-label="Proposal form. A short customer brief is typed and Fill story is pressed. Three vehicle rows and the proposal story fill in. A salesperson then types each monthly figure by hand."
       >
         <div aria-hidden className="scene-quote-body px-4 py-3.5 sm:px-5 sm:py-4">
           <div className="flex items-start justify-between gap-3">
@@ -1209,7 +1209,7 @@ function QuoteScene() {
             <div className="mt-2.5">
               <div className="scene-quote-label">Stock cars (optional)</div>
               <span className="scene-quote-chip">
-                <Car size={12} /> Enyaq 85 SE L · SY25 KTE
+                <Car size={12} /> Electric SUV · SY25 KTE
               </span>
             </div>
             <div className="mt-2.5">
@@ -1454,7 +1454,7 @@ function OverviewScene() {
             <strong className="text-white tabular-nums">
               <CountUp value={data.total} />
             </strong>{" "}
-            deals counted · <strong className="text-white tabular-nums"><CountUp value={data.bev} /></strong> BEV
+            deals counted, <strong className="text-white tabular-nums"><CountUp value={data.bev} /></strong> BEV
           </div>
 
           <div className="shell-glass mt-2.5 rounded-[16px] px-3.5 py-2.5">
