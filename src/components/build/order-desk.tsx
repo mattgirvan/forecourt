@@ -1,3 +1,4 @@
+import { SkeletonCards } from "@/components/ui/skeleton";
 import { askConfirm } from "@/components/ui/confirm-sheet";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { PillRow } from "@/components/ui/pill-row";
@@ -194,7 +195,7 @@ export function OrderBuild({
   }, [token, tenantId]);
 
   if (err) return <p className="text-sm text-muted">{err}</p>;
-  if (!build) return <p className="text-sm text-muted">Loading the build…</p>;
+  if (!build) return <SkeletonCards kind="build" count={1} label="Loading the build" />;
 
   const plan = normalizePlan(build.plan);
   const billing = normalizeBilling(plan, build.billing);
