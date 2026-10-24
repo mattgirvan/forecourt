@@ -1865,6 +1865,8 @@
   /* Mobile bottom bar: height and the gap between it and the screen edge. */
   --fc-bnav-h: 64px;
   --fc-bnav-gap: 10px;
+  /* Breathing room between the last content and the top of the bar. */
+  --fc-bnav-clear: 16px;
 }
 
 .fc-app {
@@ -2067,8 +2069,8 @@
   .fc-mtop .fc-brand { padding: 0; }
   .fc-mtop-av { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; }
   .fc-mtop-av .fc-av { width: 34px; height: 34px; }
-  /* Clear the floating bottom bar: bar height plus its gap plus the safe area. */
-  .fc-main { padding-bottom: calc(var(--fc-bnav-h) + var(--fc-bnav-gap) + env(safe-area-inset-bottom)); }
+  /* Clear the floating bottom bar: bar height, its gap, breathing room and the safe area. */
+  .fc-main { padding-bottom: calc(var(--fc-bnav-h) + var(--fc-bnav-gap) + var(--fc-bnav-clear) + env(safe-area-inset-bottom)); }
   .fc-bnav {
     display: flex;
     position: fixed;
