@@ -6,9 +6,9 @@ import { cn } from "@/lib/utils";
 
 type Inv = { date: string; what: string; total: string; net: string; vat: string; no: string };
 const ROWS: Inv[] = [
-  { date: "1 Nov 2026", what: "Site plan, November", total: "£399.00", net: "£332.50", vat: "£66.50", no: "FC-10482" },
-  { date: "1 Oct 2026", what: "Site plan, October", total: "£399.00", net: "£332.50", vat: "£66.50", no: "FC-10371" },
-  { date: "1 Sep 2026", what: "Site plan, September", total: "£399.00", net: "£332.50", vat: "£66.50", no: "FC-10259" },
+  { date: "1 Nov 2026", what: "Site plan, Nov 2026", total: "£399.00", net: "£332.50", vat: "£66.50", no: "FC-10482" },
+  { date: "1 Oct 2026", what: "Site plan, Oct 2026", total: "£399.00", net: "£332.50", vat: "£66.50", no: "FC-10371" },
+  { date: "1 Sep 2026", what: "Site plan, Sep 2026", total: "£399.00", net: "£332.50", vat: "£66.50", no: "FC-10259" },
   { date: "14 Aug 2026", what: "Setup", total: "£4,500.00", net: "£3,750.00", vat: "£750.00", no: "FC-10144" },
 ];
 
