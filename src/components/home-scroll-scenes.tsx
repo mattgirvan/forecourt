@@ -31,10 +31,10 @@ import { cn } from "@/lib/utils";
  * is near the viewport. Reduced motion jumps straight to the end state.
  */
 
-const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
-const seg = (p: number, a: number, b: number) => clamp01((p - a) / (b - a));
-const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
-const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+export const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
+export const seg = (p: number, a: number, b: number) => clamp01((p - a) / (b - a));
+export const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+export const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
 const useIsoLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
 
@@ -107,20 +107,20 @@ function useScrollScene<T extends HTMLElement>(onFrame: (p: number) => void) {
 }
 
 /** Point inside `stage` coordinates on the target's lower-right edge, so the arrow (which points up-left) never covers its label. */
-function pointIn(stage: DOMRect, el: Element | null) {
+export function pointIn(stage: DOMRect, el: Element | null) {
   if (!el) return { x: stage.width * 0.9, y: stage.height * 0.9 };
   const r = el.getBoundingClientRect();
   const inset = Math.min(6, r.width * 0.1, r.height * 0.15);
   return { x: r.right - stage.left - inset, y: r.bottom - stage.top - inset };
 }
 
-function placeCursor(el: HTMLElement | null, x: number, y: number, opacity: number) {
+export function placeCursor(el: HTMLElement | null, x: number, y: number, opacity: number) {
   if (!el) return;
   el.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0)`;
   el.style.opacity = opacity.toFixed(3);
 }
 
-function FakeCursor({ innerRef, down }: { innerRef: React.Ref<HTMLDivElement>; down: boolean }) {
+export function FakeCursor({ innerRef, down }: { innerRef: React.Ref<HTMLDivElement>; down: boolean }) {
   return (
     <div ref={innerRef} className="scene-cursor" data-down={down ? "1" : "0"} aria-hidden>
       <span className="scene-cursor-ring" />
