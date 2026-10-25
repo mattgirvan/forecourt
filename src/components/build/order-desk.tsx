@@ -1174,8 +1174,8 @@ function ScaffoldStatus({ build }: { build: Build }) {
           <div className="text-sm font-medium">Next (still human)</div>
           <ol className="mt-2 list-decimal space-y-1.5 pl-5 text-sm text-muted">
             <li>
-              New Supabase project <code className="text-fg">forecourt-&lt;slug&gt;</code> — never
-              Aberdeen.
+              New Supabase project <code className="text-fg">forecourt-&lt;slug&gt;</code>. Never reuse
+              another desk&apos;s project.
             </li>
             <li>Paste desk migrations 0001 to 0007, enable pg_net, run the desk link steps, then insert staff from tenant.json.</li>
             <li>Link Vercel to the repo, set Supabase env, deploy, custom domain.</li>
