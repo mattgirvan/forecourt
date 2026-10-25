@@ -6,8 +6,8 @@ import { cn } from "@/lib/utils";
 
 const NAME = "Example Motors North";
 const SITES = [
-  { name: "Example Motors", brand: "Kia" },
-  { name: "Example Motors East", brand: "Ford" },
+  { name: "Example Motors", brand: "Škoda" },
+  { name: "Example Motors East", brand: "SEAT" },
 ] as const;
 
 export function StepSite() {
