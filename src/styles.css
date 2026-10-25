@@ -131,6 +131,23 @@
   }
 }
 
+/* Phones and tablets: solid top nav and veil site-wide so page text never shows through (redesign slice 10). 1024px and up keep the translucent nav. */
+@media (max-width: 1023.98px) {
+  .nav-veil {
+    height: 8rem;
+    background: var(--color-bg);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+  .nav-glass {
+    background: var(--color-bg);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
 @keyframes rise {
   from {
     opacity: 0;
