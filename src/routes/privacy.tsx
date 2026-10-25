@@ -55,6 +55,17 @@ function PrivacyPage() {
           dealer who has not paid yet. Legal obligation, for invoices.
         </p>
 
+        <h2>Emails to dealerships</h2>
+        <p>
+          We may email business contacts at dealerships to tell them about Forecourt. We only use business
+          contact details that are publicly available, and we do this on a legitimate interests basis.
+        </p>
+        <p>
+          You can object or opt out at any time. Just reply to the email, or write to{" "}
+          <a href="mailto:hello@forecourt.me">hello@forecourt.me</a>. We keep a suppression list so we do
+          not email you again.
+        </p>
+
         <h2>Who else sees it</h2>
         <ul>
           <li>Stripe: payments.</li>

@@ -63,8 +63,8 @@ function DpaPage() {
 
         <h2>Security</h2>
         <p>
-          Separate database per desk. Sign-in by code. Encryption in transit. We do not share Aberdeen’s
-          project, or anyone else’s, with you.
+          Separate database per desk. Sign-in by code. Encryption in transit. We do not share any dealer’s
+          project with you or anyone else.
         </p>
 
         <h2>Breach</h2>

@@ -39,8 +39,8 @@ function TrustPage() {
         <div className="mt-12 space-y-4">
           <Section title="One rooftop, one database">
             <p>
-              Your live desk and stock sit in their own Supabase project. We do not share the John Clark
-              Aberdeen database (or any other dealer&apos;s) with you or with anyone else.
+              Your live desk and stock sit in their own Supabase project. We do not share any dealer&apos;s
+              database with you or anyone else.
             </p>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               <div className="rounded-2xl border border-line bg-elevated/50 px-4 py-3 text-sm">
