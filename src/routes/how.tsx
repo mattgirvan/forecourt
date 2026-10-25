@@ -6,6 +6,7 @@ import { SiteShell } from "@/components/site-shell";
 import { Button } from "@/components/ui/button";
 import { FEATURES, INGEST, PROVISION, type IngestId } from "@/lib/catalog";
 import { DoorsMap } from "@/components/trust/doors-map";
+import { HowSteps } from "@/components/how-it-works/how-steps";
 import { pageHead } from "@/lib/seo";
 import { cn } from "@/lib/utils";
 
@@ -86,7 +87,11 @@ export function HowPage() {
             .
           </p>
         </Reveal>
+      </section>
 
+      <HowSteps />
+
+      <section className="mx-auto max-w-5xl px-4 pb-16 sm:px-6 sm:pb-24">
         <Reveal className="mt-16">
           <p className="text-[13px] font-medium text-muted">Where you log in</p>
           <h2 className="mt-3 max-w-2xl text-3xl font-semibold tracking-tight">Five doors. Not one ambiguous Administrator.</h2>
