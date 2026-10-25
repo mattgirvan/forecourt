@@ -5,6 +5,7 @@ import { StepLoop } from "./step-loop";
 import { StepTickets } from "./step-tickets";
 import { StepChanges } from "./step-changes";
 import { StepSite } from "./step-site";
+import { StepBilling } from "./step-billing";
 import { cn } from "@/lib/utils";
 
 type Step = { n: number; label: string; node: ReactNode };
@@ -15,6 +16,7 @@ const STEPS: Step[] = [
   { n: 2, label: "Kept in the loop", node: <StepLoop /> },
   { n: 3, label: "Change requests", node: <StepChanges /> },
   { n: 4, label: "Raising tickets", node: <StepTickets /> },
+  { n: 5, label: "Billing and invoices", node: <StepBilling /> },
   { n: 6, label: "Opening a new site", node: <StepSite /> },
 ];
 

@@ -5277,3 +5277,183 @@
     box-shadow: 0 -40px 0 30px var(--color-bg);
   }
 }
+
+/* How it works: step 5, billing (light C, not pinned) */
+.hiw-c {
+  display: grid;
+  gap: 1.5rem;
+  align-items: center;
+}
+@media (min-width: 1024px) {
+  .hiw-c {
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+    gap: 3rem;
+  }
+}
+.hiw-bill-body {
+  display: grid;
+}
+.hiw-bill-body > * {
+  grid-area: 1 / 1;
+}
+.hiw-bill-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  transition: opacity 260ms var(--hiw-ease);
+}
+.hiw-bill-list.is-away {
+  opacity: 0;
+  pointer-events: none;
+}
+.hiw-bill-row {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+  opacity: 0;
+  transform: translateY(14px);
+  transition:
+    opacity 420ms var(--hiw-ease),
+    transform 420ms var(--hiw-ease);
+  transition-delay: calc(500ms + var(--i) * 450ms);
+}
+.hiw-bill.is-seen .hiw-bill-row {
+  opacity: 1;
+  transform: none;
+}
+.hiw-bill-open {
+  flex: 1;
+  min-width: 0;
+  min-height: 52px;
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  grid-template-areas: "d a c" "w a c";
+  column-gap: 10px;
+  align-items: center;
+  text-align: left;
+  padding: 8px 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: inherit;
+  cursor: pointer;
+}
+.hiw-bill-open:hover {
+  background: rgba(255, 255, 255, 0.07);
+}
+.hiw-bill-open > .hiw-row-title { grid-area: d; }
+.hiw-bill-open > .hiw-row-sub { grid-area: w; }
+.hiw-bill-open > .hiw-bill-amt { grid-area: a; }
+.hiw-bill-open > :last-child { grid-area: c; }
+.hiw-bill-amt {
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.hiw-pdf {
+  position: relative;
+  overflow: hidden;
+  flex: none;
+  width: 44px;
+  min-height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--shell-text-dim);
+  cursor: pointer;
+}
+.hiw-ripple {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.28);
+  opacity: 0;
+  transform: scale(0);
+  animation: hiw-ripple 520ms var(--hiw-ease);
+  pointer-events: none;
+}
+@keyframes hiw-ripple {
+  from { opacity: 1; transform: scale(0); }
+  to { opacity: 0; transform: scale(1.6); }
+}
+.hiw-bill-detail {
+  display: grid;
+  gap: 14px;
+  align-content: start;
+  padding: 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 260ms var(--hiw-ease);
+}
+.hiw-bill-detail.is-in {
+  opacity: 1;
+  pointer-events: auto;
+}
+.hiw-bill-detail .hiw-btn { justify-self: start; }
+.hiw-bill-sum {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px 12px;
+  margin: 0;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+.hiw-bill-sum dt { color: var(--shell-text-dim); }
+.hiw-bill-sum dd { margin: 0; text-align: right; }
+.hiw-bill-sum .is-total { font-weight: 700; color: inherit; padding-top: 6px; border-top: 1px solid rgba(255, 255, 255, 0.1); }
+
+/* Desktop with scroll timelines: scrub each row in over a short range as it enters. */
+@supports (animation-timeline: view()) {
+  @media (min-width: 1024px) and (prefers-reduced-motion: no-preference) {
+    .hiw-bill-row,
+    .hiw-bill.is-seen .hiw-bill-row {
+      opacity: 1;
+      transform: none;
+      transition: none;
+      animation: hiw-row-in linear both;
+      animation-timeline: view();
+      animation-range: entry calc(var(--i) * 4vh) entry calc(30vh + var(--i) * 4vh);
+    }
+  }
+}
+@keyframes hiw-row-in {
+  from { opacity: 0; transform: translateY(18px); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hiw-bill-row {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  .hiw-ripple { animation: none; }
+}
+
+/* Step 5, narrow phones: amount over the Paid chip so the row label stays on one line. */
+@media (max-width: 479.98px) {
+  .hiw-bill-open {
+    grid-template-columns: 1fr auto;
+    grid-template-areas: "d a" "w c";
+    row-gap: 4px;
+  }
+  .hiw-bill-open > .hiw-bill-amt,
+  .hiw-bill-open > :last-child {
+    justify-self: end;
+  }
+}
+.hiw-bill-open > .hiw-row-sub {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
