@@ -5439,3 +5439,21 @@
   }
   .hiw-ripple { animation: none; }
 }
+
+/* Step 5, narrow phones: amount over the Paid chip so the row label stays on one line. */
+@media (max-width: 479.98px) {
+  .hiw-bill-open {
+    grid-template-columns: 1fr auto;
+    grid-template-areas: "d a" "w c";
+    row-gap: 4px;
+  }
+  .hiw-bill-open > .hiw-bill-amt,
+  .hiw-bill-open > :last-child {
+    justify-self: end;
+  }
+}
+.hiw-bill-open > .hiw-row-sub {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
