@@ -5192,3 +5192,65 @@
   opacity: 0;
   pointer-events: none;
 }
+
+/* How it works: step 6, adding a site */
+.hiw-seg {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  margin-top: 6px;
+  padding: 4px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+.hiw-seg-opt {
+  position: relative;
+  display: grid;
+  place-items: center;
+  height: 36px;
+  border-radius: 9px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.hiw-seg-on {
+  position: absolute;
+  inset: 0;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  opacity: 0;
+  transition: opacity 420ms var(--hiw-ease);
+}
+.hiw-seg-on.is-on {
+  opacity: 1;
+}
+.hiw-note {
+  margin-top: 10px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--shell-text-dim);
+}
+.hiw-site-tile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 8px 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.hiw-site-tile.is-travel {
+  width: 15rem;
+  background: #1d2733;
+  border-color: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 14px 30px -12px rgba(0, 0, 0, 0.8);
+}
+.hiw-slot {
+  opacity: 0;
+  transition: opacity 360ms var(--hiw-ease);
+}
+.hiw-slot.is-in {
+  opacity: 1;
+}
