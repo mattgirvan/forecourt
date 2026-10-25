@@ -106,11 +106,12 @@ function useScrollScene<T extends HTMLElement>(onFrame: (p: number) => void) {
   return ref;
 }
 
-/** Point inside `stage` coordinates, biased into the target so the cursor tip lands on it. */
-function pointIn(stage: DOMRect, el: Element | null, fx = 0.6, fy = 0.55) {
+/** Point inside `stage` coordinates on the target's lower-right edge, so the arrow (which points up-left) never covers its label. */
+function pointIn(stage: DOMRect, el: Element | null) {
   if (!el) return { x: stage.width * 0.9, y: stage.height * 0.9 };
   const r = el.getBoundingClientRect();
-  return { x: r.left - stage.left + r.width * fx, y: r.top - stage.top + r.height * fy };
+  const inset = Math.min(6, r.width * 0.1, r.height * 0.15);
+  return { x: r.right - stage.left - inset, y: r.bottom - stage.top - inset };
 }
 
 function placeCursor(el: HTMLElement | null, x: number, y: number, opacity: number) {
@@ -219,8 +220,8 @@ function TeamScene() {
     const box = stageRef.current?.getBoundingClientRect();
     if (!box) return;
     const from = { x: box.width * 0.88, y: box.height * 0.96 };
-    const pill = pointIn(box, pillRef.current, 0.62, 0.6);
-    const opt = pointIn(box, optionRef.current, 0.42, 0.6);
+    const pill = pointIn(box, pillRef.current);
+    const opt = pointIn(box, optionRef.current);
     const rest = { x: pill.x + 26, y: pill.y + 34 };
     let x: number;
     let y: number;
@@ -398,9 +399,10 @@ function StockScene() {
     const box = stageRef.current?.getBoundingClientRect();
     if (!box) return;
     const from = { x: box.width * 0.9, y: box.height * 0.98 };
-    const pill = pointIn(box, pillRef.current, 0.55, 0.6);
-    const opt = pointIn(box, optionRef.current, 0.4, 0.6);
-    const rest = { x: pill.x + 30, y: pill.y + 36 };
+    const pill = pointIn(box, pillRef.current);
+    const opt = pointIn(box, optionRef.current);
+    // Rest on the pill's own edge so the arrow never lands on the row below.
+    const rest = pill;
     let x: number;
     let y: number;
     if (p < 0.54) {
@@ -728,7 +730,7 @@ function NudgeScene() {
     if (!box) return;
     const from = { x: box.width * 0.85, y: box.height * 0.98 };
     const ctaVisible = (ctaRef.current?.getBoundingClientRect().width ?? 0) > 0;
-    if (ctaVisible) ctaPoint.current = pointIn(box, ctaRef.current, 0.5, 0.6);
+    if (ctaVisible) ctaPoint.current = pointIn(box, ctaRef.current);
     const cta = ctaPoint.current ?? pointIn(box, null);
     const rest = { x: cta.x - 40, y: cta.y + 70 };
     let x: number;
@@ -870,7 +872,13 @@ function ChaseScene() {
     const box = stageRef.current?.getBoundingClientRect();
     if (!box) return;
     const from = { x: box.width * 0.9, y: box.height * 0.95 };
-    const pt = (n: number) => pointIn(box, tickRefs.current[V5_ORDER[n]], 0.55, 0.6);
+    // Ticks sit right beside their label, so the tip rests on the tick's lower-left edge and the arrow stays in the tick column.
+    const pt = (n: number) => {
+      const el = tickRefs.current[V5_ORDER[n]];
+      if (!el) return pointIn(box, null);
+      const r = el.getBoundingClientRect();
+      return { x: r.left - box.left + 2, y: r.bottom - box.top - 2 };
+    };
     const legs: [number, number][] = [
       [0.06, 0.16],
       [0.24, 0.34],
@@ -1088,8 +1096,8 @@ function QuoteScene() {
     const box = stageRef.current?.getBoundingClientRect();
     if (!box) return;
     const from = { x: box.width * 0.9, y: box.height * 0.97 };
-    const fill = pointIn(box, fillRef.current, 0.5, 0.6);
-    const money = (i: number) => pointIn(box, moneyRefs.current[i], 0.55, 0.6);
+    const fill = pointIn(box, fillRef.current);
+    const money = (i: number) => pointIn(box, moneyRefs.current[i]);
     let x: number;
     let y: number;
     let opacity: number;
@@ -1364,8 +1372,8 @@ function OverviewScene() {
     const box = stageRef.current?.getBoundingClientRect();
     if (!box) return;
     const from = { x: box.width * 0.88, y: box.height * 0.97 };
-    const sel = pointIn(box, selectRef.current, 0.55, 0.6);
-    const opt = (i: number) => pointIn(box, optionRefs.current[i], 0.45, 0.6);
+    const sel = pointIn(box, selectRef.current);
+    const opt = (i: number) => pointIn(box, optionRefs.current[i]);
     let prev = from;
     let x = from.x;
     let y = from.y;
@@ -1674,7 +1682,7 @@ function GroupScene() {
     const box = stageRef.current?.getBoundingClientRect();
     if (!box) return;
     const from = { x: box.width * 0.9, y: box.height * 0.97 };
-    const tab = (i: number) => pointIn(box, tabRefs.current[i], 0.5, 0.6);
+    const tab = (i: number) => pointIn(box, tabRefs.current[i]);
     let prev = from;
     let x = from.x;
     let y = from.y;
