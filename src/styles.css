@@ -4308,13 +4308,9 @@
   .scene-group-card .scene-cursor {
     display: none;
   }
-  /* Every other scene: the pointer becomes a tap ripple at the tap point. */
-  .scene-cursor-arrow,
-  .scene-cursor-ring {
-    display: none;
-  }
-  .scene-cursor {
-    filter: none;
+  /* Every other scene keeps the pointer on phones; its ring marks the tap, so the extra ripple stays off. */
+  .scene-cursor-tap {
+    display: none !important;
   }
   .scene-tap {
     display: block;
