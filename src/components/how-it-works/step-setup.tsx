@@ -49,7 +49,14 @@ export function StepSetup() {
               <div className="hiw-card-title">Getting started</div>
               <div className="hiw-card-sub">Example Motors</div>
             </div>
-            <Chip tone="neutral">3 to do</Chip>
+            <Swap on={s.ticked} end>
+              <Chip tone="neutral">3 to do</Chip>
+              <Chip tone="neutral">2 to do</Chip>
+              <Chip tone="neutral">1 to do</Chip>
+              <Chip tone="done">
+                <Check size={12} strokeWidth={3} /> All done
+              </Chip>
+            </Swap>
           </div>
 
           <div className="hiw-row">
