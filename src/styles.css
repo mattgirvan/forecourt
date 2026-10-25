@@ -5253,6 +5253,7 @@
 }
 .hiw-slot.is-in {
   opacity: 1;
+}
 
 /* How it works, phones: solid nav and step bar so no page text shows through (redesign slice 10). */
 @media (max-width: 1023.98px) {
