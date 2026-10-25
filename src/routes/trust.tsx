@@ -54,7 +54,7 @@ function TrustPage() {
             </div>
           </Section>
 
-          <Section title="Staff only see what their seat allows">
+          <Section title="Staff only see what their role allows">
             <p>
               Roles are few on purpose. A showroom host is not an Administrator role. The Forecourt team
               uses a separate staff door, not a role inside your desk.{" "}
