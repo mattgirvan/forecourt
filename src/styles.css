@@ -5272,20 +5272,8 @@
   opacity: 1;
 }
 
-/* How it works, phones: solid nav and step bar so no page text shows through (redesign slice 10). */
+/* How it works, phones: solid step bar (the solid nav itself is site-wide, see the nav rules near the top). */
 @media (max-width: 1023.98px) {
-  body:has(.hiw-layout) .nav-glass {
-    background: var(--color-bg);
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
-  }
-  body:has(.hiw-layout) .nav-veil {
-    background: var(--color-bg);
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
-    -webkit-mask-image: none;
-    mask-image: none;
-  }
   .hiw-progress {
     background: #0f141a;
     -webkit-backdrop-filter: none;
