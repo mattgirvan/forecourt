@@ -7,7 +7,7 @@ export const Route = createFileRoute("/pilot")({
   },
   head: () =>
     pageHead({
-      title: "Start a Forecourt pilot on one site | Forecourt",
+      title: "Start a Forecourt.me pilot on one site | Forecourt.me",
       description:
         "Put your dealership name on a working desk. Sixty day site trial options and a path to go live beside your CRM.",
       path: "/pilot",

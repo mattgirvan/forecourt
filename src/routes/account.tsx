@@ -78,8 +78,8 @@ export const Route = createFileRoute("/account")({
   }),
   head: () =>
     pageHead({
-      title: "Your account | Forecourt",
-      description: "Your Forecourt package, orders and setup checklist.",
+      title: "Your account | Forecourt.me",
+      description: "Your Forecourt.me package, orders and setup checklist.",
       path: "/account",
       noindex: true,
     }),

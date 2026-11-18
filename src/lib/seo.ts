@@ -35,9 +35,9 @@ export function pageHead({ title, description, path = "/", ogDescription, noinde
 
 /** Locked homepage titles and descriptions (Pulse). */
 export const HOME_SEO = {
-  title: "Dealership floor OS beside your CRM | Forecourt",
+  title: "Dealership floor OS beside your CRM | Forecourt.me",
   description:
-    "Your CRM keeps the book. Forecourt keeps the floor moving: keys, photo status, where the car is, and customer live track. Beside your CRM, not instead of it.",
+    "Your CRM keeps the book. Forecourt.me keeps the floor moving: keys, photo status, where the car is, and customer live track. Beside your CRM, not instead of it.",
   ogDescription:
     "Beside your CRM, not instead of it. Keys, photo status, car location, and customer live track on the sales desk.",
 } as const;
@@ -50,19 +50,19 @@ export function homeJsonLd() {
       {
         "@type": "Organization",
         "@id": `${SITE.url}/#organization`,
-        name: SITE.name,
+        name: SITE.publicName,
         url: SITE.url,
         email: SITE.email,
       },
       {
         "@type": "SoftwareApplication",
         "@id": `${SITE.url}/#app`,
-        name: SITE.name,
+        name: SITE.publicName,
         applicationCategory: "BusinessApplication",
         operatingSystem: "Web",
         url: SITE.url,
         description:
-          "Forecourt sits beside your dealer CRM and keeps the floor moving: universal smart key locator, car photo status, where the car is, customer live order tracking, and staff to-dos for UK motor trade desks.",
+          "Forecourt.me sits beside your dealer CRM and keeps the floor moving: universal smart key locator, car photo status, where the car is, customer live order tracking, and staff to-dos for UK motor trade desks.",
         provider: { "@id": `${SITE.url}/#organization` },
       },
     ],

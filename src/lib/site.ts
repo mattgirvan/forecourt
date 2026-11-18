@@ -1,5 +1,6 @@
 export const SITE = {
   name: "Forecourt",
+  publicName: "Forecourt.me",
   domain: "forecourt.me",
   url: "https://www.forecourt.me",
   email: "hello@forecourt.me",
@@ -15,7 +16,7 @@ export const OG_IMAGE = {
   url: `${SITE.url}/og-2026-10.jpg`,
   width: "1200",
   height: "630",
-  alt: "Forecourt: the screen on the sales desk, beside your CRM",
+  alt: "Forecourt.me: the screen on the sales desk, beside your CRM",
 } as const;
 
 /** og:image + size + alt, and the matching twitter:image tags. */

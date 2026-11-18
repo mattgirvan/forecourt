@@ -5,9 +5,9 @@ import { SiteShell } from "@/components/site-shell";
 import { Button } from "@/components/ui/button";
 import { pageHead } from "@/lib/seo";
 
-const TITLE = "Customer live order tracking for car dealerships | Forecourt";
+const TITLE = "Customer live order tracking for car dealerships | Forecourt.me";
 const DESCRIPTION =
-  "Let the customer open their order and see it live. Fewer chasing calls. Forecourt sits beside your CRM for UK motor trade desks.";
+  "Let the customer open their order and see it live. Fewer chasing calls. Forecourt.me sits beside your CRM for UK motor trade desks.";
 
 export const Route = createFileRoute("/for/customer-live-track")({
   component: CustomerLiveTrackPage,
