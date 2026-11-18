@@ -12,7 +12,7 @@ export const Route = createFileRoute("/trust")({
   component: TrustPage,
   head: () =>
     pageHead({
-      title: "Trust and how Forecourt.me works with your CRM | Forecourt.me",
+      title: "Trust and how it works with your CRM | Forecourt.me",
       description:
         "Built for franchise and group desks. Your stock stays yours. Forecourt.me sits beside the CRM and DMS you already pay for.",
       path: "/trust",

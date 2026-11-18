@@ -9,7 +9,7 @@ export const Route = createFileRoute("/contact")({
   component: ContactPage,
   head: () =>
     pageHead({
-      title: "Contact Forecourt.me | UK motor trade desks",
+      title: "Contact us | Forecourt.me",
       description:
         "Ask about a trial, group pricing, or a site that does not fit the standard packages. We reply from hello@forecourt.me.",
       path: "/contact",
