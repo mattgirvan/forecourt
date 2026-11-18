@@ -7,8 +7,11 @@ import { SITE } from "@/lib/site";
 
 export function SiteFooter() {
   return (
-    <footer className="px-4 pb-10 sm:px-6">
-      <div id="newsletter" className="mx-auto mb-4 grid max-w-5xl gap-4 rounded-[2rem] border border-line bg-surface px-6 py-7 sm:grid-cols-[1fr_1.3fr] sm:items-start sm:px-8">
+    <footer className="wa-footer-pad px-4 sm:px-6">
+      <div
+        id="newsletter"
+        className="mx-auto mb-4 grid max-w-5xl gap-4 rounded-[2rem] border border-line bg-surface px-6 py-7 sm:grid-cols-[1fr_1.3fr] sm:items-start sm:px-8"
+      >
         <div>
           <p className="text-sm font-medium">Forecourt updates</p>
           <p className="mt-1 text-[13px] leading-relaxed text-muted">
@@ -26,7 +29,8 @@ export function SiteFooter() {
           <p className="mt-2 text-sm text-muted">The screen on the sales desk.</p>
           <p className="mt-2 text-[13px] text-muted">Built in Scotland for UK motor trade desks.</p>
           <p className="mt-2 text-[11px] leading-relaxed text-subtle">
-            {LEGAL.who}. Not affiliated with any manufacturer. Sample stock on this site is fictional.
+            {LEGAL.who}. Not affiliated with any manufacturer. Sample stock on this site is
+            fictional.
           </p>
           <p className="mt-2 text-[11px] leading-relaxed text-subtle">
             Forecourt is a UK motor trade floor product for franchise and group desks. It is not a

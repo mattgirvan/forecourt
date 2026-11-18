@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { NewsletterSheetHost } from "@/components/newsletter-reach";
+import { WhatsAppButton } from "@/components/whatsapp-button";
 
 export function SiteShell({ children }: { children: ReactNode }) {
   return (
@@ -10,6 +11,7 @@ export function SiteShell({ children }: { children: ReactNode }) {
       <div className="flex-1 pt-2">{children}</div>
       <SiteFooter />
       <NewsletterSheetHost />
+      <WhatsAppButton />
     </div>
   );
 }

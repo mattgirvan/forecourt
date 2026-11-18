@@ -7,6 +7,11 @@ export const SITE = {
   phone: "01224 079589",
   /** E.164, used in tel: links and JSON-LD. */
   phoneE164: "+441224079589",
+  /**
+   * Forecourt WhatsApp Business. Marketing-site chat button only.
+   * Href is the exact wa.me URL, including the prefilled message encoding.
+   */
+  whatsappHref: "https://wa.me/447356040212?text=Hi%2C%20I%27m%20interested%20in%20Forecourt",
 } as const;
 
 /**

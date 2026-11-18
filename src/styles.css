@@ -5462,3 +5462,80 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* WhatsApp chat button (marketing SiteShell only). */
+.wa-chat {
+  position: fixed;
+  z-index: 40;
+  right: max(1rem, env(safe-area-inset-right, 0px));
+  bottom: max(1rem, env(safe-area-inset-bottom, 0px));
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 999px;
+  background: #25d366;
+  color: #fff;
+  text-decoration: none;
+  box-shadow:
+    0 10px 28px -12px rgb(0 0 0 / 0.7),
+    0 0 0 1px rgb(0 0 0 / 0.12);
+  transition:
+    transform 150ms ease,
+    filter 150ms ease;
+}
+.wa-chat:hover {
+  filter: brightness(1.06);
+  color: #fff;
+}
+.wa-chat:active {
+  transform: scale(0.97);
+}
+.wa-chat:focus-visible {
+  outline: 2px solid var(--color-fg);
+  outline-offset: 3px;
+}
+.wa-chat-icon {
+  display: block;
+  width: 26px;
+  height: 26px;
+  flex: none;
+}
+.wa-chat-label {
+  display: none;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1;
+}
+@media (min-width: 768px) {
+  .wa-chat {
+    width: auto;
+    height: 48px;
+    min-height: 48px;
+    padding: 0 16px 0 14px;
+    gap: 8px;
+  }
+  .wa-chat-label {
+    display: inline;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wa-chat {
+    transition: none;
+  }
+  .wa-chat:active {
+    transform: none;
+  }
+}
+@media (max-width: 767px) {
+  .wa-chat--hide-mobile {
+    display: none;
+  }
+}
+
+/* Room at the bottom of marketing pages so the chat button does not cover footer links. */
+.wa-footer-pad {
+  padding-bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));
+}
