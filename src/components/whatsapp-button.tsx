@@ -1,5 +1,6 @@
 import { useRouterState } from "@tanstack/react-router";
 import { SITE } from "@/lib/site";
+import { cn } from "@/lib/utils";
 
 /** Logged-in product shells, plus their signed-out gates. Not the marketing site. */
 function isProductPath(pathname: string) {
@@ -17,9 +18,11 @@ export function WhatsAppButton() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   if (isProductPath(pathname)) return null;
 
+  const contactMobileHide = pathname === "/contact" || pathname.startsWith("/contact/");
+
   return (
     <a
-      className="wa-chat"
+      className={cn("wa-chat", contactMobileHide && "wa-chat--hide-mobile")}
       href={SITE.whatsappHref}
       target="_blank"
       rel="noopener noreferrer"

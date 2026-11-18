@@ -5529,6 +5529,11 @@
     transform: none;
   }
 }
+@media (max-width: 767px) {
+  .wa-chat--hide-mobile {
+    display: none;
+  }
+}
 
 /* Room at the bottom of marketing pages so the chat button does not cover footer links. */
 .wa-footer-pad {
