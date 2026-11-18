@@ -36,12 +36,15 @@ export function ContactPromo({
               </Button>
               <BookCallButton />
             </div>
-            <a
-              href={`tel:${SITE.phoneE164}`}
-              className="text-[13px] text-muted underline-offset-4 hover:text-fg hover:underline"
-            >
-              Or call {SITE.phone}
-            </a>
+            <p className="flex items-center gap-1 text-[13px] text-muted">
+              <span>Or call</span>
+              <a
+                href={`tel:${SITE.phoneE164}`}
+                className="-my-3 inline-flex min-h-11 items-center text-fg underline-offset-4 hover:underline"
+              >
+                {SITE.phone}
+              </a>
+            </p>
           </div>
         </div>
       </Reveal>

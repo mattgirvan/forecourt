@@ -62,7 +62,10 @@ export function SiteFooter() {
           <a href={`mailto:${SITE.email}`} className="hover:text-fg">
             {SITE.email}
           </a>
-          <a href={`tel:${SITE.phoneE164}`} className="hover:text-fg">
+          <a
+            href={`tel:${SITE.phoneE164}`}
+            className="-my-3 inline-flex min-h-11 items-center hover:text-fg"
+          >
             {SITE.phone}
           </a>
         </div>
