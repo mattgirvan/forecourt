@@ -29,6 +29,13 @@ function ContactPage() {
             Trial questions, franchise or group pricing, special requirements, or an integration
             note. This does not open a desk. It just starts a conversation at {SITE.email}.
           </p>
+          <p className="mx-auto mt-3 max-w-lg text-base leading-relaxed text-muted">
+            Or call{" "}
+            <a href={`tel:${SITE.phoneE164}`} className="text-fg underline-offset-4 hover:underline">
+              {SITE.phone}
+            </a>
+            .
+          </p>
           <p className="mx-auto mt-3 max-w-lg text-sm text-muted">
             Prefer packages first?{" "}
             <Link to="/pricing" className="text-fg underline-offset-4 hover:underline">

@@ -3,6 +3,10 @@ export const SITE = {
   domain: "forecourt.me",
   url: "https://www.forecourt.me",
   email: "hello@forecourt.me",
+  /** Displayed on the marketing site. */
+  phone: "01224 079589",
+  /** E.164, used in tel: links and JSON-LD. */
+  phoneE164: "+441224079589",
 } as const;
 
 /**

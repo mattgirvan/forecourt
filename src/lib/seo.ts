@@ -53,6 +53,7 @@ export function homeJsonLd() {
         name: SITE.name,
         url: SITE.url,
         email: SITE.email,
+        telephone: SITE.phoneE164,
       },
       {
         "@type": "SoftwareApplication",
