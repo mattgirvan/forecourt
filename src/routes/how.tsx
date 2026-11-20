@@ -14,9 +14,9 @@ export const Route = createFileRoute("/how")({
   component: HowPage,
   head: () =>
     pageHead({
-      title: "How Forecourt sits beside your CRM | Forecourt",
+      title: "How it sits beside your CRM | Forecourt.me",
       description:
-        "See how Forecourt plugs into the stock system you already run, puts your name on a desk, and keeps the floor moving without replacing your CRM.",
+        "See how Forecourt.me plugs into the stock system you already run, puts your name on a desk, and keeps the floor moving without replacing your CRM.",
       path: "/how",
     }),
 });

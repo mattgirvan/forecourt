@@ -33,7 +33,7 @@ const COPY: Record<string, ResultCopy> = {
 export const Route = createFileRoute("/newsletter/confirmed")({
   validateSearch: (s: Record<string, unknown>) => ({ status: statusFrom(s) }),
   component: Page,
-  head: () => pageHead({ title: "Newsletter | Forecourt", description: "Confirm your Forecourt newsletter subscription.", path: "/newsletter/confirmed", noindex: true }),
+  head: () => pageHead({ title: "Newsletter | Forecourt.me", description: "Confirm your Forecourt.me newsletter subscription.", path: "/newsletter/confirmed", noindex: true }),
 });
 
 function Page() {

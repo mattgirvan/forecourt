@@ -21,9 +21,9 @@ import { SITE } from "@/lib/site";
 export const Route = createFileRoute("/login")({
   head: () =>
     pageHead({
-      title: "Sign in | Forecourt",
+      title: "Sign in | Forecourt.me",
       description:
-        "Sign in to your Forecourt account with a passkey, Google, or a one-time email code.",
+        "Sign in to your Forecourt.me account with a passkey, Google, or a one-time email code.",
       path: "/login",
       noindex: true,
     }),

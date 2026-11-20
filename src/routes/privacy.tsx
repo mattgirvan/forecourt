@@ -8,8 +8,8 @@ export const Route = createFileRoute("/privacy")({
   component: PrivacyPage,
   head: () =>
     pageHead({
-      title: "Privacy policy | Forecourt",
-      description: "What Forecourt holds, why, and your rights under UK GDPR.",
+      title: "Privacy policy | Forecourt.me",
+      description: "What Forecourt.me holds, why, and your rights under UK GDPR.",
       path: "/privacy",
     }),
 });

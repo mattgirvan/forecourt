@@ -28,7 +28,7 @@ const COPY: Record<string, ResultCopy> = {
 export const Route = createFileRoute("/newsletter/unsubscribed")({
   validateSearch: (s: Record<string, unknown>) => ({ status: statusFrom(s) }),
   component: Page,
-  head: () => pageHead({ title: "Unsubscribe | Forecourt", description: "Unsubscribe from Forecourt emails.", path: "/newsletter/unsubscribed", noindex: true }),
+  head: () => pageHead({ title: "Unsubscribe | Forecourt.me", description: "Unsubscribe from Forecourt.me emails.", path: "/newsletter/unsubscribed", noindex: true }),
 });
 
 function Page() {

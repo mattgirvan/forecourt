@@ -6,9 +6,9 @@ import { PreviewHostBridge } from "@/components/preview-host-bridge";
 import { OG_IMAGE_META, SITE } from "@/lib/site";
 import appCss from "../styles.css?url";
 
-const DEFAULT_TITLE = "Dealership floor OS beside your CRM | Forecourt";
+const DEFAULT_TITLE = "Dealership floor OS beside your CRM | Forecourt.me";
 const DEFAULT_DESCRIPTION =
-  "Your CRM keeps the book. Forecourt keeps the floor moving: keys, photo status, where the car is, and customer live track. Beside your CRM, not instead of it.";
+  "Your CRM keeps the book. Forecourt.me keeps the floor moving: keys, photo status, where the car is, and customer live track. Beside your CRM, not instead of it.";
 const DEFAULT_OG_DESCRIPTION =
   "Beside your CRM, not instead of it. Keys, photo status, car location, and customer live track on the sales desk.";
 
@@ -21,7 +21,7 @@ export const Route = createRootRoute({
       { name: "description", content: DEFAULT_DESCRIPTION },
       { name: "theme-color", content: "#0A0B0A" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
-      { name: "apple-mobile-web-app-title", content: SITE.name },
+      { name: "apple-mobile-web-app-title", content: SITE.publicName },
       { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
       { name: "mobile-web-app-capable", content: "yes" },
       { property: "og:title", content: DEFAULT_TITLE },

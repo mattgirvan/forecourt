@@ -7,9 +7,9 @@ export const Route = createFileRoute("/security")({
   },
   head: () =>
     pageHead({
-      title: "Security at Forecourt | Forecourt",
+      title: "Security | Forecourt.me",
       description:
-        "How Forecourt protects dealership data while staff run the floor desk beside your CRM.",
+        "How Forecourt.me protects dealership data while staff run the floor desk beside your CRM.",
       path: "/security",
     }),
   component: () => null,

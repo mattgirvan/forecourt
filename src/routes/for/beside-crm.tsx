@@ -2,9 +2,9 @@ import { createFileRoute } from "@tanstack/react-router";
 import { PhrasePage } from "@/components/for/phrase-page";
 import { pageHead } from "@/lib/seo";
 
-const TITLE = "Beside your CRM, not instead of it | Forecourt";
+const TITLE = "Beside your CRM, not instead of it | Forecourt.me";
 const DESCRIPTION =
-  "Your CRM keeps the book. Forecourt keeps the floor moving. Stock book and deal paperwork stay where they are. The gaps the floor feels every day get a desk screen next to the system you already pay for.";
+  "Your CRM keeps the book. Forecourt.me keeps the floor moving. Stock book and deal paperwork stay where they are. The gaps the floor feels every day get a desk screen next to the system you already pay for.";
 
 export const Route = createFileRoute("/for/beside-crm")({
   component: BesideCrmPage,

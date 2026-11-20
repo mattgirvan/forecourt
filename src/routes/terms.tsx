@@ -8,8 +8,8 @@ export const Route = createFileRoute("/terms")({
   component: TermsPage,
   head: () =>
     pageHead({
-      title: "Terms of use | Forecourt",
-      description: "Terms for using Forecourt websites, accounts, and paid desks.",
+      title: "Terms of use | Forecourt.me",
+      description: "Terms for using Forecourt.me websites, accounts, and paid desks.",
       path: "/terms",
     }),
 });
