@@ -1721,15 +1721,15 @@ function PayScene() {
         <SceneCopy
           id="scene-pay-title"
           eyebrow="Sales tracker"
-          title="See this month's pay, and what it takes to reach the next band"
-          line="Figures move with every delivery. The current band is marked, and a hint shows how close the next one is."
+          title="An example of what the sales tracker can show: this month's pay, and what it takes to reach the next band"
+          line="Example figures, for illustration."
         />
       }
     >
       <div
         className="desk-shell scene-card relative w-full max-w-[520px]"
         role="img"
-        aria-label={`Sales tracker showing a salesperson's pay this month. ${fig.units} of ${VOLUME_TARGET} units at the ${VOLUME_BANDS[volBand].label} band, ${volHint}. Gross profit is at the ${GP_BANDS[gpBand].label} band, ${grossHint}. Total estimate ${formatGbp(paid.total)}. Example figures.`}
+        aria-label={`An example of what the sales tracker can show: a salesperson's pay this month. ${fig.units} of ${VOLUME_TARGET} units at the ${VOLUME_BANDS[volBand].label} band, ${volHint}. Gross profit is at the ${GP_BANDS[gpBand].label} band, ${grossHint}. Total estimate ${formatGbp(paid.total)}. Example figures.`}
       >
         <div className="scene-pay-body px-4 py-3.5 sm:px-5 sm:py-4">
           <div className="flex items-start justify-between gap-3">

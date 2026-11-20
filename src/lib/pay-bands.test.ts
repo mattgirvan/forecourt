@@ -113,7 +113,8 @@ test("hints and scene copy have no banned words or dashes", () => {
   const payFn = scene.slice(payStart, exportStart);
   assert.doesNotMatch(payFn, BANNED);
   assert.match(payFn, /eyebrow="Sales tracker"/);
-  assert.match(payFn, /See this month's pay, and what it takes to reach the next band/);
+  assert.match(payFn, /An example of what the sales tracker can show: this month's pay, and what it takes to reach the next band/);
+  assert.match(payFn, /Example figures, for illustration\./);
   assert.match(payFn, /sm:hidden">Example figures</);
   assert.match(payFn, /is-next/);
   assert.match(payFn, /customer view|Sales tracker/);
