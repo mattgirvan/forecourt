@@ -1738,6 +1738,7 @@ function PayScene() {
               <div className="scene-compact-hide hidden truncate text-[12px] text-[var(--mist)] sm:block">
                 Example figures for a salesperson on the desk.
               </div>
+              <div className="mt-0.5 text-[10px] leading-tight text-[var(--shell-text-faint)] sm:hidden">Example figures</div>
             </div>
             <div className="shrink-0 text-right">
               <div className="font-mono text-[22px] leading-none font-bold tabular-nums text-white">
@@ -1766,7 +1767,7 @@ function PayScene() {
               {VOLUME_BANDS.map((band, i) => (
                 <span
                   key={band.label}
-                  className={cn("scene-pay-chip", i === volBand && "is-current", i < volBand && "is-done")}
+                  className={cn("scene-pay-chip", i === volBand && "is-current", i === volBand + 1 && "is-next", i < volBand && "is-done")}
                 >
                   <span className="scene-pay-chip-rate">{formatGbp(band.rate)}</span>
                   <span className="scene-pay-chip-thr">{band.label}</span>
@@ -1795,7 +1796,7 @@ function PayScene() {
               {GP_BANDS.map((band, i) => (
                 <span
                   key={band.label}
-                  className={cn("scene-pay-chip", i === gpBand && "is-current", i < gpBand && "is-done")}
+                  className={cn("scene-pay-chip", i === gpBand && "is-current", i === gpBand + 1 && "is-next", i < gpBand && "is-done")}
                 >
                   <span className="scene-pay-chip-rate">{formatGbp(band.rate)}</span>
                   <span className="scene-pay-chip-thr">{band.label}</span>

@@ -114,6 +114,8 @@ test("hints and scene copy have no banned words or dashes", () => {
   assert.doesNotMatch(payFn, BANNED);
   assert.match(payFn, /eyebrow="Sales tracker"/);
   assert.match(payFn, /See this month's pay, and what it takes to reach the next band/);
+  assert.match(payFn, /sm:hidden">Example figures</);
+  assert.match(payFn, /is-next/);
   assert.match(payFn, /customer view|Sales tracker/);
   assert.doesNotMatch(payFn, /Motability|payslip|John Clark|portal/i);
 
@@ -139,6 +141,8 @@ test("pay scene motion uses transform and opacity, and reduced motion is honoure
   assert.match(block, /prefers-reduced-motion: reduce/);
   assert.match(block, /transform: none !important/);
   assert.match(block, /opacity: 1 !important/);
+  assert.match(block, /color: var\(--shell-text-dim\)/);
+  assert.doesNotMatch(block, /font-size: 8px;/);
 
   const scene = readFileSync("src/components/home-scroll-scenes.tsx", "utf8");
   const payFn = scene.slice(scene.indexOf("function PayScene("), scene.indexOf("export function HomeScrollScenes"));
