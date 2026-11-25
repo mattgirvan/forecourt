@@ -23,6 +23,20 @@ import {
   type LucideProps,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  GP_BANDS,
+  GP_TARGET,
+  PAY_DEMO,
+  VOLUME_BANDS,
+  VOLUME_TARGET,
+  bandIndex,
+  formatGbp,
+  gpHint,
+  lerpFigures,
+  payBreakdown,
+  pctOf,
+  volumeHint,
+} from "@/lib/pay-bands";
 
 /*
  * Homepage feature scenes. Each scene is a tall track with a sticky stage; scroll
@@ -1651,6 +1665,171 @@ function TransitScene() {
   );
 }
 
+
+/* ------------------------------------------------------------------ */
+/* Scene: sales tracker, pay this month (example figures only)        */
+/* ------------------------------------------------------------------ */
+
+function PayScene() {
+  const [fig, setFig] = useState(PAY_DEMO.end);
+  const figRef = useRef(fig);
+  const volBarRef = useRef<HTMLDivElement>(null);
+  const volMarkRef = useRef<HTMLSpanElement>(null);
+  const gpBarRef = useRef<HTMLDivElement>(null);
+  const gpMarkRef = useRef<HTMLSpanElement>(null);
+
+  const trackRef = useScrollScene<HTMLElement>((p) => {
+    const next = lerpFigures(PAY_DEMO.start, PAY_DEMO.end, ease(seg(p, 0.08, 0.84)));
+    const prev = figRef.current;
+    if (
+      next.units !== prev.units ||
+      next.gp !== prev.gp ||
+      next.finance !== prev.finance ||
+      next.aftercare !== prev.aftercare ||
+      next.used !== prev.used
+    ) {
+      figRef.current = next;
+      setFig(next);
+    }
+
+    const place = (bar: HTMLDivElement | null, mark: HTMLSpanElement | null, value: number) => {
+      const v = Math.min(1, Math.max(0, value));
+      if (bar) bar.style.setProperty("--p", v.toFixed(4));
+      if (mark) {
+        const w = bar?.clientWidth ?? 0;
+        mark.style.transform = `translate3d(${(v * w - 5.5).toFixed(1)}px, -50%, 0)`;
+      }
+    };
+    place(volBarRef.current, volMarkRef.current, pctOf(next.units, VOLUME_TARGET) / 100);
+    place(gpBarRef.current, gpMarkRef.current, pctOf(next.gp, GP_TARGET) / 100);
+  });
+
+  const paid = payBreakdown(fig);
+  const volPct = pctOf(fig.units, VOLUME_TARGET);
+  const gpPct = pctOf(fig.gp, GP_TARGET);
+  const volBand = bandIndex(VOLUME_BANDS, volPct);
+  const gpBand = bandIndex(GP_BANDS, gpPct);
+  const volHint = volumeHint(fig.units, VOLUME_TARGET, VOLUME_BANDS);
+  const grossHint = gpHint(fig.gp, GP_TARGET, GP_BANDS);
+
+  return (
+    <SceneTrack
+      trackRef={trackRef}
+      id="scene-pay"
+      length="long"
+      copy={
+        <SceneCopy
+          id="scene-pay-title"
+          eyebrow="Sales tracker"
+          title="An example of what the sales tracker can show: this month's pay, and what it takes to reach the next band"
+          line="Example figures, for illustration."
+        />
+      }
+    >
+      <div
+        className="desk-shell scene-card relative w-full max-w-[520px]"
+        role="img"
+        aria-label={`An example of what the sales tracker can show: a salesperson's pay this month. ${fig.units} of ${VOLUME_TARGET} units at the ${VOLUME_BANDS[volBand].label} band, ${volHint}. Gross profit is at the ${GP_BANDS[gpBand].label} band, ${grossHint}. Total estimate ${formatGbp(paid.total)}. Example figures.`}
+      >
+        <div className="scene-pay-body px-4 py-3.5 sm:px-5 sm:py-4">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <div className="text-[17px] font-medium">Pay this month</div>
+              <div className="scene-compact-hide hidden truncate text-[12px] text-[var(--mist)] sm:block">
+                Example figures for a salesperson on the desk.
+              </div>
+              <div className="mt-0.5 text-[10px] leading-tight text-[var(--shell-text-faint)] sm:hidden">Example figures</div>
+            </div>
+            <div className="shrink-0 text-right">
+              <div className="font-mono text-[22px] leading-none font-bold tabular-nums text-white">
+                {formatGbp(paid.total)}
+              </div>
+              <div className="mt-0.5 text-[11px] text-[var(--shell-text-faint)]">estimate</div>
+            </div>
+          </div>
+
+          <div className="scene-pay-row is-volume mt-3">
+            <div className="scene-pay-row-head">
+              <span className="scene-pay-row-title">Volume</span>
+              <span className="scene-pay-row-amt">{formatGbp(paid.volume)}</span>
+            </div>
+            <div className="scene-pay-row-detail">
+              {fig.units} of {VOLUME_TARGET} units ({Math.round(volPct)}%)
+            </div>
+            <div className="scene-pay-track">
+              <div ref={volBarRef} className="scene-pay-bar" style={{ ["--p" as string]: String(Math.min(1, volPct / 100)) }}>
+                <span className="scene-pay-fill" />
+                <span ref={volMarkRef} className="scene-pay-mark" />
+              </div>
+              <span className="scene-pay-pct">{Math.round(volPct)}%</span>
+            </div>
+            <div className="scene-pay-chips">
+              {VOLUME_BANDS.map((band, i) => (
+                <span
+                  key={band.label}
+                  className={cn("scene-pay-chip", i === volBand && "is-current", i === volBand + 1 && "is-next", i < volBand && "is-done")}
+                >
+                  <span className="scene-pay-chip-rate">{formatGbp(band.rate)}</span>
+                  <span className="scene-pay-chip-thr">{band.label}</span>
+                </span>
+              ))}
+            </div>
+            <div className="scene-pay-hint">{volHint}</div>
+          </div>
+
+          <div className="scene-pay-row is-gp mt-2">
+            <div className="scene-pay-row-head">
+              <span className="scene-pay-row-title">Gross profit</span>
+              <span className="scene-pay-row-amt">{formatGbp(paid.gpPay)}</span>
+            </div>
+            <div className="scene-pay-row-detail">
+              {formatGbp(fig.gp)} of {formatGbp(GP_TARGET)} GP ({Math.round(gpPct)}%)
+            </div>
+            <div className="scene-pay-track">
+              <div ref={gpBarRef} className="scene-pay-bar" style={{ ["--p" as string]: String(Math.min(1, gpPct / 100)) }}>
+                <span className="scene-pay-fill" />
+                <span ref={gpMarkRef} className="scene-pay-mark" />
+              </div>
+              <span className="scene-pay-pct">{Math.round(gpPct)}%</span>
+            </div>
+            <div className="scene-pay-chips">
+              {GP_BANDS.map((band, i) => (
+                <span
+                  key={band.label}
+                  className={cn("scene-pay-chip", i === gpBand && "is-current", i === gpBand + 1 && "is-next", i < gpBand && "is-done")}
+                >
+                  <span className="scene-pay-chip-rate">{formatGbp(band.rate)}</span>
+                  <span className="scene-pay-chip-thr">{band.label}</span>
+                </span>
+              ))}
+            </div>
+            <div className="scene-pay-hint">{grossHint}</div>
+          </div>
+
+          <div className="scene-pay-row is-finance mt-2">
+            <div className="scene-pay-row-head">
+              <span className="scene-pay-row-title">Finance</span>
+              <span className="scene-pay-row-amt">{formatGbp(paid.finance)}</span>
+            </div>
+          </div>
+          <div className="scene-pay-row is-aftercare mt-2">
+            <div className="scene-pay-row-head">
+              <span className="scene-pay-row-title">Aftercare</span>
+              <span className="scene-pay-row-amt">{formatGbp(paid.aftercare)}</span>
+            </div>
+          </div>
+          <div className="scene-pay-row is-used mt-2">
+            <div className="scene-pay-row-head">
+              <span className="scene-pay-row-title">Used cars</span>
+              <span className="scene-pay-row-amt">{formatGbp(paid.used)}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </SceneTrack>
+  );
+}
+
 /* ------------------------------------------------------------------ */
 /* Scene: group and franchise sites (demo data only)                   */
 /* ------------------------------------------------------------------ */
@@ -1795,6 +1974,7 @@ export function HomeScrollScenes() {
       <NudgeScene />
       <ChaseScene />
       <OverviewScene />
+      <PayScene />
       <GroupScene />
     </div>
   );
