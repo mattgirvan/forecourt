@@ -12,6 +12,8 @@ export const SITE = {
    * Href is the exact wa.me URL, including the prefilled message encoding.
    */
   whatsappHref: "https://wa.me/447356040212?text=Hi%2C%20I%27m%20interested%20in%20Forecourt",
+  linkedinHref: "https://www.linkedin.com/company/forecourtme",
+  instagramHref: "https://www.instagram.com/forecourt.me/",
 } as const;
 
 /**

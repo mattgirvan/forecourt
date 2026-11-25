@@ -72,6 +72,24 @@ export function SiteFooter() {
           >
             {SITE.phone}
           </a>
+          <a
+            href={SITE.linkedinHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Forecourt on LinkedIn"
+            className="inline-flex min-h-6 items-center hover:text-fg"
+          >
+            LinkedIn
+          </a>
+          <a
+            href={SITE.instagramHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Forecourt on Instagram"
+            className="inline-flex min-h-6 items-center hover:text-fg"
+          >
+            Instagram
+          </a>
         </div>
       </div>
     </footer>
