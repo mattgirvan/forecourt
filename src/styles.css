@@ -1961,6 +1961,226 @@
   }
 }
 
+/* Sales tracker: pay this month, band ladder and progress marker.
+ * Bars and the marker move with transform / a CSS variable; reduced
+ * motion shows the end state (the scroll hook jumps to 1). */
+.scene-pay-row {
+  --pay-accent: var(--emerald);
+  --pay-ink: #102008;
+  position: relative;
+  padding: 8px 10px 8px 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.scene-pay-row::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 0 2px 2px 0;
+  background: var(--pay-accent);
+}
+.scene-pay-row.is-volume {
+  --pay-accent: #7ad45a;
+  --pay-ink: #102008;
+}
+.scene-pay-row.is-gp {
+  --pay-accent: var(--shell-accent);
+  --pay-ink: var(--shell-accent-ink);
+}
+.scene-pay-row.is-finance {
+  --pay-accent: var(--fc-rail-blue, #4f86e8);
+}
+.scene-pay-row.is-aftercare {
+  --pay-accent: var(--fc-rail-violet, #8c7be6);
+}
+.scene-pay-row.is-used {
+  --pay-accent: var(--fc-rail-teal, #2fb3a6);
+}
+.scene-pay-row-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.scene-pay-row-title {
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--shell-text);
+}
+.scene-pay-row-amt {
+  flex-shrink: 0;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--shell-text);
+}
+.scene-pay-row-detail {
+  margin-top: 2px;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--shell-text-dim);
+}
+.scene-pay-track {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 7px;
+}
+.scene-pay-bar {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  height: 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  overflow: visible;
+}
+.scene-pay-fill {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--pay-accent);
+  transform: scaleX(var(--p, 0));
+  transform-origin: left center;
+  will-change: transform;
+}
+.scene-pay-mark {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  z-index: 1;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 0 2px var(--pay-accent);
+  transform: translate3d(-5.5px, -50%, 0);
+  will-change: transform;
+  pointer-events: none;
+}
+.scene-pay-pct {
+  flex-shrink: 0;
+  width: 2.4em;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: var(--shell-text-dim);
+}
+.scene-pay-chips {
+  display: flex;
+  gap: 4px;
+  width: 100%;
+  margin-top: 7px;
+  flex-wrap: nowrap;
+}
+.scene-pay-chip {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 4px 1px 3px;
+  border-radius: 8px;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--shell-text-dim);
+  transition: background 220ms ease, color 220ms ease;
+}
+.scene-pay-chip-rate,
+.scene-pay-chip-thr {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: clip;
+}
+.scene-pay-chip-rate {
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.15;
+}
+.scene-pay-chip-thr {
+  margin-top: 1px;
+  font-size: 9px;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+}
+.scene-pay-chip.is-done {
+  background: color-mix(in srgb, var(--pay-accent) 22%, rgba(255, 255, 255, 0.06));
+  color: color-mix(in srgb, var(--shell-text) 92%, white);
+}
+.scene-pay-chip.is-current {
+  background: var(--pay-accent);
+  color: var(--pay-ink);
+}
+.scene-pay-chip.is-next {
+  color: var(--shell-text);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pay-accent) 60%, transparent);
+}
+.scene-pay-hint {
+  margin-top: 6px;
+  font-size: 11.5px;
+  line-height: 1.35;
+  color: var(--shell-text-dim);
+}
+@media (max-width: 400px) {
+  .scene-pay-chip-rate {
+    font-size: 10px;
+  }
+  .scene-pay-chip-thr {
+    font-size: 9px;
+  }
+  .scene-pay-chips {
+    gap: 3px;
+  }
+}
+@media (max-width: 1023px) {
+  #scene-pay .scene-sticky .grid {
+    gap: 0.7rem;
+  }
+}
+@media (max-width: 767px) {
+  .scene-pay-body {
+    padding: 10px 12px 12px;
+  }
+  .scene-pay-row {
+    padding: 6px 8px 6px 11px;
+  }
+  .scene-pay-row + .scene-pay-row {
+    margin-top: 6px;
+  }
+  .scene-pay-hint {
+    font-size: 11px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .scene-pay-fill,
+  .scene-pay-mark,
+  .scene-pay-chip,
+  .scene-pay-row {
+    transition: none !important;
+    animation: none !important;
+  }
+  .scene-pay-row {
+    transform: none !important;
+    opacity: 1 !important;
+  }
+}
+
+/* Reduced motion used to shrink sticky padding to 4rem, which sits the
+ * eyebrow under the two-row phone header. Keep the same clearance as scrolling scenes. */
+@media (prefers-reduced-motion: reduce) and (max-width: 767px) {
+  .scene-sticky {
+    padding-top: 9.25rem;
+    padding-bottom: 2rem;
+  }
+}
+
 /* ============================================================
    Forecourt redesign, slice 1: tokens and app shell (Office and account).
    Token values from forecourt-redesign/html/ds.css.
