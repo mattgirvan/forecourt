@@ -72,21 +72,25 @@ const floorGaps = [
     title: "Where the car actually is",
     line: "Factory, boat, compound, yard. Not a status code only one person can read.",
     href: "/for/beside-crm" as const,
+    cta: "See how Forecourt sits beside your CRM",
   },
   {
     title: "Where the keys are",
     line: "Cabinet, with PDI, unknown. The host should not have to shout across the showroom.",
     href: "/for/key-locator" as const,
+    cta: "See the smart key locator",
   },
   {
     title: "Has it been photographed",
     line: "On the ramp, in the studio, done. The listing does not wait on a WhatsApp.",
     href: "/for/photo-status" as const,
+    cta: "See car photo status",
   },
   {
     title: "The customer already knows",
     line: "They open their order and see the car. The exec is not a switchboard.",
     href: "/for/customer-live-track" as const,
+    cta: "See customer live order tracking",
   },
 ] as const;
 
@@ -191,9 +195,9 @@ function Home() {
               <p className="mt-2 text-[15px] leading-relaxed text-muted">{g.line}</p>
               <Link
                 to={g.href}
-                className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-fg underline-offset-4 hover:underline"
+                className="mt-4 inline-flex min-h-6 items-center gap-1 text-sm font-medium text-fg underline-offset-4 hover:underline"
               >
-                Read more <ArrowRight className="size-3.5" />
+                {g.cta} <ArrowRight className="size-3.5 shrink-0" />
               </Link>
             </Reveal>
           ))}
@@ -243,7 +247,7 @@ function Home() {
               src="/images/forecourt.jpg"
               srcSet="/images/forecourt-768.jpg 768w, /images/forecourt.jpg 1792w"
               sizes="(max-width: 1072px) calc(100vw - 32px), 1024px"
-              alt=""
+              alt="Two cars parked on a wet dealership forecourt at dusk outside a lit showroom"
               width={1792}
               height={1008}
               loading="lazy"
@@ -282,11 +286,11 @@ function Home() {
         </Reveal>
         <ol className="mt-14 grid gap-4 lg:grid-cols-3">
           {steps.map((s, i) => (
-            <Reveal
-              key={s.n}
-              delay={i * 90}
-              className="flex flex-col rounded-[1.75rem] border border-line bg-surface p-7"
-            >
+            <li key={s.n} className="flex">
+              <Reveal
+                delay={i * 90}
+                className="flex flex-1 flex-col rounded-[1.75rem] border border-line bg-surface p-7"
+              >
               <div className="flex size-10 items-center justify-center rounded-full bg-fg text-sm font-semibold text-accent-fg">
                 {s.n}
               </div>
@@ -304,7 +308,8 @@ function Home() {
                   {s.cta} <ArrowRight className="size-4" />
                 </Link>
               )}
-            </Reveal>
+              </Reveal>
+            </li>
           ))}
         </ol>
         <Reveal className="mt-6">

@@ -38,37 +38,37 @@ export function SiteFooter() {
           </p>
         </div>
         <div className="flex flex-wrap gap-x-5 gap-y-2 text-[13px] text-muted">
-          <Link to="/" className="hover:text-fg">
+          <Link to="/" className="inline-flex min-h-6 items-center hover:text-fg">
             Product
           </Link>
-          <Link to="/how" className="hover:text-fg">
+          <Link to="/how" className="inline-flex min-h-6 items-center hover:text-fg">
             How it works
           </Link>
-          <Link to="/pricing" className="hover:text-fg">
+          <Link to="/pricing" className="inline-flex min-h-6 items-center hover:text-fg">
             Pricing
           </Link>
-          <Link to="/contact" className="hover:text-fg">
+          <Link to="/contact" className="inline-flex min-h-6 items-center hover:text-fg">
             Contact
           </Link>
           <button
             type="button"
             onClick={openNewsletterSheet}
             aria-haspopup="dialog"
-            className="-my-3 inline-flex min-h-11 items-center hover:text-fg"
+            className="inline-flex min-h-6 items-center hover:text-fg"
           >
             Get updates
           </button>
           {LEGAL_LINKS.map((l) => (
-            <Link key={l.to} to={l.to} className="hover:text-fg">
+            <Link key={l.to} to={l.to} className="inline-flex min-h-6 items-center hover:text-fg">
               {l.label}
             </Link>
           ))}
-          <a href={`mailto:${SITE.email}`} className="hover:text-fg">
+          <a href={`mailto:${SITE.email}`} className="inline-flex min-h-6 items-center hover:text-fg">
             {SITE.email}
           </a>
           <a
             href={`tel:${SITE.phoneE164}`}
-            className="-my-3 inline-flex min-h-11 items-center hover:text-fg"
+            className="inline-flex min-h-6 items-center hover:text-fg"
           >
             {SITE.phone}
           </a>

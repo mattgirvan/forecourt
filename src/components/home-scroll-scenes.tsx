@@ -672,7 +672,7 @@ function CustomerScene() {
               </span>
               <div className="text-[20px] leading-tight font-medium text-[#F6F5F1]">Kia EV3 Air</div>
             </div>
-            <div className="scene-compact-hide mb-1.5 font-mono text-[11.5px] text-[#7C8F84]">VIN: DEMO0000000000001</div>
+            <div className="scene-compact-hide mb-1.5 font-mono text-[11.5px] text-[#9bb0a3]">VIN: DEMO0000000000001</div>
             <div className="scene-compact-hide mb-4 text-sm text-[#9FB0A6]">Timiano Green</div>
             <div
               className="scene-short-hide flex items-center gap-3.5 rounded-[14px] px-4 py-2.5 sm:py-3"
@@ -681,7 +681,7 @@ function CustomerScene() {
               <Calendar size={22} color="var(--brass)" className="shrink-0" />
               <div>
                 <div className="text-[15px] font-semibold">9 Nov to 20 Nov</div>
-                <div className="font-mono text-xs" style={{ color: "var(--brass)" }}>
+                <div className="font-mono text-xs" style={{ color: "var(--brass-tint)" }}>
                   Estimated arrival: exact date to follow
                 </div>
               </div>
@@ -693,7 +693,7 @@ function CustomerScene() {
               <div className="flex min-w-0 items-center gap-2">
                 <Truck size={15} className="shrink-0" />
                 <div className="text-[13px] font-semibold whitespace-nowrap">Car Locator</div>
-                <span key={index} className="scene-locator-label min-w-0 font-mono text-xs font-semibold" style={{ color: "var(--emerald)" }}>
+                <span key={index} className="scene-locator-label min-w-0 font-mono text-xs font-semibold" style={{ color: "#83dc67" }}>
                   {LOCATOR_LABEL[index]}
                 </span>
               </div>
@@ -986,7 +986,7 @@ function ChaseScene() {
                 <span>No chases set. You're clear.</span>
               </div>
               </div>
-              <div className="mt-1 flex items-center gap-1.5 text-[12.5px] font-semibold" style={{ color: "var(--emerald)" }}>
+              <div className="mt-1 flex items-center gap-1.5 text-[12.5px] font-semibold" style={{ color: "#83dc67" }}>
                 <Plus size={14} /> Add customer
               </div>
             </div>

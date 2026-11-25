@@ -8,7 +8,7 @@ export function SiteShell({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-dvh flex-col bg-bg text-fg">
       <SiteHeader />
-      <div className="flex-1 pt-2">{children}</div>
+      <main className="flex-1 pt-2">{children}</main>
       <SiteFooter />
       <NewsletterSheetHost />
       <WhatsAppButton />
