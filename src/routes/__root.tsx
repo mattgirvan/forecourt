@@ -85,7 +85,7 @@ export const Route = createRootRoute({
         { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
         { name: "mobile-web-app-capable", content: "yes" },
         { property: "og:title", content: DEFAULT_TITLE },
-        { property: "og:url", content: SITE.url },
+        { property: "og:url", content: `${SITE.url}/` },
         { property: "og:description", content: DEFAULT_OG_DESCRIPTION },
         { property: "og:type", content: "website" },
         { name: "twitter:card", content: "summary_large_image" },

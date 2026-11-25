@@ -13,7 +13,7 @@ export type PageSeo = {
 
 /** Unique title, description, OG, Twitter, and canonical for a marketing route. */
 export function pageHead({ title, description, path = "/", ogDescription, noindex }: PageSeo) {
-  const url = path === "/" ? SITE.url : `${SITE.url}${path}`;
+  const url = path === "/" ? `${SITE.url}/` : `${SITE.url}${path}`;
   const ogDesc = ogDescription ?? description;
   return {
     meta: [
