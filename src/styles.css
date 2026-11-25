@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 @theme {
-  --font-desk: "Inter", "IBM Plex Sans", system-ui, sans-serif;
-  --font-display: "Inter", "IBM Plex Sans", system-ui, sans-serif;
+  --font-desk: "Inter", system-ui, sans-serif;
+  --font-display: "Inter", system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
 
   --color-bg: #0a0b0a;
@@ -10,8 +10,8 @@
   --color-surface: #141614;
   --color-elevated: #1b1d1b;
   --color-fg: #eeeee8;
-  --color-muted: #8b8d86;
-  --color-subtle: #6a6c66;
+  --color-muted: #969891;
+  --color-subtle: #858780;
   --color-line: color-mix(in oklab, #eeeee8 12%, transparent);
   --color-line-strong: color-mix(in oklab, #eeeee8 22%, transparent);
   --color-accent: #c8ccd4;
@@ -1357,8 +1357,8 @@
   font-weight: 700;
   border-radius: 20px;
   padding: 3px 9px;
-  background: var(--wash-amber-bg);
-  color: var(--shell-accent);
+  background: color-mix(in srgb, var(--shell-accent) 22%, #181a18);
+  color: #f3c87a;
   transition:
     background 260ms ease,
     color 260ms ease;
@@ -1792,7 +1792,7 @@
   min-width: 86px;
   justify-content: center;
   background: var(--emerald);
-  color: #fff;
+  color: #0a0b0a;
   transition: transform 140ms ease;
 }
 .scene-quote-go.is-pressed {
@@ -4505,7 +4505,7 @@
   border-color: var(--wash-amber-border);
 }
 .scene-site-stat.is-amber .scene-site-stat-label {
-  color: var(--shell-accent);
+  color: #f3c87a;
 }
 @media (prefers-reduced-motion: reduce) {
   .scene-transit-pill,
@@ -5696,7 +5696,7 @@
   height: 52px;
   border-radius: 999px;
   background: #25d366;
-  color: #fff;
+  color: #0a0b0a;
   text-decoration: none;
   box-shadow:
     0 10px 28px -12px rgb(0 0 0 / 0.7),
@@ -5707,7 +5707,7 @@
 }
 .wa-chat:hover {
   filter: brightness(1.06);
-  color: #fff;
+  color: #0a0b0a;
 }
 .wa-chat:active {
   transform: scale(0.97);

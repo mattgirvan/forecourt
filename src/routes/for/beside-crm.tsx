@@ -2,9 +2,9 @@ import { createFileRoute } from "@tanstack/react-router";
 import { PhrasePage } from "@/components/for/phrase-page";
 import { pageHead } from "@/lib/seo";
 
-const TITLE = "Beside your CRM, not instead of it | Forecourt";
+const TITLE = "Motor trade desk beside your CRM | Forecourt";
 const DESCRIPTION =
-  "Your CRM keeps the book. Forecourt keeps the floor moving. Stock book and deal paperwork stay where they are. The gaps the floor feels every day get a desk screen next to the system you already pay for.";
+  "Car dealer floor software beside your CRM for UK motor trade desks: key locator, photo status, car location, and customer live track.";
 
 export const Route = createFileRoute("/for/beside-crm")({
   component: BesideCrmPage,

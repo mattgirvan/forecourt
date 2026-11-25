@@ -9,6 +9,7 @@ import {
   createHeadInjector,
   grokXCreatorHeadTags,
   injectGrokPwaHead,
+  isAppPortalPath,
   isDocumentPath,
   isInstallQuery,
   publicAppHost,
@@ -547,4 +548,17 @@ test("site.json image that is missing from public/ falls back to og.jpg", () => 
   // Anything but a plain root-level jpg/png name is ignored.
   writeFileSync(join(root, "public/evil.jpg"), "x");
   assert.equal(resolveOgCardAsset({ card: "custom", image: "/../public/evil.jpg" }, root), "/og.jpg");
+});
+
+test("scopes Grok PWA chrome to app and portal routes only", () => {
+  assert.equal(isAppPortalPath("/account"), true);
+  assert.equal(isAppPortalPath("/account/billing"), true);
+  assert.equal(isAppPortalPath("/office"), true);
+  assert.equal(isAppPortalPath("/office/123"), true);
+  assert.equal(isAppPortalPath("/login"), true);
+  assert.equal(isAppPortalPath("/"), false);
+  assert.equal(isAppPortalPath("/pricing"), false);
+  assert.equal(isAppPortalPath("/how"), false);
+  assert.equal(isAppPortalPath("/for/beside-crm"), false);
+  assert.equal(isAppPortalPath("/missing-page"), false);
 });

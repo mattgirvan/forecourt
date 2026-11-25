@@ -126,6 +126,19 @@ export function isInstallQuery(url) {
   return (install === "1" || install === "true") && platform === "ios";
 }
 
+/** App and portal routes that keep the Grok PWA chrome and extensions script. */
+export function isAppPortalPath(pathname) {
+  const path = String(pathname ?? "").replace(/\/+$/, "") || "/";
+  return (
+    path === "/account" ||
+    path.startsWith("/account/") ||
+    path === "/office" ||
+    path.startsWith("/office/") ||
+    path === "/login" ||
+    path.startsWith("/login/")
+  );
+}
+
 /** Paths that can carry an app document (vs assets / API / internals). */
 export function isDocumentPath(pathname) {
   const path = String(pathname ?? "");

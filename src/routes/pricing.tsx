@@ -15,9 +15,9 @@ export const Route = createFileRoute("/pricing")({
   component: PricingPage,
   head: () =>
     pageHead({
-      title: "Forecourt pricing for UK dealerships | Forecourt",
+      title: "Car dealer pricing beside your CRM | Forecourt",
       description:
-        "Site trial, franchise, and group options. One desk that sits beside your CRM for keys, photo status, and customer live track.",
+        "UK motor trade pricing beside your CRM: 60-day site trial, franchise, and group packages for stock, key locator, and customer live track.",
       path: "/pricing",
     }),
 });

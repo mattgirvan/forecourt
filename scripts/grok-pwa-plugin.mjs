@@ -11,6 +11,7 @@ import {
   acceptsHtml,
   createHeadInjector,
   injectGrokPwaHead,
+  isAppPortalPath,
   isDocumentPath,
   isInstallQuery,
   renderInstallPageHtml,
@@ -62,7 +63,7 @@ function serveGrokPwa(middlewares) {
       return;
     }
 
-    if (isInstallQuery(rawUrl) && isDocumentPath(pathOnly) && acceptsHtml(req.headers.accept)) {
+    if (isInstallQuery(rawUrl) && isDocumentPath(pathOnly) && isAppPortalPath(pathOnly) && acceptsHtml(req.headers.accept)) {
       try {
         sendHtml(res, renderInstallPage(requestHost(req), rawUrl));
       } catch (err) {
@@ -93,7 +94,8 @@ function wrapHtmlResponses(middlewares, cwd) {
       method === "GET" &&
       String(req.headers.accept ?? "").includes("text/html") &&
       !isInstallQuery(rawUrl) &&
-      isDocumentPath(pathOnly);
+      isDocumentPath(pathOnly) &&
+      isAppPortalPath(pathOnly);
     if (!looksLikeDocument) {
       next();
       return;

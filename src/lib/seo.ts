@@ -1,4 +1,5 @@
-import { OG_IMAGE_META, SITE } from "./site";
+import { PLANS, gbpPence } from "./catalog.ts";
+import { OG_IMAGE_META, SITE } from "./site.ts";
 
 export type PageSeo = {
   title: string;
@@ -13,7 +14,7 @@ export type PageSeo = {
 
 /** Unique title, description, OG, Twitter, and canonical for a marketing route. */
 export function pageHead({ title, description, path = "/", ogDescription, noindex }: PageSeo) {
-  const url = path === "/" ? SITE.url : `${SITE.url}${path}`;
+  const url = path === "/" ? `${SITE.url}/` : `${SITE.url}${path}`;
   const ogDesc = ogDescription ?? description;
   return {
     meta: [
@@ -35,15 +36,17 @@ export function pageHead({ title, description, path = "/", ogDescription, noinde
 
 /** Locked homepage titles and descriptions (Pulse). */
 export const HOME_SEO = {
-  title: "Dealership floor OS beside your CRM | Forecourt",
+  title: "Car dealer desk beside your CRM | Forecourt",
   description:
-    "Your CRM keeps the book. Forecourt keeps the floor moving: keys, photo status, where the car is, and customer live track. Beside your CRM, not instead of it.",
+    "Car dealer floor desk for UK motor trade, beside your CRM: key locator, photo status, car location, and customer live track.",
   ogDescription:
-    "Beside your CRM, not instead of it. Keys, photo status, car location, and customer live track on the sales desk.",
+    "Car dealer floor desk beside your CRM for UK motor trade: key locator, photo status, car location, and customer live track.",
 } as const;
 
-/** Homepage JSON-LD: Organization + SoftwareApplication. */
+/** Homepage JSON-LD: Organization + SoftwareApplication with public /pricing offers. */
 export function homeJsonLd() {
+  const pricingUrl = `${SITE.url}/pricing`;
+  const uk = { "@type": "Country", name: "United Kingdom" };
   return {
     "@context": "https://schema.org",
     "@graph": [
@@ -51,9 +54,17 @@ export function homeJsonLd() {
         "@type": "Organization",
         "@id": `${SITE.url}/#organization`,
         name: SITE.name,
-        url: SITE.url,
+        url: `${SITE.url}/`,
+        logo: {
+          "@type": "ImageObject",
+          url: `${SITE.url}/icon-512.png`,
+          width: 512,
+          height: 512,
+        },
         email: SITE.email,
         telephone: SITE.phoneE164,
+        areaServed: uk,
+        sameAs: [SITE.linkedinHref, SITE.instagramHref],
       },
       {
         "@type": "SoftwareApplication",
@@ -61,10 +72,53 @@ export function homeJsonLd() {
         name: SITE.name,
         applicationCategory: "BusinessApplication",
         operatingSystem: "Web",
-        url: SITE.url,
+        url: `${SITE.url}/`,
+        areaServed: uk,
         description:
-          "Forecourt sits beside your dealer CRM and keeps the floor moving: universal smart key locator, car photo status, where the car is, customer live order tracking, and staff to-dos for UK motor trade desks.",
+          "Forecourt sits beside your car dealer CRM and keeps the UK motor trade floor moving: smart key locator, car photo status, vehicle location, customer live order tracking, and staff to-dos.",
         provider: { "@id": `${SITE.url}/#organization` },
+        offers: [
+          {
+            "@type": "Offer",
+            name: `${PLANS.site.name} 60-day trial`,
+            price: String((PLANS.site.trialPence ?? 0) / 100),
+            priceCurrency: "GBP",
+            url: pricingUrl,
+            availability: "https://schema.org/InStock",
+            eligibleRegion: uk,
+            description: `60-day trial for one dealership (${gbpPence(PLANS.site.trialPence ?? 0)}, credited against ${gbpPence(PLANS.site.setupPence)} setup; then ${gbpPence(PLANS.site.monthPence)} a month, including VAT).`,
+          },
+          {
+            "@type": "Offer",
+            name: `${PLANS.site.name} monthly`,
+            price: String(PLANS.site.monthPence / 100),
+            priceCurrency: "GBP",
+            url: pricingUrl,
+            availability: "https://schema.org/InStock",
+            eligibleRegion: uk,
+            description: `${gbpPence(PLANS.site.setupPence)} setup, then ${gbpPence(PLANS.site.monthPence)} a month from go live, month to month, including VAT.`,
+          },
+          {
+            "@type": "Offer",
+            name: `${PLANS.franchise.name} monthly`,
+            price: String(PLANS.franchise.monthPence / 100),
+            priceCurrency: "GBP",
+            url: pricingUrl,
+            availability: "https://schema.org/InStock",
+            eligibleRegion: uk,
+            description: `${gbpPence(PLANS.franchise.setupPence)} setup, then ${gbpPence(PLANS.franchise.monthPence)} a month for up to 5 sites on a 12-month contract, including VAT.`,
+          },
+          {
+            "@type": "Offer",
+            name: `${PLANS.group.name} per site monthly`,
+            price: String(PLANS.group.monthPence / 100),
+            priceCurrency: "GBP",
+            url: pricingUrl,
+            availability: "https://schema.org/InStock",
+            eligibleRegion: uk,
+            description: `${gbpPence(PLANS.group.setupPence)} setup, then ${gbpPence(PLANS.group.monthPence)} per site a month on a 12-month contract, including VAT.`,
+          },
+        ],
       },
     ],
   };

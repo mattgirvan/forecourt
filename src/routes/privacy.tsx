@@ -9,7 +9,7 @@ export const Route = createFileRoute("/privacy")({
   head: () =>
     pageHead({
       title: "Privacy policy | Forecourt",
-      description: "What Forecourt holds, why, and your rights under UK GDPR.",
+      description: "What Forecourt holds for UK motor trade car dealer desks, why, and your rights under UK GDPR.",
       path: "/privacy",
     }),
 });

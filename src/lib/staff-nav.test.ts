@@ -18,7 +18,7 @@ test("staff with no dealer account are redirected from /account", () => {
 });
 
 test("header and account use the shared helpers with a replace redirect", () => {
-  const header = readFileSync("src/components/site-header.tsx", "utf8");
+  const header = readFileSync("src/components/site-header.tsx", "utf8") + readFileSync("src/components/site-header-auth.tsx", "utf8");
   assert.match(header, /headerAccountLink\(/);
   const account = readFileSync("src/routes/account.tsx", "utf8");
   assert.match(account, /staffAccountRedirect\(/);

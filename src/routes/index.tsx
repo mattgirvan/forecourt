@@ -13,20 +13,35 @@ import { HOME_SEO, homeJsonLd, pageHead } from "@/lib/seo";
 
 export const Route = createFileRoute("/")({
   component: Home,
-  head: () => ({
-    ...pageHead({
+  head: () => {
+    const seo = pageHead({
       title: HOME_SEO.title,
       description: HOME_SEO.description,
       path: "/",
       ogDescription: HOME_SEO.ogDescription,
-    }),
-    scripts: [
+    });
+    return {
+      ...seo,
+      links: [
+        ...seo.links,
+        {
+          rel: "preload",
+          as: "image",
+          type: "image/avif",
+          imageSrcSet:
+            "/images/desk-768.avif 768w, /images/desk-1280.avif 1280w, /images/desk-1728.avif 1728w",
+          imageSizes: "(max-width: 1072px) calc(100vw - 32px), 1024px",
+          fetchPriority: "high",
+        },
+      ],
+      scripts: [
       {
         type: "application/ld+json",
         children: JSON.stringify(homeJsonLd()),
       },
     ],
-  }),
+    };
+  },
 });
 
 const pieces = [
@@ -57,21 +72,25 @@ const floorGaps = [
     title: "Where the car actually is",
     line: "Factory, boat, compound, yard. Not a status code only one person can read.",
     href: "/for/beside-crm" as const,
+    cta: "See how Forecourt sits beside your CRM",
   },
   {
     title: "Where the keys are",
     line: "Cabinet, with PDI, unknown. The host should not have to shout across the showroom.",
     href: "/for/key-locator" as const,
+    cta: "See the smart key locator",
   },
   {
     title: "Has it been photographed",
     line: "On the ramp, in the studio, done. The listing does not wait on a WhatsApp.",
     href: "/for/photo-status" as const,
+    cta: "See car photo status",
   },
   {
     title: "The customer already knows",
     line: "They open their order and see the car. The exec is not a switchboard.",
     href: "/for/customer-live-track" as const,
+    cta: "See customer live order tracking",
   },
 ] as const;
 
@@ -127,7 +146,29 @@ function Home() {
           className="rise mx-auto mt-14 max-w-5xl overflow-hidden rounded-[2rem] border border-line shadow-soft sm:rounded-[2.5rem]"
           style={{ animationDelay: "340ms" }}
         >
-          <img src="/images/desk.jpg" alt="Forecourt open on a tablet at a sales desk, beside car keys and a deal file" width={1728} height={1152} className="hero-still aspect-[3/2] h-auto w-full bg-[#141614] object-cover" />
+          <picture>
+            <source
+              type="image/avif"
+              srcSet="/images/desk-768.avif 768w, /images/desk-1280.avif 1280w, /images/desk-1728.avif 1728w"
+              sizes="(max-width: 1072px) calc(100vw - 32px), 1024px"
+            />
+            <source
+              type="image/webp"
+              srcSet="/images/desk-768.webp 768w, /images/desk-1280.webp 1280w, /images/desk-1728.webp 1728w"
+              sizes="(max-width: 1072px) calc(100vw - 32px), 1024px"
+            />
+            <img
+              src="/images/desk.jpg"
+              srcSet="/images/desk-768.jpg 768w, /images/desk.jpg 1728w"
+              sizes="(max-width: 1072px) calc(100vw - 32px), 1024px"
+              alt="Forecourt open on a tablet at a sales desk, beside car keys and a deal file"
+              width={1728}
+              height={1152}
+              fetchPriority="high"
+              decoding="async"
+              className="hero-still aspect-[3/2] h-auto w-full bg-[#141614] object-cover"
+            />
+          </picture>
         </div>
       </section>
 
@@ -154,9 +195,9 @@ function Home() {
               <p className="mt-2 text-[15px] leading-relaxed text-muted">{g.line}</p>
               <Link
                 to={g.href}
-                className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-fg underline-offset-4 hover:underline"
+                className="mt-4 inline-flex min-h-6 items-center gap-1 text-sm font-medium text-fg underline-offset-4 hover:underline"
               >
-                Read more <ArrowRight className="size-3.5" />
+                {g.cta} <ArrowRight className="size-3.5 shrink-0" />
               </Link>
             </Reveal>
           ))}
@@ -191,7 +232,29 @@ function Home() {
 
       <section className="px-4 py-8 sm:px-6">
         <div className="relative mx-auto max-w-5xl overflow-hidden rounded-[2rem] border border-line">
-          <img src="/images/forecourt.jpg" alt="" className="h-72 w-full object-cover sm:h-[28rem]" />
+          <picture>
+            <source
+              type="image/avif"
+              srcSet="/images/forecourt-768.avif 768w, /images/forecourt-1280.avif 1280w, /images/forecourt-1792.avif 1792w"
+              sizes="(max-width: 1072px) calc(100vw - 32px), 1024px"
+            />
+            <source
+              type="image/webp"
+              srcSet="/images/forecourt-768.webp 768w, /images/forecourt-1280.webp 1280w, /images/forecourt-1792.webp 1792w"
+              sizes="(max-width: 1072px) calc(100vw - 32px), 1024px"
+            />
+            <img
+              src="/images/forecourt.jpg"
+              srcSet="/images/forecourt-768.jpg 768w, /images/forecourt.jpg 1792w"
+              sizes="(max-width: 1072px) calc(100vw - 32px), 1024px"
+              alt="Two cars parked on a wet dealership forecourt at dusk outside a lit showroom"
+              width={1792}
+              height={1008}
+              loading="lazy"
+              decoding="async"
+              className="h-72 w-full object-cover sm:h-[28rem]"
+            />
+          </picture>
           <div className="absolute inset-0 bg-gradient-to-t from-bg via-bg/20 to-transparent" />
           <p className="absolute bottom-8 left-8 right-8 max-w-md text-2xl font-semibold tracking-tight sm:text-3xl">
             Built for the person standing next to the car.
@@ -223,11 +286,11 @@ function Home() {
         </Reveal>
         <ol className="mt-14 grid gap-4 lg:grid-cols-3">
           {steps.map((s, i) => (
-            <Reveal
-              key={s.n}
-              delay={i * 90}
-              className="flex flex-col rounded-[1.75rem] border border-line bg-surface p-7"
-            >
+            <li key={s.n} className="flex">
+              <Reveal
+                delay={i * 90}
+                className="flex flex-1 flex-col rounded-[1.75rem] border border-line bg-surface p-7"
+              >
               <div className="flex size-10 items-center justify-center rounded-full bg-fg text-sm font-semibold text-accent-fg">
                 {s.n}
               </div>
@@ -245,7 +308,8 @@ function Home() {
                   {s.cta} <ArrowRight className="size-4" />
                 </Link>
               )}
-            </Reveal>
+              </Reveal>
+            </li>
           ))}
         </ol>
         <Reveal className="mt-6">

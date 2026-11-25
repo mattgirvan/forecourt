@@ -9,9 +9,9 @@ export const Route = createFileRoute("/contact")({
   component: ContactPage,
   head: () =>
     pageHead({
-      title: "Contact Forecourt | UK motor trade desks",
+      title: "Contact Forecourt | Car dealer and motor trade",
       description:
-        "Ask about a trial, group pricing, or a site that does not fit the standard packages. We reply from hello@forecourt.me.",
+        "Ask about a UK car dealer trial, motor trade group pricing, or sitting beside your CRM. Replies from hello@forecourt.me.",
       path: "/contact",
     }),
 });
