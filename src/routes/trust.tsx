@@ -12,9 +12,9 @@ export const Route = createFileRoute("/trust")({
   component: TrustPage,
   head: () =>
     pageHead({
-      title: "Trust and how Forecourt works with your CRM | Forecourt",
+      title: "Car dealer data isolation beside your CRM | Forecourt",
       description:
-        "Built for franchise and group desks. Your stock stays yours. Forecourt sits beside the CRM and DMS you already pay for.",
+        "Built in Scotland for UK motor trade and car dealer desks. One rooftop, one database, sitting beside your CRM and DMS.",
       path: "/trust",
     }),
 });

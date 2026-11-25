@@ -8,7 +8,7 @@ export const Route = createFileRoute("/dpa")({
   head: () =>
     pageHead({
       title: "Data processing agreement | Forecourt",
-      description: "How Forecourt processes dealership data as a processor under UK GDPR.",
+      description: "How Forecourt processes UK car dealer and motor trade desk data under UK GDPR.",
       path: "/dpa",
     }),
 });

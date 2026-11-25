@@ -14,9 +14,9 @@ export const Route = createFileRoute("/how")({
   component: HowPage,
   head: () =>
     pageHead({
-      title: "How Forecourt sits beside your CRM | Forecourt",
+      title: "How car dealer desks run beside your CRM | Forecourt",
       description:
-        "See how Forecourt plugs into the stock system you already run, puts your name on a desk, and keeps the floor moving without replacing your CRM.",
+        "See how Forecourt sits beside your car dealer CRM, loads stock for UK motor trade teams, and keeps the showroom floor moving.",
       path: "/how",
     }),
 });

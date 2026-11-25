@@ -2,9 +2,9 @@ import { createFileRoute } from "@tanstack/react-router";
 import { PhrasePage } from "@/components/for/phrase-page";
 import { pageHead } from "@/lib/seo";
 
-const TITLE = "Dealership key locator beside your CRM | Forecourt";
+const TITLE = "Car dealer key locator beside your CRM | Forecourt";
 const DESCRIPTION =
-  "Stop shouting across the showroom for keys. Forecourt adds a universal smart key locator next to the CRM you already run.";
+  "Car dealer key locator beside your CRM for UK motor trade showrooms. Track keys in the cabinet, with PDI, or on the floor.";
 
 export const Route = createFileRoute("/for/key-locator")({
   component: KeyLocatorPage,

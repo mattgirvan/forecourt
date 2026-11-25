@@ -9,7 +9,7 @@ export const Route = createFileRoute("/terms")({
   head: () =>
     pageHead({
       title: "Terms of use | Forecourt",
-      description: "Terms for using Forecourt websites, accounts, and paid desks.",
+      description: "Business terms for UK car dealer and motor trade desks using Forecourt beside your CRM.",
       path: "/terms",
     }),
 });

@@ -5,14 +5,13 @@ import { AuthCatcher } from "@/components/auth-catcher";
 import { PreviewHostBridge } from "@/components/preview-host-bridge";
 import { SiteShell } from "@/components/site-shell";
 import { Button } from "@/components/ui/button";
+import { HOME_SEO } from "@/lib/seo";
 import { OG_IMAGE_META, SITE } from "@/lib/site";
 import appCss from "../styles.css?url";
 
-const DEFAULT_TITLE = "Dealership floor OS beside your CRM | Forecourt";
-const DEFAULT_DESCRIPTION =
-  "Your CRM keeps the book. Forecourt keeps the floor moving: keys, photo status, where the car is, and customer live track. Beside your CRM, not instead of it.";
-const DEFAULT_OG_DESCRIPTION =
-  "Beside your CRM, not instead of it. Keys, photo status, car location, and customer live track on the sales desk.";
+const DEFAULT_TITLE = HOME_SEO.title;
+const DEFAULT_DESCRIPTION = HOME_SEO.description;
+const DEFAULT_OG_DESCRIPTION = HOME_SEO.ogDescription;
 
 const BASE_LINKS = [
   { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },

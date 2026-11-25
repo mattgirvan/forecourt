@@ -2,9 +2,9 @@ import { createFileRoute } from "@tanstack/react-router";
 import { PhrasePage } from "@/components/for/phrase-page";
 import { pageHead } from "@/lib/seo";
 
-const TITLE = "Car photo status for dealership stock | Forecourt";
+const TITLE = "Car dealer photo status beside your CRM | Forecourt";
 const DESCRIPTION =
-  "Know if a car is on the ramp, in the studio, or done. Forecourt photo status stops stock waiting on a WhatsApp thread.";
+  "Car dealer photo status beside your CRM for UK motor trade stock. See on the ramp, in the studio, or done without chasing WhatsApp.";
 
 export const Route = createFileRoute("/for/photo-status")({
   component: PhotoStatusPage,

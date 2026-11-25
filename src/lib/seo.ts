@@ -1,5 +1,5 @@
-import { PLANS, gbpPence } from "./catalog";
-import { OG_IMAGE_META, SITE } from "./site";
+import { PLANS, gbpPence } from "./catalog.ts";
+import { OG_IMAGE_META, SITE } from "./site.ts";
 
 export type PageSeo = {
   title: string;
@@ -36,11 +36,11 @@ export function pageHead({ title, description, path = "/", ogDescription, noinde
 
 /** Locked homepage titles and descriptions (Pulse). */
 export const HOME_SEO = {
-  title: "Dealership floor OS beside your CRM | Forecourt",
+  title: "Car dealer desk beside your CRM | Forecourt",
   description:
-    "Your CRM keeps the book. Forecourt keeps the floor moving: keys, photo status, where the car is, and customer live track. Beside your CRM, not instead of it.",
+    "Car dealer floor desk for UK motor trade, beside your CRM: key locator, photo status, car location, and customer live track.",
   ogDescription:
-    "Beside your CRM, not instead of it. Keys, photo status, car location, and customer live track on the sales desk.",
+    "Car dealer floor desk beside your CRM for UK motor trade: key locator, photo status, car location, and customer live track.",
 } as const;
 
 /** Homepage JSON-LD: Organization + SoftwareApplication with public /pricing offers. */
