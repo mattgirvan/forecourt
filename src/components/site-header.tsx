@@ -1,10 +1,8 @@
+import { useEffect, useState, type ComponentType } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { Mark } from "@/components/mark";
 import { Button } from "@/components/ui/button";
-import { SignedIn, SignedOut, UserButton } from "@/lib/sb-session";
-import { useWhoAmI } from "@/lib/who-am-i";
 import { cn } from "@/lib/utils";
-import { headerAccountLink } from "@/lib/staff-nav";
 import { GetUpdatesButton } from "@/components/newsletter-reach";
 
 const links = [
@@ -43,10 +41,41 @@ function NavLink({
   );
 }
 
+function SignedOutControls() {
+  return (
+    <>
+      <Link
+        to="/login"
+        className="hidden rounded-full px-3 py-1.5 text-[13px] text-muted hover:text-fg sm:inline"
+      >
+        Sign in
+      </Link>
+      <Button size="sm" className="rounded-full" asChild>
+        <Link to="/account">Get started</Link>
+      </Button>
+    </>
+  );
+}
+
 export function SiteHeader() {
-  const { me } = useWhoAmI();
-  // Staff land on the office, not the dealer account page.
-  const accountLink = headerAccountLink(me?.team);
+  const [AuthControls, setAuthControls] = useState<ComponentType | null>(null);
+
+  useEffect(() => {
+    let hasStoredSession = false;
+    try {
+      hasStoredSession = window.localStorage.getItem("forecourt-auth") !== null;
+    } catch {
+      hasStoredSession = false;
+    }
+    if (!hasStoredSession) return;
+    let active = true;
+    void import("@/components/site-header-auth").then((mod) => {
+      if (active) setAuthControls(() => mod.default);
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   return (
     <header className="sticky top-0 z-40">
@@ -64,25 +93,7 @@ export function SiteHeader() {
             <GetUpdatesButton />
           </nav>
           <div className="flex items-center gap-1">
-            <SignedIn>
-              <Button size="sm" variant="secondary" className="rounded-full" asChild>
-                <Link to={accountLink.to} search={{}}>
-                  {accountLink.label}
-                </Link>
-              </Button>
-              <UserButton />
-            </SignedIn>
-            <SignedOut>
-              <Link
-                to="/login"
-                className="hidden rounded-full px-3 py-1.5 text-[13px] text-muted hover:text-fg sm:inline"
-              >
-                Sign in
-              </Link>
-              <Button size="sm" className="rounded-full" asChild>
-                <Link to="/account">Get started</Link>
-              </Button>
-            </SignedOut>
+            {AuthControls ? <AuthControls /> : <SignedOutControls />}
           </div>
         </div>
         {/* Mobile row: tabs sized to their labels, 44px tall, never scrolls sideways. Labels wrap before they overflow. */}

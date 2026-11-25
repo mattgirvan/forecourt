@@ -13,20 +13,35 @@ import { HOME_SEO, homeJsonLd, pageHead } from "@/lib/seo";
 
 export const Route = createFileRoute("/")({
   component: Home,
-  head: () => ({
-    ...pageHead({
+  head: () => {
+    const seo = pageHead({
       title: HOME_SEO.title,
       description: HOME_SEO.description,
       path: "/",
       ogDescription: HOME_SEO.ogDescription,
-    }),
-    scripts: [
+    });
+    return {
+      ...seo,
+      links: [
+        ...seo.links,
+        {
+          rel: "preload",
+          as: "image",
+          type: "image/avif",
+          imageSrcSet:
+            "/images/desk-768.avif 768w, /images/desk-1280.avif 1280w, /images/desk-1728.avif 1728w",
+          imageSizes: "(max-width: 1072px) calc(100vw - 32px), 1024px",
+          fetchPriority: "high",
+        },
+      ],
+      scripts: [
       {
         type: "application/ld+json",
         children: JSON.stringify(homeJsonLd()),
       },
     ],
-  }),
+    };
+  },
 });
 
 const pieces = [
@@ -127,7 +142,29 @@ function Home() {
           className="rise mx-auto mt-14 max-w-5xl overflow-hidden rounded-[2rem] border border-line shadow-soft sm:rounded-[2.5rem]"
           style={{ animationDelay: "340ms" }}
         >
-          <img src="/images/desk.jpg" alt="Forecourt open on a tablet at a sales desk, beside car keys and a deal file" width={1728} height={1152} className="hero-still aspect-[3/2] h-auto w-full bg-[#141614] object-cover" />
+          <picture>
+            <source
+              type="image/avif"
+              srcSet="/images/desk-768.avif 768w, /images/desk-1280.avif 1280w, /images/desk-1728.avif 1728w"
+              sizes="(max-width: 1072px) calc(100vw - 32px), 1024px"
+            />
+            <source
+              type="image/webp"
+              srcSet="/images/desk-768.webp 768w, /images/desk-1280.webp 1280w, /images/desk-1728.webp 1728w"
+              sizes="(max-width: 1072px) calc(100vw - 32px), 1024px"
+            />
+            <img
+              src="/images/desk.jpg"
+              srcSet="/images/desk-768.jpg 768w, /images/desk.jpg 1728w"
+              sizes="(max-width: 1072px) calc(100vw - 32px), 1024px"
+              alt="Forecourt open on a tablet at a sales desk, beside car keys and a deal file"
+              width={1728}
+              height={1152}
+              fetchPriority="high"
+              decoding="async"
+              className="hero-still aspect-[3/2] h-auto w-full bg-[#141614] object-cover"
+            />
+          </picture>
         </div>
       </section>
 
@@ -191,7 +228,29 @@ function Home() {
 
       <section className="px-4 py-8 sm:px-6">
         <div className="relative mx-auto max-w-5xl overflow-hidden rounded-[2rem] border border-line">
-          <img src="/images/forecourt.jpg" alt="" className="h-72 w-full object-cover sm:h-[28rem]" />
+          <picture>
+            <source
+              type="image/avif"
+              srcSet="/images/forecourt-768.avif 768w, /images/forecourt-1280.avif 1280w, /images/forecourt-1792.avif 1792w"
+              sizes="(max-width: 1072px) calc(100vw - 32px), 1024px"
+            />
+            <source
+              type="image/webp"
+              srcSet="/images/forecourt-768.webp 768w, /images/forecourt-1280.webp 1280w, /images/forecourt-1792.webp 1792w"
+              sizes="(max-width: 1072px) calc(100vw - 32px), 1024px"
+            />
+            <img
+              src="/images/forecourt.jpg"
+              srcSet="/images/forecourt-768.jpg 768w, /images/forecourt.jpg 1792w"
+              sizes="(max-width: 1072px) calc(100vw - 32px), 1024px"
+              alt=""
+              width={1792}
+              height={1008}
+              loading="lazy"
+              decoding="async"
+              className="h-72 w-full object-cover sm:h-[28rem]"
+            />
+          </picture>
           <div className="absolute inset-0 bg-gradient-to-t from-bg via-bg/20 to-transparent" />
           <p className="absolute bottom-8 left-8 right-8 max-w-md text-2xl font-semibold tracking-tight sm:text-3xl">
             Built for the person standing next to the car.
