@@ -19,6 +19,7 @@ import { grokOgIdentity } from "virtual:grok-og-identity";
 import {
   acceptsHtml,
   createHeadInjector,
+  isAppPortalPath,
   isDocumentPath,
   isInstallQuery,
   renderInstallPageHtml,
@@ -82,6 +83,7 @@ export default async function grokPwaMiddleware(
   if (
     isInstallQuery(urlWithQuery) &&
     isDocumentPath(path) &&
+    isAppPortalPath(path) &&
     acceptsHtml(event.req.headers.get("accept"))
   ) {
     const html = renderInstallPageHtml(installPageTemplate, {
@@ -96,7 +98,7 @@ export default async function grokPwaMiddleware(
     });
   }
 
-  if (!isDocumentPath(path)) return next();
+  if (!isDocumentPath(path) || !isAppPortalPath(path)) return next();
 
   const result = await next();
   if (
